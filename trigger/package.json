@@ -1,0 +1,16 @@
+{
+  "name": "hermes-trigger-worker",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "trigger.dev dev --config trigger.config.ts",
+    "deploy": "trigger.dev deploy --config trigger.config.ts",
+    "typecheck": "tsc --noEmit -p tsconfig.json"
+  },
+  "dependencies": {
+    "@trigger.dev/sdk": "^4.4.3"
+  },
+  "devDependencies": {
+    "typescript": "^5.8.3"
+  }
+}
