@@ -1,7 +1,7 @@
 from fastapi import Depends, FastAPI
 
-from app.config import Settings
-from app.dependencies import settings_dependency
+from app.core.config import Settings
+from app.core.dependencies import settings_dependency
 
 
 def create_app() -> FastAPI:
