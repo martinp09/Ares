@@ -13,6 +13,8 @@ sources:
 
 The UI should be the operator cockpit for Hermes, not a separate CRM clone.
 
+Current branch note: Hermes already ships the native shell scaffold and the phase-6 backend read models that power dashboard, inbox, approvals, runs, agents, and settings surfaces.
+
 What it needs on day one:
 - inbox / conversation view
 - lead and contact context

@@ -4,7 +4,7 @@
 
 ## Stable Facts
 
-- Repo: `/Users/solomartin/Projects/Hermes Central Command`
+- Repo: `/home/workspace/Hermes-Central-Command`
 - Purpose: reusable Hermes-controlled business runtime
 - Operating model: generalist core first, industry packs second
 - First optimization target: real estate
@@ -26,7 +26,7 @@
 2. attach Trigger tasks to runtime run/artifact/event updates
 3. finish operator/docs alignment across this repo and `Mailers AWF`
 4. start the QC + devil's-advocate review loop once the remaining docs/schema commits are in
-5. wire the Mission Control frontend shell to native backend read-model routes when phase-6 backend work lands
+5. sync README, specs, wiki, CONTEXT, and memory to the shipped Mission Control read models and UI shell
 
 ## Read These Sections In `memory.md`
 

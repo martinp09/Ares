@@ -10,6 +10,10 @@ Build a native Mission Control experience inside Hermes Central Command that bec
 
 Hermes Central Command stays the control plane and source of truth. The backend remains FastAPI. The frontend is a React/TypeScript app inside the same repo, not a separate product. Trigger.dev handles durable jobs, delayed sequences, retries, and background orchestration. Supabase stores canonical state. Twilio and Vapi remain transport/provider layers. MCP is the tool bridge. A2A is the agent-to-agent communication layer.
 
+Implementation status:
+- The current branch already ships the Mission Control read models and native shell scaffold from phase 6.
+- Supabase remains the canonical target, but live wiring is still deferred on this machine.
+
 Rust is not the primary stack for this phase. It may be introduced later for narrow performance-critical workers or adapters only if profiling proves it is necessary.
 
 ## Benchmark-Informed Product Direction

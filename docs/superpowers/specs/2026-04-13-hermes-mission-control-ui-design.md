@@ -10,6 +10,10 @@ Build a high-density, agent-first Mission Control UI that gives Martin a single 
 
 The UI lives inside the Hermes Central Command repo as `apps/mission-control/`. It talks to the FastAPI backend through typed API routes and read models. It should feel like an operator workbench: fast, dense, visible, and action-oriented.
 
+Implementation status:
+- The current branch already ships the native Mission Control shell scaffold with dashboard, inbox, approvals, runs, agents, and settings surfaces.
+- This spec still defines the intended operator-cockpit behavior; the UI stays native to the repo and backend-driven.
+
 The UI is not the source of truth. It renders Hermes state and sends commands back to Hermes. Trigger.dev, Twilio, Vapi, and Supabase remain behind the curtain.
 
 ## Design Benchmarks

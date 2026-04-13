@@ -1,6 +1,6 @@
 # Hermes Mission Control Blueprint and Implementation Plan
 
-> Execution root: `/home/workspace/_tmp/Hermes-Central-Command`
+> Execution root: `/home/workspace/Hermes-Central-Command`
 >
 > Use this blueprint exactly in order. Do not start a later phase early. Do not back-edit an earlier phase unless that earlier file is explicitly listed in the current phase. Every phase ends with an exit gate; do not continue until that gate passes.
 
@@ -25,15 +25,15 @@ The blueprint is intentionally narrow:
 
 ## Current Baseline vs Target Mission Control Shape
 
-The current/origin repo already has the beginnings of the control plane, but the pieces are still separated and partially in-memory.
+The current branch already has most of the control plane in place, with the remaining work concentrated on docs sync, release-gate cleanup, and later Supabase wiring.
 
 Current baseline:
 - `app/` contains the FastAPI runtime and typed routes.
-- `app/services/run_service.py` still owns process-local runtime state through the in-memory `STORE` container.
-- `trigger/src/marketing/runMarketResearch.ts`, `trigger/src/marketing/createCampaignBrief.ts`, `trigger/src/marketing/draftCampaignAssets.ts`, and `trigger/src/marketing/assembleLaunchProposal.ts` are a marketing execution scaffold, not a full mission-control lifecycle.
-- `supabase/migrations/202604130001_hermes_control_plane_core.sql` establishes the database direction, but not the complete runtime contract.
+- `app/services/run_service.py` still uses process-local runtime state through the in-memory `STORE` container, with repository seams under `app/db/`.
+- `app/services/mission_control_service.py` and `apps/mission-control/` now provide the phase-6 Mission Control read models and native cockpit shell.
+- `trigger/src/marketing/runMarketResearch.ts`, `trigger/src/marketing/createCampaignBrief.ts`, `trigger/src/marketing/draftCampaignAssets.ts`, and `trigger/src/marketing/assembleLaunchProposal.ts` remain the marketing execution scaffold.
+- `supabase/migrations/202604130001_hermes_control_plane_core.sql` and `supabase/migrations/202604130003_mission_control_managed_agents.sql` establish the database direction and managed-agent schema seam.
 - The current Hermes tool layer is still a projection of hard-coded command policy rather than a durable registry.
-- The worker layer can execute domain steps, but it does not yet report back into a canonical runtime lifecycle.
 
 Target shape:
 - every command, approval, run, artifact, and event is durably recorded in Supabase.
@@ -189,12 +189,12 @@ These are the non-negotiable contracts that later implementation passes must kee
 
 ## Required Local Preconditions
 
-Run all commands from `/home/workspace/_tmp/Hermes-Central-Command`.
+Run all commands from `/home/workspace/Hermes-Central-Command`.
 
 Before Phase 1, make sure these commands work:
 
 ```bash
-cd /home/workspace/_tmp/Hermes-Central-Command
+cd /home/workspace/Hermes-Central-Command
 uv --version
 node --version
 npm --version
@@ -204,7 +204,7 @@ supabase --version
 If the local Supabase stack is not running, start it before Phase 2:
 
 ```bash
-cd /home/workspace/_tmp/Hermes-Central-Command
+cd /home/workspace/Hermes-Central-Command
 supabase start
 ```
 
@@ -247,7 +247,7 @@ No file edits in this phase.
 ### Commands
 
 ```bash
-cd /home/workspace/_tmp/Hermes-Central-Command
+cd /home/workspace/Hermes-Central-Command
 uv run pytest -q
 npx tsc -p trigger/tsconfig.json --noEmit
 ```
@@ -335,7 +335,7 @@ Create:
 ### Commands
 
 ```bash
-cd /home/workspace/_tmp/Hermes-Central-Command
+cd /home/workspace/Hermes-Central-Command
 supabase db reset --local
 uv run pytest tests/db/test_commands_repository.py tests/db/test_approvals_repository.py tests/db/test_runs_repository.py tests/test_package_layout.py -q
 ```
@@ -422,7 +422,7 @@ Modify:
 ### Commands
 
 ```bash
-cd /home/workspace/_tmp/Hermes-Central-Command
+cd /home/workspace/Hermes-Central-Command
 uv run pytest tests/api/test_commands.py tests/api/test_approvals.py tests/api/test_runs.py tests/api/test_replays.py -q
 ```
 
@@ -509,7 +509,7 @@ Create:
 ### Commands
 
 ```bash
-cd /home/workspace/_tmp/Hermes-Central-Command
+cd /home/workspace/Hermes-Central-Command
 npx tsc -p trigger/tsconfig.json --noEmit
 uv run pytest tests/api/test_trigger_callbacks.py tests/api/test_marketing_runtime.py tests/domains/marketing/test_marketing_flow.py -q
 ```
@@ -622,7 +622,7 @@ Create:
 ### Commands
 
 ```bash
-cd /home/workspace/_tmp/Hermes-Central-Command
+cd /home/workspace/Hermes-Central-Command
 supabase db reset --local
 uv run pytest tests/api/test_agents.py tests/api/test_sessions.py tests/api/test_outcomes.py tests/api/test_agent_assets.py tests/api/test_hermes_tools.py tests/test_package_layout.py -q
 ```
@@ -733,7 +733,7 @@ Create:
 ### Commands
 
 ```bash
-cd /home/workspace/_tmp/Hermes-Central-Command
+cd /home/workspace/Hermes-Central-Command
 npm --prefix apps/mission-control install
 npm --prefix apps/mission-control run test -- --run
 npm --prefix apps/mission-control run build
@@ -783,7 +783,7 @@ Modify:
 ### Commands
 
 ```bash
-cd /home/workspace/_tmp/Hermes-Central-Command
+cd /home/workspace/Hermes-Central-Command
 supabase db reset --local
 uv run pytest -q
 npx tsc -p trigger/tsconfig.json --noEmit

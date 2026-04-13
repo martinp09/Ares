@@ -121,6 +121,12 @@
 
 ## Change Log
 
+### 2026-04-13 Mission Control Docs Sync
+
+- Updated README, CONTEXT, memory, and Mission Control planning/spec docs to reflect the phase-6 landed read models and native shell
+- Corrected stale repo-root references in the orchestration plan
+- Kept the current phase focus on docs/release-gate cleanup while Supabase persistence remains deferred
+
 ### 2026-04-13 Mission Control Frontend Shell
 
 - Added `apps/mission-control/` as a minimal React/TypeScript Mission Control app scaffold with a dense native shell, dashboard, inbox, approvals, runs, agents, and settings/assets surfaces

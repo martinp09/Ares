@@ -14,6 +14,8 @@ sources:
 
 This note extracts the reusable patterns Hermes should carry forward from Claude Managed Agents and similar agent runtimes.
 
+Current branch note: Hermes now mirrors these patterns in scaffold form for agents, revisions, sessions, permissions, outcomes, and connect-later assets.
+
 ## 1. Versioned agent identity
 An agent should be a versioned artifact, not a mutable prompt fragment.
 

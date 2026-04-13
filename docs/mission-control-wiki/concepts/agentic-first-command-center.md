@@ -17,6 +17,8 @@ The core idea is simple: Hermes should be the system that deploys agents, superv
 
 This means the command center is not a separate dashboard bolted onto a backend. The UI, orchestration, state, and agent controls are all native to Hermes Central Command.
 
+Current branch note: the phase-6 Mission Control read models and native shell scaffold already mirror this direction in code.
+
 Design priorities:
 - typed commands instead of free-form actions
 - approvals where risk is high

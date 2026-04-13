@@ -12,6 +12,8 @@ sources:
 
 Claude Managed Agents is a strong reference model for Hermes because it packages an agent as a versioned configuration with explicit environment, session, tool, and skill boundaries.
 
+Current branch note: Hermes now mirrors the same shape in its managed-agent scaffold so the runtime can grow without turning into a chat-only console.
+
 What matters most for Hermes:
 - versioned agent configs with a stable agent ID
 - agent vs environment separation

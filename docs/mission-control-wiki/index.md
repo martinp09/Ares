@@ -2,6 +2,8 @@
 
 > Content catalog for the Hermes Mission Control research wiki.
 > Last updated: 2026-04-13 | Total pages: 20
+>
+> Current branch note: the phase-6 Mission Control read models and native cockpit shell are already reflected in Hermes Central Command; these pages remain the research and design companion.
 
 ## Entities
 - [[a2a-protocol]] — A2A as the agent-to-agent interoperability standard.
