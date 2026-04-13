@@ -25,3 +25,7 @@ This repo is the deterministic runtime, policy layer, orchestration surface, and
 - `CONTEXT.md` for quick session routing
 - `memory.md` for indexed master memory
 - future runtime database for canonical business state
+
+## Trigger Setup
+
+- Set `TRIGGER_PROJECT_REF` in `.env` before running Trigger commands.

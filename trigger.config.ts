@@ -1,7 +1,11 @@
 import { defineConfig } from "@trigger.dev/sdk";
 
-export default defineConfig({
-  project: "proj_puouljyhwiraonjkpiki",
+const triggerProjectRef = process.env.TRIGGER_PROJECT_REF;
+if (!triggerProjectRef) {
+  throw new Error("Missing TRIGGER_PROJECT_REF environment variable.");
+}
+
+const baseConfig = {
   dirs: ["./trigger"],
   maxDuration: 300,
   retries: {
@@ -14,4 +18,9 @@ export default defineConfig({
       randomize: true
     }
   }
+};
+
+export default defineConfig({
+  project: triggerProjectRef,
+  ...baseConfig
 });
