@@ -10,3 +10,7 @@
 ## [2026-04-13] ingest | agentic-ai research batch
 - Captured sources in raw/articles/
 - Created cross-linked pages for A2A, MCP, OpenAI Agents SDK, GitHub Agentic Workflows, and command-center architecture
+
+## [2026-04-13] ingest | ramp-labs research batch
+- Captured Ramp Labs homepage and experiment themes in raw/articles/
+- Added Ramp Labs entity page and agent-first product pattern notes
