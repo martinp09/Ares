@@ -14,16 +14,16 @@
 
 ## Current Scope
 
-1. establish clean repo, GitHub remote, and fresh Supabase baseline
-2. build runtime skeleton before any seller-ops migration
-3. implement marketing control plane first
+1. keep the new repo, GitHub remote, Trigger.dev setup, and fresh Supabase baseline clean
+2. build the runtime skeleton before any seller-ops migration
+3. implement the marketing control plane first
 
 ## Current TODO
 
-1. scaffold runtime repo structure
-2. port core operating docs and memory conventions
-3. wire fresh Supabase project and clean migration baseline
-4. begin implementation from the approved plan
+1. commit the local operating baseline and CODEX rules
+2. implement the runtime skeleton in this repo
+3. add the fresh control-plane schema in `Mailers AWF`
+4. continue execution from the approved implementation plan
 
 ## Read These Sections In `memory.md`
 

@@ -46,6 +46,9 @@
 - Local `.env` should be ported from the validated `Mailers AWF` environment as needed
 - GitHub owner: `martinp09`
 - Planned local path: `/Users/solomartin/Projects/Hermes Central Command`
+- Trigger.dev CLI login is configured on this machine
+- `TRIGGER_SECRET_KEY` is present in the local `.env`
+- Trigger.dev local worker boot verified against project `proj_puouljyhwiraonjkpiki`
 
 ## Runtime Architecture
 
@@ -82,3 +85,5 @@
 - Confirmed a fresh Supabase project is reachable
 - Confirmed migration dry-run access works against the new project
 - Ported WAT and memory/context operating conventions into the new repo
+- Added Trigger.dev bootstrap files and verified `trigger:dev` reaches a ready local worker
+- Added `CODEX.md` with subagent orchestration and cleanup rules
