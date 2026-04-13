@@ -1,0 +1,19 @@
+[project]
+name = "hermes-central-command"
+version = "0.1.0"
+description = "Deterministic runtime for Hermes control workflows"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi>=0.115,<1.0",
+    "pydantic-settings>=2.6,<3.0",
+]
+
+[dependency-groups]
+dev = [
+    "httpx>=0.27,<1.0",
+    "pytest>=8.3,<9.0",
+]
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
