@@ -4,6 +4,8 @@ from fastapi.testclient import TestClient
 from app.api.site_events import router as site_events_router
 from app.domains.site_events.service import reset_site_event_ingestion_state
 
+AUTH_HEADERS = {"Authorization": "Bearer dev-runtime-key"}
+
 
 def build_client() -> TestClient:
     app = FastAPI()
@@ -27,6 +29,7 @@ def test_site_event_ingestion_returns_202() -> None:
             "idempotency_key": "101:dev:visitor-123:lead_form_submitted:2026-04-13T05:00:00Z",
             "payload": {"source": "landing_page"},
         },
+        headers=AUTH_HEADERS,
     )
 
     assert response.status_code == 202

@@ -5,6 +5,8 @@ from app.api.commands import router as commands_router
 from app.api.runs import router as runs_router
 from app.services.run_service import reset_control_plane_state
 
+AUTH_HEADERS = {"Authorization": "Bearer dev-runtime-key"}
+
 
 def build_client() -> TestClient:
     app = FastAPI()
@@ -25,10 +27,11 @@ def test_get_run_returns_normalized_state_and_summaries() -> None:
             "idempotency_key": "cmd-020",
             "payload": {"topic": "dallas wholesalers"},
         },
+        headers=AUTH_HEADERS,
     )
     run_id = command_response.json()["run_id"]
 
-    response = client.get(f"/runs/{run_id}")
+    response = client.get(f"/runs/{run_id}", headers=AUTH_HEADERS)
     assert response.status_code == 200
     body = response.json()
     assert body["id"] == run_id

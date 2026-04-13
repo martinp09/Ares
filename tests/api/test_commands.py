@@ -5,6 +5,8 @@ from app.api.commands import router as commands_router
 from app.api.runs import router as runs_router
 from app.services.run_service import reset_control_plane_state
 
+AUTH_HEADERS = {"Authorization": "Bearer dev-runtime-key"}
+
 
 def build_client() -> TestClient:
     app = FastAPI()
@@ -26,6 +28,7 @@ def test_create_safe_command_returns_created_shape() -> None:
             "idempotency_key": "cmd-001",
             "payload": {"topic": "houston tired landlords"},
         },
+        headers=AUTH_HEADERS,
     )
 
     assert response.status_code == 201
@@ -50,6 +53,7 @@ def test_create_approval_required_command_returns_pending_approval() -> None:
             "idempotency_key": "cmd-002",
             "payload": {"campaign_id": "camp-1"},
         },
+        headers=AUTH_HEADERS,
     )
 
     assert response.status_code == 201
@@ -70,8 +74,8 @@ def test_idempotent_command_dedupes_without_duplicate_run() -> None:
         "payload": {"topic": "houston absentee owners"},
     }
 
-    first = client.post("/commands", json=payload)
-    second = client.post("/commands", json=payload)
+    first = client.post("/commands", json=payload, headers=AUTH_HEADERS)
+    second = client.post("/commands", json=payload, headers=AUTH_HEADERS)
 
     assert first.status_code == 201
     assert second.status_code == 200

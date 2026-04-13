@@ -4,6 +4,8 @@ from fastapi.testclient import TestClient
 from app.api.hermes_tools import router as hermes_tools_router
 from app.services.run_service import reset_control_plane_state
 
+AUTH_HEADERS = {"Authorization": "Bearer dev-runtime-key"}
+
 
 def build_client() -> TestClient:
     app = FastAPI()
@@ -15,7 +17,7 @@ def test_list_hermes_tools_exposes_marketing_commands() -> None:
     reset_control_plane_state()
     client = build_client()
 
-    response = client.get("/hermes/tools")
+    response = client.get("/hermes/tools", headers=AUTH_HEADERS)
     assert response.status_code == 200
     tools = response.json()["tools"]
     tool_names = {tool["name"] for tool in tools}
@@ -35,6 +37,7 @@ def test_invoke_hermes_tool_reuses_command_service() -> None:
             "idempotency_key": "cmd-040",
             "payload": {"topic": "austin landlords"},
         },
+        headers=AUTH_HEADERS,
     )
 
     assert response.status_code == 201

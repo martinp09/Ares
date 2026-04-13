@@ -334,14 +334,12 @@ alter table public.runs
 alter table public.runs
   add constraint runs_parent_run_tenant_fkey
   foreign key (parent_run_id, business_id, environment)
-  references public.runs (id, business_id, environment)
-  on delete set null;
+  references public.runs (id, business_id, environment);
 
 alter table public.runs
   add constraint runs_replay_source_run_tenant_fkey
   foreign key (replay_source_run_id, business_id, environment)
-  references public.runs (id, business_id, environment)
-  on delete set null;
+  references public.runs (id, business_id, environment);
 
 alter table public.tasks
   add constraint tasks_run_tenant_fkey
@@ -352,8 +350,7 @@ alter table public.tasks
 alter table public.tasks
   add constraint tasks_command_tenant_fkey
   foreign key (command_id, business_id, environment)
-  references public.commands (id, business_id, environment)
-  on delete set null;
+  references public.commands (id, business_id, environment);
 
 alter table public.artifacts
   add constraint artifacts_run_tenant_fkey
@@ -364,8 +361,7 @@ alter table public.artifacts
 alter table public.artifacts
   add constraint artifacts_task_tenant_fkey
   foreign key (task_id, business_id, environment)
-  references public.tasks (id, business_id, environment)
-  on delete set null;
+  references public.tasks (id, business_id, environment);
 
 alter table public.events
   add constraint events_command_tenant_fkey

@@ -5,6 +5,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 class Settings(BaseSettings):
     app_name: str = "Hermes Central Command Runtime"
+    runtime_api_key: str = "dev-runtime-key"
 
     model_config = SettingsConfigDict(
         env_file=".env",

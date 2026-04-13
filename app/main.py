@@ -8,19 +8,21 @@ from app.api.replays import router as replays_router
 from app.api.runs import router as runs_router
 from app.api.site_events import router as site_events_router
 from app.core.config import Settings
-from app.core.dependencies import settings_dependency
+from app.core.dependencies import runtime_api_key_dependency, settings_dependency
 
 
 def create_app() -> FastAPI:
     app = FastAPI(title="Hermes Central Command Runtime")
 
-    app.include_router(commands_router)
-    app.include_router(approvals_router)
-    app.include_router(runs_router)
-    app.include_router(replays_router)
-    app.include_router(hermes_tools_router)
-    app.include_router(site_events_router)
-    app.include_router(marketing_router)
+    protected_dependencies = [Depends(runtime_api_key_dependency)]
+
+    app.include_router(commands_router, dependencies=protected_dependencies)
+    app.include_router(approvals_router, dependencies=protected_dependencies)
+    app.include_router(runs_router, dependencies=protected_dependencies)
+    app.include_router(replays_router, dependencies=protected_dependencies)
+    app.include_router(hermes_tools_router, dependencies=protected_dependencies)
+    app.include_router(site_events_router, dependencies=protected_dependencies)
+    app.include_router(marketing_router, dependencies=protected_dependencies)
 
     @app.get("/health")
     def health_check(_: Settings = Depends(settings_dependency)) -> dict[str, str]:

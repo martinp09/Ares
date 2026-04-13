@@ -6,6 +6,8 @@ from app.api.commands import router as commands_router
 from app.api.replays import router as replays_router
 from app.services.run_service import reset_control_plane_state
 
+AUTH_HEADERS = {"Authorization": "Bearer dev-runtime-key"}
+
 
 def build_client() -> TestClient:
     app = FastAPI()
@@ -27,10 +29,15 @@ def test_safe_autonomous_run_can_be_replayed_without_new_approval() -> None:
             "idempotency_key": "cmd-030",
             "payload": {"topic": "san antonio landlords"},
         },
+        headers=AUTH_HEADERS,
     )
     run_id = command_response.json()["run_id"]
 
-    response = client.post(f"/replays/{run_id}", json={"reason": "new market context"})
+    response = client.post(
+        f"/replays/{run_id}",
+        json={"reason": "new market context"},
+        headers=AUTH_HEADERS,
+    )
     assert response.status_code == 201
     body = response.json()
     assert body["requires_approval"] is False
@@ -50,15 +57,21 @@ def test_side_effecting_run_replay_requires_reapproval() -> None:
             "idempotency_key": "cmd-031",
             "payload": {"campaign_id": "camp-3"},
         },
+        headers=AUTH_HEADERS,
     )
     approval_id = command_response.json()["approval_id"]
     approval_response = client.post(
         f"/approvals/{approval_id}/approve",
         json={"actor_id": "ops-1"},
+        headers=AUTH_HEADERS,
     )
     run_id = approval_response.json()["run_id"]
 
-    response = client.post(f"/replays/{run_id}", json={"reason": "rerun delivery"})
+    response = client.post(
+        f"/replays/{run_id}",
+        json={"reason": "rerun delivery"},
+        headers=AUTH_HEADERS,
+    )
     assert response.status_code == 409
     body = response.json()
     assert body["requires_approval"] is True
