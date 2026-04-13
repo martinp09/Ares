@@ -18,12 +18,14 @@ def test_site_event_ingestion_returns_202() -> None:
     response = client.post(
         "/site-events",
         json={
-            "business_id": "limitless",
+            "business_id": 101,
             "environment": "dev",
             "event_name": "lead_form_submitted",
             "visitor_id": "visitor-123",
             "session_id": "session-456",
-            "properties": {"source": "landing_page"},
+            "occurred_at": "2026-04-13T05:00:00Z",
+            "idempotency_key": "101:dev:visitor-123:lead_form_submitted:2026-04-13T05:00:00Z",
+            "payload": {"source": "landing_page"},
         },
     )
 
@@ -31,3 +33,4 @@ def test_site_event_ingestion_returns_202() -> None:
     body = response.json()
     assert body["status"] == "accepted"
     assert body["event_name"] == "lead_form_submitted"
+    assert body["deduped"] is False

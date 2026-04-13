@@ -22,4 +22,4 @@ def classify_command(command_type: str) -> CommandPolicy:
         return CommandPolicy.APPROVAL_REQUIRED
     if command_type in SAFE_AUTONOMOUS_MARKETING_COMMANDS:
         return CommandPolicy.SAFE_AUTONOMOUS
-    return CommandPolicy.SAFE_AUTONOMOUS
+    return CommandPolicy.FORBIDDEN
