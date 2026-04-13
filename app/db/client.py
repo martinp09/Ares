@@ -29,6 +29,7 @@ class InMemoryControlPlaneStore:
     permission_keys: dict[tuple[str, str], str] = field(default_factory=dict)
     outcomes: dict[str, object] = field(default_factory=dict)
     agent_assets: dict[str, object] = field(default_factory=dict)
+    mission_control_threads: dict[str, object] = field(default_factory=dict)
 
 
 STORE = InMemoryControlPlaneStore()
@@ -48,6 +49,7 @@ def reset_control_plane_store(store: InMemoryControlPlaneStore | None = None) ->
     target.permission_keys.clear()
     target.outcomes.clear()
     target.agent_assets.clear()
+    target.mission_control_threads.clear()
 
 
 class ControlPlaneClient(Protocol):

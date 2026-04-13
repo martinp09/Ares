@@ -6,6 +6,7 @@ from app.api.approvals import router as approvals_router
 from app.api.commands import router as commands_router
 from app.api.hermes_tools import router as hermes_tools_router
 from app.api.marketing import router as marketing_router
+from app.api.mission_control import router as mission_control_router
 from app.api.outcomes import router as outcomes_router
 from app.api.permissions import router as permissions_router
 from app.api.replays import router as replays_router
@@ -32,6 +33,7 @@ def create_app() -> FastAPI:
     app.include_router(permissions_router, dependencies=protected_dependencies)
     app.include_router(outcomes_router, dependencies=protected_dependencies)
     app.include_router(agent_assets_router, dependencies=protected_dependencies)
+    app.include_router(mission_control_router, dependencies=protected_dependencies)
     app.include_router(site_events_router, dependencies=protected_dependencies)
     app.include_router(trigger_callbacks_router, dependencies=protected_dependencies)
     app.include_router(marketing_router, dependencies=protected_dependencies)

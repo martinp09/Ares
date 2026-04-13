@@ -18,6 +18,7 @@
 2. keep the runtime/app split explicit: Hermes shell here, seller-ops legacy stays outside
 3. implement the marketing control plane first
 4. keep managed-agent primitives scaffolded in-memory until live Supabase wiring happens on Martin's MacBook
+5. keep Mission Control read models and the native frontend shell scaffold-first until live backend/Supabase wiring is ready
 
 ## Current TODO
 
@@ -25,6 +26,7 @@
 2. attach Trigger tasks to runtime run/artifact/event updates
 3. finish operator/docs alignment across this repo and `Mailers AWF`
 4. start the QC + devil's-advocate review loop once the remaining docs/schema commits are in
+5. wire the Mission Control frontend shell to native backend read-model routes when phase-6 backend work lands
 
 ## Read These Sections In `memory.md`
 

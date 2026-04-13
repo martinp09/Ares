@@ -44,3 +44,22 @@ def test_db_modules_are_importable():
     assert PermissionsRepository is permissions_repository_module
     assert RunsRepository is runs_repository_module
     assert SessionsRepository is sessions_repository_module
+
+
+def test_mission_control_modules_are_importable():
+    from app.api.mission_control import router
+    from app.models.mission_control import (
+        MissionControlDashboardResponse,
+        MissionControlInboxResponse,
+        MissionControlRunsResponse,
+        MissionControlThreadRecord,
+    )
+    from app.services.mission_control_service import MissionControlService, mission_control_service
+
+    assert router is not None
+    assert MissionControlDashboardResponse is not None
+    assert MissionControlInboxResponse is not None
+    assert MissionControlRunsResponse is not None
+    assert MissionControlThreadRecord is not None
+    assert MissionControlService is not None
+    assert mission_control_service is not None

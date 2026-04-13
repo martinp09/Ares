@@ -81,6 +81,9 @@
   - `POST /agent-assets`
   - `GET /agent-assets/{asset_id}`
   - `POST /agent-assets/{asset_id}/bind`
+  - `GET /mission-control/dashboard`
+  - `GET /mission-control/inbox`
+  - `GET /mission-control/runs`
   - `POST /site-events`
   - `POST /trigger/callbacks/runs/{run_id}/started`
   - `POST /trigger/callbacks/runs/{run_id}/completed`
@@ -118,6 +121,12 @@
 
 ## Change Log
 
+### 2026-04-13 Mission Control Frontend Shell
+
+- Added `apps/mission-control/` as a minimal React/TypeScript Mission Control app scaffold with a dense native shell, dashboard, inbox, approvals, runs, agents, and settings/assets surfaces
+- Added a typed Mission Control API client, tiny query cache helper, and local fixtures so the UI remains buildable and testable without live Supabase or live backend coupling
+- Added Vite/Vitest/TypeScript setup plus targeted UI tests covering shell navigation/search rendering and dashboard count rendering from fixture data
+
 ### 2026-04-12 Repo Bootstrap
 
 - Created the clean `Hermes Central Command` repo path
@@ -134,6 +143,12 @@
 - Updated Hermes tools to respect explicit `always_allow`, `always_ask`, and `forbidden` permission policies without adding live Supabase wiring
 - Added a scaffold-only Supabase migration placeholder for the deferred managed-agent schema seam
 - Added targeted API and package-layout tests covering the new phase-5 surface
+
+### 2026-04-13 Mission Control Read Models
+
+- Added scaffold-first Mission Control read models for dashboard, inbox, and run lineage backed only by the in-memory control-plane store
+- Added protected FastAPI routes for `/mission-control/dashboard`, `/mission-control/inbox`, and `/mission-control/runs`
+- Added targeted API and package-layout tests covering dashboard counts, seeded inbox threads, and replay lineage with `parent_run_id`
 
 ### 2026-04-13 Control Plane Foundation
 
