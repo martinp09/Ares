@@ -57,6 +57,26 @@
 - Supabase for canonical state and audit
 - Hermes-facing tool/API surface
 
+## Current Runtime Surface
+
+- FastAPI routes currently mounted:
+  - `GET /health`
+  - `POST /commands`
+  - `POST /approvals/{approval_id}/approve`
+  - `GET /runs/{run_id}`
+  - `POST /replays/{run_id}`
+  - `GET /hermes/tools`
+  - `POST /hermes/tools/{tool_name}/invoke`
+  - `POST /site-events`
+- Current storage mode:
+  - in-memory control-plane store for commands, approvals, runs, and site events
+- Current workflow coverage:
+  - marketing command classification
+  - Hermes tool contract
+  - replay safety API
+  - Trigger marketing worker chain scaffold
+  - landing-page site-event forwarding contract
+
 ## Hermes Integration
 
 - Hermes handles chat, approvals, coordination, and operator UX
@@ -71,11 +91,11 @@
 
 ## Open Work
 
-1. create runtime skeleton
-2. establish clean migration baseline
-3. implement control-plane schema and API
-4. add Hermes-facing tool contract
-5. add marketing workflow chain
+1. swap in-memory runtime state for Supabase persistence
+2. connect Trigger tasks to runtime run/event/artifact writes
+3. push the clean control-plane schema baseline after final schema review
+4. align operator docs across `Hermes Central Command` and `Mailers AWF`
+5. start QC and devil's-advocate review loop after code/docs settle
 
 ## Change Log
 
@@ -87,3 +107,11 @@
 - Ported WAT and memory/context operating conventions into the new repo
 - Added Trigger.dev bootstrap files and verified `trigger:dev` reaches a ready local worker
 - Added `CODEX.md` with subagent orchestration and cleanup rules
+
+### 2026-04-13 Control Plane Foundation
+
+- Added typed command, approval, run, replay, and site-event runtime models
+- Added FastAPI routes for commands, approvals, runs, replays, Hermes tools, and site events
+- Added in-memory services to support idempotent command ingestion and replay safety
+- Added Trigger.dev marketing worker chain scaffold in `trigger/`
+- Added landing-page site-event forwarding plus runtime ingestion tests

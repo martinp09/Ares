@@ -20,6 +20,29 @@ This repo is the deterministic runtime, policy layer, orchestration surface, and
 - Real estate first
 - Marketing control plane before seller-ops cutover
 
+## Current Runtime Surface
+
+- `GET /health`
+- `POST /commands`
+- `POST /approvals/{approval_id}/approve`
+- `GET /runs/{run_id}`
+- `POST /replays/{run_id}`
+- `GET /hermes/tools`
+- `POST /hermes/tools/{tool_name}/invoke`
+- `POST /site-events`
+
+Current implementation notes:
+
+- FastAPI runtime uses an in-memory control-plane store for now
+- Trigger.dev marketing worker chain is scaffolded under `trigger/`
+- site-event ingestion is append-only and non-blocking at the API layer
+- Supabase remains the intended system of record, but runtime persistence is not wired yet
+
+## Verification
+
+- Python: `uv run pytest -q`
+- Trigger.dev: `npx tsc -p trigger/tsconfig.json --noEmit`
+
 ## Source Of Truth
 
 - `CONTEXT.md` for quick session routing
