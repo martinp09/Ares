@@ -1,0 +1,15 @@
+{
+  "name": "hermes-central-command",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "trigger:dev": "npx trigger.dev@latest dev",
+    "trigger:deploy": "npx trigger.dev@latest deploy"
+  },
+  "dependencies": {
+    "@trigger.dev/sdk": "^4.4.3"
+  },
+  "devDependencies": {
+    "typescript": "^5.8.3"
+  }
+}
