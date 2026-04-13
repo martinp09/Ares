@@ -14,7 +14,7 @@ Rust is not the primary stack for this phase. It may be introduced later for nar
 
 ## Benchmark-Informed Product Direction
 
-The research set points to five useful product patterns:
+The research set points to six useful product patterns:
 
 | Company | What to steal | Hermes implication |
 |---|---|---|
@@ -23,8 +23,11 @@ The research set points to five useful product patterns:
 | Cognition AI | AI teammate for a single valuable job | Hermes should deploy specialist agents with bounded responsibility |
 | Harvey AI | Domain-specific workflow agents grounded in sources | Hermes should support deep vertical workflows and source-grounded outputs |
 | Glean | Search + assistant + agents + governance | Hermes should unify knowledge, action, and governance in one command surface |
+| Claude Managed Agents | Versioned agent configs, isolated sessions, permission policies, outcome/rubric loops | Hermes should treat agents as versioned runtime packages with explicit environments and QC loops |
 
 The strategic takeaway is that Mission Control should feel like an operator cockpit with real workflows and named agent surfaces, not a generic CRM or a generic chat dashboard.
+
+Claude Managed Agents adds a second important lesson: Hermes should treat each agent as a versioned runtime package, not as an ad hoc prompt. That implies explicit environment separation, session/thread isolation, permission policies, and rubric-driven evaluation loops.
 
 ## Core Principles
 

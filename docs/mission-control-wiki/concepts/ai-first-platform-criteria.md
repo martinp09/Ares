@@ -24,10 +24,12 @@ If Hermes is going to be built for the next phase of the market, it should optim
 - tool abstraction, not one-off integrations
 - agent-to-agent collaboration, not single-agent bottlenecks
 
-Microsoft-style governance + GitHub-style guardrails + OpenAI-style orchestration give a useful north star for what Hermes should become.
+Microsoft-style governance + GitHub-style guardrails + OpenAI-style orchestration + Claude-style managed agents give a useful north star for what Hermes should become.
 
 Related pages:
 - [[agentic-first-command-center]]
 - [[mission-control-ui]]
 - [[github-agentic-workflows]]
+- [[managed-agent-runtime-patterns]]
+- [[claude-managed-agents]]
 - [[agent-to-agent-architecture]]

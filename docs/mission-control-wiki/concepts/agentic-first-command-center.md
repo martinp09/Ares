@@ -27,6 +27,8 @@ Design priorities:
 
 This page links the rest of the research:
 - [[mission-control-ui]] for the operator cockpit
+- [[managed-agent-runtime-patterns]] for the reusable runtime model
+- [[claude-managed-agents]] for the versioned-agent reference
 - [[agent-to-agent-architecture]] for the future multi-agent layer
 - [[control-plane-vs-crm]] for the build-vs-buy boundary
 - [[ai-first-platform-criteria]] for the evaluation checklist

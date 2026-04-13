@@ -1,10 +1,11 @@
 # Wiki Index
 
 > Content catalog for the Hermes Mission Control research wiki.
-> Last updated: 2026-04-13 | Total pages: 18
+> Last updated: 2026-04-13 | Total pages: 20
 
 ## Entities
 - [[a2a-protocol]] — A2A as the agent-to-agent interoperability standard.
+- [[claude-managed-agents]] — Claude Managed Agents as the versioned agent/runtime reference.
 - [[cognition-ai]] — Cognition AI as a software-engineering agent benchmark.
 - [[glean]] — Glean as a work AI, search, and agent/governance benchmark.
 - [[github-agentic-workflows]] — GitHub’s repo-native, guarded agentic workflow pattern.
@@ -19,6 +20,7 @@
 - [[agent-to-agent-architecture]] — When to use A2A, MCP, and direct orchestration together.
 - [[agentic-first-command-center]] — Hermes as the native control plane, not a separate dashboard.
 - [[ai-first-platform-criteria]] — What to optimize for if Hermes is designed for an agentic future.
+- [[managed-agent-runtime-patterns]] — Reusable patterns from Claude Managed Agents and similar runtimes.
 - [[mission-control-ui]] — The operator cockpit needed for inbox, runs, approvals, and visibility.
 
 ## Comparisons

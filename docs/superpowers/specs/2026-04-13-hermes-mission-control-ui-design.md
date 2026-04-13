@@ -21,6 +21,7 @@ The design should borrow the following patterns from the research set:
 - Cognition AI: teammate-like agents with bounded jobs
 - Harvey AI: source-grounded domain workflows and multiple product surfaces
 - Glean: search + assistant + agents + governance in one platform
+- Claude Managed Agents: versioned agent configs, environment/session separation, permission policies, outcome/rubric loops
 
 This means the UI should not look like a generic admin panel. It should look like a control cockpit with multiple specialized work surfaces.
 
@@ -131,11 +132,14 @@ This screen should show:
 - failed runs
 - retriable jobs
 - agent registry
+- agent versions and environment bindings
 - delegated work
 - agent handoffs
-- logs and artifacts
+- permission state for risky actions
+- session/thread visibility
+- logs, artifacts, and evaluation outcomes
 
-This is where the operator can inspect the autonomous machinery.
+This is where the operator can inspect the autonomous machinery and the quality gates that govern it.
 
 ### 6. Sequences / Nurture
 This screen should show:
