@@ -1,14 +1,10 @@
 from __future__ import annotations
 
-from app.models.commands import (
-    CommandCreateRequest,
-    CommandIngestResponse,
-    CommandPolicy,
-    CommandRecord,
-    CommandStatus,
-)
+from app.db.commands import CommandsRepository
+from app.models.commands import CommandCreateRequest, CommandIngestResponse, CommandPolicy, CommandStatus
+from app.policies.classifier import apply_policy_precedence
 from app.services.approval_service import approval_service
-from app.services.run_service import STORE, run_service
+from app.services.run_service import run_service
 
 
 POLICY_BY_COMMAND: dict[str, CommandPolicy] = {
@@ -21,27 +17,24 @@ POLICY_BY_COMMAND: dict[str, CommandPolicy] = {
 
 
 class CommandService:
+    def __init__(self, commands_repository: CommandsRepository | None = None) -> None:
+        self.commands_repository = commands_repository or CommandsRepository()
+
     def classify(self, command_type: str) -> CommandPolicy:
         return POLICY_BY_COMMAND.get(command_type, CommandPolicy.FORBIDDEN)
 
-    def create_command(self, request: CommandCreateRequest) -> tuple[CommandIngestResponse, int]:
-        dedupe_key = (
-            request.business_id,
-            request.environment,
-            request.command_type,
-            request.idempotency_key,
-        )
-        existing_id = STORE.command_keys.get(dedupe_key)
-        if existing_id is not None:
-            existing = STORE.commands[existing_id]
-            deduped = existing.model_copy(update={"deduped": True})
-            return CommandIngestResponse(**deduped.model_dump()), 200
-
-        policy = self.classify(request.command_type)
+    def create_command(
+        self,
+        request: CommandCreateRequest,
+        *,
+        policy_override: CommandPolicy | None = None,
+    ) -> tuple[CommandIngestResponse, int]:
+        base_policy = self.classify(request.command_type)
+        policy = apply_policy_precedence(base_policy, policy_override) if policy_override is not None else base_policy
         if policy == CommandPolicy.FORBIDDEN:
             raise ValueError(f"Unsupported or forbidden command_type '{request.command_type}'")
 
-        command = CommandRecord(
+        command = self.commands_repository.create(
             business_id=request.business_id,
             environment=request.environment,
             command_type=request.command_type,
@@ -50,6 +43,8 @@ class CommandService:
             policy=policy,
             status=CommandStatus.ACCEPTED,
         )
+        if command.deduped:
+            return CommandIngestResponse(**command.model_dump()), 200
 
         if policy == CommandPolicy.SAFE_AUTONOMOUS:
             run = run_service.create_run(command)
@@ -60,8 +55,6 @@ class CommandService:
             command.approval_id = approval.id
             command.status = CommandStatus.AWAITING_APPROVAL
 
-        STORE.commands[command.id] = command
-        STORE.command_keys[dedupe_key] = command.id
         return CommandIngestResponse(**command.model_dump()), 201
 
 

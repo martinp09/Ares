@@ -8,6 +8,8 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 class Settings(BaseSettings):
     app_name: str = "Hermes Central Command Runtime"
     runtime_api_key: str = "dev-runtime-key"
+    control_plane_backend: Literal["memory", "supabase"] = "memory"
+    database_url: str | None = None
     site_events_backend: Literal["memory", "supabase"] = "supabase"
     supabase_url: str | None = None
     supabase_service_role_key: str | None = None

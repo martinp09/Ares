@@ -67,15 +67,34 @@
   - `POST /replays/{run_id}`
   - `GET /hermes/tools`
   - `POST /hermes/tools/{tool_name}/invoke`
+  - `POST /agents`
+  - `GET /agents/{agent_id}`
+  - `POST /agents/{agent_id}/revisions/{revision_id}/publish`
+  - `POST /agents/{agent_id}/revisions/{revision_id}/archive`
+  - `POST /agents/{agent_id}/revisions/{revision_id}/clone`
+  - `POST /sessions`
+  - `GET /sessions/{session_id}`
+  - `POST /sessions/{session_id}/events`
+  - `POST /permissions`
+  - `GET /permissions/{agent_revision_id}`
+  - `POST /outcomes`
+  - `POST /agent-assets`
+  - `GET /agent-assets/{asset_id}`
+  - `POST /agent-assets/{asset_id}/bind`
   - `POST /site-events`
+  - `POST /trigger/callbacks/runs/{run_id}/started`
+  - `POST /trigger/callbacks/runs/{run_id}/completed`
+  - `POST /trigger/callbacks/runs/{run_id}/failed`
+  - `POST /trigger/callbacks/runs/{run_id}/artifacts`
 - Current storage mode:
-  - in-memory control-plane store for commands, approvals, runs, and site events
+  - in-memory control-plane store for commands, approvals, runs, site events, agents, revisions, sessions, permissions, outcomes, and operational assets
 - Current workflow coverage:
   - marketing command classification
-  - Hermes tool contract
+  - Hermes tool contract with permission-aware tool gating
   - replay safety API
   - Trigger marketing worker chain scaffold
   - landing-page site-event forwarding contract
+  - managed-agent revision/session/outcome/asset scaffolding without live Supabase wiring
 
 ## Hermes Integration
 
@@ -107,6 +126,14 @@
 - Ported WAT and memory/context operating conventions into the new repo
 - Added Trigger.dev bootstrap files and verified `trigger:dev` reaches a ready local worker
 - Added `CODEX.md` with subagent orchestration and cleanup rules
+
+### 2026-04-13 Managed-Agent Scaffold Phase 5
+
+- Added in-memory managed-agent scaffolding for versioned agents, revisions, sessions, tool permissions, outcomes, and connect-later operational assets
+- Added FastAPI routes for agents, sessions, permissions, outcomes, and agent assets
+- Updated Hermes tools to respect explicit `always_allow`, `always_ask`, and `forbidden` permission policies without adding live Supabase wiring
+- Added a scaffold-only Supabase migration placeholder for the deferred managed-agent schema seam
+- Added targeted API and package-layout tests covering the new phase-5 surface
 
 ### 2026-04-13 Control Plane Foundation
 

@@ -17,6 +17,7 @@
 1. keep the new repo, GitHub remote, Trigger.dev setup, and fresh Supabase baseline clean
 2. keep the runtime/app split explicit: Hermes shell here, seller-ops legacy stays outside
 3. implement the marketing control plane first
+4. keep managed-agent primitives scaffolded in-memory until live Supabase wiring happens on Martin's MacBook
 
 ## Current TODO
 
