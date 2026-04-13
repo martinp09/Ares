@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from app.db.agents import AgentsRepository
 from app.db.sessions import SessionsRepository
-from app.models.agents import AgentRevisionStatus
+from app.models.agents import AgentRevisionState
 from app.models.sessions import SessionAppendEventRequest, SessionCreateRequest, SessionRecord
 
 
@@ -19,7 +19,7 @@ class SessionService:
         revision = self.agents_repository.get_revision(request.agent_revision_id)
         if revision is None:
             raise ValueError("Agent revision not found")
-        if revision.status == AgentRevisionStatus.ARCHIVED:
+        if revision.state == AgentRevisionState.ARCHIVED:
             raise ValueError("Cannot create a session from an archived revision")
         return self.sessions_repository.create(
             agent_id=revision.agent_id,

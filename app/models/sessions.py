@@ -38,7 +38,6 @@ class SessionRecord(BaseModel):
 class SessionCreateRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    agent_id: str
     agent_revision_id: str
     business_id: str
     environment: str
