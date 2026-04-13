@@ -4,13 +4,27 @@
 
 ## Goal
 
-Build a native Mission Control experience inside Hermes Central Command that becomes the operator cockpit for the business: a single place to see conversations, calls, leads, sequences, agent runs, approvals, and system status, while also allowing Hermes to deploy and supervise agents.
+Build a native Mission Control experience inside Hermes Central Command that becomes the operator cockpit for the business: a single place to see conversations, calls, leads, sequences, agent runs, approvals, and system status, while also allowing Hermes to deploy, supervise, and recover agents.
 
 ## Architecture Summary
 
 Hermes Central Command stays the control plane and source of truth. The backend remains FastAPI. The frontend is a React/TypeScript app inside the same repo, not a separate product. Trigger.dev handles durable jobs, delayed sequences, retries, and background orchestration. Supabase stores canonical state. Twilio and Vapi remain transport/provider layers. MCP is the tool bridge. A2A is the agent-to-agent communication layer.
 
 Rust is not the primary stack for this phase. It may be introduced later for narrow performance-critical workers or adapters only if profiling proves it is necessary.
+
+## Benchmark-Informed Product Direction
+
+The research set points to five useful product patterns:
+
+| Company | What to steal | Hermes implication |
+|---|---|---|
+| Ramp Labs | Productized experiments and visible AI surfaces | Mission Control should ship named, visible agent experiences instead of vague AI features |
+| Sierra | One agent across chat, SMS, WhatsApp, email, voice, ChatGPT | Hermes should be channel-aware and comms-first, not chat-only |
+| Cognition AI | AI teammate for a single valuable job | Hermes should deploy specialist agents with bounded responsibility |
+| Harvey AI | Domain-specific workflow agents grounded in sources | Hermes should support deep vertical workflows and source-grounded outputs |
+| Glean | Search + assistant + agents + governance | Hermes should unify knowledge, action, and governance in one command surface |
+
+The strategic takeaway is that Mission Control should feel like an operator cockpit with real workflows and named agent surfaces, not a generic CRM or a generic chat dashboard.
 
 ## Core Principles
 
@@ -36,6 +50,11 @@ Rust is not the primary stack for this phase. It may be introduced later for nar
 5. Visibility over magic
 - Every meaningful action should appear in the dashboard, logs, or run history.
 - Background automation must be observable and replayable.
+
+6. Domain-specific agent surfaces
+- Mission Control should support named, bounded agent experiences.
+- Do not collapse everything into one general-purpose assistant.
+- Product surfaces should map to jobs: inbox, calls, sequences, approvals, runs, search, launch.
 
 ## System Boundaries
 
@@ -86,6 +105,16 @@ Twilio and Vapi own transport and execution only:
 - Twilio: SMS, phone numbers, inbound/outbound telephony plumbing
 - Vapi: conversational voice agent execution, transcripts, call summaries, tool calls
 - Neither should be the system of record
+
+## Repo Layout Direction
+
+The implementation should keep a clean monorepo-style shape inside the existing repo:
+
+- `app/` — FastAPI backend and business logic
+- `apps/mission-control/` — React/TypeScript Mission Control app
+- `trigger/` — Trigger.dev jobs and orchestration
+- `supabase/` — schema, migrations, and database config
+- later optional `packages/` only if shared code becomes necessary
 
 ## What Goes Where
 
@@ -186,6 +215,11 @@ A three-pane or comparable high-density layout:
 - retries
 - branching outcomes
 
+### 7. Search and command palette
+- search across people, leads, conversations, commands, runs, and artifacts
+- launch common actions without hunting through menus
+- support agent launch and operator shortcuts
+
 ## Agent-First Workflow Rules
 
 1. Operator intent becomes a typed command.
@@ -245,6 +279,7 @@ Use explicit guardrails for:
 - Do not hide agent work from the operator.
 - Do not let Twilio or Vapi own canonical business state.
 - Do not introduce Rust as the main application stack for the UI or backend before there is a proven need.
+- Do not collapse product surfaces into one generic chat box.
 
 ## Build Order
 
