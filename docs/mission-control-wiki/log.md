@@ -14,3 +14,7 @@
 ## [2026-04-13] ingest | ramp-labs research batch
 - Captured Ramp Labs homepage and experiment themes in raw/articles/
 - Added Ramp Labs entity page and agent-first product pattern notes
+
+## [2026-04-13] ingest | agent-first company batch
+- Captured Sierra, Cognition AI, Harvey AI, and Glean homepage/product themes in raw/articles/
+- Added entity pages plus a cross-company comparison page
