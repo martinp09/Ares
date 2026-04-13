@@ -1,0 +1,12 @@
+# Wiki Log
+
+> Chronological record of Hermes Mission Control wiki actions.
+> Format: `## [YYYY-MM-DD] action | subject`
+
+## [2026-04-13] create | Wiki initialized
+- Domain: Hermes Mission Control / AI-first command center architecture
+- Structure created: SCHEMA.md, index.md, log.md, raw/, entities/, concepts/, comparisons/
+
+## [2026-04-13] ingest | agentic-ai research batch
+- Captured sources in raw/articles/
+- Created cross-linked pages for A2A, MCP, OpenAI Agents SDK, GitHub Agentic Workflows, and command-center architecture
