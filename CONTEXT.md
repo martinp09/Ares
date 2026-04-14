@@ -18,7 +18,8 @@
 2. keep the runtime/app split explicit: Hermes shell here, seller-ops legacy stays outside
 3. implement the marketing control plane first
 4. keep managed-agent primitives scaffolded in-memory until live Supabase wiring happens on Martin's MacBook
-5. keep Mission Control read models and the native frontend shell scaffold-first until live backend/Supabase wiring is ready
+5. keep Mission Control read models and the native frontend shell scaffold-first; the new Intake happy-path view stays fixture-backed until live backend/Supabase wiring is ready
+6. keep the Mission Control UI aligned to the approved dark industrial terminal / pixel CRT style system
 
 ## Current TODO
 

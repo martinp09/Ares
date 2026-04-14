@@ -12,6 +12,7 @@ import { AgentsPage } from "./pages/AgentsPage";
 import { ApprovalsPage } from "./pages/ApprovalsPage";
 import { DashboardPage } from "./pages/DashboardPage";
 import { InboxPage } from "./pages/InboxPage";
+import { IntakePage } from "./pages/IntakePage";
 import { RunsPage } from "./pages/RunsPage";
 import { SettingsPage } from "./pages/SettingsPage";
 
@@ -30,7 +31,7 @@ function includesSearch(haystack: Array<string | number | null | undefined>, sea
 }
 
 export default function App() {
-  const [activeView, setActiveView] = useState<MissionControlView>("dashboard");
+  const [activeView, setActiveView] = useState<MissionControlView>("intake");
   const [searchValue, setSearchValue] = useState("");
   const [snapshot, setSnapshot] = useState<MissionControlSnapshot>(missionControlFixtures);
   const [selectedConversationId, setSelectedConversationId] = useState(
@@ -159,6 +160,7 @@ export default function App() {
     {
       title: "Operate",
       items: [
+        { id: "intake", label: "Intake" },
         { id: "dashboard", label: "Dashboard" },
         { id: "inbox", label: "Inbox", badge: snapshot.dashboard.unreadConversationCount },
         { id: "approvals", label: "Approvals", badge: snapshot.dashboard.approvalCount },
@@ -183,6 +185,22 @@ export default function App() {
       contextContent: JSX.Element;
     }
   > = {
+    intake: {
+      title: "Intake",
+      subtitle: "Submission-to-appointment happy path, fixture-backed on this machine.",
+      mainContent: <IntakePage />,
+      contextContent: (
+        <ContextPanel
+          eyebrow="Execution lane"
+          title="No Supabase or provider wiring on this machine"
+          items={[
+            "Fixtures only here.",
+            "Your local MacBook handles live persistence, provider writes, and database cutover.",
+            "The operator still sees the entire happy path in Mission Control.",
+          ]}
+        />
+      ),
+    },
     dashboard: {
       title: "Dashboard",
       subtitle: "Live posture across inbox, approvals, runs, and agent health.",

@@ -1,4 +1,4 @@
-export type MissionControlView = "dashboard" | "inbox" | "approvals" | "runs" | "agents" | "settings";
+export type MissionControlView = "intake" | "dashboard" | "inbox" | "approvals" | "runs" | "agents" | "settings";
 export type MissionControlDataSource = "api" | "fixture";
 export type SystemStatus = "healthy" | "watch" | "degraded";
 export type ApprovalRisk = "low" | "medium" | "high";
