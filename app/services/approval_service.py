@@ -36,6 +36,19 @@ class ApprovalService:
         command.status = CommandStatus.AWAITING_APPROVAL
         return approval
 
+    def list_approvals(
+        self,
+        *,
+        business_id: str | None = None,
+        environment: str | None = None,
+        status: ApprovalStatus | None = ApprovalStatus.PENDING,
+    ) -> list[ApprovalRecord]:
+        return self.approvals_repository.list(
+            business_id=business_id,
+            environment=environment,
+            status=status,
+        )
+
     def approve(
         self, approval_id: str, request: ApprovalDecisionRequest
     ) -> ApprovalDecisionResponse | None:

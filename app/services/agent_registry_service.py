@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from app.db.agents import AgentsRepository
-from app.models.agents import AgentCreateRequest, AgentResponse
+from app.models.agents import AgentCreateRequest, AgentRecord, AgentResponse, AgentRevisionState
 
 
 class AgentRegistryService:
@@ -10,6 +10,8 @@ class AgentRegistryService:
 
     def create_agent(self, request: AgentCreateRequest) -> AgentResponse:
         agent, revision = self.agents_repository.create_agent(
+            business_id=request.business_id,
+            environment=request.environment,
             name=request.name,
             description=request.description,
             config=request.config,
@@ -22,6 +24,26 @@ class AgentRegistryService:
             return None
         revisions = self.agents_repository.list_revisions(agent_id)
         return AgentResponse(agent=agent, revisions=revisions)
+
+    def list_agents(
+        self,
+        *,
+        business_id: str | None = None,
+        environment: str | None = None,
+    ) -> list[AgentRecord]:
+        return self.agents_repository.list_agents(business_id=business_id, environment=environment)
+
+    def get_agent_revision_state(self, agent: AgentRecord) -> AgentRevisionState | None:
+        if agent.active_revision_id is not None:
+            revision = self.agents_repository.get_revision(agent.active_revision_id)
+            if revision is not None:
+                return revision.state
+
+        revisions = self.agents_repository.list_revisions(agent.id)
+        if not revisions:
+            return None
+        latest = max(revisions, key=lambda revision: revision.revision_number)
+        return latest.state
 
     def publish_revision(self, agent_id: str, revision_id: str) -> AgentResponse | None:
         result = self.agents_repository.publish_revision(agent_id, revision_id)

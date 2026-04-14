@@ -15,15 +15,26 @@ export function InboxPage({
 }: InboxPageProps) {
   const selectedThread =
     data.threadsById[selectedConversationId] ?? data.threadsById[data.selectedConversationId];
+  const resolvedSelectedConversationId =
+    selectedThread?.conversationId || selectedConversationId || data.selectedConversationId;
 
   return (
     <div className="inbox-layout">
       <InboxList
         conversations={data.conversations}
-        selectedConversationId={selectedThread.conversationId}
+        selectedConversationId={resolvedSelectedConversationId}
         onSelectConversation={onSelectConversation}
       />
-      <ConversationThread thread={selectedThread} />
+      {selectedThread ? (
+        <ConversationThread thread={selectedThread} />
+      ) : (
+        <section className="panel-stack">
+          <div className="section-heading">
+            <h3>Conversation</h3>
+            <span>No thread selected</span>
+          </div>
+        </section>
+      )}
     </div>
   );
 }

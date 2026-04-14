@@ -11,10 +11,20 @@ class AgentsRepository:
     def __init__(self, client: ControlPlaneClient | None = None):
         self.client = client or get_control_plane_client()
 
-    def create_agent(self, *, name: str, description: str | None, config: dict) -> tuple[AgentRecord, AgentRevisionRecord]:
+    def create_agent(
+        self,
+        *,
+        business_id: str,
+        environment: str,
+        name: str,
+        description: str | None,
+        config: dict,
+    ) -> tuple[AgentRecord, AgentRevisionRecord]:
         now = utc_now()
         agent = AgentRecord(
             id=generate_id("agt"),
+            business_id=business_id,
+            environment=environment,
             name=name,
             description=description,
             active_revision_id=None,
@@ -39,6 +49,20 @@ class AgentsRepository:
     def get_agent(self, agent_id: str) -> AgentRecord | None:
         with self.client.transaction() as store:
             return store.agents.get(agent_id)
+
+    def list_agents(
+        self,
+        *,
+        business_id: str | None = None,
+        environment: str | None = None,
+    ) -> list[AgentRecord]:
+        with self.client.transaction() as store:
+            agents = list(store.agents.values())
+        if business_id is not None:
+            agents = [agent for agent in agents if agent.business_id == business_id]
+        if environment is not None:
+            agents = [agent for agent in agents if agent.environment == environment]
+        return agents
 
     def get_revision(self, revision_id: str) -> AgentRevisionRecord | None:
         with self.client.transaction() as store:

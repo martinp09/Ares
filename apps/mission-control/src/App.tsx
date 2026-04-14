@@ -33,10 +33,9 @@ export default function App() {
   const [activeView, setActiveView] = useState<MissionControlView>("dashboard");
   const [searchValue, setSearchValue] = useState("");
   const [snapshot, setSnapshot] = useState<MissionControlSnapshot>(missionControlFixtures);
-  const [selectedConversationId, setSelectedConversationId] = useState(
-    missionControlFixtures.inbox.selectedConversationId,
-  );
+  const [selectedConversationId, setSelectedConversationId] = useState("");
   const [dataSource, setDataSource] = useState<"api" | "fixture">("fixture");
+  const [fallbackViews, setFallbackViews] = useState<MissionControlView[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
@@ -47,7 +46,11 @@ export default function App() {
 
       const [dashboard, inbox, approvals, runs, agents, assets] = await Promise.all([
         queryClient.fetch("dashboard", api.getDashboard, missionControlFixtures.dashboard),
-        queryClient.fetch("inbox", api.getInbox, missionControlFixtures.inbox),
+        queryClient.fetch(
+          `inbox:${selectedConversationId || "default"}`,
+          () => api.getInbox(selectedConversationId || undefined),
+          missionControlFixtures.inbox,
+        ),
         queryClient.fetch("approvals", api.getApprovals, missionControlFixtures.approvals),
         queryClient.fetch("runs", api.getRuns, missionControlFixtures.runs),
         queryClient.fetch("agents", api.getAgents, missionControlFixtures.agents),
@@ -71,6 +74,20 @@ export default function App() {
           ? "fixture"
           : "api",
       );
+      setFallbackViews(
+        (
+          [
+            ["dashboard", dashboard.source],
+            ["inbox", inbox.source],
+            ["approvals", approvals.source],
+            ["runs", runs.source],
+            ["agents", agents.source],
+            ["settings", assets.source],
+          ] as const
+        )
+          .filter(([, source]) => source === "fixture")
+          .map(([viewId]) => viewId),
+      );
       setSelectedConversationId((currentId) =>
         inbox.data.conversations.some((conversation) => conversation.id === currentId)
           ? currentId
@@ -84,7 +101,7 @@ export default function App() {
     return () => {
       isMounted = false;
     };
-  }, []);
+  }, [selectedConversationId]);
 
   const normalizedSearchValue = searchValue.trim().toLowerCase();
 
@@ -113,6 +130,12 @@ export default function App() {
   const visibleThread =
     snapshot.inbox.threadsById[visibleConversationId] ??
     snapshot.inbox.threadsById[snapshot.inbox.selectedConversationId];
+  const contextThread = visibleThread ?? {
+    nextBestAction: "Select a thread to inspect context.",
+    stage: "No thread selected",
+    tags: [] as string[],
+    notes: ["No conversation detail is currently available."],
+  };
 
   const filteredApprovals = useMemo(
     () =>
@@ -212,11 +235,11 @@ export default function App() {
       contextContent: (
         <ContextPanel
           eyebrow="Selected thread"
-          title={visibleThread.nextBestAction}
+          title={contextThread.nextBestAction}
           items={[
-            `Stage: ${visibleThread.stage}`,
-            `Tags: ${visibleThread.tags.join(", ")}`,
-            ...visibleThread.notes,
+            `Stage: ${contextThread.stage}`,
+            `Tags: ${contextThread.tags.join(", ") || "none"}`,
+            ...contextThread.notes,
           ]}
         />
       ),
@@ -283,11 +306,20 @@ export default function App() {
   };
 
   const activePage = pageMap[activeView];
-  const statusBadge = isLoading ? "Loading shell" : dataSource === "api" ? "Live API" : "Fixture mode";
+  const fallbackLabel = fallbackViews.length > 0 ? ` (${fallbackViews.join(", ")})` : "";
+  const statusBadge = isLoading
+    ? "Loading shell"
+    : dataSource === "api"
+      ? "Live API"
+      : fallbackViews.length === 6
+        ? "Fixture mode"
+        : `API + fixture fallback${fallbackLabel}`;
   const footerNote =
     dataSource === "api"
       ? "Mission Control is reading Hermes runtime data."
-      : "Using local fixtures until the native read-model endpoints are wired.";
+      : fallbackViews.length === 6
+        ? "Using local fixtures until the native read-model endpoints are wired."
+        : `Using fixture fallback for: ${fallbackViews.join(", ")}.`;
 
   return (
     <MissionControlShell

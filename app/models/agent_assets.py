@@ -41,6 +41,8 @@ class AgentAssetRecord(BaseModel):
 
     id: str
     agent_id: str
+    business_id: str = Field(min_length=1)
+    environment: str = Field(min_length=1)
     asset_type: AgentAssetType
     label: str
     connect_later: bool

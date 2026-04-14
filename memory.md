@@ -121,6 +121,12 @@
 
 ## Change Log
 
+### 2026-04-13 Mission Control Finish Plan
+
+- Added `docs/superpowers/plans/2026-04-13-mission-control-finish-plan.md` to separate safe branch completion from later Supabase persistence work
+- Captured the recommended rollout order: finish backend/frontend Mission Control contract first, then do additive Supabase migrations in a separate gated pass
+- Noted that the branch can be finished without immediate schema changes because the current blocking work is contract alignment, not persistence
+
 ### 2026-04-13 Mission Control Docs Sync
 
 - Updated README, CONTEXT, memory, and Mission Control planning/spec docs to reflect the phase-6 landed read models and native shell

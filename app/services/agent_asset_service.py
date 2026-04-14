@@ -30,6 +30,8 @@ class AgentAssetService:
             raise ValueError(f"Asset type '{request.asset_type}' is outside operational scope")
         return self.agent_assets_repository.create(
             agent_id=request.agent_id,
+            business_id=agent.business_id,
+            environment=agent.environment,
             asset_type=request.asset_type,
             label=request.label,
             metadata=request.metadata,
@@ -44,6 +46,19 @@ class AgentAssetService:
 
     def get_asset(self, asset_id: str) -> AgentAssetRecord | None:
         return self.agent_assets_repository.get(asset_id)
+
+    def list_assets(
+        self,
+        *,
+        agent_id: str | None = None,
+        business_id: str | None = None,
+        environment: str | None = None,
+    ) -> list[AgentAssetRecord]:
+        return self.agent_assets_repository.list(
+            agent_id=agent_id,
+            business_id=business_id,
+            environment=environment,
+        )
 
 
 agent_asset_service = AgentAssetService()

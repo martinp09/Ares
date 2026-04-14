@@ -16,6 +16,8 @@ class AgentRevisionState(StrEnum):
 class AgentCreateRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
+    business_id: str = Field(default="default", min_length=1)
+    environment: str = Field(default="dev", min_length=1)
     name: str = Field(min_length=1)
     description: str | None = None
     config: dict[str, Any] = Field(default_factory=dict)
@@ -25,6 +27,8 @@ class AgentRecord(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     id: str
+    business_id: str = Field(min_length=1)
+    environment: str = Field(min_length=1)
     name: str
     description: str | None = None
     active_revision_id: str | None = None

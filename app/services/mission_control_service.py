@@ -1,10 +1,17 @@
 from __future__ import annotations
 
 from copy import deepcopy
+from datetime import datetime
 
-from app.db.client import ControlPlaneClient, get_control_plane_client
+from app.db.client import ControlPlaneClient, get_control_plane_client, utc_now
 from app.models.approvals import ApprovalStatus
 from app.models.mission_control import (
+    MissionControlAgentsResponse,
+    MissionControlAgentSummary,
+    MissionControlApprovalsResponse,
+    MissionControlApprovalSummary,
+    MissionControlAssetsResponse,
+    MissionControlAssetSummary,
     MissionControlDashboardResponse,
     MissionControlInboxResponse,
     MissionControlInboxSummary,
@@ -15,13 +22,25 @@ from app.models.mission_control import (
     MissionControlThreadSummary,
 )
 from app.models.runs import RunStatus
+from app.services.agent_asset_service import AgentAssetService, agent_asset_service
+from app.services.agent_registry_service import AgentRegistryService, agent_registry_service
+from app.services.approval_service import ApprovalService, approval_service
 
 ACTIVE_RUN_STATUSES = {RunStatus.QUEUED, RunStatus.IN_PROGRESS}
 
 
 class MissionControlService:
-    def __init__(self, client: ControlPlaneClient | None = None) -> None:
+    def __init__(
+        self,
+        client: ControlPlaneClient | None = None,
+        approval_service_dependency: ApprovalService | None = None,
+        agent_registry_service_dependency: AgentRegistryService | None = None,
+        agent_asset_service_dependency: AgentAssetService | None = None,
+    ) -> None:
         self.client = client or get_control_plane_client()
+        self.approval_service = approval_service_dependency or approval_service
+        self.agent_registry_service = agent_registry_service_dependency or agent_registry_service
+        self.agent_asset_service = agent_asset_service_dependency or agent_asset_service
 
     def upsert_thread_projection(self, thread: MissionControlThreadRecord) -> MissionControlThreadRecord:
         with self.client.transaction() as store:
@@ -41,13 +60,44 @@ class MissionControlService:
                 for run in store.runs.values()
                 if self._matches_scope(run.business_id, run.environment, business_id, environment)
             ]
-            agents = list(store.agents.values())
+            agents = [
+                agent
+                for agent in store.agents.values()
+                if self._matches_scope(agent.business_id, agent.environment, business_id, environment)
+            ]
+            threads = [
+                thread if isinstance(thread, MissionControlThreadRecord) else MissionControlThreadRecord.model_validate(thread)
+                for thread in store.mission_control_threads.values()
+                if self._matches_scope(thread.business_id, thread.environment, business_id, environment)
+            ]
+
+        latest_timestamps: list[datetime] = [approval.created_at for approval in approvals]
+        latest_timestamps.extend(run.updated_at for run in runs)
+        latest_timestamps.extend(thread.updated_at for thread in threads)
+        latest_updated_at = max(latest_timestamps, default=utc_now())
+
+        unread_conversation_count = sum(1 for thread in threads if thread.unread_count > 0)
+        busy_channel_count = len({thread.channel for thread in threads if thread.unread_count > 0})
+        recent_completed_count = sum(1 for run in runs if run.status == RunStatus.COMPLETED)
+        failed_run_count = sum(1 for run in runs if run.status == RunStatus.FAILED)
+        active_run_count = sum(1 for run in runs if run.status in ACTIVE_RUN_STATUSES)
+        if failed_run_count > 0:
+            system_status = "degraded"
+        elif approvals or unread_conversation_count or active_run_count:
+            system_status = "watch"
+        else:
+            system_status = "healthy"
 
         return MissionControlDashboardResponse(
             approval_count=len(approvals),
-            active_run_count=sum(1 for run in runs if run.status in ACTIVE_RUN_STATUSES),
-            failed_run_count=sum(1 for run in runs if run.status == RunStatus.FAILED),
+            active_run_count=active_run_count,
+            failed_run_count=failed_run_count,
             active_agent_count=sum(1 for agent in agents if agent.active_revision_id is not None),
+            unread_conversation_count=unread_conversation_count,
+            busy_channel_count=busy_channel_count,
+            recent_completed_count=recent_completed_count,
+            system_status=system_status,
+            updated_at=latest_updated_at.isoformat(),
         )
 
     def get_inbox(
@@ -131,6 +181,94 @@ class MissionControlService:
                     error_message=run.error_message,
                 )
                 for run in ordered_runs
+            ]
+        )
+
+    def get_approvals(
+        self,
+        *,
+        business_id: str | None = None,
+        environment: str | None = None,
+    ) -> MissionControlApprovalsResponse:
+        approvals = self.approval_service.list_approvals(
+            business_id=business_id,
+            environment=environment,
+            status=ApprovalStatus.PENDING,
+        )
+        ordered_approvals = sorted(approvals, key=lambda approval: approval.created_at, reverse=True)
+        return MissionControlApprovalsResponse(
+            approvals=[
+                MissionControlApprovalSummary(
+                    id=approval.id,
+                    command_id=approval.command_id,
+                    business_id=approval.business_id,
+                    environment=approval.environment,
+                    command_type=approval.command_type,
+                    status=approval.status,
+                    payload_snapshot=approval.payload_snapshot,
+                    created_at=approval.created_at,
+                    approved_at=approval.approved_at,
+                    actor_id=approval.actor_id,
+                )
+                for approval in ordered_approvals
+            ]
+        )
+
+    def get_agents(
+        self,
+        *,
+        business_id: str | None = None,
+        environment: str | None = None,
+    ) -> MissionControlAgentsResponse:
+        agents = self.agent_registry_service.list_agents(business_id=business_id, environment=environment)
+        ordered_agents = sorted(agents, key=lambda agent: (agent.updated_at, agent.created_at), reverse=True)
+        return MissionControlAgentsResponse(
+            agents=[
+                MissionControlAgentSummary(
+                    id=agent.id,
+                    business_id=agent.business_id,
+                    environment=agent.environment,
+                    name=agent.name,
+                    description=agent.description,
+                    active_revision_id=agent.active_revision_id,
+                    active_revision_state=(
+                        state.value if (state := self.agent_registry_service.get_agent_revision_state(agent)) is not None else None
+                    ),
+                    created_at=agent.created_at,
+                    updated_at=agent.updated_at,
+                )
+                for agent in ordered_agents
+            ]
+        )
+
+    def get_settings_assets(
+        self,
+        *,
+        agent_id: str | None = None,
+        business_id: str | None = None,
+        environment: str | None = None,
+    ) -> MissionControlAssetsResponse:
+        assets = self.agent_asset_service.list_assets(
+            agent_id=agent_id,
+            business_id=business_id,
+            environment=environment,
+        )
+        ordered_assets = sorted(assets, key=lambda asset: (asset.updated_at, asset.created_at), reverse=True)
+        return MissionControlAssetsResponse(
+            assets=[
+                MissionControlAssetSummary(
+                    id=asset.id,
+                    agent_id=asset.agent_id,
+                    business_id=asset.business_id,
+                    environment=asset.environment,
+                    asset_type=asset.asset_type,
+                    label=asset.label,
+                    connect_later=asset.connect_later,
+                    status=asset.status,
+                    binding_reference=asset.binding_reference,
+                    updated_at=asset.updated_at,
+                )
+                for asset in ordered_assets
             ]
         )
 

@@ -38,6 +38,24 @@ class ApprovalsRepository:
         with self.client.transaction() as store:
             return store.approvals.get(approval_id)
 
+    def list(
+        self,
+        *,
+        business_id: str | None = None,
+        environment: str | None = None,
+        status: ApprovalStatus | None = None,
+    ) -> list[ApprovalRecord]:
+        with self.client.transaction() as store:
+            approvals = list(store.approvals.values())
+
+        if business_id is not None:
+            approvals = [approval for approval in approvals if approval.business_id == business_id]
+        if environment is not None:
+            approvals = [approval for approval in approvals if approval.environment == environment]
+        if status is not None:
+            approvals = [approval for approval in approvals if approval.status == status]
+        return approvals
+
     def approve(self, approval_id: str, *, actor_id: str) -> ApprovalRecord | None:
         with self.client.transaction() as store:
             approval = store.approvals.get(approval_id)

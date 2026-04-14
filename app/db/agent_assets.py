@@ -11,11 +11,22 @@ class AgentAssetsRepository:
     def __init__(self, client: ControlPlaneClient | None = None):
         self.client = client or get_control_plane_client()
 
-    def create(self, *, agent_id: str, asset_type: AgentAssetType, label: str, metadata: dict) -> AgentAssetRecord:
+    def create(
+        self,
+        *,
+        agent_id: str,
+        business_id: str,
+        environment: str,
+        asset_type: AgentAssetType,
+        label: str,
+        metadata: dict,
+    ) -> AgentAssetRecord:
         now = utc_now()
         asset = AgentAssetRecord(
             id=generate_id("asset"),
             agent_id=agent_id,
+            business_id=business_id,
+            environment=environment,
             asset_type=asset_type,
             label=label,
             connect_later=True,
@@ -31,6 +42,25 @@ class AgentAssetsRepository:
     def get(self, asset_id: str) -> AgentAssetRecord | None:
         with self.client.transaction() as store:
             return store.agent_assets.get(asset_id)
+
+    def list(
+        self,
+        *,
+        agent_id: str | None = None,
+        business_id: str | None = None,
+        environment: str | None = None,
+    ) -> list[AgentAssetRecord]:
+        with self.client.transaction() as store:
+            assets = list(store.agent_assets.values())
+        if agent_id is None:
+            filtered_assets = assets
+        else:
+            filtered_assets = [asset for asset in assets if asset.agent_id == agent_id]
+        if business_id is not None:
+            filtered_assets = [asset for asset in filtered_assets if asset.business_id == business_id]
+        if environment is not None:
+            filtered_assets = [asset for asset in filtered_assets if asset.environment == environment]
+        return filtered_assets
 
     def bind(self, asset_id: str, *, binding_reference: str, metadata: dict | None = None) -> AgentAssetRecord | None:
         with self.client.transaction() as store:
