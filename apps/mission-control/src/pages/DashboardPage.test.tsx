@@ -33,4 +33,30 @@ describe("DashboardPage", () => {
     expect(screen.getByText("19")).toBeInTheDocument();
     expect(screen.getByText("watch")).toBeInTheDocument();
   });
+
+  it("renders secondary dashboard fields from API-provided values", () => {
+    render(
+      <DashboardPage
+        data={{
+          ...dashboardFixture,
+          unreadConversationCount: 28,
+          busyChannelCount: 9,
+          recentCompletedCount: 77,
+          systemStatus: "degraded",
+          updatedAt: "2026-04-13T20:09:00+00:00",
+        }}
+      />,
+    );
+
+    const summary = screen.getByLabelText(/dashboard summary/i);
+
+    expect(within(summary).getByText("Unread conversations")).toBeInTheDocument();
+    expect(within(summary).getByText("28")).toBeInTheDocument();
+    expect(within(summary).getByText("Busy channels")).toBeInTheDocument();
+    expect(within(summary).getByText("9")).toBeInTheDocument();
+    expect(screen.getByText("Recent completions")).toBeInTheDocument();
+    expect(screen.getByText("77")).toBeInTheDocument();
+    expect(screen.getByText("degraded")).toBeInTheDocument();
+    expect(screen.getByText("2026-04-13T20:09:00+00:00")).toBeInTheDocument();
+  });
 });
