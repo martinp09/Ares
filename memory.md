@@ -121,6 +121,13 @@
 
 ## Change Log
 
+### 2026-04-13 Supabase Persistence Design Pass
+
+- Added `docs/superpowers/plans/2026-04-13-mission-control-supabase-persistence-plan.md` as the dedicated design-only rollout plan for the later Supabase persistence branch
+- Froze the safety rules for the persistence pass: additive migrations only, local reset first, preview or staging before production, and no mixed contract plus persistence deploys
+- Expanded the in-memory replacement scope to cover commands, approvals, runs, events, artifacts, agents, revisions, sessions, permissions, outcomes, assets, and Mission Control read models
+- Called out the major schema risks up front, especially Python string IDs versus bigint SQL baseline IDs and status-field drift between models and migrations
+
 ### 2026-04-13 Mission Control Finish Plan
 
 - Added `docs/superpowers/plans/2026-04-13-mission-control-finish-plan.md` to separate safe branch completion from later Supabase persistence work

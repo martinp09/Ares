@@ -22,12 +22,12 @@
 
 ## Current TODO
 
-1. replace the in-memory runtime store with Supabase-backed persistence
+1. execute `docs/superpowers/plans/2026-04-13-mission-control-supabase-persistence-plan.md` on a separate persistence branch after the Mission Control contract branch is green
 2. attach Trigger tasks to runtime run/artifact/event updates
 3. finish operator/docs alignment across this repo and `Mailers AWF`
 4. start the QC + devil's-advocate review loop once the remaining docs/schema commits are in
 5. sync README, specs, wiki, CONTEXT, and memory to the shipped Mission Control read models and UI shell
-6. execute `docs/superpowers/plans/2026-04-13-mission-control-finish-plan.md` in two tracks: contract completion first, Supabase cutover second
+6. treat `docs/superpowers/plans/2026-04-13-mission-control-finish-plan.md` as the contract-first release plan and the new persistence plan as the separate Supabase rollout track
 
 ## Read These Sections In `memory.md`
 
