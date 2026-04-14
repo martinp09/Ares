@@ -80,3 +80,16 @@ def test_asset_types_outside_operational_scope_are_rejected(client) -> None:
     )
 
     assert response.status_code == 422
+
+
+def test_binding_unknown_asset_returns_not_found(client) -> None:
+    reset_control_plane_state()
+
+    response = client.post(
+        "/agent-assets/asset_missing/bind",
+        json={"binding_reference": "inbox_404", "metadata": {}},
+        headers=AUTH_HEADERS,
+    )
+
+    assert response.status_code == 404
+    assert response.json()["detail"] == "Agent asset not found"

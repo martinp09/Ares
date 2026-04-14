@@ -5,13 +5,19 @@ from datetime import UTC, datetime
 from typing import Any
 
 from app.db.approvals import ApprovalsRepository
+from app.db.agent_assets import AgentAssetsRepository
 from app.db.artifacts import ArtifactsRepository
 from app.db.commands import CommandsRepository
 from app.db.events import EventsRepository
+from app.db.outcomes import OutcomesRepository
+from app.db.permissions import PermissionsRepository
 from app.db.runs import RunsRepository
+from app.models.agent_assets import AgentAssetStatus, AgentAssetType
 from app.models.approvals import ApprovalStatus
 from app.models.commands import CommandPolicy, CommandStatus
+from app.models.permissions import ToolPermissionMode
 from app.models.run_events import RunStartedCallbackRequest
+from app.models.outcomes import OutcomeStatus
 from app.models.runs import ReplayRequest
 from app.models.runs import RunStatus
 from app.services.replay_service import ReplayService
@@ -36,6 +42,9 @@ class FakeSupabaseClient:
     runs: list[dict[str, Any]] = field(default_factory=list)
     events: list[dict[str, Any]] = field(default_factory=list)
     artifacts: list[dict[str, Any]] = field(default_factory=list)
+    agent_tool_permissions: list[dict[str, Any]] = field(default_factory=list)
+    outcome_evaluations: list[dict[str, Any]] = field(default_factory=list)
+    agent_operational_assets: list[dict[str, Any]] = field(default_factory=list)
 
     _counters: dict[str, int] = field(
         default_factory=lambda: {
@@ -44,6 +53,9 @@ class FakeSupabaseClient:
             "runs": 0,
             "events": 0,
             "artifacts": 0,
+            "agent_tool_permissions": 0,
+            "outcome_evaluations": 0,
+            "agent_operational_assets": 0,
         }
     )
 
@@ -367,3 +379,144 @@ def test_supabase_replay_service_records_replay_requested_event() -> None:
     replay_events = [event for event in events if event["event_type"] == "replay_requested"]
     assert len(replay_events) == 1
     assert replay_events[0]["payload"]["requires_approval"] is True
+
+
+def test_supabase_permissions_repository_upsert_updates_existing_record() -> None:
+    client = FakeSupabaseClient()
+    repository = PermissionsRepository(client)
+
+    first = repository.upsert(
+        agent_revision_id="rev_001",
+        tool_name="run_market_research",
+        mode=ToolPermissionMode.ALWAYS_ASK,
+    )
+    second = repository.upsert(
+        agent_revision_id="rev_001",
+        tool_name="run_market_research",
+        mode=ToolPermissionMode.FORBIDDEN,
+    )
+    listed = repository.list_for_revision("rev_001")
+    resolved = repository.get(agent_revision_id="rev_001", tool_name="run_market_research")
+
+    assert first.id == second.id
+    assert first.id.startswith("perm_")
+    assert second.mode == ToolPermissionMode.FORBIDDEN
+    assert len(client.agent_tool_permissions) == 1
+    assert len(listed) == 1
+    assert listed[0].mode == ToolPermissionMode.FORBIDDEN
+    assert resolved is not None
+    assert resolved.mode == ToolPermissionMode.FORBIDDEN
+
+
+def test_supabase_outcomes_repository_create_and_get_roundtrip() -> None:
+    client = FakeSupabaseClient()
+    repository = OutcomesRepository(client)
+
+    created = repository.create(
+        outcome_name="campaign_brief_quality",
+        artifact_type="campaign_brief",
+        artifact_payload={"headline": "Win more listings"},
+        rubric_criteria=["clear audience", "specific CTA"],
+        evaluator_result="missing CTA detail",
+        passed=False,
+        failure_details=["CTA was too vague"],
+        run_id="run_001",
+    )
+    fetched = repository.get(created.id)
+
+    assert fetched is not None
+    assert fetched.id == created.id
+    assert fetched.id.startswith("out_")
+    assert fetched.run_id == "run_001"
+    assert fetched.status == created.status
+    assert fetched.failure_details == ["CTA was too vague"]
+
+
+def test_supabase_agent_assets_repository_create_bind_and_list() -> None:
+    client = FakeSupabaseClient()
+    repository = AgentAssetsRepository(client)
+
+    created = repository.create(
+        agent_id="agt_001",
+        business_id="101",
+        environment="dev",
+        asset_type=AgentAssetType.INBOX,
+        label="Leads Inbox",
+        metadata={"provider": "gmail"},
+    )
+    bound = repository.bind(
+        created.id,
+        binding_reference="inbox_123",
+        metadata={"address": "ops@example.com"},
+    )
+    fetched = repository.get(created.id)
+    listed = repository.list(agent_id="agt_001", business_id="101", environment="dev")
+
+    assert bound is not None
+    assert created.id.startswith("asset_")
+    assert bound.connect_later is False
+    assert bound.status == AgentAssetStatus.BOUND
+    assert bound.binding_reference == "inbox_123"
+    assert bound.metadata["provider"] == "gmail"
+    assert bound.metadata["address"] == "ops@example.com"
+    assert fetched is not None
+    assert fetched.id == created.id
+    assert len(client.agent_operational_assets) == 1
+    assert len(listed) == 1
+    assert listed[0].id == created.id
+
+
+def test_supabase_permissions_repository_keeps_distinct_tool_rows_per_revision() -> None:
+    client = FakeSupabaseClient()
+    repository = PermissionsRepository(client)
+
+    repository.upsert(
+        agent_revision_id="rev_002",
+        tool_name="run_market_research",
+        mode=ToolPermissionMode.ALWAYS_ASK,
+    )
+    repository.upsert(
+        agent_revision_id="rev_002",
+        tool_name="publish_campaign",
+        mode=ToolPermissionMode.ALWAYS_ALLOW,
+    )
+    listed = repository.list_for_revision("rev_002")
+
+    assert len(client.agent_tool_permissions) == 2
+    assert [record.tool_name for record in listed] == ["publish_campaign", "run_market_research"]
+    assert [record.mode for record in listed] == [ToolPermissionMode.ALWAYS_ALLOW, ToolPermissionMode.ALWAYS_ASK]
+
+
+def test_supabase_outcomes_repository_create_allows_unlinked_run_id() -> None:
+    client = FakeSupabaseClient()
+    repository = OutcomesRepository(client)
+
+    created = repository.create(
+        outcome_name="campaign_brief_quality",
+        artifact_type="campaign_brief",
+        artifact_payload={"headline": "Win more listings"},
+        rubric_criteria=["clear audience", "specific CTA"],
+        evaluator_result="looks good",
+        passed=True,
+        failure_details=[],
+        run_id=None,
+    )
+    fetched = repository.get(created.id)
+
+    assert fetched is not None
+    assert fetched.id == created.id
+    assert fetched.run_id is None
+    assert fetched.status == OutcomeStatus.SATISFIED
+
+
+def test_supabase_agent_assets_repository_bind_missing_asset_returns_none() -> None:
+    client = FakeSupabaseClient()
+    repository = AgentAssetsRepository(client)
+
+    bound = repository.bind(
+        "asset_missing",
+        binding_reference="inbox_404",
+        metadata={"address": "ops@example.com"},
+    )
+
+    assert bound is None

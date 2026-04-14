@@ -40,3 +40,12 @@ def test_upserting_permissions_persists_explicit_tool_policy(client) -> None:
     assert len(permissions) == 1
     assert permissions[0]["tool_name"] == "run_market_research"
     assert permissions[0]["mode"] == "forbidden"
+
+
+def test_listing_permissions_for_unknown_revision_is_empty(client) -> None:
+    reset_control_plane_state()
+
+    response = client.get("/permissions/rev_missing", headers=AUTH_HEADERS)
+
+    assert response.status_code == 200
+    assert response.json() == {"permissions": []}

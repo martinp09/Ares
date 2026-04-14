@@ -76,3 +76,25 @@ def test_passed_rubric_marks_outcome_as_satisfied(client) -> None:
     body = response.json()
     assert body["status"] == "satisfied"
     assert body["satisfied"] is True
+
+
+def test_outcome_evaluation_persists_run_reference_when_provided(client) -> None:
+    reset_control_plane_state()
+
+    response = client.post(
+        "/outcomes",
+        json={
+            "outcome_name": "campaign_brief_quality",
+            "artifact_type": "campaign_brief",
+            "artifact_payload": {"headline": "Win more listings", "cta": "Schedule a call"},
+            "rubric_criteria": ["clear audience", "specific CTA"],
+            "evaluator_result": "criteria satisfied",
+            "passed": True,
+            "failure_details": [],
+            "run_id": "run_123",
+        },
+        headers=AUTH_HEADERS,
+    )
+
+    assert response.status_code == 200
+    assert response.json()["run_id"] == "run_123"

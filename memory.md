@@ -90,14 +90,15 @@
   - `POST /trigger/callbacks/runs/{run_id}/failed`
   - `POST /trigger/callbacks/runs/{run_id}/artifacts`
 - Current storage mode:
-  - in-memory control-plane store for commands, approvals, runs, site events, agents, revisions, sessions, permissions, outcomes, and operational assets
+  - Supabase-backed control-plane persistence for commands, approvals, runs, events, artifacts, agents, revisions, sessions, permissions, outcomes, and operational assets when `control_plane_backend=supabase`
+  - in-memory fallback store remains for local/default non-Supabase execution and for Mission Control thread projections
 - Current workflow coverage:
   - marketing command classification
   - Hermes tool contract with permission-aware tool gating
   - replay safety API
   - Trigger marketing worker chain scaffold
   - landing-page site-event forwarding contract
-  - managed-agent revision/session/outcome/asset scaffolding without live Supabase wiring
+  - managed-agent revision/session/outcome/asset persistence on the Supabase adapter path
 
 ## Hermes Integration
 
@@ -113,13 +114,21 @@
 
 ## Open Work
 
-1. finish Supabase persistence rollout beyond the runtime-core slice (managed agents + Mission Control projections still pending)
+1. finish Supabase persistence rollout by replacing Mission Control thread state with derived projections from canonical persisted data
 2. connect Trigger tasks to runtime run/event/artifact writes
 3. push the clean control-plane schema baseline after final schema review
 4. align operator docs across `Hermes Central Command` and `Mailers AWF`
 5. start QC and devil's-advocate review loop after code/docs settle
 
 ## Change Log
+
+### 2026-04-13 Managed-Agent Supabase Adapter Slice 4 (Agents/Sessions/Permissions/Outcomes/Assets)
+
+- Implemented Supabase-backed repository behavior in `app/db/agents.py` and `app/db/sessions.py`, preserving runtime text IDs, revision pinning, archived-revision guards, and append-only session timelines behind `control_plane_backend=supabase`
+- Added additive migrations `supabase/migrations/202604130004_managed_agent_persistence_tables.sql` and `supabase/migrations/202604130005_managed_agents_sessions_persistence.sql` for permissions, outcomes, operational assets, agents, revisions, sessions, and session events without rewriting prior schema
+- Added focused Supabase adapter tests for managed agents/sessions and expanded persistence/API coverage for permissions, outcomes, and agent assets
+- Verified Python test suite health with `uv run pytest -q` (`89 passed`)
+- Verified local Supabase apply loop on this machine with Colima using `supabase start --exclude vector --exclude logflare`, `supabase db reset --local`, `supabase stop`, and `colima stop`
 
 ### 2026-04-13 Runtime-Core Supabase Adapter Slice 3 (Commands/Approvals/Runs/Events/Artifacts)
 
