@@ -32,7 +32,7 @@ class CommandStatus(StrEnum):
 class CommandCreateRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    business_id: str = Field(min_length=1)
+    business_id: int
     environment: str = Field(min_length=1)
     command_type: str = Field(min_length=1)
     idempotency_key: str = Field(min_length=1)
@@ -43,7 +43,7 @@ class CommandRecord(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     id: str = Field(default_factory=lambda: generate_id("cmd"))
-    business_id: str = Field(min_length=1)
+    business_id: int
     environment: str = Field(min_length=1)
     command_type: str = Field(min_length=1)
     payload: dict[str, Any] = Field(default_factory=dict)
@@ -60,7 +60,7 @@ class CommandIngestResponse(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     id: str
-    business_id: str
+    business_id: int
     environment: str
     command_type: str
     idempotency_key: str

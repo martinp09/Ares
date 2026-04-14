@@ -17,7 +17,7 @@ class ApprovalRecord(BaseModel):
 
     id: str
     command_id: str
-    business_id: str
+    business_id: int
     environment: str
     command_type: str
     status: ApprovalStatus

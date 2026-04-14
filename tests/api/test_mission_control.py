@@ -18,7 +18,7 @@ def test_dashboard_endpoint_returns_operator_counts(client) -> None:
     active_run_response = client.post(
         "/commands",
         json={
-            "business_id": "limitless",
+            "business_id": 101,
             "environment": "dev",
             "command_type": "run_market_research",
             "idempotency_key": "mc-dashboard-active",
@@ -31,7 +31,7 @@ def test_dashboard_endpoint_returns_operator_counts(client) -> None:
     failed_run_response = client.post(
         "/commands",
         json={
-            "business_id": "limitless",
+            "business_id": 101,
             "environment": "dev",
             "command_type": "run_market_research",
             "idempotency_key": "mc-dashboard-failed",
@@ -53,7 +53,7 @@ def test_dashboard_endpoint_returns_operator_counts(client) -> None:
     approval_response = client.post(
         "/commands",
         json={
-            "business_id": "limitless",
+            "business_id": 101,
             "environment": "dev",
             "command_type": "publish_campaign",
             "idempotency_key": "mc-dashboard-approval",
@@ -66,7 +66,7 @@ def test_dashboard_endpoint_returns_operator_counts(client) -> None:
     created_agent = client.post(
         "/agents",
         json={
-            "business_id": "limitless",
+            "business_id": "101",
             "environment": "dev",
             "name": "Mission Control Agent",
             "config": {"prompt": "Supervise runs"},
@@ -83,7 +83,7 @@ def test_dashboard_endpoint_returns_operator_counts(client) -> None:
 
     mission_control_service.upsert_thread_projection(
         MissionControlThreadRecord(
-            business_id="limitless",
+            business_id="101",
             environment="dev",
             channel="sms",
             status="open",
@@ -107,7 +107,7 @@ def test_dashboard_endpoint_returns_operator_counts(client) -> None:
     )
 
     response = client.get(
-        "/mission-control/dashboard?business_id=limitless&environment=dev",
+        "/mission-control/dashboard?business_id=101&environment=dev",
         headers=AUTH_HEADERS,
     )
 
@@ -134,7 +134,7 @@ def test_inbox_endpoint_returns_thread_summaries_and_selected_thread_payload(cli
     approval_response = client.post(
         "/commands",
         json={
-            "business_id": "limitless",
+            "business_id": 101,
             "environment": "dev",
             "command_type": "publish_campaign",
             "idempotency_key": "mc-inbox-approval",
@@ -147,7 +147,7 @@ def test_inbox_endpoint_returns_thread_summaries_and_selected_thread_payload(cli
     run_response = client.post(
         "/commands",
         json={
-            "business_id": "limitless",
+            "business_id": 101,
             "environment": "dev",
             "command_type": "run_market_research",
             "idempotency_key": "mc-inbox-run",
@@ -159,7 +159,7 @@ def test_inbox_endpoint_returns_thread_summaries_and_selected_thread_payload(cli
 
     selected_thread = mission_control_service.upsert_thread_projection(
         MissionControlThreadRecord(
-            business_id="limitless",
+            business_id="101",
             environment="dev",
             channel="sms",
             status="open",
@@ -196,7 +196,7 @@ def test_inbox_endpoint_returns_thread_summaries_and_selected_thread_payload(cli
     )
     mission_control_service.upsert_thread_projection(
         MissionControlThreadRecord(
-            business_id="limitless",
+            business_id="101",
             environment="dev",
             channel="call",
             status="waiting",
@@ -221,7 +221,7 @@ def test_inbox_endpoint_returns_thread_summaries_and_selected_thread_payload(cli
     )
 
     response = client.get(
-        f"/mission-control/inbox?business_id=limitless&environment=dev&selected_thread_id={selected_thread.id}",
+        f"/mission-control/inbox?business_id=101&environment=dev&selected_thread_id={selected_thread.id}",
         headers=AUTH_HEADERS,
     )
 
@@ -254,7 +254,7 @@ def test_runs_endpoint_returns_lineage_with_parent_run_id(client) -> None:
     command_response = client.post(
         "/commands",
         json={
-            "business_id": "limitless",
+            "business_id": 101,
             "environment": "dev",
             "command_type": "run_market_research",
             "idempotency_key": "mc-runs-parent",
@@ -273,7 +273,7 @@ def test_runs_endpoint_returns_lineage_with_parent_run_id(client) -> None:
     child_run_id = replay_response.json()["child_run_id"]
 
     response = client.get(
-        "/mission-control/runs?business_id=limitless&environment=dev",
+        "/mission-control/runs?business_id=101&environment=dev",
         headers=AUTH_HEADERS,
     )
 
@@ -292,7 +292,7 @@ def test_approvals_endpoint_returns_pending_queue_with_scope_filters(client) -> 
     pending_response = client.post(
         "/commands",
         json={
-            "business_id": "limitless",
+            "business_id": 101,
             "environment": "dev",
             "command_type": "publish_campaign",
             "idempotency_key": "mc-approvals-pending",
@@ -305,7 +305,7 @@ def test_approvals_endpoint_returns_pending_queue_with_scope_filters(client) -> 
     approved_response = client.post(
         "/commands",
         json={
-            "business_id": "limitless",
+            "business_id": 101,
             "environment": "dev",
             "command_type": "publish_campaign",
             "idempotency_key": "mc-approvals-approved",
@@ -324,7 +324,7 @@ def test_approvals_endpoint_returns_pending_queue_with_scope_filters(client) -> 
     other_business_response = client.post(
         "/commands",
         json={
-            "business_id": "another-business",
+            "business_id": 202,
             "environment": "dev",
             "command_type": "publish_campaign",
             "idempotency_key": "mc-approvals-other-business",
@@ -335,7 +335,7 @@ def test_approvals_endpoint_returns_pending_queue_with_scope_filters(client) -> 
     assert other_business_response.status_code == 201
 
     response = client.get(
-        "/mission-control/approvals?business_id=limitless&environment=dev",
+        "/mission-control/approvals?business_id=101&environment=dev",
         headers=AUTH_HEADERS,
     )
 
@@ -345,7 +345,7 @@ def test_approvals_endpoint_returns_pending_queue_with_scope_filters(client) -> 
     assert len(body["approvals"]) == 1
     assert body["approvals"][0]["id"] == pending_approval_id
     assert body["approvals"][0]["status"] == "pending"
-    assert body["approvals"][0]["business_id"] == "limitless"
+    assert body["approvals"][0]["business_id"] == "101"
     assert body["approvals"][0]["environment"] == "dev"
     assert body["approvals"][0]["command_type"] == "publish_campaign"
 

@@ -4,7 +4,7 @@ from datetime import datetime
 from enum import StrEnum
 from typing import Any
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, model_validator
 
 from app.models.commands import CommandPolicy
 
@@ -21,7 +21,7 @@ class RunRecord(BaseModel):
 
     id: str
     command_id: str
-    business_id: str
+    business_id: int
     environment: str
     command_type: str
     command_policy: CommandPolicy
@@ -30,6 +30,7 @@ class RunRecord(BaseModel):
     updated_at: datetime
     trigger_run_id: str | None = None
     parent_run_id: str | None = None
+    replay_source_run_id: str | None = None
     replay_reason: str | None = None
     started_at: datetime | None = None
     completed_at: datetime | None = None
@@ -38,19 +39,26 @@ class RunRecord(BaseModel):
     artifacts: list[dict[str, Any]]
     events: list[dict[str, Any]]
 
+    @model_validator(mode="after")
+    def set_replay_source_run_id(self) -> "RunRecord":
+        if self.replay_source_run_id is None and self.parent_run_id is not None:
+            self.replay_source_run_id = self.parent_run_id
+        return self
+
 
 class RunDetailResponse(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     id: str
     command_id: str
-    business_id: str
+    business_id: int
     environment: str
     command_type: str
     command_policy: CommandPolicy
     status: RunStatus
     trigger_run_id: str | None = None
     parent_run_id: str | None = None
+    replay_source_run_id: str | None = None
     replay_reason: str | None = None
     started_at: datetime | None = None
     completed_at: datetime | None = None

@@ -47,7 +47,7 @@ class MissionControlService:
             store.mission_control_threads[thread.id] = thread.model_copy(deep=True)
             return store.mission_control_threads[thread.id]
 
-    def get_dashboard(self, *, business_id: str | None = None, environment: str | None = None) -> MissionControlDashboardResponse:
+    def get_dashboard(self, *, business_id: str | int | None = None, environment: str | None = None) -> MissionControlDashboardResponse:
         with self.client.transaction() as store:
             approvals = [
                 approval
@@ -104,7 +104,7 @@ class MissionControlService:
         self,
         *,
         selected_thread_id: str | None = None,
-        business_id: str | None = None,
+        business_id: str | int | None = None,
         environment: str | None = None,
     ) -> MissionControlInboxResponse:
         with self.client.transaction() as store:
@@ -146,7 +146,7 @@ class MissionControlService:
             else None,
         )
 
-    def get_runs(self, *, business_id: str | None = None, environment: str | None = None) -> MissionControlRunsResponse:
+    def get_runs(self, *, business_id: str | int | None = None, environment: str | None = None) -> MissionControlRunsResponse:
         with self.client.transaction() as store:
             runs = [
                 run
@@ -166,7 +166,7 @@ class MissionControlService:
                 MissionControlRunSummary(
                     id=run.id,
                     command_id=run.command_id,
-                    business_id=run.business_id,
+                    business_id=str(run.business_id),
                     environment=run.environment,
                     command_type=run.command_type,
                     status=run.status,
@@ -187,7 +187,7 @@ class MissionControlService:
     def get_approvals(
         self,
         *,
-        business_id: str | None = None,
+        business_id: str | int | None = None,
         environment: str | None = None,
     ) -> MissionControlApprovalsResponse:
         approvals = self.approval_service.list_approvals(
@@ -201,7 +201,7 @@ class MissionControlService:
                 MissionControlApprovalSummary(
                     id=approval.id,
                     command_id=approval.command_id,
-                    business_id=approval.business_id,
+                    business_id=str(approval.business_id),
                     environment=approval.environment,
                     command_type=approval.command_type,
                     status=approval.status,
@@ -217,7 +217,7 @@ class MissionControlService:
     def get_agents(
         self,
         *,
-        business_id: str | None = None,
+        business_id: str | int | None = None,
         environment: str | None = None,
     ) -> MissionControlAgentsResponse:
         agents = self.agent_registry_service.list_agents(business_id=business_id, environment=environment)
@@ -245,7 +245,7 @@ class MissionControlService:
         self,
         *,
         agent_id: str | None = None,
-        business_id: str | None = None,
+        business_id: str | int | None = None,
         environment: str | None = None,
     ) -> MissionControlAssetsResponse:
         assets = self.agent_asset_service.list_assets(
@@ -332,16 +332,29 @@ class MissionControlService:
 
     @staticmethod
     def _matches_scope(
-        record_business_id: str,
+        record_business_id: str | int,
         record_environment: str,
-        business_id: str | None,
+        business_id: str | int | None,
         environment: str | None,
     ) -> bool:
-        if business_id is not None and record_business_id != business_id:
+        if (
+            business_id is not None
+            and MissionControlService._normalize_business_id(record_business_id)
+            != MissionControlService._normalize_business_id(business_id)
+        ):
             return False
         if environment is not None and record_environment != environment:
             return False
         return True
+
+    @staticmethod
+    def _normalize_business_id(value: str | int) -> str | int:
+        if isinstance(value, int):
+            return value
+        try:
+            return int(value)
+        except ValueError:
+            return value
 
 
 mission_control_service = MissionControlService()

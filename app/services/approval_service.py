@@ -39,7 +39,7 @@ class ApprovalService:
     def list_approvals(
         self,
         *,
-        business_id: str | None = None,
+        business_id: str | int | None = None,
         environment: str | None = None,
         status: ApprovalStatus | None = ApprovalStatus.PENDING,
     ) -> list[ApprovalRecord]:

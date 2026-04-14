@@ -23,6 +23,8 @@
 ## Current TODO
 
 1. execute `docs/superpowers/plans/2026-04-13-mission-control-supabase-persistence-plan.md` on a separate persistence branch after the Mission Control contract branch is green
+   - progress: runtime contract freeze slice 1 landed on `feature/mission-control-supabase-persistence` (`business_id` int for commands/approvals/runs + `replay_source_run_id` in run contract)
+   - progress: persistence compatibility slice landed with additive migration `202604130002_mission_control_runtime_persistence.sql`, repo-only SQL/runtime mapping seams, and green Python test suite (`70 passed`)
 2. attach Trigger tasks to runtime run/artifact/event updates
 3. finish operator/docs alignment across this repo and `Mailers AWF`
 4. start the QC + devil's-advocate review loop once the remaining docs/schema commits are in

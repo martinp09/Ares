@@ -29,7 +29,7 @@ def test_invoke_hermes_tool_reuses_command_service_when_allowed(client) -> None:
     response = client.post(
         "/hermes/tools/run_market_research/invoke",
         json={
-            "business_id": "limitless",
+            "business_id": 101,
             "environment": "dev",
             "idempotency_key": "cmd-040",
             "payload": {"topic": "austin landlords"},
@@ -64,7 +64,7 @@ def test_always_ask_permission_returns_approval_path_instead_of_direct_execution
         "/hermes/tools/run_market_research/invoke",
         json={
             "agent_revision_id": revision_id,
-            "business_id": "limitless",
+            "business_id": 101,
             "environment": "dev",
             "idempotency_key": "cmd-041",
             "payload": {"topic": "dallas absentee owners"},
@@ -100,7 +100,7 @@ def test_forbidden_permission_rejects_tool_invocation(client) -> None:
         "/hermes/tools/run_market_research/invoke",
         json={
             "agent_revision_id": revision_id,
-            "business_id": "limitless",
+            "business_id": 101,
             "environment": "dev",
             "idempotency_key": "cmd-042",
             "payload": {"topic": "houston multifamily"},

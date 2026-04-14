@@ -22,7 +22,7 @@ class HermesToolListResponse(BaseModel):
 
 
 class HermesToolInvokeRequest(BaseModel):
-    business_id: str
+    business_id: int
     environment: str
     idempotency_key: str
     payload: dict = Field(default_factory=dict)

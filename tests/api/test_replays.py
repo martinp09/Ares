@@ -23,7 +23,7 @@ def test_safe_autonomous_run_can_be_replayed_without_new_approval() -> None:
     command_response = client.post(
         "/commands",
         json={
-            "business_id": "limitless",
+            "business_id": 101,
             "environment": "dev",
             "command_type": "run_market_research",
             "idempotency_key": "cmd-030",
@@ -51,7 +51,7 @@ def test_side_effecting_run_replay_requires_reapproval() -> None:
     command_response = client.post(
         "/commands",
         json={
-            "business_id": "limitless",
+            "business_id": 101,
             "environment": "dev",
             "command_type": "publish_campaign",
             "idempotency_key": "cmd-031",

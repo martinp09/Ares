@@ -23,7 +23,7 @@ def create_safe_run(client: TestClient, *, idempotency_key: str = "cmd-001") -> 
     response = client.post(
         "/commands",
         json={
-            "business_id": "limitless",
+            "business_id": 101,
             "environment": "dev",
             "command_type": "run_market_research",
             "idempotency_key": idempotency_key,

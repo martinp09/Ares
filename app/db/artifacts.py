@@ -3,8 +3,21 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any
 
-from app.db.client import ControlPlaneClient, get_control_plane_client, utc_now
+from app.db.client import ControlPlaneClient, get_control_plane_client, register_runtime_sql_identity, utc_now
 from app.models.commands import generate_id
+
+
+def artifact_row_from_record(artifact: dict[str, Any], *, business_id: int, environment: str) -> dict[str, Any]:
+    return {
+        "runtime_id": artifact["id"],
+        "run_runtime_id": artifact["run_id"],
+        "business_id": business_id,
+        "environment": environment,
+        "artifact_type": artifact["artifact_type"],
+        "payload": artifact["payload"],
+        "data": artifact["payload"],
+        "created_at": artifact["created_at"],
+    }
 
 
 class ArtifactsRepository:
@@ -35,6 +48,7 @@ class ArtifactsRepository:
             run.artifacts.append(artifact)
             run.updated_at = artifact_created_at
             store.runs[run_id] = run
+            register_runtime_sql_identity(store, table="artifacts", runtime_id=artifact["id"])
             return artifact
 
     def list_for_run(self, run_id: str) -> list[dict[str, Any]]:

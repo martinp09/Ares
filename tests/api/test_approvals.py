@@ -21,7 +21,7 @@ def test_approve_pending_command_creates_run() -> None:
     command_response = client.post(
         "/commands",
         json={
-            "business_id": "limitless",
+            "business_id": 101,
             "environment": "dev",
             "command_type": "publish_campaign",
             "idempotency_key": "cmd-010",
@@ -39,5 +39,6 @@ def test_approve_pending_command_creates_run() -> None:
 
     assert response.status_code == 200
     body = response.json()
+    assert body["approval"]["business_id"] == 101
     assert body["approval"]["status"] == "approved"
     assert body["run_id"] is not None

@@ -18,9 +18,14 @@ def utc_now() -> datetime:
 @dataclass
 class InMemoryControlPlaneStore:
     commands: dict[str, CommandRecord] = field(default_factory=dict)
-    command_keys: dict[tuple[str, str, str, str], str] = field(default_factory=dict)
+    command_keys: dict[tuple[int, str, str, str], str] = field(default_factory=dict)
+    command_runtime_to_sql_id: dict[str, int] = field(default_factory=dict)
     approvals: dict[str, ApprovalRecord] = field(default_factory=dict)
+    approval_runtime_to_sql_id: dict[str, int] = field(default_factory=dict)
     runs: dict[str, RunRecord] = field(default_factory=dict)
+    run_runtime_to_sql_id: dict[str, int] = field(default_factory=dict)
+    event_runtime_to_sql_id: dict[str, int] = field(default_factory=dict)
+    artifact_runtime_to_sql_id: dict[str, int] = field(default_factory=dict)
     agents: dict[str, object] = field(default_factory=dict)
     agent_revisions: dict[str, object] = field(default_factory=dict)
     agent_revision_ids_by_agent: dict[str, list[str]] = field(default_factory=dict)
@@ -30,6 +35,15 @@ class InMemoryControlPlaneStore:
     outcomes: dict[str, object] = field(default_factory=dict)
     agent_assets: dict[str, object] = field(default_factory=dict)
     mission_control_threads: dict[str, object] = field(default_factory=dict)
+    sql_identity_counters: dict[str, int] = field(
+        default_factory=lambda: {
+            "commands": 0,
+            "approvals": 0,
+            "runs": 0,
+            "events": 0,
+            "artifacts": 0,
+        }
+    )
 
 
 STORE = InMemoryControlPlaneStore()
@@ -39,8 +53,13 @@ def reset_control_plane_store(store: InMemoryControlPlaneStore | None = None) ->
     target = store or STORE
     target.commands.clear()
     target.command_keys.clear()
+    target.command_runtime_to_sql_id.clear()
     target.approvals.clear()
+    target.approval_runtime_to_sql_id.clear()
     target.runs.clear()
+    target.run_runtime_to_sql_id.clear()
+    target.event_runtime_to_sql_id.clear()
+    target.artifact_runtime_to_sql_id.clear()
     target.agents.clear()
     target.agent_revisions.clear()
     target.agent_revision_ids_by_agent.clear()
@@ -50,6 +69,40 @@ def reset_control_plane_store(store: InMemoryControlPlaneStore | None = None) ->
     target.outcomes.clear()
     target.agent_assets.clear()
     target.mission_control_threads.clear()
+    target.sql_identity_counters.clear()
+    target.sql_identity_counters.update(
+        {
+            "commands": 0,
+            "approvals": 0,
+            "runs": 0,
+            "events": 0,
+            "artifacts": 0,
+        }
+    )
+
+
+def register_runtime_sql_identity(
+    store: InMemoryControlPlaneStore,
+    *,
+    table: Literal["commands", "approvals", "runs", "events", "artifacts"],
+    runtime_id: str,
+) -> int:
+    runtime_maps = {
+        "commands": store.command_runtime_to_sql_id,
+        "approvals": store.approval_runtime_to_sql_id,
+        "runs": store.run_runtime_to_sql_id,
+        "events": store.event_runtime_to_sql_id,
+        "artifacts": store.artifact_runtime_to_sql_id,
+    }
+    runtime_map = runtime_maps[table]
+    existing = runtime_map.get(runtime_id)
+    if existing is not None:
+        return existing
+
+    next_sql_id = store.sql_identity_counters[table] + 1
+    store.sql_identity_counters[table] = next_sql_id
+    runtime_map[runtime_id] = next_sql_id
+    return next_sql_id
 
 
 class ControlPlaneClient(Protocol):

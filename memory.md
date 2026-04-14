@@ -121,6 +121,21 @@
 
 ## Change Log
 
+### 2026-04-13 Persistence Compatibility Slice 2 (Repo + Migration Seam)
+
+- Added additive migration `supabase/migrations/202604130002_mission_control_runtime_persistence.sql` to introduce runtime compatibility columns and indexes for commands, approvals, runs, events, and artifacts without rewriting the baseline schema
+- Added repository-only SQL/runtime mapping seams in `app/db/*` for command status and policy drift, approval decided/actor drift, run status and lineage drift, and runtime ID row builders for events and artifacts
+- Added in-memory runtime-to-SQL identity bookkeeping in `app/db/client.py` so repository behavior matches the forthcoming SQL adapter shape
+- Normalized the remaining runtime-core and request-edge tests to integer `business_id` while explicitly keeping Mission Control read-model business IDs string-backed at the response boundary for now
+- Verified the branch with `uv run pytest -q` (`70 passed`); local `supabase db reset --local` remains unverified on this machine because Docker was unavailable during worker execution
+
+### 2026-04-13 Persistence Freeze Slice 1 (Runtime Contracts)
+
+- Froze `business_id` to canonical integer on runtime command, approval, and run contracts in `app/models/commands.py`, `app/models/approvals.py`, and `app/models/runs.py`
+- Added `replay_source_run_id` to run contracts and defaulted it to `parent_run_id` when replay lineage exists
+- Updated and passed focused API contract tests for commands, approvals, runs, and replays with integer `business_id` payloads
+- Broad API test run flagged remaining non-slice tests that still submit string `business_id` on Hermes tools, Mission Control, and Trigger callback paths
+
 ### 2026-04-13 Supabase Persistence Design Pass
 
 - Added `docs/superpowers/plans/2026-04-13-mission-control-supabase-persistence-plan.md` as the dedicated design-only rollout plan for the later Supabase persistence branch

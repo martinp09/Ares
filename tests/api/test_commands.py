@@ -22,7 +22,7 @@ def test_create_safe_command_returns_created_shape() -> None:
     response = client.post(
         "/commands",
         json={
-            "business_id": "limitless",
+            "business_id": 101,
             "environment": "dev",
             "command_type": "run_market_research",
             "idempotency_key": "cmd-001",
@@ -33,6 +33,7 @@ def test_create_safe_command_returns_created_shape() -> None:
 
     assert response.status_code == 201
     body = response.json()
+    assert body["business_id"] == 101
     assert body["deduped"] is False
     assert body["command_type"] == "run_market_research"
     assert body["policy"] == "safe_autonomous"
@@ -47,7 +48,7 @@ def test_create_approval_required_command_returns_pending_approval() -> None:
     response = client.post(
         "/commands",
         json={
-            "business_id": "limitless",
+            "business_id": 101,
             "environment": "dev",
             "command_type": "propose_launch",
             "idempotency_key": "cmd-002",
@@ -58,6 +59,7 @@ def test_create_approval_required_command_returns_pending_approval() -> None:
 
     assert response.status_code == 201
     body = response.json()
+    assert body["business_id"] == 101
     assert body["policy"] == "approval_required"
     assert body["approval_id"] is not None
     assert body["run_id"] is None
@@ -67,7 +69,7 @@ def test_idempotent_command_dedupes_without_duplicate_run() -> None:
     reset_control_plane_state()
     client = build_client()
     payload = {
-        "business_id": "limitless",
+        "business_id": 101,
         "environment": "dev",
         "command_type": "run_market_research",
         "idempotency_key": "cmd-003",
@@ -83,4 +85,24 @@ def test_idempotent_command_dedupes_without_duplicate_run() -> None:
     second_body = second.json()
     assert second_body["deduped"] is True
     assert first_body["id"] == second_body["id"]
+    assert first_body["business_id"] == second_body["business_id"] == 101
     assert first_body["run_id"] == second_body["run_id"]
+
+
+def test_create_command_rejects_non_integer_business_id() -> None:
+    reset_control_plane_state()
+    client = build_client()
+
+    response = client.post(
+        "/commands",
+        json={
+            "business_id": "limitless",
+            "environment": "dev",
+            "command_type": "run_market_research",
+            "idempotency_key": "cmd-004",
+            "payload": {"topic": "austin probate"},
+        },
+        headers=AUTH_HEADERS,
+    )
+
+    assert response.status_code == 422
