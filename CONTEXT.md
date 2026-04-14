@@ -35,11 +35,19 @@
 5. start the QC + devil's-advocate review loop once the remaining docs/schema commits are in
 6. sync README, specs, wiki, CONTEXT, and memory to the shipped Mission Control read models and Supabase rollout status
 
+## Handoff Next Steps
+
+1. replace the in-memory `mission_control_threads` write path with a rebuildable projection derived from canonical runtime/conversation data
+2. keep Mission Control read-side only; do not introduce durable operator-thread truth
+3. decide whether the projection needs additive conversation/read-state tables or can be built from existing canonical records plus derived state
+4. attach Trigger task updates to canonical run/event/artifact persistence after the Mission Control projection boundary is settled
+5. run QC on the Mission Control projection plan before adding new migrations
+
 ## Read These Sections In `memory.md`
 
 1. `## Current Direction`
 2. `## Current Runtime Surface`
-2. `## Repo Conventions`
 3. `## Environment Notes`
 4. `## Open Work`
-5. latest entry in `## Change Log`
+5. `## Handoff Notes`
+6. latest entry in `## Change Log`

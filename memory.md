@@ -13,6 +13,7 @@
 - Current priorities:
   - `## Current Direction`
   - `## Open Work`
+  - `## Handoff Notes`
 - Repo conventions:
   - `## Repo Conventions`
 - Environment and infra:
@@ -119,6 +120,27 @@
 3. push the clean control-plane schema baseline after final schema review
 4. align operator docs across `Hermes Central Command` and `Mailers AWF`
 5. start QC and devil's-advocate review loop after code/docs settle
+
+## Handoff Notes
+
+- Branch: `feature/mission-control-supabase-persistence`
+- Latest persistence checkpoint: `6ff19b3` `Add managed agent Supabase persistence`
+- Verified state before handoff:
+  - `uv run pytest -q` -> `89 passed`
+  - `supabase db reset --local` applied cleanly through `202604130005`
+  - `supabase stop` and `colima stop` completed
+  - `docker ps` fails because the daemon is down
+- Canonical persistence now covers:
+  - commands, approvals, runs, events, artifacts
+  - agents, revisions, sessions, session events
+  - permissions, outcomes, operational assets
+- Mission Control is still not canonical persistence:
+  - `app/services/mission_control_service.py` still writes/reads in-memory `mission_control_threads`
+  - keep that boundary intact until a derived projection design is frozen
+- Next implementation target:
+  - replace Mission Control thread writes with a rebuildable projection from canonical runtime/conversation facts
+  - only add schema if that projection truly needs new additive read-model tables
+  - do not rewrite `202604130001` through `202604130005`
 
 ## Change Log
 
