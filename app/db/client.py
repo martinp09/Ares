@@ -1,9 +1,11 @@
 from __future__ import annotations
 
+import json
 from contextlib import contextmanager
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from typing import Iterator, Literal, Protocol
+from urllib import error, parse, request
 
 from app.core.config import Settings, get_settings
 from app.models.approvals import ApprovalRecord
@@ -125,15 +127,126 @@ class InMemoryControlPlaneClient:
 class SupabaseControlPlaneClient:
     backend: Literal["supabase"] = "supabase"
 
-    def __init__(self, settings: Settings | None = None):
+    def __init__(self, settings: Settings | None = None, store: InMemoryControlPlaneStore | None = None):
         self.settings = settings or get_settings()
+        self.store = store or STORE
+
+    def _base_url(self) -> str:
+        if not self.settings.supabase_url:
+            raise RuntimeError("SUPABASE_URL is required for control-plane supabase persistence")
+        return self.settings.supabase_url.rstrip("/")
+
+    def _headers(self, *, prefer: str | None = None) -> dict[str, str]:
+        if not self.settings.supabase_service_role_key:
+            raise RuntimeError("SUPABASE_SERVICE_ROLE_KEY is required for control-plane supabase persistence")
+        headers = {
+            "Content-Type": "application/json",
+            "apikey": self.settings.supabase_service_role_key,
+            "Authorization": f"Bearer {self.settings.supabase_service_role_key}",
+        }
+        if prefer:
+            headers["Prefer"] = prefer
+        return headers
+
+    def _request_rows(
+        self,
+        *,
+        method: str,
+        table: str,
+        query: dict[str, str] | None = None,
+        payload: list[dict] | dict | None = None,
+        prefer: str | None = None,
+    ) -> list[dict]:
+        query_string = parse.urlencode(query or {})
+        endpoint = f"{self._base_url()}/rest/v1/{table}"
+        url = f"{endpoint}?{query_string}" if query_string else endpoint
+        data = json.dumps(payload).encode("utf-8") if payload is not None else None
+        req = request.Request(
+            url,
+            data=data,
+            headers=self._headers(prefer=prefer),
+            method=method,
+        )
+        try:
+            with request.urlopen(req, timeout=5) as response:
+                raw = response.read().decode("utf-8")
+        except error.HTTPError as exc:  # pragma: no cover - networked failure path
+            detail = exc.read().decode("utf-8")
+            raise RuntimeError(f"Supabase {table} {method} failed: {detail}") from exc
+
+        if not raw:
+            return []
+        rows = json.loads(raw)
+        if isinstance(rows, list):
+            return rows
+        if isinstance(rows, dict):
+            return [rows]
+        raise RuntimeError(f"Unexpected Supabase response for {table}: {rows!r}")
+
+    def select(
+        self,
+        table: str,
+        *,
+        columns: str,
+        filters: dict[str, str | int] | None = None,
+        order: str | None = None,
+        limit: int | None = None,
+    ) -> list[dict]:
+        query: dict[str, str] = {"select": columns}
+        for key, value in (filters or {}).items():
+            query[key] = f"eq.{value}"
+        if order:
+            query["order"] = order
+        if limit is not None:
+            query["limit"] = str(limit)
+        return self._request_rows(method="GET", table=table, query=query)
+
+    def insert(
+        self,
+        table: str,
+        *,
+        rows: list[dict],
+        columns: str,
+        on_conflict: str | None = None,
+        ignore_duplicates: bool = False,
+    ) -> list[dict]:
+        query: dict[str, str] = {"select": columns}
+        if on_conflict:
+            query["on_conflict"] = on_conflict
+        prefer_parts = ["return=representation"]
+        if ignore_duplicates:
+            prefer_parts.insert(0, "resolution=ignore-duplicates")
+        prefer = ",".join(prefer_parts)
+        return self._request_rows(
+            method="POST",
+            table=table,
+            query=query,
+            payload=rows,
+            prefer=prefer,
+        )
+
+    def update(
+        self,
+        table: str,
+        *,
+        values: dict,
+        filters: dict[str, str | int],
+        columns: str,
+    ) -> list[dict]:
+        query: dict[str, str] = {"select": columns}
+        for key, value in filters.items():
+            query[key] = f"eq.{value}"
+        return self._request_rows(
+            method="PATCH",
+            table=table,
+            query=query,
+            payload=values,
+            prefer="return=representation",
+        )
 
     @contextmanager
     def transaction(self) -> Iterator[InMemoryControlPlaneStore]:
-        raise NotImplementedError(
-            "Live Supabase wiring is deferred in this environment; use the in-memory control-plane adapter for now."
-        )
-        yield STORE
+        yield self.store
 
 
 def get_control_plane_client(settings: Settings | None = None) -> ControlPlaneClient:

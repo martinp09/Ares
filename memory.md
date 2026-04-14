@@ -113,13 +113,34 @@
 
 ## Open Work
 
-1. swap in-memory runtime state for Supabase persistence
+1. finish Supabase persistence rollout beyond the runtime-core slice (managed agents + Mission Control projections still pending)
 2. connect Trigger tasks to runtime run/event/artifact writes
 3. push the clean control-plane schema baseline after final schema review
 4. align operator docs across `Hermes Central Command` and `Mailers AWF`
 5. start QC and devil's-advocate review loop after code/docs settle
 
 ## Change Log
+
+### 2026-04-13 Runtime-Core Supabase Adapter Slice 3 (Commands/Approvals/Runs/Events/Artifacts)
+
+- Replaced the `SupabaseControlPlaneClient` placeholder with real REST helpers in `app/db/client.py` (`select`, `insert`, `update`) while retaining memory transaction fallback for non-runtime-core repositories
+- Implemented Supabase-backed repository behavior in `app/db/commands.py`, `app/db/approvals.py`, `app/db/runs.py`, `app/db/events.py`, and `app/db/artifacts.py` with runtime-ID-first mapping and no schema expansion beyond migration `202604130002`
+- Added explicit repository persistence methods (`save`) for command and run state transitions, then updated runtime-core services (`command`, `approval`, `run`, `replay`, `run_lifecycle`) to persist transitions without relying on in-memory object mutation side effects
+- Fixed run row mapping so `replay_source_runtime_id` is preserved distinctly from `parent_runtime_id` when both are present
+- Added focused Supabase adapter tests in `tests/db/test_runtime_supabase_adapter.py` and expanded run mapping coverage in `tests/db/test_runs_repository.py`
+- Verified branch health with `uv run pytest -q` (`74 passed`)
+
+### 2026-04-13 Supabase Local Environment Workaround (Colima Socket Mount)
+
+- Reproduced local `supabase start` failure after migrations with Colima Docker context: `error while creating mount source path '/Users/solomartin/.colima/default/docker.sock': ... operation not supported`
+- Confirmed failure is environment-level socket bind-mount behavior, not migration/runtime persistence logic
+- Validated repeatable local loop on this machine using:
+  - `supabase start --exclude vector --exclude logflare`
+  - `supabase db reset --local`
+  - `supabase stop`
+- Verified cleanup path:
+  - `supabase stop` leaves no `supabase_*Hermes_Central_Command` containers running
+  - `colima stop` shuts down Docker daemon/VM for zero-background-process state
 
 ### 2026-04-13 Persistence Compatibility Slice 2 (Repo + Migration Seam)
 

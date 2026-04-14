@@ -141,6 +141,28 @@ def test_run_row_mapping_prefers_runtime_compatibility_columns() -> None:
     assert run.parent_run_id == "run_runtime_parent"
 
 
+def test_run_row_mapping_preserves_distinct_replay_source_runtime_id() -> None:
+    row = {
+        "id": 23,
+        "runtime_id": "run_runtime_23",
+        "command_runtime_id": "cmd_runtime_10",
+        "business_id": 1,
+        "environment": "dev",
+        "command_type": "run_market_research",
+        "runtime_policy": "safe_autonomous",
+        "runtime_status": "in_progress",
+        "parent_runtime_id": "run_runtime_parent",
+        "replay_source_runtime_id": "run_runtime_origin",
+        "created_at": "2026-04-13T18:00:00+00:00",
+        "updated_at": "2026-04-13T18:02:00+00:00",
+    }
+
+    run = run_record_from_row(row)
+
+    assert run.parent_run_id == "run_runtime_parent"
+    assert run.replay_source_run_id == "run_runtime_origin"
+
+
 def test_event_and_artifact_rows_include_runtime_compatibility_ids() -> None:
     event = event_row_from_record(
         {

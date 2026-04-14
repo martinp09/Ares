@@ -4,7 +4,12 @@ from collections.abc import Mapping
 from datetime import datetime
 from typing import Any
 
-from app.db.client import ControlPlaneClient, get_control_plane_client, register_runtime_sql_identity
+from app.db.client import (
+    ControlPlaneClient,
+    SupabaseControlPlaneClient,
+    get_control_plane_client,
+    register_runtime_sql_identity,
+)
 from app.models.commands import CommandPolicy, CommandRecord, CommandStatus
 
 
@@ -99,6 +104,74 @@ class CommandsRepository:
     def __init__(self, client: ControlPlaneClient | None = None):
         self.client = client or get_control_plane_client()
 
+    def _is_supabase(self) -> bool:
+        return getattr(self.client, "backend", None) == "supabase"
+
+    def _supabase_client(self) -> SupabaseControlPlaneClient:
+        if not isinstance(self.client, SupabaseControlPlaneClient):
+            return self.client  # type: ignore[return-value]
+        return self.client
+
+    def _hydrate_runtime_links(self, command: CommandRecord) -> CommandRecord:
+        supabase = self._supabase_client()
+        run_rows = supabase.select(
+            "runs",
+            columns="runtime_id,command_runtime_id,created_at",
+            filters={"command_runtime_id": command.id},
+            order="created_at.asc",
+            limit=1,
+        )
+        approval_rows = supabase.select(
+            "approvals",
+            columns="runtime_id,command_runtime_id,created_at",
+            filters={"command_runtime_id": command.id},
+            order="created_at.desc",
+            limit=1,
+        )
+        return command.model_copy(
+            update={
+                "run_id": str(run_rows[0]["runtime_id"]) if run_rows else None,
+                "approval_id": str(approval_rows[0]["runtime_id"]) if approval_rows else None,
+            }
+        )
+
+    def _select_supabase_command(
+        self,
+        *,
+        runtime_id: str | None = None,
+        business_id: int | None = None,
+        environment: str | None = None,
+        command_type: str | None = None,
+        idempotency_key: str | None = None,
+    ) -> CommandRecord | None:
+        supabase = self._supabase_client()
+        filters: dict[str, str | int] = {}
+        if runtime_id is not None:
+            filters["runtime_id"] = runtime_id
+        if business_id is not None:
+            filters["business_id"] = business_id
+        if environment is not None:
+            filters["environment"] = environment
+        if command_type is not None:
+            filters["command_type"] = command_type
+        if idempotency_key is not None:
+            filters["idempotency_key"] = idempotency_key
+
+        rows = supabase.select(
+            "commands",
+            columns=(
+                "id,runtime_id,business_id,environment,command_type,payload,"
+                "idempotency_key,policy_result,runtime_policy,status,runtime_status,created_at"
+            ),
+            filters=filters,
+            limit=1,
+        )
+        if not rows:
+            return None
+
+        command = command_record_from_row(rows[0])
+        return self._hydrate_runtime_links(command)
+
     def create(
         self,
         *,
@@ -110,6 +183,64 @@ class CommandsRepository:
         policy: CommandPolicy,
         status: CommandStatus,
     ) -> CommandRecord:
+        if self._is_supabase():
+            existing = self._select_supabase_command(
+                business_id=business_id,
+                environment=environment,
+                command_type=command_type,
+                idempotency_key=idempotency_key,
+            )
+            if existing is not None:
+                return existing.model_copy(update={"deduped": True})
+
+            command = CommandRecord(
+                business_id=business_id,
+                environment=environment,
+                command_type=command_type,
+                idempotency_key=idempotency_key,
+                payload=payload or {},
+                policy=policy,
+                status=status,
+            )
+            supabase = self._supabase_client()
+            rows = supabase.insert(
+                "commands",
+                rows=[
+                    {
+                        "runtime_id": command.id,
+                        "business_id": business_id,
+                        "environment": environment,
+                        "command_type": command_type,
+                        "payload": command.payload,
+                        "idempotency_key": idempotency_key,
+                        "policy_result": command_policy_to_sql_policy_result(policy),
+                        "runtime_policy": policy.value,
+                        "approval_required": policy == CommandPolicy.APPROVAL_REQUIRED,
+                        "status": command_status_to_sql_status(status),
+                        "runtime_status": status.value,
+                        "source_surface": "api",
+                    }
+                ],
+                columns=(
+                    "id,runtime_id,business_id,environment,command_type,payload,idempotency_key,"
+                    "policy_result,runtime_policy,status,runtime_status,created_at"
+                ),
+                on_conflict="business_id,environment,command_type,idempotency_key",
+                ignore_duplicates=True,
+            )
+            if not rows:
+                deduped = self._select_supabase_command(
+                    business_id=business_id,
+                    environment=environment,
+                    command_type=command_type,
+                    idempotency_key=idempotency_key,
+                )
+                if deduped is None:
+                    raise RuntimeError("Supabase command insert deduped without an existing command row")
+                return deduped.model_copy(update={"deduped": True})
+            created = command_record_from_row(rows[0])
+            return self._hydrate_runtime_links(created)
+
         dedupe_key = (business_id, environment, command_type, idempotency_key)
         with self.client.transaction() as store:
             existing_id = store.command_keys.get(dedupe_key)
@@ -132,5 +263,30 @@ class CommandsRepository:
             return command
 
     def get(self, command_id: str) -> CommandRecord | None:
+        if self._is_supabase():
+            return self._select_supabase_command(runtime_id=command_id)
         with self.client.transaction() as store:
             return store.commands.get(command_id)
+
+    def save(self, command: CommandRecord) -> CommandRecord:
+        if self._is_supabase():
+            supabase = self._supabase_client()
+            supabase.update(
+                "commands",
+                values={
+                    "runtime_status": command.status.value,
+                    "status": command_status_to_sql_status(command.status),
+                    "runtime_policy": command.policy.value,
+                    "policy_result": command_policy_to_sql_policy_result(command.policy),
+                },
+                filters={"runtime_id": command.id},
+                columns=(
+                    "id,runtime_id,business_id,environment,command_type,payload,idempotency_key,"
+                    "policy_result,runtime_policy,status,runtime_status,created_at"
+                ),
+            )
+            return command
+
+        with self.client.transaction() as store:
+            store.commands[command.id] = command
+        return command

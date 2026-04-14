@@ -34,6 +34,7 @@ class ApprovalService:
         )
         command.approval_id = approval.id
         command.status = CommandStatus.AWAITING_APPROVAL
+        self.commands_repository.save(command)
         return approval
 
     def list_approvals(
@@ -72,6 +73,7 @@ class ApprovalService:
         )
         command.run_id = run.id
         command.status = CommandStatus.QUEUED
+        self.commands_repository.save(command)
         return ApprovalDecisionResponse(approval=approval, run_id=run.id)
 
 

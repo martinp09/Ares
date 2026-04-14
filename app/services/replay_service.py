@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from app.db.approvals import ApprovalsRepository
 from app.db.commands import CommandsRepository
+from app.db.events import EventsRepository
 from app.db.runs import RunsRepository
 from app.models.commands import CommandPolicy
 from app.models.runs import ReplayRequest, ReplayResponse
@@ -14,10 +15,12 @@ class ReplayService:
         commands_repository: CommandsRepository | None = None,
         runs_repository: RunsRepository | None = None,
         approvals_repository: ApprovalsRepository | None = None,
+        events_repository: EventsRepository | None = None,
     ) -> None:
         self.commands_repository = commands_repository or CommandsRepository()
         self.runs_repository = runs_repository or RunsRepository()
         self.approvals_repository = approvals_repository or ApprovalsRepository()
+        self.events_repository = events_repository or EventsRepository()
 
     def replay_run(self, run_id: str, request: ReplayRequest) -> tuple[ReplayResponse, int] | None:
         parent_run = self.runs_repository.get(run_id)
@@ -28,16 +31,21 @@ class ReplayService:
         if command is None:
             return None
 
-        parent_run.events.append({"type": "replay_requested", "reason": request.reason, "requires_approval": None})
-
         if command.policy == CommandPolicy.SAFE_AUTONOMOUS:
             child_run = run_service.create_run(
                 command,
                 parent_run_id=parent_run.id,
                 replay_reason=request.reason,
             )
-            parent_run.events[-1]["requires_approval"] = False
-            parent_run.events[-1]["child_run_id"] = child_run.id
+            self.events_repository.append(
+                parent_run.id,
+                event_type="replay_requested",
+                payload={
+                    "reason": request.reason,
+                    "requires_approval": False,
+                    "child_run_id": child_run.id,
+                },
+            )
             return (
                 ReplayResponse(
                     parent_run_id=parent_run.id,
@@ -55,8 +63,15 @@ class ReplayService:
             command_type=command.command_type,
             payload_snapshot=command.payload,
         )
-        parent_run.events[-1]["requires_approval"] = True
-        parent_run.events[-1]["approval_id"] = replay_approval.id
+        self.events_repository.append(
+            parent_run.id,
+            event_type="replay_requested",
+            payload={
+                "reason": request.reason,
+                "requires_approval": True,
+                "approval_id": replay_approval.id,
+            },
+        )
         return (
             ReplayResponse(
                 parent_run_id=parent_run.id,

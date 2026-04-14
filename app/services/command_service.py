@@ -50,10 +50,12 @@ class CommandService:
             run = run_service.create_run(command)
             command.run_id = run.id
             command.status = CommandStatus.QUEUED
+            self.commands_repository.save(command)
         else:
             approval = approval_service.create_approval(command)
             command.approval_id = approval.id
             command.status = CommandStatus.AWAITING_APPROVAL
+            self.commands_repository.save(command)
 
         return CommandIngestResponse(**command.model_dump()), 201
 
