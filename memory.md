@@ -32,6 +32,8 @@
 - Generalist core comes before industry-specific packs
 - Real estate is the first optimization target
 - Marketing control plane is the first execution domain
+- The immediate MVP is lease-option marketing, not research/copy generation
+- The live path is lead submit -> booking check -> confirmations -> non-booker SMS sequence -> inbound qualification
 
 ## Repo Conventions
 
@@ -49,6 +51,10 @@
 - Trigger.dev CLI login is configured on this machine
 - `TRIGGER_SECRET_KEY` is present in the local `.env`
 - Trigger.dev local worker boot verified against project `proj_puouljyhwiraonjkpiki`
+- Local `.env` already includes `Cal.com`, `TextGrid`, and `Resend` credentials needed for the lease-option MVP
+- The active landing page lives at `/Users/solomartin/Business/website/lease-options-landing`
+- The landing page currently persists form submissions and redirects to `Cal.com`, but still hands automation off to `n8n`
+- A proven `TextGrid` adapter exists in `/Users/solomartin/Projects/Phone System/api/_lib/providers/textgrid.js`
 
 ## Runtime Architecture
 
@@ -113,13 +119,33 @@
 
 ## Open Work
 
-1. swap in-memory runtime state for Supabase persistence
-2. connect Trigger tasks to runtime run/event/artifact writes
-3. push the clean control-plane schema baseline after final schema review
-4. align operator docs across `Hermes Central Command` and `Mailers AWF`
-5. start QC and devil's-advocate review loop after code/docs settle
+1. replace the in-memory marketing repositories with Supabase-backed persistence
+2. add tenant-safe inbound routing so identical phone numbers across businesses/envs cannot collide
+3. persist real sequence state and opt-out state instead of deriving guards from booking status alone
+4. align Mission Control read models to the actual persisted marketing state
+5. decide whether form-submit failures should hard-fail the landing page when Hermes intake is unavailable
 
 ## Change Log
+
+### 2026-04-14 Lease-Option Marketing Wiring Pass
+
+- Replaced the landing-page `n8n` handoff with Hermes lead-ingress payloads while keeping the old `n8n` helper type-compatible for legacy tests
+- Wired `MarketingLeadService` to configured `TextGrid`, `Resend`, `Cal.com` booking URLs, and Trigger HTTP scheduling instead of the earlier no-op defaults
+- Wired booking confirmations, manual-call task persistence, and sequence-step outbound dispatch onto the current in-memory marketing repositories
+- Added exact-config support for local env names already present on Martin's machine, including `Cal_API_key` and Trigger settings
+- Added webhook-signature enforcement seams for `Cal.com` and `TextGrid` using request details from the FastAPI routes
+- Verified current repo state with `95` backend tests passing, Mission Control tests/build passing, Trigger typecheck passing, and landing-page tests/build passing
+- Added a marketing-only Supabase adapter layer and verified a live smoke insert into remote `public.contacts` for `limitless/dev`
+- Applied the core and lease-option marketing migrations to Supabase project `awmsrjeawcxndfnggoxw` and seeded `public.businesses` with `limitless/dev`
+- Kept the repo honest about the remaining MVP risks: inbound SMS matching is still phone-only and sequence guard state is still derived too simplistically for a multi-tenant or more advanced sequence rollout
+
+### 2026-04-14 Lease-Option Marketing MVP Design
+
+- Added `docs/superpowers/specs/2026-04-14-lease-option-marketing-mvp-design.md` as the live marketing MVP design
+- Locked the first live scope to lease-option sellers with `45+ DOM` messaging
+- Chose `Cal.com` for booking, `TextGrid` for SMS, and `Resend` for transactional email
+- Chose the lead-state rule: submit creates `pending`, booking flips to `booked`, and only non-bookers after 5 minutes enter the 10-day intensive
+- Chose Hermes to replace the current landing-page `n8n` handoff so booking state, sequence state, inbound replies, and manual-call tasks live in one control plane
 
 ### 2026-04-13 Mission Control Finish Plan
 

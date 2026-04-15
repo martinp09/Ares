@@ -7,13 +7,18 @@ from app.models.mission_control import (
     MissionControlDashboardResponse,
     MissionControlInboxResponse,
     MissionControlRunsResponse,
+    MissionControlTasksResponse,
 )
 from app.services.mission_control_service import mission_control_service
 
 router = APIRouter(prefix="/mission-control", tags=["mission-control"])
 
 
-@router.get("/dashboard", response_model=MissionControlDashboardResponse)
+@router.get(
+    "/dashboard",
+    response_model=MissionControlDashboardResponse,
+    response_model_exclude_none=True,
+)
 def get_dashboard(
     business_id: str | None = Query(default=None),
     environment: str | None = Query(default=None),
@@ -43,6 +48,14 @@ def get_runs(
     environment: str | None = Query(default=None),
 ) -> MissionControlRunsResponse:
     return mission_control_service.get_runs(business_id=business_id, environment=environment)
+
+
+@router.get("/tasks", response_model=MissionControlTasksResponse)
+def get_tasks(
+    business_id: str | None = Query(default=None),
+    environment: str | None = Query(default=None),
+) -> MissionControlTasksResponse:
+    return mission_control_service.get_tasks(business_id=business_id, environment=environment)
 
 
 @router.get("/approvals", response_model=MissionControlApprovalsResponse)

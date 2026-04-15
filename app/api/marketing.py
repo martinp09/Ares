@@ -1,64 +1,229 @@
 from typing import Any
 
-from fastapi import APIRouter
+import inspect
+
+from fastapi import APIRouter, Header, HTTPException, Request, status
 from pydantic import BaseModel, ConfigDict, Field
+
+from app.services.booking_service import (
+    LeaseOptionSequenceGuardRequest,
+    ManualCallTaskRequest,
+    NonBookerCheckRequest,
+    booking_service,
+)
+from app.services.inbound_sms_service import LeaseOptionSequenceStepRequest, inbound_sms_service
+from app.services.marketing_lead_service import LeadIntakePayload, marketing_lead_service
 
 router = APIRouter(prefix="/marketing", tags=["marketing"])
 
 
-class MarketingStageRequest(BaseModel):
+class LeadIntakeRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    business_id: str = Field(min_length=1)
+    environment: str = Field(min_length=1)
+    first_name: str = Field(min_length=1)
+    phone: str = Field(min_length=1)
+    email: str | None = None
+    property_address: str = Field(min_length=1)
+
+
+class LeadIntakeResponse(BaseModel):
+    lead_id: str
+    booking_status: str
+    booking_url: str
+
+
+class BookingWebhookResponse(BaseModel):
+    status: str
+    lead_id: str
+    booking_status: str
+
+
+class SmsWebhookResponse(BaseModel):
+    status: str
+    event_type: str
+    action: str
+
+
+class NonBookerCheckResponse(BaseModel):
+    bookingStatus: str
+    shouldEnrollInSequence: bool
+    startDay: int | None = None
+
+
+class NonBookerCheckRequestModel(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    leadId: str = Field(min_length=1)
+    businessId: str = Field(min_length=1)
+    environment: str = Field(min_length=1)
+
+
+class LeaseOptionSequenceGuardRequestModel(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    leadId: str = Field(min_length=1)
+    businessId: str = Field(min_length=1)
+    environment: str = Field(min_length=1)
+    day: int = Field(ge=0)
+
+
+class LeaseOptionSequenceGuardResponse(BaseModel):
+    bookingStatus: str
+    sequenceStatus: str
+    optedOut: bool
+
+
+class LeaseOptionSequenceStepRequestModel(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    leadId: str = Field(min_length=1)
+    businessId: str = Field(min_length=1)
+    environment: str = Field(min_length=1)
+    day: int = Field(ge=0)
+    channel: str = Field(min_length=1)
+    templateId: str = Field(min_length=1)
+    manualCallCheckpoint: bool = False
+
+
+class LeaseOptionSequenceStepResponse(BaseModel):
+    messageId: str
+    channel: str
+    status: str
+
+
+class ManualCallTaskRequestModel(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    leadId: str = Field(min_length=1)
+    businessId: str = Field(min_length=1)
+    environment: str = Field(min_length=1)
+    sequenceDay: int = Field(ge=0)
+    reason: str = Field(min_length=1)
+
+
+class ManualCallTaskResponse(BaseModel):
+    taskId: str
+    status: str
+
+
+class GenericWebhookPayload(BaseModel):
     model_config = ConfigDict(extra="allow")
 
-    business_id: str | int | None = None
-    environment: str | None = None
-    command_id: str | None = None
-    run_id: str | None = None
-    campaignId: str = Field(min_length=1)
-    market: str | None = None
-    objective: str | None = None
-    context: dict[str, Any] = Field(default_factory=dict)
-    marketResearch: Any | None = None
-    campaignBrief: Any | None = None
-    campaignAssets: Any | None = None
+
+@router.post("/leads", response_model=LeadIntakeResponse, status_code=status.HTTP_201_CREATED)
+def create_marketing_lead(request: LeadIntakeRequest) -> LeadIntakeResponse:
+    result = marketing_lead_service.intake_lead(
+        LeadIntakePayload(
+            business_id=request.business_id,
+            environment=request.environment,
+            first_name=request.first_name,
+            phone=request.phone,
+            email=request.email,
+            property_address=request.property_address,
+        )
+    )
+    return LeadIntakeResponse(**result)
 
 
-@router.post("/market-research/run")
-def run_market_research(request: MarketingStageRequest) -> dict[str, Any]:
-    return {
-        "artifact_type": "market_research",
-        "status": "ready",
-        "campaign_id": request.campaignId,
-        "market": request.market,
-        "objective": request.objective,
-        "context": request.context,
-    }
+@router.post("/webhooks/calcom", response_model=BookingWebhookResponse)
+async def handle_calcom_webhook(
+    request: Request,
+    x_cal_signature: str | None = Header(default=None),
+) -> BookingWebhookResponse:
+    payload = await request.json()
+    handler = booking_service.handle_calcom_webhook
+    kwargs = {"signature": x_cal_signature}
+    if "raw_body" in inspect.signature(handler).parameters:
+        kwargs["raw_body"] = await request.body()
+    try:
+        result = handler(payload, **kwargs)
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)) from exc
+    return BookingWebhookResponse(**result)
 
 
-@router.post("/campaign-brief/create")
-def create_campaign_brief(request: MarketingStageRequest) -> dict[str, Any]:
-    return {
-        "artifact_type": "campaign_brief",
-        "status": "ready",
-        "campaign_id": request.campaignId,
-        "market_research": request.marketResearch,
-    }
+@router.post("/webhooks/textgrid", response_model=SmsWebhookResponse)
+async def handle_textgrid_webhook(
+    request: Request,
+    x_textgrid_signature: str | None = Header(default=None),
+) -> SmsWebhookResponse:
+    payload = await request.json()
+    handler = inbound_sms_service.handle_textgrid_webhook
+    kwargs = {"signature": x_textgrid_signature}
+    signature_params = inspect.signature(handler).parameters
+    if "request_url" in signature_params:
+        kwargs["request_url"] = str(request.url)
+    try:
+        result = handler(payload, **kwargs)
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)) from exc
+    return SmsWebhookResponse(**result)
 
 
-@router.post("/campaign-assets/draft")
-def draft_campaign_assets(request: MarketingStageRequest) -> dict[str, Any]:
-    return {
-        "artifact_type": "campaign_assets",
-        "status": "draft",
-        "campaign_id": request.campaignId,
-        "campaign_brief": request.campaignBrief,
-    }
+@router.post("/internal/non-booker-check", response_model=NonBookerCheckResponse)
+def run_non_booker_check(request: NonBookerCheckRequestModel) -> NonBookerCheckResponse:
+    result = booking_service.run_non_booker_check(
+        NonBookerCheckRequest(
+            lead_id=request.leadId,
+            business_id=request.businessId,
+            environment=request.environment,
+        )
+    )
+    return NonBookerCheckResponse(
+        bookingStatus=str(result["booking_status"]),
+        shouldEnrollInSequence=bool(result["should_enroll_in_sequence"]),
+        startDay=int(result["start_day"]) if result.get("start_day") is not None else None,
+    )
 
 
-@router.post("/launch-proposal/assemble")
-def assemble_launch_proposal(request: MarketingStageRequest) -> dict[str, Any]:
-    return {
-        "artifact_type": "launch_proposal",
-        "status": "approval_required",
-        "campaign_id": request.campaignId,
-        "campaign_assets": request.campaignAssets,
-    }
+@router.post("/internal/lease-option-sequence/guard", response_model=LeaseOptionSequenceGuardResponse)
+def lease_option_sequence_guard(request: LeaseOptionSequenceGuardRequestModel) -> LeaseOptionSequenceGuardResponse:
+    result = booking_service.get_lease_option_sequence_guard(
+        LeaseOptionSequenceGuardRequest(
+            lead_id=request.leadId,
+            business_id=request.businessId,
+            environment=request.environment,
+            day=request.day,
+        )
+    )
+    return LeaseOptionSequenceGuardResponse(
+        bookingStatus=str(result["booking_status"]),
+        sequenceStatus=str(result["sequence_status"]),
+        optedOut=bool(result["opted_out"]),
+    )
+
+
+@router.post("/internal/lease-option-sequence/step", response_model=LeaseOptionSequenceStepResponse)
+def lease_option_sequence_step(request: LeaseOptionSequenceStepRequestModel) -> LeaseOptionSequenceStepResponse:
+    result = inbound_sms_service.dispatch_lease_option_sequence_step(
+        LeaseOptionSequenceStepRequest(
+            lead_id=request.leadId,
+            business_id=request.businessId,
+            environment=request.environment,
+            day=request.day,
+            channel=request.channel,
+            template_id=request.templateId,
+            manual_call_checkpoint=request.manualCallCheckpoint,
+        )
+    )
+    return LeaseOptionSequenceStepResponse(
+        messageId=str(result["message_id"]),
+        channel=str(result["channel"]),
+        status=str(result["status"]),
+    )
+
+
+@router.post("/internal/manual-call-task", response_model=ManualCallTaskResponse)
+def create_manual_call_task(request: ManualCallTaskRequestModel) -> ManualCallTaskResponse:
+    result = booking_service.create_manual_call_task(
+        ManualCallTaskRequest(
+            lead_id=request.leadId,
+            business_id=request.businessId,
+            environment=request.environment,
+            sequence_day=request.sequenceDay,
+            reason=request.reason,
+        )
+    )
+    return ManualCallTaskResponse(taskId=str(result["task_id"]), status=str(result["status"]))

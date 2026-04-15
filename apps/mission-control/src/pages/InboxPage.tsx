@@ -26,7 +26,31 @@ export function InboxPage({
         onSelectConversation={onSelectConversation}
       />
       {selectedThread ? (
-        <ConversationThread thread={selectedThread} />
+        <section className="panel-stack">
+          <div className="section-heading">
+            <h3>Marketing state</h3>
+            <span>{selectedThread.bookingStatus || "unclassified"}</span>
+          </div>
+          <div className="list-card">
+            <div className="list-card__row list-card__row--muted">
+              <span>Sequence</span>
+              <span>{selectedThread.sequenceStatus || "none"}</span>
+            </div>
+            <div className="list-card__row list-card__row--muted">
+              <span>Next step</span>
+              <span>{selectedThread.nextSequenceStep || "none"}</span>
+            </div>
+            <div className="list-card__row list-card__row--muted">
+              <span>Manual call due</span>
+              <span>{selectedThread.manualCallDueAt || "not scheduled"}</span>
+            </div>
+            <div className="list-card__row list-card__row--muted">
+              <span>Recent reply</span>
+              <span>{selectedThread.recentReplyPreview || "none"}</span>
+            </div>
+          </div>
+          <ConversationThread thread={selectedThread} />
+        </section>
       ) : (
         <section className="panel-stack">
           <div className="section-heading">

@@ -21,6 +21,22 @@ export function DashboardPage({ data }: DashboardPageProps) {
             <strong className="summary-card__value">{data.recentCompletedCount}</strong>
           </article>
           <article className="summary-card summary-card--compact">
+            <p className="summary-card__label">Pending leads</p>
+            <strong className="summary-card__value">{data.pendingLeadCount ?? 0}</strong>
+          </article>
+          <article className="summary-card summary-card--compact">
+            <p className="summary-card__label">Booked leads</p>
+            <strong className="summary-card__value">{data.bookedLeadCount ?? 0}</strong>
+          </article>
+          <article className="summary-card summary-card--compact">
+            <p className="summary-card__label">Due manual calls</p>
+            <strong className="summary-card__value">{data.dueManualCallCount ?? 0}</strong>
+          </article>
+          <article className="summary-card summary-card--compact">
+            <p className="summary-card__label">Replies needing review</p>
+            <strong className="summary-card__value">{data.repliesNeedingReviewCount ?? 0}</strong>
+          </article>
+          <article className="summary-card summary-card--compact">
             <p className="summary-card__label">System status</p>
             <strong className="summary-card__value summary-card__value--status">{data.systemStatus}</strong>
           </article>

@@ -14,6 +14,11 @@ export interface DashboardSummaryData {
   unreadConversationCount: number;
   busyChannelCount: number;
   recentCompletedCount: number;
+  pendingLeadCount?: number;
+  bookedLeadCount?: number;
+  activeNonBookerEnrollmentCount?: number;
+  dueManualCallCount?: number;
+  repliesNeedingReviewCount?: number;
   systemStatus: SystemStatus;
   updatedAt: string;
 }
@@ -28,6 +33,11 @@ export interface ConversationSummary {
   lastMessage: string;
   lastActivityAt: string;
   sequenceState: string;
+  bookingStatus?: string;
+  nextSequenceStep?: string;
+  manualCallDueAt?: string;
+  recentReplyPreview?: string | null;
+  replyNeedsReview?: boolean;
 }
 
 export interface ThreadEntry {
@@ -47,6 +57,12 @@ export interface SelectedThread {
   nextBestAction: string;
   tags: string[];
   notes: string[];
+  bookingStatus?: string;
+  sequenceStatus?: string;
+  nextSequenceStep?: string;
+  manualCallDueAt?: string;
+  recentReplyPreview?: string | null;
+  replyNeedsReview?: boolean;
   messages: ThreadEntry[];
 }
 
@@ -110,6 +126,7 @@ export interface MissionControlSnapshot {
 export interface MissionControlApi {
   getDashboard(): Promise<DashboardSummaryData>;
   getInbox(selectedThreadId?: string): Promise<InboxData>;
+  getTasks(): Promise<TasksData>;
   getApprovals(): Promise<ApprovalItem[]>;
   getRuns(): Promise<RunSummary[]>;
   getAgents(): Promise<AgentSummary[]>;
@@ -132,6 +149,11 @@ interface DashboardPayload {
   unread_conversation_count?: number;
   busy_channel_count?: number;
   recent_completed_count?: number;
+  pending_lead_count?: number;
+  booked_lead_count?: number;
+  active_non_booker_enrollment_count?: number;
+  due_manual_call_count?: number;
+  replies_needing_review_count?: number;
   system_status?: string;
   updated_at?: string;
 }
@@ -160,6 +182,12 @@ interface InboxThreadSummaryPayload {
   requires_approval?: boolean;
   related_run_id?: string | null;
   related_approval_id?: string | null;
+  booking_status?: string | null;
+  sequence_status?: string | null;
+  next_sequence_step?: string | null;
+  manual_call_due_at?: string | null;
+  recent_reply_preview?: string | null;
+  reply_needs_review?: boolean;
   contact?: InboxContactPayload;
 }
 
@@ -171,6 +199,12 @@ interface InboxThreadDetailPayload {
   requires_approval?: boolean;
   related_run_id?: string | null;
   related_approval_id?: string | null;
+  booking_status?: string | null;
+  sequence_status?: string | null;
+  next_sequence_step?: string | null;
+  manual_call_due_at?: string | null;
+  recent_reply_preview?: string | null;
+  reply_needs_review?: boolean;
   contact?: InboxContactPayload;
   messages?: InboxMessagePayload[];
   context?: JsonRecord;
@@ -183,6 +217,40 @@ interface InboxPayload {
   threads?: InboxThreadSummaryPayload[];
   selected_thread_id?: string | null;
   selected_thread?: InboxThreadDetailPayload | null;
+}
+
+export interface TaskItem {
+  threadId: string;
+  leadName: string;
+  channel: string;
+  bookingStatus: string;
+  sequenceStatus: string;
+  nextSequenceStep: string;
+  manualCallDueAt: string;
+  recentReplyPreview: string | null;
+  replyNeedsReview: boolean;
+}
+
+export interface TasksData {
+  dueCount: number;
+  tasks: TaskItem[];
+}
+
+interface TaskPayload {
+  thread_id?: string;
+  lead_name?: string;
+  channel?: string;
+  booking_status?: string | null;
+  sequence_status?: string | null;
+  next_sequence_step?: string | null;
+  manual_call_due_at?: string;
+  recent_reply_preview?: string | null;
+  reply_needs_review?: boolean;
+}
+
+interface TasksPayload {
+  due_count?: number;
+  tasks?: TaskPayload[];
 }
 
 interface ApprovalPayload {
@@ -388,6 +456,11 @@ function mapDashboard(payload: DashboardPayload): DashboardSummaryData {
     unreadConversationCount: asNumber(payload.unread_conversation_count),
     busyChannelCount: asNumber(payload.busy_channel_count),
     recentCompletedCount: asNumber(payload.recent_completed_count),
+    pendingLeadCount: asNumber(payload.pending_lead_count),
+    bookedLeadCount: asNumber(payload.booked_lead_count),
+    activeNonBookerEnrollmentCount: asNumber(payload.active_non_booker_enrollment_count),
+    dueManualCallCount: asNumber(payload.due_manual_call_count),
+    repliesNeedingReviewCount: asNumber(payload.replies_needing_review_count),
     systemStatus: normalizeSystemStatus(payload.system_status),
     updatedAt: asString(payload.updated_at, "Updated just now"),
   };
@@ -411,6 +484,12 @@ function mapThreadFromSummary(
     nextBestAction,
     tags: [channel.toLowerCase(), status, requiresApproval ? "approval-required" : "clear"],
     notes: [],
+    bookingStatus: asString(summary.booking_status, ""),
+    sequenceStatus: asString(summary.sequence_status, ""),
+    nextSequenceStep: asString(summary.next_sequence_step, ""),
+    manualCallDueAt: asString(summary.manual_call_due_at, ""),
+    recentReplyPreview: asNullableString(summary.recent_reply_preview),
+    replyNeedsReview: asBoolean(summary.reply_needs_review),
     messages: [],
   };
 }
@@ -435,6 +514,12 @@ function mapThreadDetail(detail: InboxThreadDetailPayload): SelectedThread {
     nextBestAction,
     tags: tags.length > 0 ? tags : [asString(detail.channel, "channel"), status],
     notes,
+    bookingStatus: asString(detail.booking_status, ""),
+    sequenceStatus: asString(detail.sequence_status, ""),
+    nextSequenceStep: asString(detail.next_sequence_step, ""),
+    manualCallDueAt: asString(detail.manual_call_due_at, ""),
+    recentReplyPreview: asNullableString(detail.recent_reply_preview),
+    replyNeedsReview: asBoolean(detail.reply_needs_review),
     messages: asArray<InboxMessagePayload>(detail.messages).map((message, index) => ({
       id: asString(message.id, `${asString(detail.thread_id)}-message-${index}`),
       author:
@@ -498,20 +583,38 @@ function mapInbox(payload: InboxPayload): InboxData {
       id: asString(thread.thread_id),
       leadName: asString(thread.contact?.display_name, "Unknown contact"),
       channel: asString(thread.channel, "channel").toUpperCase(),
-      stage:
-        selectedThreadId !== null &&
-        thread.thread_id === selectedThreadId &&
-        selectedDetail &&
-        isRecord(selectedDetail.context)
-          ? asString(selectedDetail.context.stage, "Queued")
-          : "Queued",
+      stage: asString(thread.booking_status, "Queued"),
       owner: "Hermes",
       unreadCount: asNumber(thread.unread_count),
       lastMessage: asString(thread.last_message_preview, "No messages yet"),
       lastActivityAt: asString(thread.last_message_at, "Unknown"),
-      sequenceState: asString(thread.status, "open"),
+      sequenceState: asString(thread.sequence_status, asString(thread.status, "open")),
+      bookingStatus: asString(thread.booking_status, ""),
+      nextSequenceStep: asString(thread.next_sequence_step, ""),
+      manualCallDueAt: asString(thread.manual_call_due_at, ""),
+      recentReplyPreview: asNullableString(thread.recent_reply_preview),
+      replyNeedsReview: asBoolean(thread.reply_needs_review),
     })),
     threadsById,
+  };
+}
+
+function mapTasks(payload: TasksPayload): TasksData {
+  const tasks = asArray<TaskPayload>(payload.tasks).map((task) => ({
+    threadId: asString(task.thread_id),
+    leadName: asString(task.lead_name, "Unknown contact"),
+    channel: asString(task.channel, "channel"),
+    bookingStatus: asString(task.booking_status, "pending"),
+    sequenceStatus: asString(task.sequence_status, "active"),
+    nextSequenceStep: asString(task.next_sequence_step, "manual_call"),
+    manualCallDueAt: asString(task.manual_call_due_at, "Unknown"),
+    recentReplyPreview: asNullableString(task.recent_reply_preview),
+    replyNeedsReview: asBoolean(task.reply_needs_review),
+  }));
+
+  return {
+    dueCount: asNumber(payload.due_count, tasks.length),
+    tasks,
   };
 }
 
@@ -658,6 +761,7 @@ export function createMissionControlApi(
         : "/mission-control/inbox";
       return mapInbox(await requestJson<InboxPayload>(inboxPath, resolvedOptions));
     },
+    getTasks: async () => mapTasks(await requestJson<TasksPayload>("/mission-control/tasks", resolvedOptions)),
     getApprovals: async () =>
       mapApprovals(
         await requestJson<MissionControlApprovalsPayload | ApprovalPayload[]>(

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from copy import deepcopy
 from datetime import datetime
+from typing import Any
 
 from app.db.client import ControlPlaneClient, get_control_plane_client, utc_now
 from app.models.approvals import ApprovalStatus
@@ -17,6 +18,8 @@ from app.models.mission_control import (
     MissionControlInboxSummary,
     MissionControlRunSummary,
     MissionControlRunsResponse,
+    MissionControlTaskSummary,
+    MissionControlTasksResponse,
     MissionControlThreadDetail,
     MissionControlThreadRecord,
     MissionControlThreadSummary,
@@ -81,6 +84,26 @@ class MissionControlService:
         recent_completed_count = sum(1 for run in runs if run.status == RunStatus.COMPLETED)
         failed_run_count = sum(1 for run in runs if run.status == RunStatus.FAILED)
         active_run_count = sum(1 for run in runs if run.status in ACTIVE_RUN_STATUSES)
+        pending_lead_count = sum(1 for thread in threads if self._context_value(thread.context, "booking_status") == "pending")
+        booked_lead_count = sum(1 for thread in threads if self._context_value(thread.context, "booking_status") == "booked")
+        active_non_booker_enrollment_count = sum(
+            1
+            for thread in threads
+            if self._context_value(thread.context, "sequence_status") == "active"
+            and self._context_value(thread.context, "booking_status") != "booked"
+        )
+        due_manual_call_count = sum(
+            1
+            for thread in threads
+            if self._is_due_manual_call(
+                thread.context,
+                now=utc_now(),
+            )
+        )
+        replies_needing_review_count = sum(
+            1 for thread in threads if bool(thread.context.get("reply_needs_review"))
+        )
+        has_marketing_context = any(self._has_marketing_context(thread.context) for thread in threads)
         if failed_run_count > 0:
             system_status = "degraded"
         elif approvals or unread_conversation_count or active_run_count:
@@ -96,6 +119,11 @@ class MissionControlService:
             unread_conversation_count=unread_conversation_count,
             busy_channel_count=busy_channel_count,
             recent_completed_count=recent_completed_count,
+            pending_lead_count=(pending_lead_count if has_marketing_context else None),
+            booked_lead_count=(booked_lead_count if has_marketing_context else None),
+            active_non_booker_enrollment_count=(active_non_booker_enrollment_count if has_marketing_context else None),
+            due_manual_call_count=(due_manual_call_count if has_marketing_context else None),
+            replies_needing_review_count=(replies_needing_review_count if has_marketing_context else None),
             system_status=system_status,
             updated_at=latest_updated_at.isoformat(),
         )
@@ -145,6 +173,42 @@ class MissionControlService:
             if selected_record is not None
             else None,
         )
+
+    def get_tasks(
+        self,
+        *,
+        business_id: str | None = None,
+        environment: str | None = None,
+    ) -> MissionControlTasksResponse:
+        with self.client.transaction() as store:
+            threads = [
+                thread if isinstance(thread, MissionControlThreadRecord) else MissionControlThreadRecord.model_validate(thread)
+                for thread in store.mission_control_threads.values()
+                if self._matches_scope(thread.business_id, thread.environment, business_id, environment)
+            ]
+
+        tasks: list[MissionControlTaskSummary] = []
+        for thread in threads:
+            due_at = self._context_value(thread.context, "manual_call_due_at")
+            if due_at is None:
+                continue
+
+            tasks.append(
+                MissionControlTaskSummary(
+                    thread_id=thread.id,
+                    lead_name=thread.contact.display_name,
+                    channel=thread.channel,
+                    booking_status=self._context_value(thread.context, "booking_status"),
+                    sequence_status=self._context_value(thread.context, "sequence_status"),
+                    next_sequence_step=self._context_value(thread.context, "next_sequence_step"),
+                    manual_call_due_at=due_at,
+                    recent_reply_preview=self._recent_reply_preview(thread),
+                    reply_needs_review=bool(thread.context.get("reply_needs_review")),
+                )
+            )
+
+        ordered_tasks = sorted(tasks, key=lambda task: task.manual_call_due_at)
+        return MissionControlTasksResponse(due_count=len(ordered_tasks), tasks=ordered_tasks)
 
     def get_runs(self, *, business_id: str | None = None, environment: str | None = None) -> MissionControlRunsResponse:
         with self.client.transaction() as store:
@@ -295,6 +359,12 @@ class MissionControlService:
             requires_approval=thread.requires_approval,
             related_run_id=related_run_id,
             related_approval_id=thread.related_approval_id,
+            booking_status=self._context_value(thread.context, "booking_status"),
+            sequence_status=self._context_value(thread.context, "sequence_status"),
+            next_sequence_step=self._context_value(thread.context, "next_sequence_step"),
+            manual_call_due_at=self._context_value(thread.context, "manual_call_due_at"),
+            recent_reply_preview=self._recent_reply_preview(thread),
+            reply_needs_review=bool(thread.context.get("reply_needs_review")),
             contact=thread.contact,
         )
 
@@ -325,9 +395,56 @@ class MissionControlService:
             requires_approval=thread.requires_approval,
             related_run_id=thread.related_run_id,
             related_approval_id=thread.related_approval_id,
+            booking_status=self._context_value(thread.context, "booking_status"),
+            sequence_status=self._context_value(thread.context, "sequence_status"),
+            next_sequence_step=self._context_value(thread.context, "next_sequence_step"),
+            manual_call_due_at=self._context_value(thread.context, "manual_call_due_at"),
+            recent_reply_preview=self._recent_reply_preview(thread),
+            reply_needs_review=bool(thread.context.get("reply_needs_review")),
             contact=thread.contact,
             messages=sorted(thread.messages, key=lambda message: message.created_at),
             context=context,
+        )
+
+    @staticmethod
+    def _context_value(context: dict[str, Any], key: str) -> str | None:
+        value = context.get(key)
+        return value if isinstance(value, str) and value else None
+
+    @staticmethod
+    def _parse_datetime(value: str | None) -> datetime | None:
+        if value is None:
+            return None
+        try:
+            return datetime.fromisoformat(value)
+        except ValueError:
+            return None
+
+    @classmethod
+    def _is_due_manual_call(cls, context: dict[str, Any], *, now: datetime) -> bool:
+        if cls._context_value(context, "booking_status") == "booked":
+            return False
+        due_at = cls._parse_datetime(cls._context_value(context, "manual_call_due_at"))
+        if due_at is None:
+            return False
+        return due_at <= now
+
+    @staticmethod
+    def _recent_reply_preview(thread: MissionControlThreadRecord) -> str | None:
+        inbound_messages = [message for message in thread.messages if message.direction == "inbound"]
+        if not inbound_messages:
+            return None
+        return inbound_messages[-1].body
+
+    @classmethod
+    def _has_marketing_context(cls, context: dict[str, Any]) -> bool:
+        return any(
+            [
+                cls._context_value(context, "booking_status") is not None,
+                cls._context_value(context, "sequence_status") is not None,
+                cls._context_value(context, "manual_call_due_at") is not None,
+                bool(context.get("reply_needs_review")),
+            ]
         )
 
     @staticmethod

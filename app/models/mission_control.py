@@ -65,6 +65,11 @@ class MissionControlDashboardResponse(BaseModel):
     unread_conversation_count: int = Field(default=0, ge=0)
     busy_channel_count: int = Field(default=0, ge=0)
     recent_completed_count: int = Field(default=0, ge=0)
+    pending_lead_count: int | None = Field(default=None, ge=0)
+    booked_lead_count: int | None = Field(default=None, ge=0)
+    active_non_booker_enrollment_count: int | None = Field(default=None, ge=0)
+    due_manual_call_count: int | None = Field(default=None, ge=0)
+    replies_needing_review_count: int | None = Field(default=None, ge=0)
     system_status: Literal["healthy", "watch", "degraded"] = "healthy"
     updated_at: str
 
@@ -89,6 +94,12 @@ class MissionControlThreadSummary(BaseModel):
     requires_approval: bool = False
     related_run_id: str | None = None
     related_approval_id: str | None = None
+    booking_status: str | None = None
+    sequence_status: str | None = None
+    next_sequence_step: str | None = None
+    manual_call_due_at: str | None = None
+    recent_reply_preview: str | None = None
+    reply_needs_review: bool = False
     contact: MissionControlContactRecord
 
 
@@ -102,6 +113,12 @@ class MissionControlThreadDetail(BaseModel):
     requires_approval: bool = False
     related_run_id: str | None = None
     related_approval_id: str | None = None
+    booking_status: str | None = None
+    sequence_status: str | None = None
+    next_sequence_step: str | None = None
+    manual_call_due_at: str | None = None
+    recent_reply_preview: str | None = None
+    reply_needs_review: bool = False
     contact: MissionControlContactRecord
     messages: list[MissionControlMessageRecord] = Field(default_factory=list)
     context: dict[str, Any] = Field(default_factory=dict)
@@ -114,6 +131,27 @@ class MissionControlInboxResponse(BaseModel):
     threads: list[MissionControlThreadSummary] = Field(default_factory=list)
     selected_thread_id: str | None = None
     selected_thread: MissionControlThreadDetail | None = None
+
+
+class MissionControlTaskSummary(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    thread_id: str
+    lead_name: str
+    channel: str
+    booking_status: str | None = None
+    sequence_status: str | None = None
+    next_sequence_step: str | None = None
+    manual_call_due_at: str
+    recent_reply_preview: str | None = None
+    reply_needs_review: bool = False
+
+
+class MissionControlTasksResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    due_count: int = Field(default=0, ge=0)
+    tasks: list[MissionControlTaskSummary] = Field(default_factory=list)
 
 
 class MissionControlRunSummary(BaseModel):
