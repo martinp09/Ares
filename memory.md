@@ -44,10 +44,10 @@
 
 ## Environment Notes
 
-- Fresh Supabase project created for Hermes Central Command
+- Fresh Supabase project created for Ares
 - Local `.env` should be ported from the validated `Mailers AWF` environment as needed
 - GitHub owner: `martinp09`
-- Planned local path: `/Users/solomartin/Projects/Hermes Central Command`
+- Planned local path: `/Users/solomartin/Projects/Ares`
 - Trigger.dev CLI login is configured on this machine
 - `TRIGGER_SECRET_KEY` is present in the local `.env`
 - Trigger.dev local worker boot verified against project `proj_puouljyhwiraonjkpiki`
@@ -119,13 +119,20 @@
 
 ## Open Work
 
-1. replace the in-memory marketing repositories with Supabase-backed persistence
-2. add tenant-safe inbound routing so identical phone numbers across businesses/envs cannot collide
-3. persist real sequence state and opt-out state instead of deriving guards from booking status alone
-4. align Mission Control read models to the actual persisted marketing state
-5. decide whether form-submit failures should hard-fail the landing page when Hermes intake is unavailable
+1. execute `docs/superpowers/plans/2026-04-15-ares-enterprise-agent-platform-implementation-plan.md`, starting with the product-model, tenancy, and host-adapter phases
+2. replace the in-memory marketing repositories with Supabase-backed persistence
+3. add tenant-safe inbound routing so identical phone numbers across businesses/envs cannot collide
+4. persist real sequence state and opt-out state instead of deriving guards from booking status alone
+5. align Mission Control read models to the actual persisted marketing state
+6. decide whether form-submit failures should hard-fail the landing page when Hermes intake is unavailable
 
 ## Change Log
+
+### 2026-04-15 Enterprise Agent Platform Plan
+
+- Added `docs/superpowers/plans/2026-04-15-ares-enterprise-agent-platform-implementation-plan.md`
+- Captured a phased rollout to turn Ares into an enterprise agent platform with internal dogfood first, enterprise controls second, and marketplace distribution last
+- Locked the core product rules in planning: agents are the primary product unit, skills are reusable procedures, Mission Control is the operator cockpit, and host runtimes must stay adapter-based with Trigger.dev swappable for later Codex or Anthropic runtimes
 
 ### 2026-04-14 Lease-Option Marketing Wiring Pass
 
@@ -167,7 +174,7 @@
 
 ### 2026-04-12 Repo Bootstrap
 
-- Created the clean `Hermes Central Command` repo path
+- Created the clean `Ares` repo path
 - Confirmed a fresh Supabase project is reachable
 - Confirmed migration dry-run access works against the new project
 - Ported WAT and memory/context operating conventions into the new repo

@@ -4,7 +4,7 @@
 
 ## Stable Facts
 
-- Repo: `/home/workspace/Hermes-Central-Command`
+- Repo: Ares (local path `/home/workspace/Hermes-Central-Command`)
 - Purpose: reusable Hermes-controlled business runtime
 - Operating model: generalist core first, industry packs second
 - First optimization target: real estate
@@ -23,11 +23,11 @@
 
 ## Current TODO
 
-1. replace the in-memory runtime store with Supabase-backed persistence
-2. attach Trigger tasks to runtime run/artifact/event updates
-3. finish operator/docs alignment across this repo and `Mailers AWF`
-4. start the QC + devil's-advocate review loop once the remaining docs/schema commits are in
-5. sync README, specs, wiki, CONTEXT, and memory to the shipped Mission Control read models and UI shell
+1. execute `docs/superpowers/plans/2026-04-15-ares-enterprise-agent-platform-implementation-plan.md` in order, starting with the product-model and tenancy phases
+2. replace the in-memory runtime store with Supabase-backed persistence
+3. attach Trigger tasks to runtime run/artifact/event updates
+4. finish operator/docs alignment across this repo and `Mailers AWF`
+5. start the QC + devil's-advocate review loop once the remaining docs/schema commits are in
 
 ## Read These Sections In `memory.md`
 
