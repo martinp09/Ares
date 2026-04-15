@@ -28,6 +28,9 @@ class InMemoryControlPlaneStore:
     permissions: dict[str, object] = field(default_factory=dict)
     permission_keys: dict[tuple[str, str], str] = field(default_factory=dict)
     outcomes: dict[str, object] = field(default_factory=dict)
+    skills: dict[str, object] = field(default_factory=dict)
+    skill_keys: dict[str, str] = field(default_factory=dict)
+    host_adapter_dispatches: dict[str, object] = field(default_factory=dict)
     agent_assets: dict[str, object] = field(default_factory=dict)
     mission_control_threads: dict[str, object] = field(default_factory=dict)
 
@@ -48,6 +51,9 @@ def reset_control_plane_store(store: InMemoryControlPlaneStore | None = None) ->
     target.permissions.clear()
     target.permission_keys.clear()
     target.outcomes.clear()
+    target.skills.clear()
+    target.skill_keys.clear()
+    target.host_adapter_dispatches.clear()
     target.agent_assets.clear()
     target.mission_control_threads.clear()
 

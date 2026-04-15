@@ -6,20 +6,23 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
-    app_name: str = "Hermes Central Command Runtime"
+    app_name: str = "Ares Runtime"
     runtime_api_key: str = "dev-runtime-key"
     control_plane_backend: Literal["memory", "supabase"] = "memory"
+    marketing_backend: Literal["memory", "supabase"] = "memory"
     database_url: str | None = None
     site_events_backend: Literal["memory", "supabase"] = "supabase"
     supabase_url: str | None = None
     supabase_service_role_key: str | None = None
     cal_api_key: str | None = None
     cal_booking_url: str | None = None
+    cal_webhook_secret: str | None = None
     trigger_secret_key: str | None = None
     trigger_api_url: str | None = None
     trigger_non_booker_check_task_id: str | None = None
     textgrid_base_url: str = "https://api.textgrid.com"
     textgrid_sms_url: str | None = None
+    textgrid_webhook_secret: str | None = None
     textgrid_account_sid: str | None = None
     textgrid_auth_token: str | None = None
     textgrid_from_number: str | None = None

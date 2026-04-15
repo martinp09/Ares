@@ -5,7 +5,7 @@ export const bootstrapTask = task({
   run: async (payload: { message?: string } = {}) => {
     return {
       ok: true,
-      message: payload.message ?? "Hermes Central Command Trigger.dev bootstrap is running"
+      message: payload.message ?? "Ares Trigger.dev bootstrap is running"
     };
   }
 });

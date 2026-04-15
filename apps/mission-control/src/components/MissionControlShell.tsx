@@ -43,9 +43,9 @@ export function MissionControlShell({
     <div className="shell">
       <aside className="shell__rail" aria-label="Mission Control">
         <div className="brand-block">
-          <span className="brand-block__eyebrow">Hermes Central Command</span>
+          <span className="brand-block__eyebrow">Ares</span>
           <h1 className="brand-block__title">Mission Control</h1>
-          <p className="brand-block__copy">Native operator cockpit for inbox, approvals, runs, and agents.</p>
+          <p className="brand-block__copy">Native operator cockpit for agents, inbox, approvals, and runs.</p>
         </div>
 
         <label className="search-field">

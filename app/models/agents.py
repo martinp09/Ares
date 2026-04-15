@@ -6,6 +6,8 @@ from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from app.models.host_adapters import HostAdapterKind
+
 
 class AgentRevisionState(StrEnum):
     DRAFT = "draft"
@@ -21,6 +23,9 @@ class AgentCreateRequest(BaseModel):
     name: str = Field(min_length=1)
     description: str | None = None
     config: dict[str, Any] = Field(default_factory=dict)
+    host_adapter_kind: HostAdapterKind = HostAdapterKind.TRIGGER_DEV
+    host_adapter_config: dict[str, Any] = Field(default_factory=dict)
+    skill_ids: list[str] = Field(default_factory=list)
 
 
 class AgentRecord(BaseModel):
@@ -44,6 +49,9 @@ class AgentRevisionRecord(BaseModel):
     revision_number: int
     state: AgentRevisionState
     config: dict[str, Any] = Field(default_factory=dict)
+    host_adapter_kind: HostAdapterKind = HostAdapterKind.TRIGGER_DEV
+    host_adapter_config: dict[str, Any] = Field(default_factory=dict)
+    skill_ids: list[str] = Field(default_factory=list)
     created_at: datetime
     updated_at: datetime
     published_at: datetime | None = None

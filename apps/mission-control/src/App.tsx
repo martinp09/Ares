@@ -31,7 +31,7 @@ function includesSearch(haystack: Array<string | number | null | undefined>, sea
 }
 
 export default function App() {
-  const [activeView, setActiveView] = useState<MissionControlView>("intake");
+  const [activeView, setActiveView] = useState<MissionControlView>("agents");
   const [searchValue, setSearchValue] = useState("");
   const [snapshot, setSnapshot] = useState<MissionControlSnapshot>(missionControlFixtures);
   const [selectedConversationId, setSelectedConversationId] = useState(
@@ -156,21 +156,26 @@ export default function App() {
     [normalizedSearchValue, snapshot.assets],
   );
 
+  const publishedAgentCount = filteredAgents.filter((agent) => agent.activeRevisionState === "published").length;
+  const trackedEnvironmentCount = new Set(filteredAgents.map((agent) => agent.environment)).size;
+  const liveSessionTotal = filteredAgents.reduce((total, agent) => total + agent.liveSessionCount, 0);
+  const delegatedWorkTotal = filteredAgents.reduce((total, agent) => total + agent.delegatedWorkCount, 0);
+
   const navSections: ShellNavSection[] = [
     {
-      title: "Operate",
+      title: "Primary surfaces",
       items: [
-        { id: "intake", label: "Intake" },
+        { id: "agents", label: "Agents", badge: snapshot.dashboard.activeAgentCount },
         { id: "dashboard", label: "Dashboard" },
-        { id: "inbox", label: "Inbox", badge: snapshot.dashboard.unreadConversationCount },
-        { id: "approvals", label: "Approvals", badge: snapshot.dashboard.approvalCount },
-        { id: "runs", label: "Runs", badge: snapshot.dashboard.activeRunCount },
+        { id: "intake", label: "Intake" },
       ],
     },
     {
-      title: "Govern",
+      title: "Operations",
       items: [
-        { id: "agents", label: "Agents", badge: snapshot.dashboard.activeAgentCount },
+        { id: "inbox", label: "Inbox", badge: snapshot.dashboard.unreadConversationCount },
+        { id: "approvals", label: "Approvals", badge: snapshot.dashboard.approvalCount },
+        { id: "runs", label: "Runs", badge: snapshot.dashboard.activeRunCount },
         { id: "settings", label: "Settings" },
       ],
     },
@@ -273,15 +278,17 @@ export default function App() {
     },
     agents: {
       title: "Agents",
-      subtitle: "Track published revisions, environments, and delegated work.",
+      subtitle: "Registry-first cockpit for revisions, environments, live sessions, and delegated work.",
       mainContent: <AgentsPage agents={filteredAgents} />,
       contextContent: (
         <ContextPanel
-          eyebrow="Registry summary"
-          title="Agent state at a glance"
-          items={filteredAgents.map(
-            (agent) => `${agent.name}: ${agent.activeRevisionState} in ${agent.environment}`,
-          )}
+          eyebrow="Fixture boundary"
+          title="Agent control plane stays local-first here"
+          items={[
+            `${publishedAgentCount} published revisions across ${trackedEnvironmentCount} environments are visible in fixtures.`,
+            `${liveSessionTotal} live sessions and ${delegatedWorkTotal} delegated work items are surfaced without live writes.`,
+            "No Supabase persistence, provider routing, or publish/archive actions are wired from this machine.",
+          ]}
         />
       ),
     },

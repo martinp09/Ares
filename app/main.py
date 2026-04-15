@@ -19,7 +19,7 @@ from app.core.dependencies import runtime_api_key_dependency, settings_dependenc
 
 
 def create_app() -> FastAPI:
-    app = FastAPI(title="Hermes Central Command Runtime")
+    app = FastAPI(title="Ares Runtime")
 
     protected_dependencies = [Depends(runtime_api_key_dependency)]
 

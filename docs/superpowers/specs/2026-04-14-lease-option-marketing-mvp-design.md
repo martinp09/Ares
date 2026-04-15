@@ -1,6 +1,6 @@
 # Lease-Option Marketing MVP Design
 
-> Live marketing MVP for Hermes Central Command. FastAPI remains the backend. Trigger.dev runs delayed automation. Supabase is the canonical target for lead, conversation, task, and booking state. `Cal.com`, `TextGrid`, and `Resend` are provider layers only.
+> Live marketing MVP for Ares. FastAPI remains the backend. Trigger.dev runs delayed automation. Supabase is the canonical target for lead, conversation, task, and booking state. `Cal.com`, `TextGrid`, and `Resend` are provider layers only.
 
 ## Goal
 
@@ -10,7 +10,7 @@ The first target avatar is homeowners with listings at `45+ days on market`. Voi
 
 ## Architecture Summary
 
-Hermes Central Command owns lead state, booking state, conversation state, sequence state, task state, approvals, and operator visibility. The landing page should hand form submissions to Hermes instead of `n8n`. `Cal.com` remains the booking source of truth. `TextGrid` remains the SMS transport. `Resend` handles transactional email and light check-ins. Trigger.dev handles the five-minute booking check, the delayed SMS sequence, and internal follow-up timing. Supabase is the long-term canonical store and already has baseline tables for `contacts`, `conversations`, and `tasks`.
+Ares owns lead state, booking state, conversation state, sequence state, task state, approvals, and operator visibility. The landing page should hand form submissions to Hermes instead of `n8n`. `Cal.com` remains the booking source of truth. `TextGrid` remains the SMS transport. `Resend` handles transactional email and light check-ins. Trigger.dev handles the five-minute booking check, the delayed SMS sequence, and internal follow-up timing. Supabase is the long-term canonical store and already has baseline tables for `contacts`, `conversations`, and `tasks`.
 
 Implementation status at design time:
 - Hermes already has command, run, approval, artifact, and Mission Control scaffolding.

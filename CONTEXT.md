@@ -14,20 +14,20 @@
 
 ## Current Scope
 
-1. keep the new repo, GitHub remote, Trigger.dev setup, and fresh Supabase baseline clean
-2. keep the runtime/app split explicit: Hermes shell here, seller-ops legacy stays outside
-3. implement the marketing control plane first
-4. keep managed-agent primitives scaffolded in-memory until live Supabase wiring happens on Martin's MacBook
-5. keep Mission Control read models and the native frontend shell scaffold-first; the new Intake happy-path view stays fixture-backed until live backend/Supabase wiring is ready
-6. keep the Mission Control UI aligned to the approved dark industrial terminal / pixel CRT style system
+1. keep the branch clean and defer live Supabase wiring for this job
+2. finish every safe in-memory/runtime/document/UI slice that does not require Supabase
+3. keep the runtime/app split explicit: Hermes shell here, seller-ops legacy stays outside
+4. implement the marketing control plane and agent-platform seams in-memory first
+5. keep managed-agent primitives scaffolded in-memory until live Supabase wiring happens on Martin's MacBook
+6. keep Mission Control read models and the native frontend shell scaffold-first; the Intake happy-path view stays fixture-backed
+7. keep the Mission Control UI aligned to the approved dark industrial terminal / pixel CRT style system
 
 ## Current TODO
 
-1. execute `docs/superpowers/plans/2026-04-15-ares-enterprise-agent-platform-implementation-plan.md` in order, starting with the product-model and tenancy phases
-2. replace the in-memory runtime store with Supabase-backed persistence
-3. attach Trigger tasks to runtime run/artifact/event updates
+1. leave Supabase persistence, migrations, and Trigger/provider cutover for later on Martin's MacBook
+2. treat the no-Supabase dogfood slice as complete for this branch; leave future Supabase/Trigger/provider cutover for later on Martin's MacBook
+3. run the QC + devil's-advocate review loop when any new no-wire commits are added
 4. finish operator/docs alignment across this repo and `Mailers AWF`
-5. start the QC + devil's-advocate review loop once the remaining docs/schema commits are in
 
 ## Read These Sections In `memory.md`
 

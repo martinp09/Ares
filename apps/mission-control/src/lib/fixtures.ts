@@ -5,7 +5,7 @@ export const missionControlFixtures: MissionControlSnapshot = {
     approvalCount: 4,
     activeRunCount: 6,
     failedRunCount: 1,
-    activeAgentCount: 3,
+    activeAgentCount: 2,
     unreadConversationCount: 8,
     busyChannelCount: 2,
     recentCompletedCount: 14,

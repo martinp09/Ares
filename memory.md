@@ -34,6 +34,10 @@
 - Marketing control plane is the first execution domain
 - The immediate MVP is lease-option marketing, not research/copy generation
 - The live path is lead submit -> booking check -> confirmations -> non-booker SMS sequence -> inbound qualification
+- Current work is the no-Supabase dogfood slice, now finalized: in-memory runtime fixes, agent-platform seams, and Mission Control polish are in place
+- Mission Control stays fixture-backed on this machine until live backend wiring is intentionally enabled later
+- The host-adapter/skill seam is now in-memory and additive, with trigger_dev as the default enabled adapter; dispatch requires published revisions and preserves per-revision host adapter config
+- Phase-0 docs now lock the product model: agents are the product unit, skills are reusable procedures, host runtimes are adapters, and Mission Control is the operator cockpit
 
 ## Repo Conventions
 
@@ -119,7 +123,7 @@
 
 ## Open Work
 
-1. execute `docs/superpowers/plans/2026-04-15-ares-enterprise-agent-platform-implementation-plan.md`, starting with the product-model, tenancy, and host-adapter phases
+1. execute `docs/superpowers/plans/2026-04-15-ares-enterprise-agent-platform-implementation-plan.md`, continuing from the locked product-model docs into tenancy and host-adapter phases
 2. replace the in-memory marketing repositories with Supabase-backed persistence
 3. add tenant-safe inbound routing so identical phone numbers across businesses/envs cannot collide
 4. persist real sequence state and opt-out state instead of deriving guards from booking status alone
@@ -127,6 +131,22 @@
 6. decide whether form-submit failures should hard-fail the landing page when Hermes intake is unavailable
 
 ## Change Log
+
+### 2026-04-15 No-Supabase Dogfood Slice Finalized
+
+- Closed the no-Supabase dogfood slice with the remaining seam fixes: host adapter config now flows from agent revision to dispatch record, published revisions are required for execution, and Mission Control agents are filtered by business/environment scope
+- Kept Mission Control fixture-backed and agent-first while live persistence remains deferred
+- Verified the branch again with `uv run pytest -q`, `npm --prefix apps/mission-control run typecheck`, `npm --prefix apps/mission-control run test -- --run`, `npm --prefix apps/mission-control run build`, and `git diff --check` all passing
+
+### 2026-04-15 No-Supabase Dogfood Slice
+
+- Locked the current job to the non-Supabase subset of the Ares enterprise platform plan
+- Added missing runtime settings for `marketing_backend`, `cal_webhook_secret`, and `textgrid_webhook_secret`
+- Fixed Mission Control read models to derive booking/reply/task state from thread context when the top-level fields are empty
+- Added a lean in-memory host-adapter/skill seam with `trigger_dev` as the default enabled adapter and `codex` / `anthropic` disabled
+- Made Mission Control more agent-first with a fixture-backed Agents cockpit summary and updated shell/navigation copy
+- Added phase-0 product-model docs and wiki pages so the platform language is explicit
+- Kept the Mission Control cockpit fixture-backed and agent-first while live persistence remains deferred
 
 ### 2026-04-15 Enterprise Agent Platform Plan
 

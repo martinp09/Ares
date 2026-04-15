@@ -6,7 +6,7 @@
 
 ## Blueprint Summary
 
-Hermes Mission Control is a native control plane inside Hermes Central Command, not a separate product and not a parallel orchestration stack.
+Hermes Mission Control is a native control plane inside Ares, not a separate product and not a parallel orchestration stack.
 
 This blueprint turns the current repo from a thin runtime skeleton into a full control-plane system with explicit wiring:
 - FastAPI remains the typed policy boundary and runtime API surface.

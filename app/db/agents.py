@@ -5,6 +5,7 @@ from copy import deepcopy
 from app.db.client import ControlPlaneClient, get_control_plane_client, utc_now
 from app.models.agents import AgentRecord, AgentRevisionRecord, AgentRevisionState
 from app.models.commands import generate_id
+from app.models.host_adapters import HostAdapterKind
 
 
 class AgentsRepository:
@@ -19,6 +20,9 @@ class AgentsRepository:
         name: str,
         description: str | None,
         config: dict,
+        host_adapter_kind: HostAdapterKind = HostAdapterKind.TRIGGER_DEV,
+        skill_ids: list[str] | None = None,
+        host_adapter_config: dict | None = None,
     ) -> tuple[AgentRecord, AgentRevisionRecord]:
         now = utc_now()
         agent = AgentRecord(
@@ -37,6 +41,9 @@ class AgentsRepository:
             revision_number=1,
             state=AgentRevisionState.DRAFT,
             config=deepcopy(config),
+            host_adapter_kind=host_adapter_kind,
+            host_adapter_config=deepcopy(host_adapter_config or {}),
+            skill_ids=deepcopy(skill_ids or []),
             created_at=now,
             updated_at=now,
         )
@@ -145,6 +152,9 @@ class AgentsRepository:
                 revision_number=next_revision_number,
                 state=AgentRevisionState.DRAFT,
                 config=deepcopy(source_revision.config),
+                host_adapter_kind=source_revision.host_adapter_kind,
+                host_adapter_config=deepcopy(source_revision.host_adapter_config),
+                skill_ids=deepcopy(source_revision.skill_ids),
                 created_at=now,
                 updated_at=now,
                 cloned_from_revision_id=source_revision.id,

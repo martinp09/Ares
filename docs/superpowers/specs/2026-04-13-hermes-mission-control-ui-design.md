@@ -1,6 +1,6 @@
 # Hermes Mission Control UI Design
 
-> Native operator cockpit for Hermes Central Command. React/TypeScript frontend. This spec defines the visible surface for inbox, calls, approvals, runs, sequences, and agent control.
+> Native operator cockpit for Ares. React/TypeScript frontend. This spec defines the visible surface for inbox, calls, approvals, runs, sequences, and agent control.
 
 ## Goal
 
@@ -8,7 +8,7 @@ Build a high-density, agent-first Mission Control UI that gives Martin a single 
 
 ## Architecture Summary
 
-The UI lives inside the Hermes Central Command repo as `apps/mission-control/`. It talks to the FastAPI backend through typed API routes and read models. It should feel like an operator workbench: fast, dense, visible, and action-oriented.
+The UI lives inside the Ares repo as `apps/mission-control/`. It talks to the FastAPI backend through typed API routes and read models. It should feel like an operator workbench: fast, dense, visible, and action-oriented.
 
 Implementation status:
 - The current branch already ships the native Mission Control shell scaffold with dashboard, inbox, approvals, runs, agents, and settings surfaces.

@@ -65,19 +65,23 @@ class MissionControlService:
                 for thread in store.mission_control_threads.values()
                 if self._matches_scope(thread.business_id, thread.environment, business_id, environment)
             ]
-            agents = list(store.agents.values())
+            agents = [
+                agent
+                for agent in store.agents.values()
+                if self._matches_scope(agent.business_id, agent.environment, business_id, environment)
+            ]
 
         distinct_channels = {thread.channel for thread in threads}
         pending_leads = [thread for thread in threads if thread.status in {"open", "waiting"} and thread.unread_count > 0]
-        booked_leads = [thread for thread in threads if thread.booking_status == "booked"]
+        booked_leads = [thread for thread in threads if self._thread_booking_status(thread) == "booked"]
         active_enrollments = [
             thread
             for thread in threads
-            if thread.sequence_status not in {None, "complete", "completed"}
-            and thread.booking_status != "booked"
+            if self._thread_sequence_status(thread) not in {None, "complete", "completed"}
+            and self._thread_booking_status(thread) != "booked"
         ]
-        manual_calls_due = [thread for thread in threads if thread.manual_call_due_at]
-        replies_needing_review = [thread for thread in threads if thread.reply_needs_review]
+        manual_calls_due = [thread for thread in threads if self._thread_manual_call_due_at(thread)]
+        replies_needing_review = [thread for thread in threads if self._thread_reply_needs_review(thread)]
         failed_runs = [run for run in runs if run.status == RunStatus.FAILED]
         recent_completed_runs = [run for run in runs if run.status == RunStatus.COMPLETED]
         system_status = "healthy"
@@ -236,22 +240,22 @@ class MissionControlService:
             ]
 
         ordered_threads = sorted(
-            [thread for thread in threads if thread.manual_call_due_at or thread.reply_needs_review],
-            key=lambda thread: thread.manual_call_due_at or thread.updated_at.isoformat(),
+            [thread for thread in threads if self._thread_manual_call_due_at(thread) or self._thread_reply_needs_review(thread)],
+            key=lambda thread: self._thread_manual_call_due_at(thread) or thread.updated_at.isoformat(),
         )
         tasks = [
             MissionControlTaskSummary(
                 thread_id=thread.id,
                 lead_name=thread.contact.display_name,
                 channel=thread.channel,
-                booking_status=thread.booking_status or ("booked" if thread.status == "closed" else "pending"),
-                sequence_status=thread.sequence_status or thread.context.get("sequence_status", "idle"),
-                next_sequence_step=thread.next_sequence_step
+                booking_status=self._thread_booking_status(thread) or ("booked" if thread.status == "closed" else "pending"),
+                sequence_status=self._thread_sequence_status(thread) or thread.context.get("sequence_status", "idle"),
+                next_sequence_step=self._thread_next_sequence_step(thread)
                 or thread.context.get("next_sequence_step")
                 or thread.context.get("next_best_action", "Inspect thread"),
-                manual_call_due_at=thread.manual_call_due_at or "not scheduled",
-                recent_reply_preview=thread.recent_reply_preview,
-                reply_needs_review=thread.reply_needs_review,
+                manual_call_due_at=self._thread_manual_call_due_at(thread) or "not scheduled",
+                recent_reply_preview=self._thread_recent_reply_preview(thread),
+                reply_needs_review=self._thread_reply_needs_review(thread),
             )
             for thread in ordered_threads
         ]
@@ -264,7 +268,11 @@ class MissionControlService:
         environment: str | None = None,
     ) -> MissionControlAgentsResponse:
         with self.client.transaction() as store:
-            agents = list(store.agents.values())
+            agents = [
+                agent
+                for agent in store.agents.values()
+                if self._matches_scope(agent.business_id, agent.environment, business_id, environment)
+            ]
             revisions = dict(store.agent_revisions)
             sessions = list(store.sessions.values())
             permissions = list(store.permissions.values())
@@ -378,12 +386,12 @@ class MissionControlService:
             related_run_id=related_run_id,
             related_approval_id=thread.related_approval_id,
             contact=thread.contact,
-            booking_status=thread.booking_status,
-            sequence_status=thread.sequence_status,
-            next_sequence_step=thread.next_sequence_step,
-            manual_call_due_at=thread.manual_call_due_at,
-            recent_reply_preview=thread.recent_reply_preview,
-            reply_needs_review=thread.reply_needs_review,
+            booking_status=self._thread_booking_status(thread),
+            sequence_status=self._thread_sequence_status(thread),
+            next_sequence_step=self._thread_next_sequence_step(thread),
+            manual_call_due_at=self._thread_manual_call_due_at(thread),
+            recent_reply_preview=self._thread_recent_reply_preview(thread),
+            reply_needs_review=self._thread_reply_needs_review(thread),
         )
 
     def _build_thread_detail(
@@ -414,9 +422,48 @@ class MissionControlService:
             related_run_id=thread.related_run_id,
             related_approval_id=thread.related_approval_id,
             contact=thread.contact,
+            booking_status=self._thread_booking_status(thread),
+            sequence_status=self._thread_sequence_status(thread),
+            next_sequence_step=self._thread_next_sequence_step(thread),
+            manual_call_due_at=self._thread_manual_call_due_at(thread),
+            recent_reply_preview=self._thread_recent_reply_preview(thread),
+            reply_needs_review=self._thread_reply_needs_review(thread),
             messages=sorted(thread.messages, key=lambda message: message.created_at),
             context=context,
         )
+
+    @staticmethod
+    def _thread_booking_status(thread: MissionControlThreadRecord) -> str | None:
+        value = thread.booking_status or thread.context.get("booking_status")
+        return str(value) if value is not None else None
+
+    @staticmethod
+    def _thread_sequence_status(thread: MissionControlThreadRecord) -> str | None:
+        value = thread.sequence_status or thread.context.get("sequence_status")
+        return str(value) if value is not None else None
+
+    @staticmethod
+    def _thread_next_sequence_step(thread: MissionControlThreadRecord) -> str | None:
+        value = thread.next_sequence_step or thread.context.get("next_sequence_step")
+        return str(value) if value is not None else None
+
+    @staticmethod
+    def _thread_manual_call_due_at(thread: MissionControlThreadRecord) -> str | None:
+        value = thread.manual_call_due_at or thread.context.get("manual_call_due_at")
+        return str(value) if value is not None else None
+
+    @staticmethod
+    def _thread_recent_reply_preview(thread: MissionControlThreadRecord) -> str | None:
+        value = thread.recent_reply_preview or thread.context.get("recent_reply_preview")
+        if value is not None:
+            return str(value)
+        if thread.messages:
+            return thread.messages[-1].body
+        return None
+
+    @staticmethod
+    def _thread_reply_needs_review(thread: MissionControlThreadRecord) -> bool:
+        return bool(thread.reply_needs_review or thread.context.get("reply_needs_review"))
 
     @staticmethod
     def _approval_reason(command_type: str) -> str:

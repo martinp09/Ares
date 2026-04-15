@@ -15,7 +15,7 @@ class MarketingTenant:
 
 def marketing_backend_enabled(settings: Settings | None = None) -> bool:
     active = settings or get_settings()
-    return active.marketing_backend == "supabase"
+    return getattr(active, "marketing_backend", "memory") == "supabase"
 
 
 def _headers(settings: Settings, *, prefer: str | None = None) -> dict[str, str]:

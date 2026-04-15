@@ -20,6 +20,8 @@ def test_db_modules_are_importable():
         PermissionsRepository,
         RunsRepository,
         SessionsRepository,
+        SkillsRepository,
+        HostAdapterDispatchesRepository,
     )
     from app.db.agent_assets import AgentAssetsRepository as agent_assets_repository_module
     from app.db.agents import AgentsRepository as agents_repository_module
@@ -28,10 +30,12 @@ def test_db_modules_are_importable():
     from app.db.client import InMemoryControlPlaneClient as client_module
     from app.db.commands import CommandsRepository as commands_repository_module
     from app.db.events import EventsRepository as events_repository_module
+    from app.db.host_adapter_dispatches import HostAdapterDispatchesRepository as host_adapter_dispatches_repository_module
     from app.db.outcomes import OutcomesRepository as outcomes_repository_module
     from app.db.permissions import PermissionsRepository as permissions_repository_module
     from app.db.runs import RunsRepository as runs_repository_module
     from app.db.sessions import SessionsRepository as sessions_repository_module
+    from app.db.skills import SkillsRepository as skills_repository_module
 
     assert AgentAssetsRepository is agent_assets_repository_module
     assert AgentsRepository is agents_repository_module
@@ -39,11 +43,13 @@ def test_db_modules_are_importable():
     assert ArtifactsRepository is artifacts_repository_module
     assert CommandsRepository is commands_repository_module
     assert EventsRepository is events_repository_module
+    assert HostAdapterDispatchesRepository is host_adapter_dispatches_repository_module
     assert InMemoryControlPlaneClient is client_module
     assert OutcomesRepository is outcomes_repository_module
     assert PermissionsRepository is permissions_repository_module
     assert RunsRepository is runs_repository_module
     assert SessionsRepository is sessions_repository_module
+    assert SkillsRepository is skills_repository_module
 
 
 def test_mission_control_modules_are_importable():

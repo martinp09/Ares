@@ -15,6 +15,9 @@ class AgentRegistryService:
             name=request.name,
             description=request.description,
             config=request.config,
+            host_adapter_kind=request.host_adapter_kind,
+            skill_ids=request.skill_ids,
+            host_adapter_config=request.host_adapter_config,
         )
         return AgentResponse(agent=agent, revisions=[revision])
 
