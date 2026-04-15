@@ -1,10 +1,21 @@
-export type MissionControlView = "dashboard" | "inbox" | "approvals" | "runs" | "agents" | "settings";
+export type MissionControlView =
+  | "intake"
+  | "dashboard"
+  | "inbox"
+  | "approvals"
+  | "runs"
+  | "agents"
+  | "settings";
+
 export type MissionControlDataSource = "api" | "fixture";
 export type SystemStatus = "healthy" | "watch" | "degraded";
 export type ApprovalRisk = "low" | "medium" | "high";
 export type ApprovalStatus = "pending" | "approved" | "rejected";
 export type RunStatus = "queued" | "in_progress" | "completed" | "failed";
 export type AssetStatus = "connected" | "attention" | "unbound";
+export type ProviderName = "textgrid" | "resend";
+export type ProviderChannel = "sms" | "email";
+export type OutboundSendStatus = "queued" | "sent" | "failed";
 
 export interface DashboardSummaryData {
   approvalCount: number;
@@ -14,13 +25,13 @@ export interface DashboardSummaryData {
   unreadConversationCount: number;
   busyChannelCount: number;
   recentCompletedCount: number;
+  systemStatus: SystemStatus;
+  updatedAt: string;
   pendingLeadCount?: number;
   bookedLeadCount?: number;
   activeNonBookerEnrollmentCount?: number;
   dueManualCallCount?: number;
   repliesNeedingReviewCount?: number;
-  systemStatus: SystemStatus;
-  updatedAt: string;
 }
 
 export interface ConversationSummary {
@@ -33,9 +44,9 @@ export interface ConversationSummary {
   lastMessage: string;
   lastActivityAt: string;
   sequenceState: string;
-  bookingStatus?: string;
-  nextSequenceStep?: string;
-  manualCallDueAt?: string;
+  bookingStatus?: string | null;
+  nextSequenceStep?: string | null;
+  manualCallDueAt?: string | null;
   recentReplyPreview?: string | null;
   replyNeedsReview?: boolean;
 }
@@ -57,13 +68,17 @@ export interface SelectedThread {
   nextBestAction: string;
   tags: string[];
   notes: string[];
-  bookingStatus?: string;
-  sequenceStatus?: string;
-  nextSequenceStep?: string;
-  manualCallDueAt?: string;
+  messages: ThreadEntry[];
+  bookingStatus?: string | null;
+  sequenceStatus?: string | null;
+  nextSequenceStep?: string | null;
+  manualCallDueAt?: string | null;
   recentReplyPreview?: string | null;
   replyNeedsReview?: boolean;
-  messages: ThreadEntry[];
+  relatedRunId?: string | null;
+  relatedApprovalId?: string | null;
+  phone?: string | null;
+  email?: string | null;
 }
 
 export interface InboxData {
@@ -93,6 +108,9 @@ export interface RunSummary {
   parentRunId: string | null;
   triggerRunId: string | null;
   summary: string;
+  childRunIds?: string[];
+  errorClassification?: string | null;
+  errorMessage?: string | null;
 }
 
 export interface AgentSummary {
@@ -114,111 +132,6 @@ export interface AssetSummary {
   updatedAt: string;
 }
 
-export interface MissionControlSnapshot {
-  dashboard: DashboardSummaryData;
-  inbox: InboxData;
-  approvals: ApprovalItem[];
-  runs: RunSummary[];
-  agents: AgentSummary[];
-  assets: AssetSummary[];
-}
-
-export interface MissionControlApi {
-  getDashboard(): Promise<DashboardSummaryData>;
-  getInbox(selectedThreadId?: string): Promise<InboxData>;
-  getTasks(): Promise<TasksData>;
-  getApprovals(): Promise<ApprovalItem[]>;
-  getRuns(): Promise<RunSummary[]>;
-  getAgents(): Promise<AgentSummary[]>;
-  getAssets(): Promise<AssetSummary[]>;
-}
-
-export interface MissionControlApiOptions {
-  baseUrl?: string;
-  runtimeApiKey?: string;
-  fetchImpl?: typeof fetch;
-}
-
-type JsonRecord = Record<string, unknown>;
-
-interface DashboardPayload {
-  approval_count: number;
-  active_run_count: number;
-  failed_run_count: number;
-  active_agent_count: number;
-  unread_conversation_count?: number;
-  busy_channel_count?: number;
-  recent_completed_count?: number;
-  pending_lead_count?: number;
-  booked_lead_count?: number;
-  active_non_booker_enrollment_count?: number;
-  due_manual_call_count?: number;
-  replies_needing_review_count?: number;
-  system_status?: string;
-  updated_at?: string;
-}
-
-interface InboxContactPayload {
-  display_name?: string;
-  email?: string | null;
-  phone?: string | null;
-}
-
-interface InboxMessagePayload {
-  id?: string;
-  direction?: string;
-  body?: string;
-  created_at?: string;
-  message_type?: string;
-}
-
-interface InboxThreadSummaryPayload {
-  thread_id: string;
-  channel: string;
-  status?: string;
-  unread_count?: number;
-  last_message_preview?: string | null;
-  last_message_at?: string | null;
-  requires_approval?: boolean;
-  related_run_id?: string | null;
-  related_approval_id?: string | null;
-  booking_status?: string | null;
-  sequence_status?: string | null;
-  next_sequence_step?: string | null;
-  manual_call_due_at?: string | null;
-  recent_reply_preview?: string | null;
-  reply_needs_review?: boolean;
-  contact?: InboxContactPayload;
-}
-
-interface InboxThreadDetailPayload {
-  thread_id: string;
-  channel: string;
-  status?: string;
-  unread_count?: number;
-  requires_approval?: boolean;
-  related_run_id?: string | null;
-  related_approval_id?: string | null;
-  booking_status?: string | null;
-  sequence_status?: string | null;
-  next_sequence_step?: string | null;
-  manual_call_due_at?: string | null;
-  recent_reply_preview?: string | null;
-  reply_needs_review?: boolean;
-  contact?: InboxContactPayload;
-  messages?: InboxMessagePayload[];
-  context?: JsonRecord;
-}
-
-interface InboxPayload {
-  summary?: {
-    unread_count?: number;
-  };
-  threads?: InboxThreadSummaryPayload[];
-  selected_thread_id?: string | null;
-  selected_thread?: InboxThreadDetailPayload | null;
-}
-
 export interface TaskItem {
   threadId: string;
   leadName: string;
@@ -227,8 +140,8 @@ export interface TaskItem {
   sequenceStatus: string;
   nextSequenceStep: string;
   manualCallDueAt: string;
-  recentReplyPreview: string | null;
-  replyNeedsReview: boolean;
+  recentReplyPreview?: string | null;
+  replyNeedsReview?: boolean;
 }
 
 export interface TasksData {
@@ -236,102 +149,50 @@ export interface TasksData {
   tasks: TaskItem[];
 }
 
-interface TaskPayload {
-  thread_id?: string;
-  lead_name?: string;
-  channel?: string;
-  booking_status?: string | null;
-  sequence_status?: string | null;
-  next_sequence_step?: string | null;
-  manual_call_due_at?: string;
-  recent_reply_preview?: string | null;
-  reply_needs_review?: boolean;
+export interface ProviderStatus {
+  provider: ProviderName;
+  configured: boolean;
+  canSend: boolean;
+  senderIdentity: string | null;
+  endpoint: string | null;
+  details: string | null;
+  checkedAt: string;
 }
 
-interface TasksPayload {
-  due_count?: number;
-  tasks?: TaskPayload[];
+export interface ProviderStatusData {
+  sms: ProviderStatus;
+  email: ProviderStatus;
 }
 
-interface ApprovalPayload {
-  id?: string;
-  command_type?: string;
-  status?: string;
-  payload_snapshot?: unknown;
-  created_at?: string;
-  title?: string;
-  reason?: string;
-  risk_level?: string;
-  payload_preview?: string;
+export interface OutboundSendResponse {
+  channel: ProviderChannel;
+  provider: ProviderName;
+  status: OutboundSendStatus;
+  providerMessageId: string | null;
+  to: string;
+  fromIdentity: string | null;
+  attemptedAt: string;
+  errorMessage: string | null;
 }
 
-interface MissionControlApprovalsPayload {
-  approvals?: ApprovalPayload[];
+export interface MissionControlSnapshot {
+  dashboard: DashboardSummaryData;
+  inbox: InboxData;
+  approvals: ApprovalItem[];
+  runs: RunSummary[];
+  agents: AgentSummary[];
+  assets: AssetSummary[];
+  tasks?: TaskItem[];
 }
 
-interface RunPayload {
-  id: string;
-  command_type: string;
-  status: string;
-  business_id: string;
-  environment: string;
-  updated_at: string;
-  parent_run_id?: string | null;
-  trigger_run_id?: string | null;
-  error_classification?: string | null;
-  error_message?: string | null;
-}
-
-interface RunsPayload {
-  runs: RunPayload[];
-}
-
-interface AgentPayload {
-  id?: string;
-  business_id?: string;
-  environment?: string;
-  name?: string;
-  active_revision_id?: string | null;
-  active_revision_state?: string;
-  live_session_count?: number;
-  delegated_work_count?: number;
-}
-
-interface AgentRevisionPayload {
-  id?: string;
-  state?: string;
-}
-
-interface AgentResponsePayload {
-  agent?: AgentPayload;
-  revisions?: AgentRevisionPayload[];
-}
-
-interface MissionControlAgentsPayload {
-  agents?: Array<AgentPayload | AgentResponsePayload>;
-}
-
-interface AssetPayload {
-  id?: string;
-  business_id?: string;
-  environment?: string;
-  name?: string;
-  label?: string;
-  category?: string;
-  asset_type?: string;
-  status?: string;
-  binding_target?: string;
-  binding_reference?: string | null;
-  connect_later?: boolean;
-  updated_at?: string;
-}
-
-interface MissionControlAssetsPayload {
-  assets?: AssetPayload[];
+export interface MissionControlApiOptions {
+  baseUrl?: string;
+  runtimeApiKey?: string;
+  fetchImpl?: typeof fetch;
 }
 
 const defaultBaseUrl = import.meta.env.VITE_RUNTIME_API_BASE_URL ?? "";
-const defaultRuntimeApiKey = import.meta.env.VITE_RUNTIME_API_KEY;
+const defaultRuntimeApiKey = import.meta.env.VITE_RUNTIME_API_KEY ?? "";
 
 function trimTrailingSlash(value: string): string {
   return value.replace(/\/$/, "");
@@ -342,411 +203,466 @@ function buildUrl(baseUrl: string, path: string): string {
   return normalizedBaseUrl ? `${normalizedBaseUrl}${path}` : path;
 }
 
-function isRecord(value: unknown): value is JsonRecord {
-  return typeof value === "object" && value !== null;
-}
-
-function asString(value: unknown, fallback = ""): string {
-  return typeof value === "string" ? value : fallback;
-}
-
-function asNullableString(value: unknown): string | null {
-  return typeof value === "string" ? value : null;
-}
-
-function asNumber(value: unknown, fallback = 0): number {
-  return typeof value === "number" && Number.isFinite(value) ? value : fallback;
-}
-
-function asBoolean(value: unknown, fallback = false): boolean {
-  return typeof value === "boolean" ? value : fallback;
-}
-
-function asArray<T>(value: unknown): T[] {
-  return Array.isArray(value) ? (value as T[]) : [];
-}
-
-function titleCase(value: string): string {
-  return value
-    .split(/[_\s-]+/)
-    .filter(Boolean)
-    .map((part) => part[0]?.toUpperCase() + part.slice(1))
-    .join(" ");
-}
-
-function normalizeSystemStatus(value: unknown): SystemStatus {
-  if (value === "healthy" || value === "watch" || value === "degraded") {
-    return value;
-  }
-  return "healthy";
-}
-
-function normalizeApprovalRisk(value: unknown, commandType: string): ApprovalRisk {
-  if (value === "low" || value === "medium" || value === "high") {
-    return value;
-  }
-
-  if (commandType.includes("call") || commandType.includes("voice")) {
-    return "high";
-  }
-
-  if (commandType.includes("publish") || commandType.includes("send")) {
-    return "medium";
-  }
-
-  return "low";
-}
-
-function normalizeApprovalStatus(value: unknown): ApprovalStatus {
-  if (value === "pending" || value === "approved" || value === "rejected") {
-    return value;
-  }
-  return "pending";
-}
-
-function normalizeRunStatus(value: unknown): RunStatus {
-  if (value === "queued" || value === "in_progress" || value === "completed" || value === "failed") {
-    return value;
-  }
-  return "queued";
-}
-
-function normalizeAssetStatus(value: unknown, connectLater: boolean): AssetStatus {
-  if (value === "connected" || value === "attention" || value === "unbound") {
-    return value;
-  }
-
-  if (value === "bound") {
-    return "connected";
-  }
-
-  if (value === "unbound") {
-    return connectLater ? "unbound" : "attention";
-  }
-
-  return connectLater ? "unbound" : "attention";
-}
-
-function deriveRunSummary(payload: RunPayload): string {
-  if (payload.error_message) {
-    return payload.error_classification
-      ? `${payload.error_classification}: ${payload.error_message}`
-      : payload.error_message;
-  }
-
-  const status = normalizeRunStatus(payload.status);
-  if (status === "completed") {
-    return "Run completed.";
-  }
-  if (status === "in_progress") {
-    return "Run in progress.";
-  }
-  if (status === "failed") {
-    return "Run failed.";
-  }
-  return "Queued for execution.";
-}
-
-function mapDashboard(payload: DashboardPayload): DashboardSummaryData {
-  return {
-    approvalCount: asNumber(payload.approval_count),
-    activeRunCount: asNumber(payload.active_run_count),
-    failedRunCount: asNumber(payload.failed_run_count),
-    activeAgentCount: asNumber(payload.active_agent_count),
-    unreadConversationCount: asNumber(payload.unread_conversation_count),
-    busyChannelCount: asNumber(payload.busy_channel_count),
-    recentCompletedCount: asNumber(payload.recent_completed_count),
-    pendingLeadCount: asNumber(payload.pending_lead_count),
-    bookedLeadCount: asNumber(payload.booked_lead_count),
-    activeNonBookerEnrollmentCount: asNumber(payload.active_non_booker_enrollment_count),
-    dueManualCallCount: asNumber(payload.due_manual_call_count),
-    repliesNeedingReviewCount: asNumber(payload.replies_needing_review_count),
-    systemStatus: normalizeSystemStatus(payload.system_status),
-    updatedAt: asString(payload.updated_at, "Updated just now"),
-  };
-}
-
-function mapThreadFromSummary(
-  summary: InboxThreadSummaryPayload,
-  stage: string,
-  nextBestAction: string,
-): SelectedThread {
-  const displayName = asString(summary.contact?.display_name, "Unknown contact");
-  const channel = asString(summary.channel, "channel");
-  const status = asString(summary.status, "open");
-  const requiresApproval = asBoolean(summary.requires_approval);
-
-  return {
-    conversationId: asString(summary.thread_id),
-    leadName: displayName,
-    company: asString(summary.contact?.email, asString(summary.contact?.phone, "Unknown account")),
-    stage,
-    nextBestAction,
-    tags: [channel.toLowerCase(), status, requiresApproval ? "approval-required" : "clear"],
-    notes: [],
-    bookingStatus: asString(summary.booking_status, ""),
-    sequenceStatus: asString(summary.sequence_status, ""),
-    nextSequenceStep: asString(summary.next_sequence_step, ""),
-    manualCallDueAt: asString(summary.manual_call_due_at, ""),
-    recentReplyPreview: asNullableString(summary.recent_reply_preview),
-    replyNeedsReview: asBoolean(summary.reply_needs_review),
-    messages: [],
-  };
-}
-
-function mapThreadDetail(detail: InboxThreadDetailPayload): SelectedThread {
-  const context = isRecord(detail.context) ? detail.context : {};
-  const displayName = asString(detail.contact?.display_name, "Unknown contact");
-  const stage = asString(context.stage, "Uncategorized");
-  const nextBestAction = asString(
-    context.next_best_action,
-    asBoolean(detail.requires_approval) ? "Review approval before responding." : "Continue the conversation.",
-  );
-  const notes = asArray<string>(context.notes).filter((entry): entry is string => typeof entry === "string");
-  const tags = asArray<string>(context.tags).filter((entry): entry is string => typeof entry === "string");
-  const status = asString(detail.status, "open");
-
-  return {
-    conversationId: asString(detail.thread_id),
-    leadName: displayName,
-    company: asString(detail.contact?.email, asString(detail.contact?.phone, "Unknown account")),
-    stage,
-    nextBestAction,
-    tags: tags.length > 0 ? tags : [asString(detail.channel, "channel"), status],
-    notes,
-    bookingStatus: asString(detail.booking_status, ""),
-    sequenceStatus: asString(detail.sequence_status, ""),
-    nextSequenceStep: asString(detail.next_sequence_step, ""),
-    manualCallDueAt: asString(detail.manual_call_due_at, ""),
-    recentReplyPreview: asNullableString(detail.recent_reply_preview),
-    replyNeedsReview: asBoolean(detail.reply_needs_review),
-    messages: asArray<InboxMessagePayload>(detail.messages).map((message, index) => ({
-      id: asString(message.id, `${asString(detail.thread_id)}-message-${index}`),
-      author:
-        message.direction === "inbound"
-          ? displayName
-          : message.direction === "internal"
-            ? "Operator note"
-            : "Hermes",
-      direction:
-        message.direction === "inbound" || message.direction === "outbound" || message.direction === "internal"
-          ? message.direction
-          : "internal",
-      body: asString(message.body),
-      timestamp: asString(message.created_at, "Unknown"),
-      status: asString(message.message_type, "logged"),
-    })),
-  };
-}
-
-function mapInbox(payload: InboxPayload): InboxData {
-  const threads = asArray<InboxThreadSummaryPayload>(payload.threads);
-  const selectedDetail =
-    payload.selected_thread && isRecord(payload.selected_thread)
-      ? (payload.selected_thread as InboxThreadDetailPayload)
-      : null;
-
-  const selectedThreadIdFromPayload = asNullableString(payload.selected_thread_id);
-  const selectedThreadId =
-    selectedThreadIdFromPayload ?? asNullableString(selectedDetail?.thread_id) ?? asNullableString(threads[0]?.thread_id);
-
-  const threadsById: Record<string, SelectedThread> = {};
-
-  for (const thread of threads) {
-    const threadId = asString(thread.thread_id);
-    if (!threadId) {
-      continue;
-    }
-
-    const isSelected = selectedThreadId !== null && threadId === selectedThreadId;
-    const stage =
-      isSelected && selectedDetail && isRecord(selectedDetail.context)
-        ? asString(selectedDetail.context.stage, "Queued")
-        : "Queued";
-    const nextBestAction =
-      isSelected && selectedDetail && isRecord(selectedDetail.context)
-        ? asString(selectedDetail.context.next_best_action, "Open thread for latest context.")
-        : "Open thread for latest context.";
-
-    threadsById[threadId] = mapThreadFromSummary(thread, stage, nextBestAction);
-  }
-
-  if (selectedDetail && selectedThreadId) {
-    threadsById[selectedThreadId] = mapThreadDetail(selectedDetail);
-  }
-
-  const selectedConversationId = selectedThreadId ?? Object.keys(threadsById)[0] ?? "";
-
-  return {
-    selectedConversationId,
-    conversations: threads.map((thread) => ({
-      id: asString(thread.thread_id),
-      leadName: asString(thread.contact?.display_name, "Unknown contact"),
-      channel: asString(thread.channel, "channel").toUpperCase(),
-      stage: asString(thread.booking_status, "Queued"),
-      owner: "Hermes",
-      unreadCount: asNumber(thread.unread_count),
-      lastMessage: asString(thread.last_message_preview, "No messages yet"),
-      lastActivityAt: asString(thread.last_message_at, "Unknown"),
-      sequenceState: asString(thread.sequence_status, asString(thread.status, "open")),
-      bookingStatus: asString(thread.booking_status, ""),
-      nextSequenceStep: asString(thread.next_sequence_step, ""),
-      manualCallDueAt: asString(thread.manual_call_due_at, ""),
-      recentReplyPreview: asNullableString(thread.recent_reply_preview),
-      replyNeedsReview: asBoolean(thread.reply_needs_review),
-    })),
-    threadsById,
-  };
-}
-
-function mapTasks(payload: TasksPayload): TasksData {
-  const tasks = asArray<TaskPayload>(payload.tasks).map((task) => ({
-    threadId: asString(task.thread_id),
-    leadName: asString(task.lead_name, "Unknown contact"),
-    channel: asString(task.channel, "channel"),
-    bookingStatus: asString(task.booking_status, "pending"),
-    sequenceStatus: asString(task.sequence_status, "active"),
-    nextSequenceStep: asString(task.next_sequence_step, "manual_call"),
-    manualCallDueAt: asString(task.manual_call_due_at, "Unknown"),
-    recentReplyPreview: asNullableString(task.recent_reply_preview),
-    replyNeedsReview: asBoolean(task.reply_needs_review),
-  }));
-
-  return {
-    dueCount: asNumber(payload.due_count, tasks.length),
-    tasks,
-  };
-}
-
-function mapApprovals(payload: MissionControlApprovalsPayload | ApprovalPayload[]): ApprovalItem[] {
-  const approvals = Array.isArray(payload)
-    ? payload
-    : isRecord(payload) && Array.isArray(payload.approvals)
-      ? payload.approvals
-      : [];
-
-  return approvals.map((approval, index) => {
-    const commandType = asString(approval.command_type, "unknown_command");
-    const fallbackTitle = `Approve ${titleCase(commandType)}`;
-    const payloadPreview =
-      typeof approval.payload_snapshot === "string"
-        ? approval.payload_snapshot
-        : approval.payload_snapshot !== undefined
-          ? JSON.stringify(approval.payload_snapshot)
-          : "";
-
-    return {
-      id: asString(approval.id, `approval-${index}`),
-      title: asString(approval.title, fallbackTitle),
-      reason: asString(approval.reason, "Runtime policy requires operator approval."),
-      riskLevel: normalizeApprovalRisk(approval.risk_level, commandType),
-      status: normalizeApprovalStatus(approval.status),
-      commandType,
-      requestedAt: asString(approval.created_at, "Unknown"),
-      payloadPreview: asString(approval.payload_preview, payloadPreview),
-    };
-  });
-}
-
-function mapRuns(payload: RunsPayload): RunSummary[] {
-  return asArray<RunPayload>(payload.runs).map((run) => ({
-    id: asString(run.id),
-    commandType: asString(run.command_type),
-    status: normalizeRunStatus(run.status),
-    businessId: asString(run.business_id),
-    environment: asString(run.environment),
-    updatedAt: asString(run.updated_at),
-    parentRunId: asNullableString(run.parent_run_id),
-    triggerRunId: asNullableString(run.trigger_run_id),
-    summary: deriveRunSummary(run),
-  }));
-}
-
-function mapAgents(payload: MissionControlAgentsPayload | AgentPayload[] | AgentResponsePayload[]): AgentSummary[] {
-  const agents = Array.isArray(payload)
-    ? payload
-    : isRecord(payload) && Array.isArray(payload.agents)
-      ? payload.agents
-      : [];
-
-  return agents.map((entry, index) => {
-    const hasAgentWrapper = isRecord(entry) && isRecord((entry as AgentResponsePayload).agent);
-    const agent = (hasAgentWrapper ? (entry as AgentResponsePayload).agent : entry) as AgentPayload;
-    const revisions = hasAgentWrapper ? asArray<AgentRevisionPayload>((entry as AgentResponsePayload).revisions) : [];
-    const activeRevisionId = asNullableString(agent.active_revision_id);
-    const activeRevisionState = asString(
-      agent.active_revision_state,
-      activeRevisionId
-        ? "published"
-        : revisions.find((revision) => revision.state === "draft")
-          ? "draft"
-          : "unpublished",
-    );
-
-    return {
-      id: asString(agent.id, `agent-${index}`),
-      name: asString(agent.name, "Unknown agent"),
-      activeRevisionId,
-      activeRevisionState,
-      environment: asString(agent.environment, "unknown"),
-      liveSessionCount: asNumber(agent.live_session_count),
-      delegatedWorkCount: asNumber(agent.delegated_work_count),
-    };
-  });
-}
-
-function mapAssets(payload: MissionControlAssetsPayload | AssetPayload[]): AssetSummary[] {
-  const assets = Array.isArray(payload)
-    ? payload
-    : isRecord(payload) && Array.isArray(payload.assets)
-      ? payload.assets
-      : [];
-
-  return assets.map((asset, index) => {
-    const connectLater = asBoolean(asset.connect_later, false);
-    const status = normalizeAssetStatus(asset.status, connectLater);
-
-    return {
-      id: asString(asset.id, `asset-${index}`),
-      name: asString(asset.name, asString(asset.label, "Unnamed asset")),
-      category: asString(asset.category, asString(asset.asset_type, "asset")),
-      status,
-      bindingTarget: asString(
-        asset.binding_target,
-        asString(asset.binding_reference, connectLater ? "not set" : "connected"),
-      ),
-      updatedAt: asString(asset.updated_at, "Unknown"),
-    };
-  });
-}
-
-async function requestJson<T>(
-  path: string,
-  options: MissionControlApiOptions,
-): Promise<T> {
+async function requestJson<T>(path: string, options: MissionControlApiOptions, init: RequestInit = {}): Promise<T> {
   const fetchImpl = options.fetchImpl ?? fetch;
-  const headers: Record<string, string> = {
-    Accept: "application/json",
-  };
-
+  const headers = new Headers(init.headers);
+  headers.set("Accept", "application/json");
   if (options.runtimeApiKey) {
-    headers.Authorization = `Bearer ${options.runtimeApiKey}`;
+    headers.set("Authorization", `Bearer ${options.runtimeApiKey}`);
+  }
+  if (init.body && !headers.has("Content-Type") && !(init.body instanceof FormData)) {
+    headers.set("Content-Type", "application/json");
   }
 
   const response = await fetchImpl(buildUrl(options.baseUrl ?? defaultBaseUrl, path), {
+    ...init,
     headers,
   });
 
   if (!response.ok) {
-    throw new Error(`Mission Control API request failed: ${response.status} ${response.statusText}`);
+    const errorBody = await response.text().catch(() => "");
+    const suffix = errorBody ? `: ${errorBody}` : "";
+    throw new Error(`Mission Control API request failed: ${response.status} ${response.statusText}${suffix}`);
   }
 
   return (await response.json()) as T;
 }
 
-export function createMissionControlApi(
-  options: MissionControlApiOptions = {},
-): MissionControlApi {
+function mapDashboardSummary(response: MissionControlDashboardResponseApi): DashboardSummaryData {
+  return {
+    approvalCount: response.approval_count,
+    activeRunCount: response.active_run_count,
+    failedRunCount: response.failed_run_count,
+    activeAgentCount: response.active_agent_count,
+    unreadConversationCount: response.unread_conversation_count,
+    busyChannelCount: response.busy_channel_count,
+    recentCompletedCount: response.recent_completed_count,
+    systemStatus: response.system_status,
+    updatedAt: response.updated_at,
+    pendingLeadCount: response.pending_lead_count,
+    bookedLeadCount: response.booked_lead_count,
+    activeNonBookerEnrollmentCount: response.active_non_booker_enrollment_count,
+    dueManualCallCount: response.due_manual_call_count,
+    repliesNeedingReviewCount: response.replies_needing_review_count,
+  };
+}
+
+function mapConversationSummary(response: MissionControlThreadSummaryApi): ConversationSummary {
+  return {
+    id: response.thread_id,
+    leadName: response.contact.display_name,
+    channel: response.channel.toUpperCase(),
+    stage: response.sequence_status ?? response.status,
+    owner: response.contact.display_name,
+    unreadCount: response.unread_count,
+    lastMessage: response.recent_reply_preview ?? response.last_message_preview ?? "",
+    lastActivityAt: response.last_message_at ? formatTimestamp(response.last_message_at) : "—",
+    sequenceState: response.sequence_status ?? "Idle",
+    bookingStatus: response.booking_status ?? null,
+    nextSequenceStep: response.next_sequence_step ?? null,
+    manualCallDueAt: response.manual_call_due_at ?? null,
+    recentReplyPreview: response.recent_reply_preview ?? null,
+    replyNeedsReview: response.reply_needs_review,
+  };
+}
+
+function mapThreadDetail(response: MissionControlThreadDetailApi | null | undefined, fallbackSummary: ConversationSummary): SelectedThread {
+  const messages = (response?.messages ?? []).map((message) => ({
+    id: message.id,
+    author: message.direction === "inbound" ? fallbackSummary.leadName : message.direction === "internal" ? "Operator note" : "Hermes",
+    direction: message.direction,
+    body: message.body,
+    timestamp: formatTimestamp(message.created_at),
+    status: message.message_type,
+  }));
+
+  const context = response?.context ?? {};
+  const tags = Array.isArray(context.tags) ? context.tags.map((tag) => String(tag)) : [fallbackSummary.channel, fallbackSummary.stage];
+  const notes = Array.isArray(context.notes) ? context.notes.map((note) => String(note)) : [];
+
+  return {
+    conversationId: response?.thread_id ?? fallbackSummary.id,
+    leadName: response?.contact.display_name ?? fallbackSummary.leadName,
+    company: String(context.company ?? context.company_name ?? response?.contact.email ?? fallbackSummary.leadName),
+    stage: String(context.stage ?? fallbackSummary.stage),
+    nextBestAction: String(
+      context.next_best_action ?? context.nextBestAction ?? response?.next_sequence_step ?? fallbackSummary.sequenceState,
+    ),
+    tags,
+    notes,
+    messages: messages.length > 0 ? messages : fallbackMessageStub(fallbackSummary),
+    bookingStatus: response?.booking_status ?? fallbackSummary.bookingStatus ?? null,
+    sequenceStatus: response?.sequence_status ?? fallbackSummary.sequenceState,
+    nextSequenceStep: response?.next_sequence_step ?? fallbackSummary.nextSequenceStep ?? null,
+    manualCallDueAt: response?.manual_call_due_at ?? fallbackSummary.manualCallDueAt ?? null,
+    recentReplyPreview: response?.recent_reply_preview ?? fallbackSummary.recentReplyPreview ?? null,
+    replyNeedsReview: response?.reply_needs_review ?? fallbackSummary.replyNeedsReview ?? false,
+    relatedRunId: response?.related_run_id ?? null,
+    relatedApprovalId: response?.related_approval_id ?? null,
+    phone: response?.contact.phone ?? null,
+    email: response?.contact.email ?? null,
+  };
+}
+
+function fallbackMessageStub(summary: ConversationSummary): ThreadEntry[] {
+  return summary.lastMessage
+    ? [
+        {
+          id: `${summary.id}-preview`,
+          author: summary.leadName,
+          direction: "inbound",
+          body: summary.lastMessage,
+          timestamp: summary.lastActivityAt,
+          status: "preview",
+        },
+      ]
+    : [];
+}
+
+function mapInbox(response: MissionControlInboxResponseApi): InboxData {
+  const conversations = response.threads.map(mapConversationSummary);
+  const selectedConversationId = response.selected_thread_id ?? conversations[0]?.id ?? "";
+  const selectedSummary = conversations.find((conversation) => conversation.id === selectedConversationId) ?? conversations[0];
+  const selectedThread = mapThreadDetail(response.selected_thread, selectedSummary ?? conversations[0] ?? emptyConversationFallback());
+
+  const threadsById: Record<string, SelectedThread> = {};
+  for (const conversation of conversations) {
+    threadsById[conversation.id] =
+      conversation.id === selectedThread.conversationId
+        ? selectedThread
+        : mapThreadDetail(null, conversation);
+  }
+  if (selectedSummary) {
+    threadsById[selectedConversationId] = selectedThread;
+  }
+
+  return {
+    conversations,
+    selectedConversationId,
+    threadsById,
+  };
+}
+
+function emptyConversationFallback(): ConversationSummary {
+  return {
+    id: "thread-empty",
+    leadName: "Unknown lead",
+    channel: "SMS",
+    stage: "Idle",
+    owner: "Hermes",
+    unreadCount: 0,
+    lastMessage: "",
+    lastActivityAt: "—",
+    sequenceState: "Idle",
+  };
+}
+
+function mapApprovals(response: MissionControlApprovalsResponseApi): ApprovalItem[] {
+  return response.approvals.map((approval) => ({
+    id: approval.id,
+    title: approval.title,
+    reason: approval.reason,
+    riskLevel: approval.risk_level,
+    status: approval.status,
+    commandType: approval.command_type,
+    requestedAt: formatTimestamp(approval.requested_at),
+    payloadPreview: approval.payload_preview,
+  }));
+}
+
+function mapRuns(response: MissionControlRunsResponseApi): RunSummary[] {
+  return response.runs.map((run) => ({
+    id: run.id,
+    commandType: run.command_type,
+    status: run.status,
+    businessId: run.business_id,
+    environment: run.environment,
+    updatedAt: formatTimestamp(run.updated_at),
+    parentRunId: run.parent_run_id,
+    triggerRunId: run.trigger_run_id,
+    summary: run.error_message ?? run.command_type.replaceAll("_", " "),
+    childRunIds: run.child_run_ids,
+    errorClassification: run.error_classification,
+    errorMessage: run.error_message,
+  }));
+}
+
+function mapAgents(response: MissionControlAgentsResponseApi): AgentSummary[] {
+  return response.agents.map((agent) => ({
+    id: agent.id,
+    name: agent.name,
+    activeRevisionId: agent.active_revision_id,
+    activeRevisionState: agent.active_revision_state,
+    environment: agent.environment,
+    liveSessionCount: agent.live_session_count,
+    delegatedWorkCount: agent.delegated_work_count,
+  }));
+}
+
+function mapAssets(response: MissionControlAssetsResponseApi): AssetSummary[] {
+  return response.assets.map((asset) => ({
+    id: asset.id,
+    name: asset.name,
+    category: asset.category,
+    status: asset.status,
+    bindingTarget: asset.binding_target,
+    updatedAt: formatTimestamp(asset.updated_at),
+  }));
+}
+
+function mapTasks(response: MissionControlTasksResponseApi): TaskItem[] {
+  return response.tasks.map((task) => ({
+    threadId: task.thread_id,
+    leadName: task.lead_name,
+    channel: task.channel,
+    bookingStatus: task.booking_status,
+    sequenceStatus: task.sequence_status,
+    nextSequenceStep: task.next_sequence_step,
+    manualCallDueAt: task.manual_call_due_at,
+    recentReplyPreview: task.recent_reply_preview ?? null,
+    replyNeedsReview: task.reply_needs_review,
+  }));
+}
+
+function mapProviderStatus(response: MissionControlProviderStatusApi): ProviderStatus {
+  return {
+    provider: response.provider,
+    configured: response.configured,
+    canSend: response.can_send,
+    senderIdentity: response.sender_identity,
+    endpoint: response.endpoint,
+    details: response.details,
+    checkedAt: response.checked_at,
+  };
+}
+
+function formatTimestamp(value: string): string {
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) {
+    return value;
+  }
+  return parsed.toISOString();
+}
+
+export interface MissionControlApi {
+  getDashboard(): Promise<DashboardSummaryData>;
+  getInbox(selectedConversationId?: string): Promise<InboxData>;
+  getTasks(): Promise<TasksData>;
+  getApprovals(): Promise<ApprovalItem[]>;
+  getRuns(): Promise<RunSummary[]>;
+  getAgents(): Promise<AgentSummary[]>;
+  getAssets(): Promise<AssetSummary[]>;
+  getProviderStatus(): Promise<ProviderStatusData>;
+  sendTestSms(input: MissionControlSmsTestRequest): Promise<OutboundSendResponse>;
+  sendTestEmail(input: MissionControlEmailTestRequest): Promise<OutboundSendResponse>;
+}
+
+export interface MissionControlSmsTestRequest {
+  to: string;
+  body: string;
+}
+
+export interface MissionControlEmailTestRequest {
+  to: string;
+  subject: string;
+  text: string;
+  html?: string | null;
+}
+
+interface MissionControlDashboardResponseApi {
+  approval_count: number;
+  active_run_count: number;
+  failed_run_count: number;
+  active_agent_count: number;
+  unread_conversation_count: number;
+  busy_channel_count: number;
+  recent_completed_count: number;
+  pending_lead_count?: number;
+  booked_lead_count?: number;
+  active_non_booker_enrollment_count?: number;
+  due_manual_call_count?: number;
+  replies_needing_review_count?: number;
+  system_status: SystemStatus;
+  updated_at: string;
+}
+
+interface MissionControlContactRecordApi {
+  id: string;
+  display_name: string;
+  phone: string | null;
+  email: string | null;
+}
+
+interface MissionControlThreadSummaryApi {
+  thread_id: string;
+  channel: string;
+  status: string;
+  unread_count: number;
+  last_message_preview: string | null;
+  last_message_at: string | null;
+  requires_approval: boolean;
+  related_run_id: string | null;
+  related_approval_id: string | null;
+  contact: MissionControlContactRecordApi;
+  booking_status?: string | null;
+  sequence_status?: string | null;
+  next_sequence_step?: string | null;
+  manual_call_due_at?: string | null;
+  recent_reply_preview?: string | null;
+  reply_needs_review?: boolean;
+}
+
+interface MissionControlMessageRecordApi {
+  id: string;
+  direction: "inbound" | "outbound" | "internal";
+  channel: string;
+  body: string;
+  created_at: string;
+  message_type: string;
+  approval_id: string | null;
+  run_id: string | null;
+}
+
+interface MissionControlThreadDetailApi {
+  thread_id: string;
+  channel: string;
+  status: string;
+  unread_count: number;
+  requires_approval: boolean;
+  related_run_id: string | null;
+  related_approval_id: string | null;
+  contact: MissionControlContactRecordApi;
+  booking_status?: string | null;
+  sequence_status?: string | null;
+  next_sequence_step?: string | null;
+  manual_call_due_at?: string | null;
+  recent_reply_preview?: string | null;
+  reply_needs_review?: boolean;
+  messages: MissionControlMessageRecordApi[];
+  context: Record<string, unknown>;
+}
+
+interface MissionControlInboxSummaryApi {
+  thread_count: number;
+  unread_count: number;
+  approval_required_count: number;
+}
+
+interface MissionControlInboxResponseApi {
+  summary: MissionControlInboxSummaryApi;
+  threads: MissionControlThreadSummaryApi[];
+  selected_thread_id: string | null;
+  selected_thread: MissionControlThreadDetailApi | null;
+}
+
+interface MissionControlApprovalApi {
+  id: string;
+  title: string;
+  reason: string;
+  risk_level: ApprovalRisk;
+  status: ApprovalStatus;
+  command_type: string;
+  requested_at: string;
+  payload_preview: string;
+}
+
+interface MissionControlApprovalsResponseApi {
+  approvals: MissionControlApprovalApi[];
+}
+
+interface MissionControlRunSummaryApi {
+  id: string;
+  command_id: string;
+  business_id: string;
+  environment: string;
+  command_type: string;
+  status: RunStatus;
+  parent_run_id: string | null;
+  child_run_ids: string[];
+  trigger_run_id: string | null;
+  created_at: string;
+  updated_at: string;
+  started_at: string | null;
+  completed_at: string | null;
+  error_classification: string | null;
+  error_message: string | null;
+}
+
+interface MissionControlRunsResponseApi {
+  runs: MissionControlRunSummaryApi[];
+}
+
+interface MissionControlAgentSummaryApi {
+  id: string;
+  name: string;
+  active_revision_id: string | null;
+  active_revision_state: string;
+  environment: string;
+  live_session_count: number;
+  delegated_work_count: number;
+}
+
+interface MissionControlAgentsResponseApi {
+  agents: MissionControlAgentSummaryApi[];
+}
+
+interface MissionControlAssetSummaryApi {
+  id: string;
+  name: string;
+  category: string;
+  status: AssetStatus;
+  binding_target: string;
+  updated_at: string;
+}
+
+interface MissionControlAssetsResponseApi {
+  assets: MissionControlAssetSummaryApi[];
+}
+
+interface MissionControlTaskSummaryApi {
+  thread_id: string;
+  lead_name: string;
+  channel: string;
+  booking_status: string;
+  sequence_status: string;
+  next_sequence_step: string;
+  manual_call_due_at: string;
+  recent_reply_preview?: string | null;
+  reply_needs_review?: boolean;
+}
+
+interface MissionControlTasksResponseApi {
+  due_count: number;
+  tasks: MissionControlTaskSummaryApi[];
+}
+
+interface MissionControlProviderStatusApi {
+  provider: ProviderName;
+  configured: boolean;
+  can_send: boolean;
+  sender_identity: string | null;
+  endpoint: string | null;
+  details: string | null;
+  checked_at: string;
+}
+
+interface MissionControlProvidersStatusResponseApi {
+  sms: MissionControlProviderStatusApi;
+  email: MissionControlProviderStatusApi;
+}
+
+interface MissionControlOutboundSendResponseApi {
+  channel: ProviderChannel;
+  provider: ProviderName;
+  status: OutboundSendStatus;
+  provider_message_id: string | null;
+  to: string;
+  from_identity: string | null;
+  attempted_at: string;
+  error_message: string | null;
+}
+
+export function createMissionControlApi(options: MissionControlApiOptions = {}): MissionControlApi {
   const resolvedOptions: MissionControlApiOptions = {
     baseUrl: options.baseUrl ?? defaultBaseUrl,
     runtimeApiKey: options.runtimeApiKey ?? defaultRuntimeApiKey,
@@ -754,35 +670,80 @@ export function createMissionControlApi(
   };
 
   return {
-    getDashboard: async () => mapDashboard(await requestJson<DashboardPayload>("/mission-control/dashboard", resolvedOptions)),
-    getInbox: async (selectedThreadId?: string) => {
-      const inboxPath = selectedThreadId
-        ? `/mission-control/inbox?selected_thread_id=${encodeURIComponent(selectedThreadId)}`
-        : "/mission-control/inbox";
-      return mapInbox(await requestJson<InboxPayload>(inboxPath, resolvedOptions));
+    async getDashboard() {
+      return mapDashboardSummary(await requestJson<MissionControlDashboardResponseApi>("/mission-control/dashboard", resolvedOptions));
     },
-    getTasks: async () => mapTasks(await requestJson<TasksPayload>("/mission-control/tasks", resolvedOptions)),
-    getApprovals: async () =>
-      mapApprovals(
-        await requestJson<MissionControlApprovalsPayload | ApprovalPayload[]>(
-          "/mission-control/approvals",
+    async getInbox(selectedConversationId?: string) {
+      const searchParams = new URLSearchParams();
+      if (selectedConversationId) {
+        searchParams.set("selected_thread_id", selectedConversationId);
+      }
+      const query = searchParams.toString();
+      const path = query ? `/mission-control/inbox?${query}` : "/mission-control/inbox";
+      return mapInbox(await requestJson<MissionControlInboxResponseApi>(path, resolvedOptions));
+    },
+    async getTasks() {
+      const response = await requestJson<MissionControlTasksResponseApi>("/mission-control/tasks", resolvedOptions);
+      return {
+        dueCount: response.due_count,
+        tasks: mapTasks(response),
+      };
+    },
+    async getApprovals() {
+      return mapApprovals(await requestJson<MissionControlApprovalsResponseApi>("/mission-control/approvals", resolvedOptions));
+    },
+    async getRuns() {
+      return mapRuns(await requestJson<MissionControlRunsResponseApi>("/mission-control/runs", resolvedOptions));
+    },
+    async getAgents() {
+      return mapAgents(await requestJson<MissionControlAgentsResponseApi>("/mission-control/agents", resolvedOptions));
+    },
+    async getAssets() {
+      return mapAssets(await requestJson<MissionControlAssetsResponseApi>("/mission-control/settings/assets", resolvedOptions));
+    },
+    async getProviderStatus() {
+      const response = await requestJson<MissionControlProvidersStatusResponseApi>("/mission-control/providers/status", resolvedOptions);
+      return {
+        sms: mapProviderStatus(response.sms),
+        email: mapProviderStatus(response.email),
+      };
+    },
+    async sendTestSms(input: MissionControlSmsTestRequest) {
+      return mapOutboundSendResponse(
+        await requestJson<MissionControlOutboundSendResponseApi>(
+          "/mission-control/outbound/sms/test",
           resolvedOptions,
+          {
+            method: "POST",
+            body: JSON.stringify(input),
+          },
         ),
-      ),
-    getRuns: async () => mapRuns(await requestJson<RunsPayload>("/mission-control/runs", resolvedOptions)),
-    getAgents: async () =>
-      mapAgents(
-        await requestJson<MissionControlAgentsPayload | AgentPayload[] | AgentResponsePayload[]>(
-          "/mission-control/agents",
+      );
+    },
+    async sendTestEmail(input: MissionControlEmailTestRequest) {
+      return mapOutboundSendResponse(
+        await requestJson<MissionControlOutboundSendResponseApi>(
+          "/mission-control/outbound/email/test",
           resolvedOptions,
+          {
+            method: "POST",
+            body: JSON.stringify(input),
+          },
         ),
-      ),
-    getAssets: async () =>
-      mapAssets(
-        await requestJson<MissionControlAssetsPayload | AssetPayload[]>(
-          "/mission-control/settings/assets",
-          resolvedOptions,
-        ),
-      ),
+      );
+    },
+  };
+}
+
+function mapOutboundSendResponse(response: MissionControlOutboundSendResponseApi): OutboundSendResponse {
+  return {
+    channel: response.channel,
+    provider: response.provider,
+    status: response.status,
+    providerMessageId: response.provider_message_id,
+    to: response.to,
+    fromIdentity: response.from_identity,
+    attemptedAt: response.attempted_at,
+    errorMessage: response.error_message,
   };
 }

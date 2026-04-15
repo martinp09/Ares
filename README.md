@@ -57,6 +57,8 @@ Current implementation notes:
 - FastAPI runtime uses an in-memory control-plane store for now, with repository seams under `app/db/`
 - Trigger.dev marketing worker chain is scaffolded under `trigger/`
 - Mission Control has native backend read models plus an `apps/mission-control/` cockpit scaffold
+- The new Intake view fronts the fixture-backed happy path: submission -> appointment -> confirmation SMS -> reminder SMS
+- Mission Control UI now follows the approved dark industrial terminal / pixel CRT style system
 - site-event ingestion is append-only and non-blocking at the API layer
 - Supabase remains the intended system of record, but runtime persistence is not wired yet
 
