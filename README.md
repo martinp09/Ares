@@ -29,12 +29,34 @@ This repo is the deterministic runtime, policy layer, orchestration surface, and
 - `POST /replays/{run_id}`
 - `GET /hermes/tools`
 - `POST /hermes/tools/{tool_name}/invoke`
+- `POST /agents`
+- `GET /agents/{agent_id}`
+- `POST /agents/{agent_id}/revisions/{revision_id}/publish`
+- `POST /agents/{agent_id}/revisions/{revision_id}/archive`
+- `POST /agents/{agent_id}/revisions/{revision_id}/clone`
+- `POST /sessions`
+- `GET /sessions/{session_id}`
+- `POST /sessions/{session_id}/events`
+- `POST /permissions`
+- `GET /permissions/{agent_revision_id}`
+- `POST /outcomes`
+- `POST /agent-assets`
+- `GET /agent-assets/{asset_id}`
+- `POST /agent-assets/{asset_id}/bind`
+- `GET /mission-control/dashboard`
+- `GET /mission-control/inbox`
+- `GET /mission-control/runs`
 - `POST /site-events`
+- `POST /trigger/callbacks/runs/{run_id}/started`
+- `POST /trigger/callbacks/runs/{run_id}/completed`
+- `POST /trigger/callbacks/runs/{run_id}/failed`
+- `POST /trigger/callbacks/runs/{run_id}/artifacts`
 
 Current implementation notes:
 
-- FastAPI runtime uses an in-memory control-plane store for now
+- FastAPI runtime uses an in-memory control-plane store for now, with repository seams under `app/db/`
 - Trigger.dev marketing worker chain is scaffolded under `trigger/`
+- Mission Control has native backend read models plus an `apps/mission-control/` cockpit scaffold
 - site-event ingestion is append-only and non-blocking at the API layer
 - Supabase remains the intended system of record, but runtime persistence is not wired yet
 

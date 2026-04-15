@@ -55,3 +55,11 @@ export async function invokeRuntimeApi<TResponse, TPayload = unknown>(
 
   return (await response.json()) as TResponse;
 }
+
+export async function invokeRuntimeApiWithoutResponse<TPayload = unknown>(
+  endpointPath: string,
+  payload: TPayload,
+  options: RuntimeApiInvokeOptions = {}
+): Promise<void> {
+  await invokeRuntimeApi<void, TPayload>(endpointPath, payload, options);
+}

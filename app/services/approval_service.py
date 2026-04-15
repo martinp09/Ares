@@ -2,14 +2,11 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 
-from app.models.approvals import (
-    ApprovalDecisionRequest,
-    ApprovalDecisionResponse,
-    ApprovalRecord,
-    ApprovalStatus,
-)
+from app.db.approvals import ApprovalsRepository
+from app.db.commands import CommandsRepository
+from app.db.runs import RunsRepository
+from app.models.approvals import ApprovalDecisionRequest, ApprovalDecisionResponse, ApprovalRecord, ApprovalStatus
 from app.models.commands import CommandRecord, CommandStatus, generate_id
-from app.services.run_service import STORE, run_service
 
 
 def utc_now() -> datetime:
@@ -17,44 +14,64 @@ def utc_now() -> datetime:
 
 
 class ApprovalService:
+    def __init__(
+        self,
+        approvals_repository: ApprovalsRepository | None = None,
+        commands_repository: CommandsRepository | None = None,
+        runs_repository: RunsRepository | None = None,
+    ) -> None:
+        self.approvals_repository = approvals_repository or ApprovalsRepository()
+        self.commands_repository = commands_repository or CommandsRepository()
+        self.runs_repository = runs_repository or RunsRepository()
+
     def create_approval(self, command: CommandRecord) -> ApprovalRecord:
-        approval = ApprovalRecord(
-            id=generate_id("apr"),
+        approval = self.approvals_repository.create(
             command_id=command.id,
             business_id=command.business_id,
             environment=command.environment,
             command_type=command.command_type,
-            status=ApprovalStatus.PENDING,
             payload_snapshot=command.payload,
-            created_at=utc_now(),
         )
-        STORE.approvals[approval.id] = approval
         command.approval_id = approval.id
         command.status = CommandStatus.AWAITING_APPROVAL
-        STORE.commands[command.id] = command
         return approval
+
+    def list_approvals(
+        self,
+        *,
+        business_id: str | None = None,
+        environment: str | None = None,
+        status: ApprovalStatus | None = ApprovalStatus.PENDING,
+    ) -> list[ApprovalRecord]:
+        return self.approvals_repository.list(
+            business_id=business_id,
+            environment=environment,
+            status=status,
+        )
 
     def approve(
         self, approval_id: str, request: ApprovalDecisionRequest
     ) -> ApprovalDecisionResponse | None:
-        approval = STORE.approvals.get(approval_id)
+        approval = self.approvals_repository.approve(approval_id, actor_id=request.actor_id)
         if approval is None:
             return None
 
-        command = STORE.commands.get(approval.command_id)
+        command = self.commands_repository.get(approval.command_id)
         if command is None:
             return None
 
         if approval.status == ApprovalStatus.APPROVED and command.run_id is not None:
             return ApprovalDecisionResponse(approval=approval, run_id=command.run_id)
 
-        approval.status = ApprovalStatus.APPROVED
-        approval.approved_at = utc_now()
-        approval.actor_id = request.actor_id
-        STORE.approvals[approval.id] = approval
-
-        run = run_service.create_run(command)
-        STORE.commands[command.id] = command
+        run = self.runs_repository.create(
+            command_id=command.id,
+            business_id=command.business_id,
+            environment=command.environment,
+            command_type=command.command_type,
+            command_policy=command.policy,
+        )
+        command.run_id = run.id
+        command.status = CommandStatus.QUEUED
         return ApprovalDecisionResponse(approval=approval, run_id=run.id)
 
 

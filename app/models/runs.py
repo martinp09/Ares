@@ -31,6 +31,10 @@ class RunRecord(BaseModel):
     trigger_run_id: str | None = None
     parent_run_id: str | None = None
     replay_reason: str | None = None
+    started_at: datetime | None = None
+    completed_at: datetime | None = None
+    error_classification: str | None = None
+    error_message: str | None = None
     artifacts: list[dict[str, Any]]
     events: list[dict[str, Any]]
 
@@ -48,6 +52,10 @@ class RunDetailResponse(BaseModel):
     trigger_run_id: str | None = None
     parent_run_id: str | None = None
     replay_reason: str | None = None
+    started_at: datetime | None = None
+    completed_at: datetime | None = None
+    error_classification: str | None = None
+    error_message: str | None = None
     artifacts: list[dict[str, Any]]
     events: list[dict[str, Any]]
     created_at: datetime
@@ -67,3 +75,4 @@ class ReplayResponse(BaseModel):
     child_run_id: str | None = None
     requires_approval: bool
     approval_id: str | None = None
+    replay_reason: str | None = None

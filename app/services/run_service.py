@@ -1,36 +1,25 @@
 from __future__ import annotations
 
-from dataclasses import dataclass, field
-from datetime import UTC, datetime
-
-from app.models.approvals import ApprovalRecord
-from app.models.commands import CommandRecord, CommandStatus, generate_id
+from app.db.client import STORE, reset_control_plane_store, utc_now
+from app.db.commands import CommandsRepository
+from app.db.runs import RunsRepository
+from app.models.commands import CommandRecord, CommandStatus
 from app.models.runs import RunDetailResponse, RunRecord, RunStatus
 
 
-def utc_now() -> datetime:
-    return datetime.now(UTC)
-
-
-@dataclass
-class InMemoryControlPlaneStore:
-    commands: dict[str, CommandRecord] = field(default_factory=dict)
-    command_keys: dict[tuple[str, str, str, str], str] = field(default_factory=dict)
-    approvals: dict[str, ApprovalRecord] = field(default_factory=dict)
-    runs: dict[str, RunRecord] = field(default_factory=dict)
-
-
-STORE = InMemoryControlPlaneStore()
-
-
 def reset_control_plane_state() -> None:
-    STORE.commands.clear()
-    STORE.command_keys.clear()
-    STORE.approvals.clear()
-    STORE.runs.clear()
+    reset_control_plane_store(STORE)
 
 
 class RunService:
+    def __init__(
+        self,
+        runs_repository: RunsRepository | None = None,
+        commands_repository: CommandsRepository | None = None,
+    ) -> None:
+        self.runs_repository = runs_repository or RunsRepository()
+        self.commands_repository = commands_repository or CommandsRepository()
+
     def create_run(
         self,
         command: CommandRecord,
@@ -39,32 +28,24 @@ class RunService:
         replay_reason: str | None = None,
     ) -> RunRecord:
         now = utc_now()
-        run = RunRecord(
-            id=generate_id("run"),
+        run = self.runs_repository.create(
             command_id=command.id,
             business_id=command.business_id,
             environment=command.environment,
             command_type=command.command_type,
             command_policy=command.policy,
             status=RunStatus.QUEUED,
-            created_at=now,
-            updated_at=now,
             parent_run_id=parent_run_id,
             replay_reason=replay_reason,
-            artifacts=[],
-            events=[],
+            created_at=now,
         )
-        run.events.append(
-            {"type": "run_created", "timestamp": now.isoformat(), "parent_run_id": parent_run_id}
-        )
-        STORE.runs[run.id] = run
+        run.events.append({"type": "run_created", "created_at": now.isoformat(), "parent_run_id": parent_run_id})
         command.run_id = run.id
         command.status = CommandStatus.QUEUED
-        STORE.commands[command.id] = command
         return run
 
     def get_run(self, run_id: str) -> RunRecord | None:
-        return STORE.runs.get(run_id)
+        return self.runs_repository.get(run_id)
 
     def get_run_detail(self, run_id: str) -> RunDetailResponse | None:
         run = self.get_run(run_id)

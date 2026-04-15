@@ -1,0 +1,12 @@
+-- Phase 5 scaffold-only migration.
+-- Live Supabase wiring is intentionally deferred on this machine.
+-- Intended future control-plane tables:
+--   agents
+--   agent_revisions
+--   agent_sessions
+--   agent_tool_permissions
+--   outcome_evaluations
+--   agent_operational_assets
+--
+-- This file is a placeholder seam only. Do not add live wiring here until the
+-- personal MacBook environment is ready for canonical Supabase persistence.
