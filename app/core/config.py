@@ -13,6 +13,16 @@ class Settings(BaseSettings):
     site_events_backend: Literal["memory", "supabase"] = "supabase"
     supabase_url: str | None = None
     supabase_service_role_key: str | None = None
+    textgrid_base_url: str = "https://api.textgrid.com"
+    textgrid_sms_url: str | None = None
+    textgrid_account_sid: str | None = None
+    textgrid_auth_token: str | None = None
+    textgrid_from_number: str | None = None
+    resend_email_url: str = "https://api.resend.com/emails"
+    resend_api_key: str | None = None
+    resend_from_email: str | None = None
+    resend_reply_to_email: str | None = None
+    provider_request_timeout_seconds: float = 10.0
 
     model_config = SettingsConfigDict(
         env_file=".env",

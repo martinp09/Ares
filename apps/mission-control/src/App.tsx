@@ -48,7 +48,7 @@ export default function App() {
 
       const [dashboard, inbox, approvals, runs, agents, assets] = await Promise.all([
         queryClient.fetch("dashboard", api.getDashboard, missionControlFixtures.dashboard),
-        queryClient.fetch("inbox", api.getInbox, missionControlFixtures.inbox),
+        queryClient.fetch(`inbox:${selectedConversationId}`, () => api.getInbox(selectedConversationId), missionControlFixtures.inbox),
         queryClient.fetch("approvals", api.getApprovals, missionControlFixtures.approvals),
         queryClient.fetch("runs", api.getRuns, missionControlFixtures.runs),
         queryClient.fetch("agents", api.getAgents, missionControlFixtures.agents),
@@ -85,7 +85,7 @@ export default function App() {
     return () => {
       isMounted = false;
     };
-  }, []);
+  }, [selectedConversationId]);
 
   const normalizedSearchValue = searchValue.trim().toLowerCase();
 
@@ -225,6 +225,8 @@ export default function App() {
           data={{ ...snapshot.inbox, conversations: filteredConversations }}
           selectedConversationId={visibleConversationId}
           onSelectConversation={setSelectedConversationId}
+          onSendSmsTest={(payload) => api.sendTestSms(payload)}
+          onSendEmailTest={(payload) => api.sendTestEmail(payload)}
         />
       ),
       contextContent: (

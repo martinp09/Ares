@@ -1,20 +1,39 @@
 from __future__ import annotations
 
 from copy import deepcopy
+import json
+from collections import Counter
+from datetime import UTC, datetime
 
+from app.core.config import get_settings
 from app.db.client import ControlPlaneClient, get_control_plane_client
 from app.models.approvals import ApprovalStatus
 from app.models.mission_control import (
+    MissionControlAgentSummary,
+    MissionControlAgentsResponse,
+    MissionControlApprovalSummary,
+    MissionControlApprovalsResponse,
+    MissionControlAssetSummary,
+    MissionControlAssetsResponse,
     MissionControlDashboardResponse,
+    MissionControlEmailTestRequest,
     MissionControlInboxResponse,
     MissionControlInboxSummary,
+    MissionControlOutboundSendResponse,
+    MissionControlProviderStatus,
+    MissionControlProvidersStatusResponse,
     MissionControlRunSummary,
     MissionControlRunsResponse,
+    MissionControlSmsTestRequest,
+    MissionControlTaskSummary,
+    MissionControlTasksResponse,
     MissionControlThreadDetail,
     MissionControlThreadRecord,
     MissionControlThreadSummary,
 )
 from app.models.runs import RunStatus
+from app.services.providers.resend import get_resend_status, send_test_email
+from app.services.providers.textgrid import get_textgrid_status, send_test_sms
 
 ACTIVE_RUN_STATUSES = {RunStatus.QUEUED, RunStatus.IN_PROGRESS}
 
@@ -41,13 +60,45 @@ class MissionControlService:
                 for run in store.runs.values()
                 if self._matches_scope(run.business_id, run.environment, business_id, environment)
             ]
+            threads = [
+                thread
+                for thread in store.mission_control_threads.values()
+                if self._matches_scope(thread.business_id, thread.environment, business_id, environment)
+            ]
             agents = list(store.agents.values())
+
+        distinct_channels = {thread.channel for thread in threads}
+        pending_leads = [thread for thread in threads if thread.status in {"open", "waiting"} and thread.unread_count > 0]
+        booked_leads = [thread for thread in threads if thread.booking_status == "booked"]
+        active_enrollments = [
+            thread
+            for thread in threads
+            if thread.sequence_status not in {None, "complete", "completed"}
+            and thread.booking_status != "booked"
+        ]
+        manual_calls_due = [thread for thread in threads if thread.manual_call_due_at]
+        replies_needing_review = [thread for thread in threads if thread.reply_needs_review]
+        failed_runs = [run for run in runs if run.status == RunStatus.FAILED]
+        recent_completed_runs = [run for run in runs if run.status == RunStatus.COMPLETED]
+        system_status = "healthy"
+        if failed_runs:
+            system_status = "watch" if len(failed_runs) < max(len(runs), 1) else "degraded"
 
         return MissionControlDashboardResponse(
             approval_count=len(approvals),
             active_run_count=sum(1 for run in runs if run.status in ACTIVE_RUN_STATUSES),
-            failed_run_count=sum(1 for run in runs if run.status == RunStatus.FAILED),
+            failed_run_count=len(failed_runs),
             active_agent_count=sum(1 for agent in agents if agent.active_revision_id is not None),
+            unread_conversation_count=sum(thread.unread_count for thread in threads),
+            busy_channel_count=len(distinct_channels),
+            recent_completed_count=len(recent_completed_runs),
+            pending_lead_count=len(pending_leads),
+            booked_lead_count=len(booked_leads),
+            active_non_booker_enrollment_count=len(active_enrollments),
+            due_manual_call_count=len(manual_calls_due),
+            replies_needing_review_count=len(replies_needing_review),
+            system_status=system_status,
+            updated_at=datetime.now(UTC),
         )
 
     def get_inbox(
@@ -134,6 +185,175 @@ class MissionControlService:
             ]
         )
 
+    def get_approvals(
+        self,
+        *,
+        business_id: str | None = None,
+        environment: str | None = None,
+    ) -> MissionControlApprovalsResponse:
+        with self.client.transaction() as store:
+            approvals = [
+                approval
+                for approval in store.approvals.values()
+                if approval.status == ApprovalStatus.PENDING
+                and self._matches_scope(approval.business_id, approval.environment, business_id, environment)
+            ]
+            commands_by_id = dict(store.commands)
+
+        ordered_approvals = sorted(approvals, key=lambda approval: approval.created_at, reverse=True)
+        summary_rows = []
+        for approval in ordered_approvals:
+            command = commands_by_id.get(approval.command_id)
+            command_type = command.command_type if command is not None else approval.command_type
+            payload_preview = json.dumps(approval.payload_snapshot, sort_keys=True)
+            if len(payload_preview) > 120:
+                payload_preview = f"{payload_preview[:117]}..."
+            summary_rows.append(
+                MissionControlApprovalSummary(
+                    id=approval.id,
+                    title=f"Approve {command_type.replace('_', ' ')}",
+                    reason=self._approval_reason(command_type),
+                    risk_level=self._approval_risk_level(command_type),
+                    status=approval.status.value,
+                    command_type=command_type,
+                    requested_at=approval.created_at,
+                    payload_preview=payload_preview,
+                )
+            )
+        return MissionControlApprovalsResponse(approvals=summary_rows)
+
+    def get_tasks(
+        self,
+        *,
+        business_id: str | None = None,
+        environment: str | None = None,
+    ) -> MissionControlTasksResponse:
+        with self.client.transaction() as store:
+            threads = [
+                thread
+                for thread in store.mission_control_threads.values()
+                if self._matches_scope(thread.business_id, thread.environment, business_id, environment)
+            ]
+
+        ordered_threads = sorted(
+            [thread for thread in threads if thread.manual_call_due_at or thread.reply_needs_review],
+            key=lambda thread: thread.manual_call_due_at or thread.updated_at.isoformat(),
+        )
+        tasks = [
+            MissionControlTaskSummary(
+                thread_id=thread.id,
+                lead_name=thread.contact.display_name,
+                channel=thread.channel,
+                booking_status=thread.booking_status or ("booked" if thread.status == "closed" else "pending"),
+                sequence_status=thread.sequence_status or thread.context.get("sequence_status", "idle"),
+                next_sequence_step=thread.next_sequence_step
+                or thread.context.get("next_sequence_step")
+                or thread.context.get("next_best_action", "Inspect thread"),
+                manual_call_due_at=thread.manual_call_due_at or "not scheduled",
+                recent_reply_preview=thread.recent_reply_preview,
+                reply_needs_review=thread.reply_needs_review,
+            )
+            for thread in ordered_threads
+        ]
+        return MissionControlTasksResponse(due_count=len(tasks), tasks=tasks)
+
+    def get_agents(
+        self,
+        *,
+        business_id: str | None = None,
+        environment: str | None = None,
+    ) -> MissionControlAgentsResponse:
+        with self.client.transaction() as store:
+            agents = list(store.agents.values())
+            revisions = dict(store.agent_revisions)
+            sessions = list(store.sessions.values())
+            permissions = list(store.permissions.values())
+
+        agent_summaries: list[MissionControlAgentSummary] = []
+        for agent in sorted(agents, key=lambda item: item.updated_at, reverse=True):
+            active_revision_id = agent.active_revision_id
+            active_revision = revisions.get(active_revision_id) if active_revision_id is not None else None
+            agent_sessions = [session for session in sessions if session.agent_id == agent.id]
+            if business_id is not None:
+                agent_sessions = [session for session in agent_sessions if session.business_id == business_id]
+            if environment is not None:
+                agent_sessions = [session for session in agent_sessions if session.environment == environment]
+            latest_session_environment = (
+                sorted(agent_sessions, key=lambda session: (session.updated_at, session.created_at), reverse=True)[0].environment
+                if agent_sessions
+                else "unassigned"
+            )
+            active_revision_state = active_revision.state.value if active_revision is not None else "draft"
+            delegated_work_count = sum(
+                1
+                for permission in permissions
+                if permission.agent_revision_id == active_revision_id and permission.mode != "always_allow"
+            )
+            agent_summaries.append(
+                MissionControlAgentSummary(
+                    id=agent.id,
+                    name=agent.name,
+                    active_revision_id=active_revision_id,
+                    active_revision_state=active_revision_state,
+                    environment=latest_session_environment,
+                    live_session_count=len(agent_sessions),
+                    delegated_work_count=delegated_work_count,
+                )
+            )
+        return MissionControlAgentsResponse(agents=agent_summaries)
+
+    def get_assets(
+        self,
+        *,
+        business_id: str | None = None,
+        environment: str | None = None,
+    ) -> MissionControlAssetsResponse:
+        with self.client.transaction() as store:
+            assets = list(store.agent_assets.values())
+            agents = dict(store.agents)
+
+        asset_rows = []
+        for asset in sorted(assets, key=lambda item: item.updated_at, reverse=True):
+            if business_id is not None and asset.metadata.get("business_id") not in {None, business_id}:
+                continue
+            if environment is not None and asset.metadata.get("environment") not in {None, environment}:
+                continue
+            agent = agents.get(asset.agent_id)
+            asset_rows.append(
+                MissionControlAssetSummary(
+                    id=asset.id,
+                    name=asset.label,
+                    category=asset.asset_type.value,
+                    status=("connected" if asset.status.value == "bound" else ("attention" if asset.connect_later else "unbound")),
+                    binding_target=asset.binding_reference or (agent.name if agent is not None else "not set"),
+                    updated_at=asset.updated_at,
+                )
+            )
+        return MissionControlAssetsResponse(assets=asset_rows)
+
+    def get_provider_status(self) -> MissionControlProvidersStatusResponse:
+        settings = get_settings()
+        return MissionControlProvidersStatusResponse(
+            sms=MissionControlProviderStatus(**get_textgrid_status(settings)),
+            email=MissionControlProviderStatus(**get_resend_status(settings)),
+        )
+
+    def send_test_sms(self, request: MissionControlSmsTestRequest) -> MissionControlOutboundSendResponse:
+        settings = get_settings()
+        result = send_test_sms(settings, to=request.to, body=request.body)
+        return MissionControlOutboundSendResponse(**result)
+
+    def send_test_email(self, request: MissionControlEmailTestRequest) -> MissionControlOutboundSendResponse:
+        settings = get_settings()
+        result = send_test_email(
+            settings,
+            to=request.to,
+            subject=request.subject,
+            text=request.text,
+            html=request.html,
+        )
+        return MissionControlOutboundSendResponse(**result)
+
     def _build_thread_summary(
         self,
         thread: MissionControlThreadRecord,
@@ -158,6 +378,12 @@ class MissionControlService:
             related_run_id=related_run_id,
             related_approval_id=thread.related_approval_id,
             contact=thread.contact,
+            booking_status=thread.booking_status,
+            sequence_status=thread.sequence_status,
+            next_sequence_step=thread.next_sequence_step,
+            manual_call_due_at=thread.manual_call_due_at,
+            recent_reply_preview=thread.recent_reply_preview,
+            reply_needs_review=thread.reply_needs_review,
         )
 
     def _build_thread_detail(
@@ -191,6 +417,22 @@ class MissionControlService:
             messages=sorted(thread.messages, key=lambda message: message.created_at),
             context=context,
         )
+
+    @staticmethod
+    def _approval_reason(command_type: str) -> str:
+        if "call" in command_type or "voice" in command_type:
+            return "Voice actions stay operator-reviewed until live policy tuning is complete."
+        if "publish" in command_type or "send" in command_type:
+            return "Customer-facing actions stay operator-reviewed before release."
+        return "The command requires an approval gate before execution."
+
+    @staticmethod
+    def _approval_risk_level(command_type: str) -> str:
+        if "call" in command_type or "voice" in command_type:
+            return "high"
+        if "publish" in command_type or "send" in command_type:
+            return "medium"
+        return "low"
 
     @staticmethod
     def _matches_scope(

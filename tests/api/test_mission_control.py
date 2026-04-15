@@ -1,5 +1,6 @@
 from datetime import UTC, datetime, timedelta
 
+from app.core.config import get_settings
 from app.models.mission_control import (
     MissionControlContactRecord,
     MissionControlMessageRecord,
@@ -80,13 +81,15 @@ def test_dashboard_endpoint_returns_operator_counts(client) -> None:
         headers=AUTH_HEADERS,
     )
 
-    assert response.status_code == 200
-    assert response.json() == {
-        "approval_count": 1,
-        "active_run_count": 1,
-        "failed_run_count": 1,
-        "active_agent_count": 1,
-    }
+    body = response.json()
+    assert body["approval_count"] == 1
+    assert body["active_run_count"] == 1
+    assert body["failed_run_count"] == 1
+    assert body["active_agent_count"] == 1
+    assert body["busy_channel_count"] >= 0
+    assert body["recent_completed_count"] >= 0
+    assert body["system_status"] in {"healthy", "watch", "degraded"}
+    assert "updated_at" in body
 
 
 def test_inbox_endpoint_returns_thread_summaries_and_selected_thread_payload(client) -> None:
@@ -246,3 +249,121 @@ def test_runs_endpoint_returns_lineage_with_parent_run_id(client) -> None:
     assert runs_by_id[parent_run_id]["parent_run_id"] is None
     assert child_run_id in runs_by_id[parent_run_id]["child_run_ids"]
     assert runs_by_id[child_run_id]["parent_run_id"] == parent_run_id
+
+
+def test_provider_status_endpoint_reflects_configured_sms_and_email(client, monkeypatch) -> None:
+    reset_control_plane_state()
+    monkeypatch.setenv("TEXTGRID_ACCOUNT_SID", "AC123")
+    monkeypatch.setenv("TEXTGRID_AUTH_TOKEN", "token123")
+    monkeypatch.setenv("TEXTGRID_FROM_NUMBER", "+13475550123")
+    monkeypatch.setenv("RESEND_API_KEY", "re_test_key")
+    monkeypatch.setenv("RESEND_FROM_EMAIL", "Relay <relay@send.limitleshome.com>")
+    get_settings.cache_clear()
+
+    response = client.get("/mission-control/providers/status", headers=AUTH_HEADERS)
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["sms"]["provider"] == "textgrid"
+    assert body["sms"]["configured"] is True
+    assert body["sms"]["can_send"] is True
+    assert body["sms"]["sender_identity"] == "+13475550123"
+    assert body["email"]["provider"] == "resend"
+    assert body["email"]["configured"] is True
+    assert body["email"]["can_send"] is True
+    assert body["email"]["sender_identity"] == "Relay <relay@send.limitleshome.com>"
+
+
+def test_sms_test_endpoint_returns_provider_acceptance(client, monkeypatch) -> None:
+    reset_control_plane_state()
+    captured = {}
+
+    def fake_send(settings, *, to: str, body: str):
+        captured["to"] = to
+        captured["body"] = body
+        captured["settings"] = settings
+        return {
+            "channel": "sms",
+            "provider": "textgrid",
+            "status": "queued",
+            "provider_message_id": "SM123",
+            "to": to,
+            "from_identity": "+13475550123",
+            "attempted_at": datetime(2026, 4, 14, 12, 0, tzinfo=UTC),
+            "error_message": None,
+        }
+
+    monkeypatch.setattr("app.services.mission_control_service.send_test_sms", fake_send)
+
+    response = client.post(
+        "/mission-control/outbound/sms/test",
+        json={"to": "+13475550123", "body": "hello human"},
+        headers=AUTH_HEADERS,
+    )
+
+    assert response.status_code == 201
+    body = response.json()
+    assert body["channel"] == "sms"
+    assert body["provider"] == "textgrid"
+    assert body["status"] == "queued"
+    assert body["provider_message_id"] == "SM123"
+    assert body["to"] == "+13475550123"
+    assert captured["to"] == "+13475550123"
+    assert captured["body"] == "hello human"
+
+
+def test_email_test_endpoint_returns_provider_acceptance(client, monkeypatch) -> None:
+    reset_control_plane_state()
+    captured = {}
+
+    def fake_send(settings, *, to: str, subject: str, text: str, html: str | None = None):
+        captured["to"] = to
+        captured["subject"] = subject
+        captured["text"] = text
+        captured["html"] = html
+        return {
+            "channel": "email",
+            "provider": "resend",
+            "status": "queued",
+            "provider_message_id": "em_123",
+            "to": to,
+            "from_identity": "Relay <relay@send.limitleshome.com>",
+            "attempted_at": datetime(2026, 4, 14, 12, 1, tzinfo=UTC),
+            "error_message": None,
+        }
+
+    monkeypatch.setattr("app.services.mission_control_service.send_test_email", fake_send)
+
+    response = client.post(
+        "/mission-control/outbound/email/test",
+        json={"to": "martinhomeoffers@gmail.com", "subject": "Mission Control smoke test", "text": "hello human"},
+        headers=AUTH_HEADERS,
+    )
+
+    assert response.status_code == 201
+    body = response.json()
+    assert body["channel"] == "email"
+    assert body["provider"] == "resend"
+    assert body["status"] == "queued"
+    assert body["provider_message_id"] == "em_123"
+    assert body["to"] == "martinhomeoffers@gmail.com"
+    assert captured["subject"] == "Mission Control smoke test"
+    assert captured["text"] == "hello human"
+
+
+def test_sms_test_endpoint_maps_provider_errors_to_502(client, monkeypatch) -> None:
+    reset_control_plane_state()
+
+    def fake_send(settings, *, to: str, body: str):
+        raise RuntimeError("SMS Sending Limit reached. Please contact support")
+
+    monkeypatch.setattr("app.services.mission_control_service.send_test_sms", fake_send)
+
+    response = client.post(
+        "/mission-control/outbound/sms/test",
+        json={"to": "+13475550123", "body": "hello human"},
+        headers=AUTH_HEADERS,
+    )
+
+    assert response.status_code == 502
+    assert response.json()["detail"] == "SMS Sending Limit reached. Please contact support"
