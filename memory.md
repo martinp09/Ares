@@ -123,12 +123,11 @@
 
 ## Open Work
 
-1. execute `docs/superpowers/plans/2026-04-15-ares-enterprise-agent-platform-implementation-plan.md`, continuing from the locked product-model docs into tenancy and host-adapter phases
-2. replace the in-memory marketing repositories with Supabase-backed persistence
-3. add tenant-safe inbound routing so identical phone numbers across businesses/envs cannot collide
-4. persist real sequence state and opt-out state instead of deriving guards from booking status alone
-5. align Mission Control read models to the actual persisted marketing state
-6. decide whether form-submit failures should hard-fail the landing page when Hermes intake is unavailable
+1. execute `docs/superpowers/specs/Hermes — Instantly Lead Automation Final Spec 2026.md`
+2. execute `docs/superpowers/plans/2026-04-16-harris-probate-keep-now-ingestion-plan.md`
+3. execute `docs/superpowers/plans/2026-04-16-curative-title-cold-email-machine-plan.md`
+4. keep the broader Ares enterprise platform backlog archived until the next explicit reopen
+5. continue using the repo-root TODO as the live handoff pointer instead of ad hoc chat notes
 
 ## Change Log
 
