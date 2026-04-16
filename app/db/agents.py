@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from copy import deepcopy
 
+from app.core.config import DEFAULT_INTERNAL_ORG_ID
 from app.db.client import ControlPlaneClient, get_control_plane_client, utc_now
 from app.models.agents import AgentRecord, AgentRevisionRecord, AgentRevisionState
 from app.models.commands import generate_id
@@ -16,6 +17,7 @@ class AgentsRepository:
     def create_agent(
         self,
         *,
+        org_id: str = DEFAULT_INTERNAL_ORG_ID,
         business_id: str,
         environment: str,
         name: str,
@@ -31,6 +33,7 @@ class AgentsRepository:
         now = utc_now()
         agent = AgentRecord(
             id=generate_id("agt"),
+            org_id=org_id,
             business_id=business_id,
             environment=environment,
             name=name,
@@ -67,11 +70,14 @@ class AgentsRepository:
     def list_agents(
         self,
         *,
+        org_id: str | None = None,
         business_id: str | None = None,
         environment: str | None = None,
     ) -> list[AgentRecord]:
         with self.client.transaction() as store:
             agents = list(store.agents.values())
+        if org_id is not None:
+            agents = [agent for agent in agents if agent.org_id == org_id]
         if business_id is not None:
             agents = [agent for agent in agents if agent.business_id == business_id]
         if environment is not None:

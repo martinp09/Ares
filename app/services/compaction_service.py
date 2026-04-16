@@ -69,6 +69,7 @@ class CompactionService:
             session_id=session.id,
             agent_id=session.agent_id,
             agent_revision_id=session.agent_revision_id,
+            org_id=session.org_id,
             business_id=session.business_id,
             environment=session.environment,
             status=session.status.value,

@@ -23,6 +23,7 @@
 7. keep the Mission Control UI aligned to the approved dark industrial terminal / pixel CRT style system
 8. use think-before-coding for code edits and agentic-workflow-best-practices for multi-step orchestration work
 9. use claude-code-memory-best-practices, claude-code-settings-best-practices, claude-code-mcp-best-practices, claude-code-startup-flags-best-practices, and claude-code-power-ups-best-practices when working on Claude Code ergonomics or session configuration
+10. Phase 1 org tenancy plumbing for turn-loop routes is now wired in-memory; the focused turn-loop contract test is passing in this worktree
 
 ## Current TODO
 

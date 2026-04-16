@@ -131,6 +131,12 @@
 
 ## Change Log
 
+### 2026-04-16 Phase 1 Org Tenancy Turn-Loop Plumbing
+
+- Threaded actor-context org scoping through the `/agents`, session turn-loop, and Mission Control turns routes while preserving the default internal org fallback when headers are absent
+- Persisted `org_id` on sessions and turns, exposed `org_id` on Mission Control turn summaries, and filtered Mission Control turn read models to the caller org
+- Verified with `pytest -q tests/api/test_turn_loop_contract.py -q` and a focused regression slice covering sessions, turns, compaction, Mission Control turns, and turn-event replay
+
 ### 2026-04-16 Claude Code Support Skills Pass
 
 - Installed Hermes-native skills for Claude Code memory, settings, MCP, startup flags, and feature discovery so future sessions can route config questions to the right reusable skill instead of re-deriving the same guidance

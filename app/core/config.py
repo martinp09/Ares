@@ -4,10 +4,17 @@ from functools import lru_cache
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+DEFAULT_INTERNAL_ORG_ID = "org_internal"
+DEFAULT_INTERNAL_ACTOR_ID = "ares-runtime"
+DEFAULT_INTERNAL_ACTOR_TYPE = "service"
+
 
 class Settings(BaseSettings):
     app_name: str = "Ares Runtime"
     runtime_api_key: str = "dev-runtime-key"
+    default_org_id: str = DEFAULT_INTERNAL_ORG_ID
+    default_actor_id: str = DEFAULT_INTERNAL_ACTOR_ID
+    default_actor_type: Literal["user", "service", "system"] = DEFAULT_INTERNAL_ACTOR_TYPE
     control_plane_backend: Literal["memory", "supabase"] = "memory"
     marketing_backend: Literal["memory", "supabase"] = "memory"
     database_url: str | None = None

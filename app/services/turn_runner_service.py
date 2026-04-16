@@ -27,8 +27,8 @@ class TurnRunnerService:
         self.compaction_service = compaction_service or CompactionService(self.sessions_repository, self.turn_events_repository)
         self.permission_service = permission_service or PermissionService()
 
-    def start_turn(self, session_id: str, request: TurnStartRequest) -> TurnRecord:
-        session = self.session_service.get_session(session_id)
+    def start_turn(self, session_id: str, request: TurnStartRequest, *, org_id: str | None = None) -> TurnRecord:
+        session = self.session_service.get_session(session_id, org_id=org_id)
         if session is None:
             raise ValueError("Session not found")
         if request.tool_calls and not self.permission_service.has_revision_capability(
@@ -39,14 +39,15 @@ class TurnRunnerService:
             session_id=session_id,
             agent_id=session.agent_id,
             agent_revision_id=session.agent_revision_id,
+            org_id=session.org_id,
             request=request,
             on_event=lambda event: self._append_session_timeline_event(session_id, event),
         )
         self.compaction_service.refresh_session_summary(session_id)
         return turn
 
-    def resume_turn(self, session_id: str, turn_id: str, request: TurnResumeRequest) -> TurnRecord:
-        session = self.session_service.get_session(session_id)
+    def resume_turn(self, session_id: str, turn_id: str, request: TurnResumeRequest, *, org_id: str | None = None) -> TurnRecord:
+        session = self.session_service.get_session(session_id, org_id=org_id)
         if session is None:
             raise ValueError("Session not found")
         turn = self.turn_events_repository.get_turn(turn_id)

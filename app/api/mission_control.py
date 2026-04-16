@@ -1,5 +1,7 @@
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 
+from app.core.dependencies import actor_context_dependency
+from app.models.actors import ActorContext
 from app.models.mission_control import (
     MissionControlAgentsResponse,
     MissionControlApprovalsResponse,
@@ -100,8 +102,13 @@ def send_test_email(payload: MissionControlEmailTestRequest) -> MissionControlOu
 def get_turns(
     business_id: str | None = Query(default=None),
     environment: str | None = Query(default=None),
+    actor_context: ActorContext = Depends(actor_context_dependency),
 ) -> MissionControlTurnsResponse:
-    return mission_control_service.get_turns(business_id=business_id, environment=environment)
+    return mission_control_service.get_turns(
+        org_id=actor_context.org_id,
+        business_id=business_id,
+        environment=environment,
+    )
 
 
 @router.get("/runs", response_model=MissionControlRunsResponse)

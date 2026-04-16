@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from collections.abc import Callable
 
+from app.core.config import DEFAULT_INTERNAL_ORG_ID
 from app.db.client import ControlPlaneClient, get_control_plane_client, utc_now
 from app.models.commands import generate_id
 from app.models.turns import (
@@ -29,6 +30,7 @@ class TurnEventsRepository:
         session_id: str,
         agent_id: str,
         agent_revision_id: str,
+        org_id: str = DEFAULT_INTERNAL_ORG_ID,
         request: TurnStartRequest,
         resumed_from_turn_id: str | None = None,
         on_event: EventCallback | None = None,
@@ -43,6 +45,7 @@ class TurnEventsRepository:
                 session_id=session_id,
                 agent_id=agent_id,
                 agent_revision_id=agent_revision_id,
+                org_id=org_id,
                 turn_number=turn_number,
                 status=TurnStatus.RUNNING,
                 input_message=request.input_message,
@@ -65,6 +68,7 @@ class TurnEventsRepository:
                 {
                     "agent_id": agent_id,
                     "agent_revision_id": agent_revision_id,
+                    "org_id": org_id,
                     "turn_number": turn_number,
                     "input_message": request.input_message,
                     "assistant_message": request.assistant_message,
@@ -213,6 +217,7 @@ class TurnEventsRepository:
         if event.event_type == TurnEventType.TURN_STARTED:
             turn.agent_id = str(event.payload.get("agent_id") or turn.agent_id)
             turn.agent_revision_id = str(event.payload.get("agent_revision_id") or turn.agent_revision_id)
+            turn.org_id = str(event.payload.get("org_id") or turn.org_id)
             turn.turn_number = int(event.payload.get("turn_number") or turn.turn_number)
             turn.resumed_from_turn_id = event.payload.get("resumed_from_turn_id") or turn.resumed_from_turn_id
             if event.payload.get("input_message") is not None:
@@ -252,6 +257,7 @@ class TurnEventsRepository:
             session_id=first.session_id,
             agent_id=str(first.payload.get("agent_id") or ""),
             agent_revision_id=str(first.payload.get("agent_revision_id") or ""),
+            org_id=str(first.payload.get("org_id") or DEFAULT_INTERNAL_ORG_ID),
             turn_number=int(first.payload.get("turn_number") or 0),
             status=TurnStatus.RUNNING,
             input_message=first.payload.get("input_message"),

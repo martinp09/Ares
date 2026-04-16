@@ -6,6 +6,7 @@ from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from app.core.config import DEFAULT_INTERNAL_ORG_ID
 from app.models.host_adapters import HostAdapterKind
 from app.models.providers import ProviderCapability, ProviderKind
 
@@ -19,6 +20,7 @@ class AgentRevisionState(StrEnum):
 class AgentCreateRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
+    org_id: str = Field(default=DEFAULT_INTERNAL_ORG_ID, min_length=1)
     business_id: str = Field(default="default", min_length=1)
     environment: str = Field(default="dev", min_length=1)
     name: str = Field(min_length=1)
@@ -36,6 +38,7 @@ class AgentRecord(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     id: str
+    org_id: str = Field(default=DEFAULT_INTERNAL_ORG_ID, min_length=1)
     business_id: str = Field(min_length=1)
     environment: str = Field(min_length=1)
     name: str

@@ -5,6 +5,7 @@ from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from app.core.config import DEFAULT_INTERNAL_ORG_ID
 from app.models.turns import TurnStatus
 
 
@@ -76,6 +77,7 @@ class SessionJournalRecord(BaseModel):
     session_id: str
     agent_id: str
     agent_revision_id: str
+    org_id: str = Field(default=DEFAULT_INTERNAL_ORG_ID, min_length=1)
     business_id: str
     environment: str
     status: str

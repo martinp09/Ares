@@ -191,12 +191,19 @@ class MissionControlService:
             ]
         )
 
-    def get_turns(self, *, business_id: str | None = None, environment: str | None = None) -> MissionControlTurnsResponse:
+    def get_turns(
+        self,
+        *,
+        org_id: str | None = None,
+        business_id: str | None = None,
+        environment: str | None = None,
+    ) -> MissionControlTurnsResponse:
         with self.client.transaction() as store:
             scoped_sessions_by_id = {
                 session.id: session
                 for session in store.sessions.values()
-                if self._matches_scope(session.business_id, session.environment, business_id, environment)
+                if (org_id is None or session.org_id == org_id)
+                and self._matches_scope(session.business_id, session.environment, business_id, environment)
             }
             turns = [turn for turn in store.turns.values() if turn.session_id in scoped_sessions_by_id]
 
@@ -207,6 +214,7 @@ class MissionControlService:
                 MissionControlTurnSummary(
                     id=turn.id,
                     session_id=turn.session_id,
+                    org_id=getattr(turn, "org_id", scoped_sessions_by_id[turn.session_id].org_id),
                     business_id=scoped_sessions_by_id[turn.session_id].business_id,
                     environment=scoped_sessions_by_id[turn.session_id].environment,
                     agent_id=turn.agent_id,

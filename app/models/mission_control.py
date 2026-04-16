@@ -222,6 +222,7 @@ class MissionControlTurnSummary(BaseModel):
 
     id: str
     session_id: str
+    org_id: str
     business_id: str
     environment: str
     agent_id: str

@@ -6,6 +6,8 @@ from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from app.core.config import DEFAULT_INTERNAL_ORG_ID
+
 
 class TurnStatus(StrEnum):
     RUNNING = "running"
@@ -59,6 +61,7 @@ class TurnRecord(BaseModel):
     session_id: str
     agent_id: str
     agent_revision_id: str
+    org_id: str = Field(default=DEFAULT_INTERNAL_ORG_ID, min_length=1)
     turn_number: int
     status: TurnStatus
     input_message: str | None = None
