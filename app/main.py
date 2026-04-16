@@ -12,6 +12,7 @@ from app.api.permissions import router as permissions_router
 from app.api.replays import router as replays_router
 from app.api.runs import router as runs_router
 from app.api.sessions import router as sessions_router
+from app.api.skills import router as skills_router
 from app.api.site_events import router as site_events_router
 from app.api.trigger_callbacks import router as trigger_callbacks_router
 from app.core.config import Settings
@@ -30,6 +31,7 @@ def create_app() -> FastAPI:
     app.include_router(hermes_tools_router, dependencies=protected_dependencies)
     app.include_router(agents_router, dependencies=protected_dependencies)
     app.include_router(sessions_router, dependencies=protected_dependencies)
+    app.include_router(skills_router, dependencies=protected_dependencies)
     app.include_router(permissions_router, dependencies=protected_dependencies)
     app.include_router(outcomes_router, dependencies=protected_dependencies)
     app.include_router(agent_assets_router, dependencies=protected_dependencies)

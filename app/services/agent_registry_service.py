@@ -4,6 +4,7 @@ from app.db.agents import AgentsRepository
 from app.models.agents import AgentCreateRequest, AgentRecord, AgentResponse, AgentRevisionState
 from app.models.providers import ProviderCapability, ProviderKind
 from app.services.provider_registry_service import provider_registry_service
+from app.services.skill_registry_service import skill_registry_service
 
 
 class AgentRegistryService:
@@ -32,6 +33,9 @@ class AgentRegistryService:
             resolved_capabilities = requested_capabilities
         else:
             resolved_capabilities = allowed_capabilities
+
+        if request.skill_ids:
+            skill_registry_service.resolve_skills(request.skill_ids)
 
         agent, revision = self.agents_repository.create_agent(
             org_id=request.org_id,

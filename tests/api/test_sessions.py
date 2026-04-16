@@ -6,7 +6,12 @@ AUTH_HEADERS = {"Authorization": "Bearer dev-runtime-key"}
 def create_published_agent(client) -> tuple[str, str]:
     created = client.post(
         "/agents",
-        json={"name": "Session Agent", "config": {"prompt": "Coordinate outreach"}},
+        json={
+            "business_id": "limitless",
+            "environment": "dev",
+            "name": "Session Agent",
+            "config": {"prompt": "Coordinate outreach"},
+        },
         headers=AUTH_HEADERS,
     ).json()
     agent_id = created["agent"]["id"]
@@ -63,7 +68,12 @@ def test_session_cannot_be_created_from_archived_revision(client) -> None:
 
     created = client.post(
         "/agents",
-        json={"name": "Session Agent", "config": {"prompt": "Coordinate outreach"}},
+        json={
+            "business_id": "limitless",
+            "environment": "dev",
+            "name": "Session Agent",
+            "config": {"prompt": "Coordinate outreach"},
+        },
         headers=AUTH_HEADERS,
     ).json()
     agent_id = created["agent"]["id"]
@@ -82,6 +92,53 @@ def test_session_cannot_be_created_from_archived_revision(client) -> None:
 
     assert response.status_code == 422
     assert "archived revision" in response.json()["detail"]
+
+
+def test_session_cannot_be_created_from_draft_revision(client) -> None:
+    reset_control_plane_state()
+
+    created = client.post(
+        "/agents",
+        json={
+            "business_id": "limitless",
+            "environment": "dev",
+            "name": "Session Agent",
+            "config": {"prompt": "Coordinate outreach"},
+        },
+        headers=AUTH_HEADERS,
+    ).json()
+    revision_id = created["revisions"][0]["id"]
+
+    response = client.post(
+        "/sessions",
+        json={
+            "agent_revision_id": revision_id,
+            "business_id": "limitless",
+            "environment": "dev",
+        },
+        headers=AUTH_HEADERS,
+    )
+
+    assert response.status_code == 422
+    assert "unpublished revision" in response.json()["detail"]
+
+
+def test_session_scope_must_match_the_agent_scope(client) -> None:
+    reset_control_plane_state()
+    _, revision_id = create_published_agent(client)
+
+    response = client.post(
+        "/sessions",
+        json={
+            "agent_revision_id": revision_id,
+            "business_id": "otherbiz",
+            "environment": "prod",
+        },
+        headers=AUTH_HEADERS,
+    )
+
+    assert response.status_code == 422
+    assert "owning agent scope" in response.json()["detail"]
 
 
 def test_session_stays_pinned_to_original_revision_after_new_publish(client) -> None:

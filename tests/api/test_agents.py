@@ -48,6 +48,57 @@ def test_create_agent_persists_provider_selection_and_capabilities(client) -> No
     assert revision["provider_capabilities"] == ["streaming", "json_schema"]
 
 
+def test_create_agent_persists_host_adapter_kind_and_skill_binding(client) -> None:
+    reset_control_plane_state()
+
+    skill_response = client.post(
+        "/skills",
+        json={
+            "name": "lead_triage",
+            "description": "Score inbound leads",
+            "required_tools": ["run_market_research"],
+        },
+        headers=AUTH_HEADERS,
+    )
+    skill_id = skill_response.json()["id"]
+
+    response = client.post(
+        "/agents",
+        json={
+            "name": "Adapter Agent",
+            "config": {"prompt": "Dispatch using codex seam"},
+            "host_adapter_kind": "codex",
+            "host_adapter_config": {"queue": "priority"},
+            "skill_ids": [skill_id],
+        },
+        headers=AUTH_HEADERS,
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    revision = body["revisions"][0]
+    assert revision["host_adapter_kind"] == "codex"
+    assert revision["host_adapter_config"] == {"queue": "priority"}
+    assert revision["skill_ids"] == [skill_id]
+
+
+def test_create_agent_rejects_unknown_skill_ids(client) -> None:
+    reset_control_plane_state()
+
+    response = client.post(
+        "/agents",
+        json={
+            "name": "Broken Agent",
+            "config": {"prompt": "Do not bind missing skills"},
+            "skill_ids": ["skl_missing"],
+        },
+        headers=AUTH_HEADERS,
+    )
+
+    assert response.status_code == 422
+    assert "Unknown skill ids" in response.json()["detail"]
+
+
 def test_publish_draft_revision_marks_it_active_production_revision(client) -> None:
     reset_control_plane_state()
 

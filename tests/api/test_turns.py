@@ -7,7 +7,12 @@ AUTH_HEADERS = {"Authorization": "Bearer dev-runtime-key"}
 def create_published_agent(client) -> tuple[str, str]:
     created = client.post(
         "/agents",
-        json={"name": "Session Agent", "config": {"prompt": "Coordinate turns"}},
+        json={
+            "business_id": "limitless",
+            "environment": "dev",
+            "name": "Session Agent",
+            "config": {"prompt": "Coordinate turns"},
+        },
         headers=AUTH_HEADERS,
     ).json()
     agent_id = created["agent"]["id"]

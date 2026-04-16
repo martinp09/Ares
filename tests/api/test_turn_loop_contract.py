@@ -93,6 +93,21 @@ def test_turn_loop_contract_is_org_scoped_and_visible_in_mission_control(client)
     assert alpha_session_body["compaction"]["compacted_turn_count"] == 1
     assert alpha_session_body["compaction"]["compacted_through_turn_id"] == alpha_turn["id"]
 
+    alpha_turn_detail = client.get(f"/sessions/{alpha_session_id}/turns/{alpha_turn['id']}", headers=alpha_headers)
+    assert alpha_turn_detail.status_code == 200
+    assert alpha_turn_detail.json()["org_id"] == "org_alpha"
+
+    alpha_turn_events = client.get(f"/sessions/{alpha_session_id}/turns/{alpha_turn['id']}/events", headers=alpha_headers)
+    assert alpha_turn_events.status_code == 200
+    assert [event["event_type"] for event in alpha_turn_events.json()] == [
+        "turn_started",
+        "tool_call_requested",
+        "turn_waiting_for_tool",
+        "turn_resumed",
+        "tool_result_recorded",
+        "turn_completed",
+    ]
+
     alpha_journal_response = client.get(f"/sessions/{alpha_session_id}/journal", headers=alpha_headers)
     assert alpha_journal_response.status_code == 200
     alpha_journal = alpha_journal_response.json()
@@ -129,6 +144,25 @@ def test_turn_loop_contract_is_org_scoped_and_visible_in_mission_control(client)
         headers=beta_headers,
     )
     assert beta_turn_response.status_code == 200
+
+    leaked_turn_response = client.get(f"/sessions/{alpha_session_id}/turns/{alpha_turn['id']}", headers=beta_headers)
+    assert leaked_turn_response.status_code == 404
+
+    leaked_events_response = client.get(f"/sessions/{alpha_session_id}/turns/{alpha_turn['id']}/events", headers=beta_headers)
+    assert leaked_events_response.status_code == 404
+
+    leaked_session_event_response = client.post(
+        f"/sessions/{alpha_session_id}/events",
+        json={"event_type": "assistant_note", "payload": {"message": "steal this"}},
+        headers=beta_headers,
+    )
+    assert leaked_session_event_response.status_code == 404
+
+    leaked_session_detail_response = client.get(f"/sessions/{alpha_session_id}", headers=beta_headers)
+    assert leaked_session_detail_response.status_code == 404
+
+    leaked_session_journal_response = client.get(f"/sessions/{alpha_session_id}/journal", headers=beta_headers)
+    assert leaked_session_journal_response.status_code == 404
 
     turns_response = client.get("/mission-control/turns", headers=alpha_headers)
     assert turns_response.status_code == 200

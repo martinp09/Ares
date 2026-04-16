@@ -45,8 +45,12 @@ def get_session_journal(
 
 
 @router.post("/{session_id}/events", response_model=SessionRecord)
-def append_session_event(session_id: str, request: SessionAppendEventRequest) -> SessionRecord:
-    session = session_service.append_event(session_id, request)
+def append_session_event(
+    session_id: str,
+    request: SessionAppendEventRequest,
+    actor_context: ActorContext = Depends(actor_context_dependency),
+) -> SessionRecord:
+    session = session_service.append_event(session_id, request, org_id=actor_context.org_id)
     if session is None:
         raise HTTPException(status_code=404, detail="Session not found")
     return session
@@ -82,18 +86,24 @@ def resume_turn(
 
 
 @router.get("/{session_id}/turns/{turn_id}", response_model=TurnRecord)
-def get_turn(session_id: str, turn_id: str) -> TurnRecord:
-    turn = turn_runner_service.get_turn(turn_id)
-    if turn is None:
-        raise HTTPException(status_code=404, detail="Turn not found")
-    if turn.session_id != session_id:
+def get_turn(
+    session_id: str,
+    turn_id: str,
+    actor_context: ActorContext = Depends(actor_context_dependency),
+) -> TurnRecord:
+    turn = turn_runner_service.get_turn(turn_id, org_id=actor_context.org_id)
+    if turn is None or turn.session_id != session_id:
         raise HTTPException(status_code=404, detail="Turn not found")
     return turn
 
 
 @router.get("/{session_id}/turns/{turn_id}/events", response_model=list[TurnEventRecord])
-def get_turn_events(session_id: str, turn_id: str) -> list[TurnEventRecord]:
-    turn = turn_runner_service.get_turn(turn_id)
+def get_turn_events(
+    session_id: str,
+    turn_id: str,
+    actor_context: ActorContext = Depends(actor_context_dependency),
+) -> list[TurnEventRecord]:
+    turn = turn_runner_service.get_turn(turn_id, org_id=actor_context.org_id)
     if turn is None or turn.session_id != session_id:
         raise HTTPException(status_code=404, detail="Turn not found")
-    return turn_runner_service.get_turn_events(turn_id)
+    return turn_runner_service.get_turn_events(turn_id, org_id=actor_context.org_id)

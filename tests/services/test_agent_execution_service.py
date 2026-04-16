@@ -46,6 +46,46 @@ def test_agent_execution_dispatches_revision_through_resolved_host_adapter() -> 
     assert stored.host_adapter_config == {"queue": "priority"}
 
 
+def test_agent_execution_reuses_one_skill_across_multiple_agents() -> None:
+    agents, dispatches, execution = build_services()
+    skill_registry = execution.skill_registry
+    skill = skill_registry.register_skill(name="lead_triage")
+
+    _, first_revision = agents.create_agent(
+        business_id="limitless",
+        environment="dev",
+        name="Dispatch Agent A",
+        description=None,
+        config={"prompt": "triage leads"},
+        host_adapter_kind=HostAdapterKind.TRIGGER_DEV,
+        skill_ids=[skill.id],
+        host_adapter_config={},
+    )
+    _, second_revision = agents.create_agent(
+        business_id="limitless",
+        environment="dev",
+        name="Dispatch Agent B",
+        description=None,
+        config={"prompt": "triage leads"},
+        host_adapter_kind=HostAdapterKind.TRIGGER_DEV,
+        skill_ids=[skill.id],
+        host_adapter_config={},
+    )
+    agents.publish_revision(first_revision.agent_id, first_revision.id)
+    agents.publish_revision(second_revision.agent_id, second_revision.id)
+
+    first_result = execution.dispatch_revision(first_revision.id)
+    second_result = execution.dispatch_revision(second_revision.id)
+
+    first_dispatch = dispatches.get(first_result.dispatch_id)
+    second_dispatch = dispatches.get(second_result.dispatch_id)
+
+    assert first_result.status == HostAdapterDispatchStatus.ACCEPTED
+    assert second_result.status == HostAdapterDispatchStatus.ACCEPTED
+    assert first_dispatch is not None and first_dispatch.skill_ids == [skill.id]
+    assert second_dispatch is not None and second_dispatch.skill_ids == [skill.id]
+
+
 def test_agent_execution_rejects_archived_revisions() -> None:
     agents, _, execution = build_services()
     _, revision = agents.create_agent(

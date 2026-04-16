@@ -13,7 +13,10 @@ def create_agent(
     request: AgentCreateRequest,
     actor_context: ActorContext = Depends(actor_context_dependency),
 ) -> AgentResponse:
-    return agent_registry_service.create_agent(request.model_copy(update={"org_id": actor_context.org_id}))
+    try:
+        return agent_registry_service.create_agent(request.model_copy(update={"org_id": actor_context.org_id}))
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
 
 
 @router.get("/{agent_id}", response_model=AgentResponse)

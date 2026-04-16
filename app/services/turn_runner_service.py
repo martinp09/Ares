@@ -67,10 +67,16 @@ class TurnRunnerService:
         self.compaction_service.refresh_session_summary(session_id)
         return resumed_turn
 
-    def get_turn(self, turn_id: str) -> TurnRecord | None:
-        return self.turn_events_repository.get_turn(turn_id)
+    def get_turn(self, turn_id: str, *, org_id: str | None = None) -> TurnRecord | None:
+        turn = self.turn_events_repository.get_turn(turn_id)
+        if turn is None or (org_id is not None and turn.org_id != org_id):
+            return None
+        return turn
 
-    def get_turn_events(self, turn_id: str) -> list[TurnEventRecord]:
+    def get_turn_events(self, turn_id: str, *, org_id: str | None = None) -> list[TurnEventRecord]:
+        turn = self.get_turn(turn_id, org_id=org_id)
+        if turn is None:
+            return []
         return self.turn_events_repository.get_turn_events(turn_id)
 
     def replay_turn(self, turn_id: str) -> TurnRecord | None:

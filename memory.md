@@ -131,6 +131,11 @@
 
 ## Change Log
 
+### 2026-04-16 Agent API + Session Fixture Cleanup
+
+- Translated create-agent `ValueError` failures to HTTP 422 at the API boundary so unknown skill bindings surface as validation errors instead of uncaught exceptions
+- Aligned the session and turn API fixtures to the owned `limitless/dev` agent scope so the session-scoped contract tests exercise the intended happy path
+
 ### 2026-04-16 Phase 1 Org Tenancy Turn-Loop Plumbing
 
 - Threaded actor-context org scoping through the `/agents`, session turn-loop, and Mission Control turns routes while preserving the default internal org fallback when headers are absent
