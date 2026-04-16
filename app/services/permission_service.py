@@ -3,6 +3,7 @@ from __future__ import annotations
 from app.db.agents import AgentsRepository
 from app.db.permissions import PermissionsRepository
 from app.models.permissions import PermissionListResponse, PermissionRecord, PermissionUpsertRequest, ToolPermissionMode
+from app.models.providers import ProviderCapability
 
 
 class PermissionService:
@@ -42,6 +43,14 @@ class PermissionService:
         if permission is None:
             return default_mode
         return permission.mode
+
+    def has_revision_capability(self, agent_revision_id: str, capability: ProviderCapability) -> bool:
+        revision = self.agents_repository.get_revision(agent_revision_id)
+        if revision is None:
+            raise ValueError("Agent revision not found")
+        if not revision.provider_capabilities:
+            return True
+        return capability in revision.provider_capabilities
 
 
 permission_service = PermissionService()

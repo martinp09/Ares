@@ -30,7 +30,17 @@ class Settings(BaseSettings):
     resend_api_key: str | None = None
     resend_from_email: str | None = None
     resend_reply_to_email: str | None = None
+    runtime_provider_default: Literal["anthropic", "openai_compat", "local"] = "anthropic"
+    anthropic_api_key: str | None = None
+    anthropic_base_url: str = "https://api.anthropic.com"
+    openai_compat_api_key: str | None = None
+    openai_compat_base_url: str | None = None
+    local_provider_enabled: bool = True
     provider_request_timeout_seconds: float = 10.0
+    provider_request_max_retries: int = 2
+    provider_retry_base_delay_seconds: float = 0.25
+    provider_retry_max_delay_seconds: float = 2.0
+    provider_tool_schema_max_bytes: int = 32768
 
     model_config = SettingsConfigDict(
         env_file=".env",

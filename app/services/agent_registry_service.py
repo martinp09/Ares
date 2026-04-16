@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from app.db.agents import AgentsRepository
 from app.models.agents import AgentCreateRequest, AgentRecord, AgentResponse, AgentRevisionState
+from app.models.providers import ProviderCapability, ProviderKind
+from app.services.provider_registry_service import provider_registry_service
 
 
 class AgentRegistryService:
@@ -9,6 +11,28 @@ class AgentRegistryService:
         self.agents_repository = agents_repository or AgentsRepository()
 
     def create_agent(self, request: AgentCreateRequest) -> AgentResponse:
+        provider_entry = provider_registry_service.describe_provider(request.provider_kind)
+        allowed_capabilities: list[str] = []
+        if provider_entry.capabilities.streaming:
+            allowed_capabilities.append("streaming")
+        if provider_entry.capabilities.tool_calls:
+            allowed_capabilities.append("tool_calls")
+        if provider_entry.capabilities.json_schema:
+            allowed_capabilities.append("json_schema")
+        if provider_entry.capabilities.long_context:
+            allowed_capabilities.append("long_context")
+
+        requested_capabilities = [capability.value for capability in request.provider_capabilities]
+        if requested_capabilities:
+            invalid_capabilities = sorted(set(requested_capabilities) - set(allowed_capabilities))
+            if invalid_capabilities:
+                raise ValueError(
+                    f"Provider '{request.provider_kind}' does not support capabilities: {', '.join(invalid_capabilities)}"
+                )
+            resolved_capabilities = requested_capabilities
+        else:
+            resolved_capabilities = allowed_capabilities
+
         agent, revision = self.agents_repository.create_agent(
             business_id=request.business_id,
             environment=request.environment,
@@ -18,6 +42,9 @@ class AgentRegistryService:
             host_adapter_kind=request.host_adapter_kind,
             skill_ids=request.skill_ids,
             host_adapter_config=request.host_adapter_config,
+            provider_kind=request.provider_kind,
+            provider_config=request.provider_config,
+            provider_capabilities=[ProviderCapability(capability) for capability in resolved_capabilities],
         )
         return AgentResponse(agent=agent, revisions=[revision])
 
@@ -61,6 +88,22 @@ class AgentRegistryService:
             return None
         agent, _ = result
         return AgentResponse(agent=agent, revisions=self.agents_repository.list_revisions(agent_id))
+
+    def get_revision_provider_kind(self, revision_id: str) -> ProviderKind | None:
+        revision = self.agents_repository.get_revision(revision_id)
+        if revision is None:
+            return None
+        return revision.provider_kind
+
+    def get_revision_provider_spec(self, revision_id: str) -> dict[str, object] | None:
+        revision = self.agents_repository.get_revision(revision_id)
+        if revision is None:
+            return None
+        return {
+            "provider_kind": revision.provider_kind,
+            "provider_config": revision.provider_config,
+            "provider_capabilities": revision.provider_capabilities,
+        }
 
     def clone_revision(self, agent_id: str, revision_id: str) -> AgentResponse | None:
         result = self.agents_repository.clone_revision(agent_id, revision_id)

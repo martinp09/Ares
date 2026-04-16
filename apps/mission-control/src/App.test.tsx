@@ -143,6 +143,26 @@ describe("App", () => {
         return jsonResponse({ runs: [] });
       }
 
+      if (url.includes("/mission-control/turns")) {
+        return jsonResponse({
+          turns: [
+            {
+              id: "turn-1",
+              session_id: "ses-1",
+              business_id: "limitless",
+              environment: "dev",
+              agent_id: "agt-1",
+              agent_revision_id: "rev-1",
+              turn_number: 1,
+              state: "completed",
+              retry_count: 0,
+              resumed_from_turn_id: null,
+              updated_at: "2026-04-13T20:00:00+00:00",
+            },
+          ],
+        });
+      }
+
       if (url.includes("/mission-control/agents")) {
         return jsonResponse({ agents: [] });
       }
@@ -276,6 +296,26 @@ describe("App", () => {
 
       if (url.includes("/mission-control/runs")) {
         return jsonResponse({ runs: [] });
+      }
+
+      if (url.includes("/mission-control/turns")) {
+        return jsonResponse({
+          turns: [
+            {
+              id: "turn-1",
+              session_id: "ses-1",
+              business_id: "limitless",
+              environment: "dev",
+              agent_id: "agt-1",
+              agent_revision_id: "rev-1",
+              turn_number: 1,
+              state: "completed",
+              retry_count: 0,
+              resumed_from_turn_id: null,
+              updated_at: "2026-04-13T20:00:00+00:00",
+            },
+          ],
+        });
       }
 
       if (url.includes("/mission-control/agents")) {

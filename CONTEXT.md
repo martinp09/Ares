@@ -21,6 +21,8 @@
 5. keep managed-agent primitives scaffolded in-memory until live Supabase wiring happens on Martin's MacBook
 6. keep Mission Control read models and the native frontend shell scaffold-first; the Intake happy-path view stays fixture-backed
 7. keep the Mission Control UI aligned to the approved dark industrial terminal / pixel CRT style system
+8. use think-before-coding for code edits and agentic-workflow-best-practices for multi-step orchestration work
+9. use claude-code-memory-best-practices, claude-code-settings-best-practices, claude-code-mcp-best-practices, claude-code-startup-flags-best-practices, and claude-code-power-ups-best-practices when working on Claude Code ergonomics or session configuration
 
 ## Current TODO
 

@@ -4,6 +4,7 @@ from app.db.agents import AgentsRepository
 from app.db.sessions import SessionsRepository
 from app.models.agents import AgentRevisionState
 from app.models.sessions import SessionAppendEventRequest, SessionCreateRequest, SessionRecord
+from app.services.compaction_service import CompactionService
 
 
 class SessionService:
@@ -11,9 +12,11 @@ class SessionService:
         self,
         sessions_repository: SessionsRepository | None = None,
         agents_repository: AgentsRepository | None = None,
+        compaction_service: CompactionService | None = None,
     ) -> None:
         self.sessions_repository = sessions_repository or SessionsRepository()
         self.agents_repository = agents_repository or AgentsRepository()
+        self.compaction_service = compaction_service or CompactionService(self.sessions_repository)
 
     def create_session(self, request: SessionCreateRequest) -> SessionRecord:
         revision = self.agents_repository.get_revision(request.agent_revision_id)
@@ -38,6 +41,12 @@ class SessionService:
             event_type=request.event_type,
             payload=request.payload,
         )
+
+    def append_turn_event(self, session_id: str, request: SessionAppendEventRequest) -> SessionRecord | None:
+        return self.append_event(session_id, request)
+
+    def get_session_journal(self, session_id: str):
+        return self.compaction_service.get_session_journal(session_id)
 
 
 session_service = SessionService()

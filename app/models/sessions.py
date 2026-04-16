@@ -6,6 +6,8 @@ from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from app.models.session_journal import SessionCompactionState
+
 
 class SessionStatus(StrEnum):
     ACTIVE = "active"
@@ -31,6 +33,7 @@ class SessionRecord(BaseModel):
     environment: str
     status: SessionStatus
     timeline: list[SessionTimelineEntry] = Field(default_factory=list)
+    compaction: SessionCompactionState = Field(default_factory=SessionCompactionState)
     created_at: datetime
     updated_at: datetime
 

@@ -6,6 +6,7 @@ from app.db.client import ControlPlaneClient, get_control_plane_client, utc_now
 from app.models.agents import AgentRecord, AgentRevisionRecord, AgentRevisionState
 from app.models.commands import generate_id
 from app.models.host_adapters import HostAdapterKind
+from app.models.providers import ProviderCapability, ProviderKind
 
 
 class AgentsRepository:
@@ -23,6 +24,9 @@ class AgentsRepository:
         host_adapter_kind: HostAdapterKind = HostAdapterKind.TRIGGER_DEV,
         skill_ids: list[str] | None = None,
         host_adapter_config: dict | None = None,
+        provider_kind: ProviderKind = ProviderKind.ANTHROPIC,
+        provider_config: dict | None = None,
+        provider_capabilities: list[ProviderCapability] | None = None,
     ) -> tuple[AgentRecord, AgentRevisionRecord]:
         now = utc_now()
         agent = AgentRecord(
@@ -43,6 +47,9 @@ class AgentsRepository:
             config=deepcopy(config),
             host_adapter_kind=host_adapter_kind,
             host_adapter_config=deepcopy(host_adapter_config or {}),
+            provider_kind=provider_kind,
+            provider_config=deepcopy(provider_config or {}),
+            provider_capabilities=deepcopy(provider_capabilities or []),
             skill_ids=deepcopy(skill_ids or []),
             created_at=now,
             updated_at=now,
@@ -154,6 +161,9 @@ class AgentsRepository:
                 config=deepcopy(source_revision.config),
                 host_adapter_kind=source_revision.host_adapter_kind,
                 host_adapter_config=deepcopy(source_revision.host_adapter_config),
+                provider_kind=source_revision.provider_kind,
+                provider_config=deepcopy(source_revision.provider_config),
+                provider_capabilities=deepcopy(source_revision.provider_capabilities),
                 skill_ids=deepcopy(source_revision.skill_ids),
                 created_at=now,
                 updated_at=now,

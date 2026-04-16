@@ -7,6 +7,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from app.models.commands import generate_id
 from app.models.runs import RunStatus
+from app.models.turns import TurnStatus
 
 MissionControlThreadStatus = Literal["open", "waiting", "closed"]
 MissionControlMessageDirection = Literal["inbound", "outbound", "internal"]
@@ -214,6 +215,28 @@ class MissionControlRunsResponse(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     runs: list[MissionControlRunSummary] = Field(default_factory=list)
+
+
+class MissionControlTurnSummary(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    id: str
+    session_id: str
+    business_id: str
+    environment: str
+    agent_id: str
+    agent_revision_id: str
+    turn_number: int = Field(ge=1)
+    state: TurnStatus
+    retry_count: int = Field(default=0, ge=0)
+    resumed_from_turn_id: str | None = None
+    updated_at: datetime
+
+
+class MissionControlTurnsResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    turns: list[MissionControlTurnSummary] = Field(default_factory=list)
 
 
 class MissionControlApprovalSummary(BaseModel):

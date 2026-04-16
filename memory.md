@@ -132,6 +132,10 @@
 
 ## Change Log
 
+### 2026-04-16 Claude Code Support Skills Pass
+
+- Installed Hermes-native skills for Claude Code memory, settings, MCP, startup flags, and feature discovery so future sessions can route config questions to the right reusable skill instead of re-deriving the same guidance
+
 ### 2026-04-15 No-Supabase Dogfood Slice Finalized
 
 - Closed the no-Supabase dogfood slice with the remaining seam fixes: host adapter config now flows from agent revision to dispatch record, published revisions are required for execution, and Mission Control agents are filtered by business/environment scope

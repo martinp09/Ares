@@ -7,6 +7,7 @@ from typing import Any
 from pydantic import BaseModel, ConfigDict, Field
 
 from app.models.host_adapters import HostAdapterKind
+from app.models.providers import ProviderCapability, ProviderKind
 
 
 class AgentRevisionState(StrEnum):
@@ -25,6 +26,9 @@ class AgentCreateRequest(BaseModel):
     config: dict[str, Any] = Field(default_factory=dict)
     host_adapter_kind: HostAdapterKind = HostAdapterKind.TRIGGER_DEV
     host_adapter_config: dict[str, Any] = Field(default_factory=dict)
+    provider_kind: ProviderKind = ProviderKind.ANTHROPIC
+    provider_config: dict[str, Any] = Field(default_factory=dict)
+    provider_capabilities: list[ProviderCapability] = Field(default_factory=list)
     skill_ids: list[str] = Field(default_factory=list)
 
 
@@ -51,6 +55,9 @@ class AgentRevisionRecord(BaseModel):
     config: dict[str, Any] = Field(default_factory=dict)
     host_adapter_kind: HostAdapterKind = HostAdapterKind.TRIGGER_DEV
     host_adapter_config: dict[str, Any] = Field(default_factory=dict)
+    provider_kind: ProviderKind = ProviderKind.ANTHROPIC
+    provider_config: dict[str, Any] = Field(default_factory=dict)
+    provider_capabilities: list[ProviderCapability] = Field(default_factory=list)
     skill_ids: list[str] = Field(default_factory=list)
     created_at: datetime
     updated_at: datetime

@@ -30,6 +30,8 @@ from app.models.mission_control import (
     MissionControlThreadDetail,
     MissionControlThreadRecord,
     MissionControlThreadSummary,
+    MissionControlTurnSummary,
+    MissionControlTurnsResponse,
 )
 from app.models.runs import RunStatus
 from app.services.providers.resend import get_resend_status, send_test_email
@@ -186,6 +188,36 @@ class MissionControlService:
                     error_message=run.error_message,
                 )
                 for run in ordered_runs
+            ]
+        )
+
+    def get_turns(self, *, business_id: str | None = None, environment: str | None = None) -> MissionControlTurnsResponse:
+        with self.client.transaction() as store:
+            scoped_sessions_by_id = {
+                session.id: session
+                for session in store.sessions.values()
+                if self._matches_scope(session.business_id, session.environment, business_id, environment)
+            }
+            turns = [turn for turn in store.turns.values() if turn.session_id in scoped_sessions_by_id]
+
+        turns_by_id = {turn.id: turn for turn in turns}
+        ordered_turns = sorted(turns, key=lambda turn: (turn.updated_at, turn.created_at), reverse=True)
+        return MissionControlTurnsResponse(
+            turns=[
+                MissionControlTurnSummary(
+                    id=turn.id,
+                    session_id=turn.session_id,
+                    business_id=scoped_sessions_by_id[turn.session_id].business_id,
+                    environment=scoped_sessions_by_id[turn.session_id].environment,
+                    agent_id=turn.agent_id,
+                    agent_revision_id=turn.agent_revision_id,
+                    turn_number=turn.turn_number,
+                    state=turn.status,
+                    retry_count=self._turn_retry_count(turn, turns_by_id),
+                    resumed_from_turn_id=turn.resumed_from_turn_id,
+                    updated_at=turn.updated_at,
+                )
+                for turn in ordered_turns
             ]
         )
 
@@ -464,6 +496,39 @@ class MissionControlService:
     @staticmethod
     def _thread_reply_needs_review(thread: MissionControlThreadRecord) -> bool:
         return bool(thread.reply_needs_review or thread.context.get("reply_needs_review"))
+
+    @staticmethod
+    def _turn_retry_count(turn, turns_by_id: dict[str, object]) -> int:
+        history_retry_count = 0
+        cursor = turn.resumed_from_turn_id
+        visited: set[str] = set()
+        while cursor is not None and cursor not in visited:
+            visited.add(cursor)
+            history_retry_count += 1
+            previous_turn = turns_by_id.get(cursor)
+            if previous_turn is None:
+                break
+            cursor = previous_turn.resumed_from_turn_id
+        metadata_retry_count = MissionControlService._metadata_retry_count(turn.metadata)
+        return max(history_retry_count, metadata_retry_count)
+
+    @staticmethod
+    def _metadata_retry_count(metadata: dict[str, object]) -> int:
+        candidates: list[int] = []
+        retry_count = metadata.get("retry_count")
+        if isinstance(retry_count, int):
+            candidates.append(retry_count)
+        retries = metadata.get("retries")
+        if isinstance(retries, int):
+            candidates.append(retries)
+        attempt_count = metadata.get("attempt_count")
+        if isinstance(attempt_count, int):
+            candidates.append(attempt_count - 1)
+        for nested_key in ("retry", "retry_state", "provider_retry"):
+            nested = metadata.get(nested_key)
+            if isinstance(nested, dict):
+                candidates.append(MissionControlService._metadata_retry_count(nested))
+        return max([0, *candidates])
 
     @staticmethod
     def _approval_reason(command_type: str) -> str:

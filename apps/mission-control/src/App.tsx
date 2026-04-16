@@ -14,9 +14,11 @@ import { DashboardPage } from "./pages/DashboardPage";
 import { InboxPage } from "./pages/InboxPage";
 import { IntakePage } from "./pages/IntakePage";
 import { RunsPage } from "./pages/RunsPage";
+import { TurnsPage } from "./pages/TurnsPage";
 import { SettingsPage } from "./pages/SettingsPage";
 
 const api = createMissionControlApi();
+const missionControlScope = { businessId: "limitless", environment: "dev" };
 
 function includesSearch(haystack: Array<string | number | null | undefined>, searchValue: string): boolean {
   if (!searchValue) {
@@ -46,11 +48,12 @@ export default function App() {
     async function load() {
       setIsLoading(true);
 
-      const [dashboard, inbox, approvals, runs, agents, assets] = await Promise.all([
+      const [dashboard, inbox, approvals, runs, turns, agents, assets] = await Promise.all([
         queryClient.fetch("dashboard", api.getDashboard, missionControlFixtures.dashboard),
         queryClient.fetch(`inbox:${selectedConversationId}`, () => api.getInbox(selectedConversationId), missionControlFixtures.inbox),
         queryClient.fetch("approvals", api.getApprovals, missionControlFixtures.approvals),
         queryClient.fetch("runs", api.getRuns, missionControlFixtures.runs),
+        queryClient.fetch("turns:limitless:dev", () => api.getTurns(missionControlScope), missionControlFixtures.turns),
         queryClient.fetch("agents", api.getAgents, missionControlFixtures.agents),
         queryClient.fetch("assets", api.getAssets, missionControlFixtures.assets),
       ]);
@@ -64,11 +67,13 @@ export default function App() {
         inbox: inbox.data,
         approvals: approvals.data,
         runs: runs.data,
+        turns: turns.data,
         agents: agents.data,
+
         assets: assets.data,
       });
       setDataSource(
-        [dashboard, inbox, approvals, runs, agents, assets].some((result) => result.source === "fixture")
+        [dashboard, inbox, approvals, runs, turns, agents, assets].some((result) => result.source === "fixture")
           ? "fixture"
           : "api",
       );
@@ -137,6 +142,17 @@ export default function App() {
     [normalizedSearchValue, snapshot.runs],
   );
 
+  const filteredTurns = useMemo(
+    () =>
+      snapshot.turns.filter((turn) =>
+        includesSearch(
+          [turn.id, turn.sessionId, turn.agentId, turn.agentRevisionId, turn.state, turn.retryCount],
+          normalizedSearchValue,
+        ),
+      ),
+    [normalizedSearchValue, snapshot.turns],
+  );
+
   const filteredAgents = useMemo(
     () =>
       snapshot.agents.filter((agent) =>
@@ -176,6 +192,7 @@ export default function App() {
         { id: "inbox", label: "Inbox", badge: snapshot.dashboard.unreadConversationCount },
         { id: "approvals", label: "Approvals", badge: snapshot.dashboard.approvalCount },
         { id: "runs", label: "Runs", badge: snapshot.dashboard.activeRunCount },
+        { id: "turns", label: "Turns", badge: snapshot.turns.filter((turn) => turn.state !== "completed").length },
         { id: "settings", label: "Settings" },
       ],
     },
@@ -272,6 +289,21 @@ export default function App() {
           items={[
             "Root and child runs stay on the same timeline.",
             "Failed jobs remain surfaced instead of disappearing into logs.",
+          ]}
+        />
+      ),
+    },
+    turns: {
+      title: "Turns",
+      subtitle: "Review session turn state, retry counts, and runtime handoffs.",
+      mainContent: <TurnsPage turns={filteredTurns} />,
+      contextContent: (
+        <ContextPanel
+          eyebrow="Turn journal"
+          title="Retries and state are visible here"
+          items={[
+            "Running and waiting turns stay visible instead of collapsing into a generic run row.",
+            "Retry count is derived from the turn journal and metadata so operators can see why a turn was retried.",
           ]}
         />
       ),

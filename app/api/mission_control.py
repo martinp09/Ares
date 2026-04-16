@@ -12,6 +12,7 @@ from app.models.mission_control import (
     MissionControlRunsResponse,
     MissionControlSmsTestRequest,
     MissionControlTasksResponse,
+    MissionControlTurnsResponse,
 )
 from app.services.mission_control_service import mission_control_service
 
@@ -93,6 +94,14 @@ def send_test_email(payload: MissionControlEmailTestRequest) -> MissionControlOu
         return mission_control_service.send_test_email(payload)
     except RuntimeError as exc:
         raise HTTPException(status_code=502, detail=str(exc)) from exc
+
+
+@router.get("/turns", response_model=MissionControlTurnsResponse)
+def get_turns(
+    business_id: str | None = Query(default=None),
+    environment: str | None = Query(default=None),
+) -> MissionControlTurnsResponse:
+    return mission_control_service.get_turns(business_id=business_id, environment=environment)
 
 
 @router.get("/runs", response_model=MissionControlRunsResponse)

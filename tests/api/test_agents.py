@@ -25,6 +25,29 @@ def test_create_agent_creates_stable_id_and_initial_draft_revision(client) -> No
     assert body["revisions"][0]["revision_number"] == 1
 
 
+def test_create_agent_persists_provider_selection_and_capabilities(client) -> None:
+    reset_control_plane_state()
+
+    response = client.post(
+        "/agents",
+        json={
+            "name": "Provider Agent",
+            "config": {"prompt": "Choose the right model"},
+            "provider_kind": "openai_compat",
+            "provider_config": {"base_url": "https://example.com/v1"},
+            "provider_capabilities": ["streaming", "json_schema"],
+        },
+        headers=AUTH_HEADERS,
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    revision = body["revisions"][0]
+    assert revision["provider_kind"] == "openai_compat"
+    assert revision["provider_config"] == {"base_url": "https://example.com/v1"}
+    assert revision["provider_capabilities"] == ["streaming", "json_schema"]
+
+
 def test_publish_draft_revision_marks_it_active_production_revision(client) -> None:
     reset_control_plane_state()
 
