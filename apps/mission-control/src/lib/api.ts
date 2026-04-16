@@ -4,6 +4,7 @@ export type MissionControlView =
   | "inbox"
   | "approvals"
   | "runs"
+  | "turns"
   | "agents"
   | "settings";
 
@@ -12,6 +13,7 @@ export type SystemStatus = "healthy" | "watch" | "degraded";
 export type ApprovalRisk = "low" | "medium" | "high";
 export type ApprovalStatus = "pending" | "approved" | "rejected";
 export type RunStatus = "queued" | "in_progress" | "completed" | "failed";
+export type TurnState = "running" | "waiting_for_tool" | "completed" | "failed";
 export type AssetStatus = "connected" | "attention" | "unbound";
 export type ProviderName = "textgrid" | "resend";
 export type ProviderChannel = "sms" | "email";
@@ -113,6 +115,20 @@ export interface RunSummary {
   errorMessage?: string | null;
 }
 
+export interface TurnSummary {
+  id: string;
+  sessionId: string;
+  businessId: string;
+  environment: string;
+  agentId: string;
+  agentRevisionId: string;
+  turnNumber: number;
+  state: TurnState;
+  retryCount: number;
+  resumedFromTurnId: string | null;
+  updatedAt: string;
+}
+
 export interface AgentSummary {
   id: string;
   name: string;
@@ -180,6 +196,7 @@ export interface MissionControlSnapshot {
   inbox: InboxData;
   approvals: ApprovalItem[];
   runs: RunSummary[];
+  turns: TurnSummary[];
   agents: AgentSummary[];
   assets: AssetSummary[];
   tasks?: TaskItem[];
@@ -387,6 +404,22 @@ function mapRuns(response: MissionControlRunsResponseApi): RunSummary[] {
   }));
 }
 
+function mapTurns(response: MissionControlTurnsResponseApi): TurnSummary[] {
+  return response.turns.map((turn) => ({
+    id: turn.id,
+    sessionId: turn.session_id,
+    businessId: turn.business_id,
+    environment: turn.environment,
+    agentId: turn.agent_id,
+    agentRevisionId: turn.agent_revision_id,
+    turnNumber: turn.turn_number,
+    state: turn.state,
+    retryCount: turn.retry_count,
+    resumedFromTurnId: turn.resumed_from_turn_id,
+    updatedAt: formatTimestamp(turn.updated_at),
+  }));
+}
+
 function mapAgents(response: MissionControlAgentsResponseApi): AgentSummary[] {
   return response.agents.map((agent) => ({
     id: agent.id,
@@ -450,11 +483,17 @@ export interface MissionControlApi {
   getTasks(): Promise<TasksData>;
   getApprovals(): Promise<ApprovalItem[]>;
   getRuns(): Promise<RunSummary[]>;
+  getTurns(scope?: MissionControlScope): Promise<TurnSummary[]>;
   getAgents(): Promise<AgentSummary[]>;
   getAssets(): Promise<AssetSummary[]>;
   getProviderStatus(): Promise<ProviderStatusData>;
   sendTestSms(input: MissionControlSmsTestRequest): Promise<OutboundSendResponse>;
   sendTestEmail(input: MissionControlEmailTestRequest): Promise<OutboundSendResponse>;
+}
+
+export interface MissionControlScope {
+  businessId?: string;
+  environment?: string;
 }
 
 export interface MissionControlSmsTestRequest {
@@ -592,6 +631,24 @@ interface MissionControlRunsResponseApi {
   runs: MissionControlRunSummaryApi[];
 }
 
+interface MissionControlTurnSummaryApi {
+  id: string;
+  session_id: string;
+  business_id: string;
+  environment: string;
+  agent_id: string;
+  agent_revision_id: string;
+  turn_number: number;
+  state: TurnState;
+  retry_count: number;
+  resumed_from_turn_id: string | null;
+  updated_at: string;
+}
+
+interface MissionControlTurnsResponseApi {
+  turns: MissionControlTurnSummaryApi[];
+}
+
 interface MissionControlAgentSummaryApi {
   id: string;
   name: string;
@@ -694,6 +751,18 @@ export function createMissionControlApi(options: MissionControlApiOptions = {}):
     },
     async getRuns() {
       return mapRuns(await requestJson<MissionControlRunsResponseApi>("/mission-control/runs", resolvedOptions));
+    },
+    async getTurns(scope?: MissionControlScope) {
+      const searchParams = new URLSearchParams();
+      if (scope?.businessId) {
+        searchParams.set("business_id", scope.businessId);
+      }
+      if (scope?.environment) {
+        searchParams.set("environment", scope.environment);
+      }
+      const query = searchParams.toString();
+      const path = query ? `/mission-control/turns?${query}` : "/mission-control/turns";
+      return mapTurns(await requestJson<MissionControlTurnsResponseApi>(path, resolvedOptions));
     },
     async getAgents() {
       return mapAgents(await requestJson<MissionControlAgentsResponseApi>("/mission-control/agents", resolvedOptions));

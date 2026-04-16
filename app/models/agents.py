@@ -6,6 +6,10 @@ from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from app.core.config import DEFAULT_INTERNAL_ORG_ID
+from app.models.host_adapters import HostAdapterKind
+from app.models.providers import ProviderCapability, ProviderKind
+
 
 class AgentRevisionState(StrEnum):
     DRAFT = "draft"
@@ -16,17 +20,25 @@ class AgentRevisionState(StrEnum):
 class AgentCreateRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
+    org_id: str = Field(default=DEFAULT_INTERNAL_ORG_ID, min_length=1)
     business_id: str = Field(default="default", min_length=1)
     environment: str = Field(default="dev", min_length=1)
     name: str = Field(min_length=1)
     description: str | None = None
     config: dict[str, Any] = Field(default_factory=dict)
+    host_adapter_kind: HostAdapterKind = HostAdapterKind.TRIGGER_DEV
+    host_adapter_config: dict[str, Any] = Field(default_factory=dict)
+    provider_kind: ProviderKind = ProviderKind.ANTHROPIC
+    provider_config: dict[str, Any] = Field(default_factory=dict)
+    provider_capabilities: list[ProviderCapability] = Field(default_factory=list)
+    skill_ids: list[str] = Field(default_factory=list)
 
 
 class AgentRecord(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     id: str
+    org_id: str = Field(default=DEFAULT_INTERNAL_ORG_ID, min_length=1)
     business_id: str = Field(min_length=1)
     environment: str = Field(min_length=1)
     name: str
@@ -44,6 +56,12 @@ class AgentRevisionRecord(BaseModel):
     revision_number: int
     state: AgentRevisionState
     config: dict[str, Any] = Field(default_factory=dict)
+    host_adapter_kind: HostAdapterKind = HostAdapterKind.TRIGGER_DEV
+    host_adapter_config: dict[str, Any] = Field(default_factory=dict)
+    provider_kind: ProviderKind = ProviderKind.ANTHROPIC
+    provider_config: dict[str, Any] = Field(default_factory=dict)
+    provider_capabilities: list[ProviderCapability] = Field(default_factory=list)
+    skill_ids: list[str] = Field(default_factory=list)
     created_at: datetime
     updated_at: datetime
     published_at: datetime | None = None

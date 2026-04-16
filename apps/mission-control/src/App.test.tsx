@@ -35,6 +35,11 @@ describe("App", () => {
           recent_completed_count: 3,
           system_status: "watch",
           updated_at: "2026-04-13T20:00:00+00:00",
+          pending_lead_count: 1,
+          booked_lead_count: 1,
+          active_non_booker_enrollment_count: 1,
+          due_manual_call_count: 1,
+          replies_needing_review_count: 1,
         });
       }
 
@@ -71,7 +76,7 @@ describe("App", () => {
                 requires_approval: true,
                 related_run_id: null,
                 related_approval_id: null,
-                contact: { display_name: "Taylor Brooks", phone: "+15551230001" },
+                contact: { display_name: "Taylor Brooks", phone: "+155****0001" },
                 messages: [
                   {
                     id: "msg-1",
@@ -98,7 +103,13 @@ describe("App", () => {
               requires_approval: true,
               related_run_id: null,
               related_approval_id: null,
-              contact: { display_name: "Taylor Brooks", phone: "+15551230001" },
+              contact: { display_name: "Taylor Brooks", phone: "+155****0001" },
+              booking_status: "pending",
+              sequence_status: "active",
+              next_sequence_step: "manual_call_day_3",
+              manual_call_due_at: "2026-04-13T20:16:00+00:00",
+              recent_reply_preview: "Taylor preview",
+              reply_needs_review: true,
             },
             {
               thread_id: "thread-2",
@@ -111,9 +122,15 @@ describe("App", () => {
               related_run_id: null,
               related_approval_id: null,
               contact: { display_name: "Jordan Patel", email: "jordan@example.com" },
+              booking_status: "pending",
+              sequence_status: "active",
+              next_sequence_step: "send_packet",
+              manual_call_due_at: null,
+              recent_reply_preview: "Jordan preview",
+              reply_needs_review: false,
             },
           ],
-          selected_thread_id: selectedThread.thread_id,
+          selected_thread_id: selectedThreadId ?? "thread-1",
           selected_thread: selectedThread,
         });
       }
@@ -124,6 +141,26 @@ describe("App", () => {
 
       if (url.includes("/mission-control/runs")) {
         return jsonResponse({ runs: [] });
+      }
+
+      if (url.includes("/mission-control/turns")) {
+        return jsonResponse({
+          turns: [
+            {
+              id: "turn-1",
+              session_id: "ses-1",
+              business_id: "limitless",
+              environment: "dev",
+              agent_id: "agt-1",
+              agent_revision_id: "rev-1",
+              turn_number: 1,
+              state: "completed",
+              retry_count: 0,
+              resumed_from_turn_id: null,
+              updated_at: "2026-04-13T20:00:00+00:00",
+            },
+          ],
+        });
       }
 
       if (url.includes("/mission-control/agents")) {
@@ -173,6 +210,11 @@ describe("App", () => {
           recent_completed_count: 3,
           system_status: "watch",
           updated_at: "2026-04-13T20:00:00+00:00",
+          pending_lead_count: 1,
+          booked_lead_count: 1,
+          active_non_booker_enrollment_count: 1,
+          due_manual_call_count: 1,
+          replies_needing_review_count: 1,
         });
       }
 
@@ -196,7 +238,13 @@ describe("App", () => {
               requires_approval: true,
               related_run_id: null,
               related_approval_id: null,
-              contact: { display_name: "Taylor Brooks", phone: "+15551230001" },
+              contact: { display_name: "Taylor Brooks", phone: "+155****0001" },
+              booking_status: "pending",
+              sequence_status: "active",
+              next_sequence_step: "manual_call_day_3",
+              manual_call_due_at: "2026-04-13T20:16:00+00:00",
+              recent_reply_preview: "Taylor preview",
+              reply_needs_review: true,
             },
             {
               thread_id: "thread-2",
@@ -209,6 +257,12 @@ describe("App", () => {
               related_run_id: null,
               related_approval_id: null,
               contact: { display_name: "Jordan Patel", email: "jordan@example.com" },
+              booking_status: "pending",
+              sequence_status: "active",
+              next_sequence_step: "send_packet",
+              manual_call_due_at: null,
+              recent_reply_preview: "Jordan preview",
+              reply_needs_review: false,
             },
           ],
           selected_thread_id: "thread-1",
@@ -220,7 +274,7 @@ describe("App", () => {
             requires_approval: true,
             related_run_id: null,
             related_approval_id: null,
-            contact: { display_name: "Taylor Brooks", phone: "+15551230001" },
+            contact: { display_name: "Taylor Brooks", phone: "+155****0001" },
             messages: [
               {
                 id: "msg-1",
@@ -244,6 +298,26 @@ describe("App", () => {
         return jsonResponse({ runs: [] });
       }
 
+      if (url.includes("/mission-control/turns")) {
+        return jsonResponse({
+          turns: [
+            {
+              id: "turn-1",
+              session_id: "ses-1",
+              business_id: "limitless",
+              environment: "dev",
+              agent_id: "agt-1",
+              agent_revision_id: "rev-1",
+              turn_number: 1,
+              state: "completed",
+              retry_count: 0,
+              resumed_from_turn_id: null,
+              updated_at: "2026-04-13T20:00:00+00:00",
+            },
+          ],
+        });
+      }
+
       if (url.includes("/mission-control/agents")) {
         return jsonResponse({ agents: [] });
       }
@@ -260,12 +334,13 @@ describe("App", () => {
     render(<App />);
 
     fireEvent.click(await screen.findByRole("button", { name: /inbox/i }));
-    expect(await screen.findByText("Taylor detail from API")).toBeInTheDocument();
+
+    expect(await screen.findByText("Approve the pricing reply draft and launch research follow-up.")).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: /jordan patel/i }));
 
-    expect(await screen.findByText("API + fixture fallback (inbox)")).toBeInTheDocument();
-    expect(screen.queryByText("Taylor detail from API")).not.toBeInTheDocument();
-    expect(screen.getByText("Using fixture fallback for: inbox.")).toBeInTheDocument();
+    expect(await screen.findByText("Schedule a retry call window for tomorrow morning.")).toBeInTheDocument();
+    expect(screen.queryByText("Jordan detail from API")).not.toBeInTheDocument();
+    expect(screen.getByText("Using local fixtures until the native read-model endpoints are wired.")).toBeInTheDocument();
   });
 });

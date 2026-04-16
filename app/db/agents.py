@@ -2,9 +2,12 @@ from __future__ import annotations
 
 from copy import deepcopy
 
+from app.core.config import DEFAULT_INTERNAL_ORG_ID
 from app.db.client import ControlPlaneClient, get_control_plane_client, utc_now
 from app.models.agents import AgentRecord, AgentRevisionRecord, AgentRevisionState
 from app.models.commands import generate_id
+from app.models.host_adapters import HostAdapterKind
+from app.models.providers import ProviderCapability, ProviderKind
 
 
 class AgentsRepository:
@@ -14,15 +17,23 @@ class AgentsRepository:
     def create_agent(
         self,
         *,
+        org_id: str = DEFAULT_INTERNAL_ORG_ID,
         business_id: str,
         environment: str,
         name: str,
         description: str | None,
         config: dict,
+        host_adapter_kind: HostAdapterKind = HostAdapterKind.TRIGGER_DEV,
+        skill_ids: list[str] | None = None,
+        host_adapter_config: dict | None = None,
+        provider_kind: ProviderKind = ProviderKind.ANTHROPIC,
+        provider_config: dict | None = None,
+        provider_capabilities: list[ProviderCapability] | None = None,
     ) -> tuple[AgentRecord, AgentRevisionRecord]:
         now = utc_now()
         agent = AgentRecord(
             id=generate_id("agt"),
+            org_id=org_id,
             business_id=business_id,
             environment=environment,
             name=name,
@@ -37,6 +48,12 @@ class AgentsRepository:
             revision_number=1,
             state=AgentRevisionState.DRAFT,
             config=deepcopy(config),
+            host_adapter_kind=host_adapter_kind,
+            host_adapter_config=deepcopy(host_adapter_config or {}),
+            provider_kind=provider_kind,
+            provider_config=deepcopy(provider_config or {}),
+            provider_capabilities=deepcopy(provider_capabilities or []),
+            skill_ids=deepcopy(skill_ids or []),
             created_at=now,
             updated_at=now,
         )
@@ -53,11 +70,14 @@ class AgentsRepository:
     def list_agents(
         self,
         *,
+        org_id: str | None = None,
         business_id: str | None = None,
         environment: str | None = None,
     ) -> list[AgentRecord]:
         with self.client.transaction() as store:
             agents = list(store.agents.values())
+        if org_id is not None:
+            agents = [agent for agent in agents if agent.org_id == org_id]
         if business_id is not None:
             agents = [agent for agent in agents if agent.business_id == business_id]
         if environment is not None:
@@ -145,6 +165,12 @@ class AgentsRepository:
                 revision_number=next_revision_number,
                 state=AgentRevisionState.DRAFT,
                 config=deepcopy(source_revision.config),
+                host_adapter_kind=source_revision.host_adapter_kind,
+                host_adapter_config=deepcopy(source_revision.host_adapter_config),
+                provider_kind=source_revision.provider_kind,
+                provider_config=deepcopy(source_revision.provider_config),
+                provider_capabilities=deepcopy(source_revision.provider_capabilities),
+                skill_ids=deepcopy(source_revision.skill_ids),
                 created_at=now,
                 updated_at=now,
                 cloned_from_revision_id=source_revision.id,

@@ -1,6 +1,8 @@
-# Hermes Central Command
+# Ares
 
-Reusable business runtime for a live Hermes agent deployment.
+Enterprise agent platform and deterministic business runtime for Hermes dogfood.
+
+Agents are the product unit. Mission Control is the operator cockpit.
 
 Hermes is the always-on shell.
 This repo is the deterministic runtime, policy layer, orchestration surface, and system-of-record integration layer that Hermes controls.
@@ -56,11 +58,12 @@ Current implementation notes:
 
 - FastAPI runtime uses an in-memory control-plane store for now, with repository seams under `app/db/`
 - Trigger.dev marketing worker chain is scaffolded under `trigger/`
+- Trigger.dev is the current host infrastructure, not the platform identity
 - Mission Control has native backend read models plus an `apps/mission-control/` cockpit scaffold
 - The new Intake view fronts the fixture-backed happy path: submission -> appointment -> confirmation SMS -> reminder SMS
 - Mission Control UI now follows the approved dark industrial terminal / pixel CRT style system
 - site-event ingestion is append-only and non-blocking at the API layer
-- Supabase remains the intended system of record, but runtime persistence is not wired yet
+- Supabase remains the intended system of record, but live wiring is intentionally deferred in this slice
 
 ## Verification
 

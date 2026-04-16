@@ -6,6 +6,9 @@ from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from app.core.config import DEFAULT_INTERNAL_ORG_ID
+from app.models.session_journal import SessionCompactionState
+
 
 class SessionStatus(StrEnum):
     ACTIVE = "active"
@@ -27,10 +30,12 @@ class SessionRecord(BaseModel):
     id: str
     agent_id: str
     agent_revision_id: str
+    org_id: str = Field(default=DEFAULT_INTERNAL_ORG_ID, min_length=1)
     business_id: str
     environment: str
     status: SessionStatus
     timeline: list[SessionTimelineEntry] = Field(default_factory=list)
+    compaction: SessionCompactionState = Field(default_factory=SessionCompactionState)
     created_at: datetime
     updated_at: datetime
 
@@ -39,6 +44,7 @@ class SessionCreateRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     agent_revision_id: str
+    org_id: str = Field(default=DEFAULT_INTERNAL_ORG_ID, min_length=1)
     business_id: str
     environment: str
     initial_message: str | None = None

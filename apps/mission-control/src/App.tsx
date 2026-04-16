@@ -14,9 +14,11 @@ import { DashboardPage } from "./pages/DashboardPage";
 import { InboxPage } from "./pages/InboxPage";
 import { IntakePage } from "./pages/IntakePage";
 import { RunsPage } from "./pages/RunsPage";
+import { TurnsPage } from "./pages/TurnsPage";
 import { SettingsPage } from "./pages/SettingsPage";
 
 const api = createMissionControlApi();
+const missionControlScope = { businessId: "limitless", environment: "dev" };
 
 function includesSearch(haystack: Array<string | number | null | undefined>, searchValue: string): boolean {
   if (!searchValue) {
@@ -31,7 +33,7 @@ function includesSearch(haystack: Array<string | number | null | undefined>, sea
 }
 
 export default function App() {
-  const [activeView, setActiveView] = useState<MissionControlView>("intake");
+  const [activeView, setActiveView] = useState<MissionControlView>("agents");
   const [searchValue, setSearchValue] = useState("");
   const [snapshot, setSnapshot] = useState<MissionControlSnapshot>(missionControlFixtures);
   const [selectedConversationId, setSelectedConversationId] = useState(
@@ -46,11 +48,12 @@ export default function App() {
     async function load() {
       setIsLoading(true);
 
-      const [dashboard, inbox, approvals, runs, agents, assets] = await Promise.all([
+      const [dashboard, inbox, approvals, runs, turns, agents, assets] = await Promise.all([
         queryClient.fetch("dashboard", api.getDashboard, missionControlFixtures.dashboard),
         queryClient.fetch(`inbox:${selectedConversationId}`, () => api.getInbox(selectedConversationId), missionControlFixtures.inbox),
         queryClient.fetch("approvals", api.getApprovals, missionControlFixtures.approvals),
         queryClient.fetch("runs", api.getRuns, missionControlFixtures.runs),
+        queryClient.fetch("turns:limitless:dev", () => api.getTurns(missionControlScope), missionControlFixtures.turns),
         queryClient.fetch("agents", api.getAgents, missionControlFixtures.agents),
         queryClient.fetch("assets", api.getAssets, missionControlFixtures.assets),
       ]);
@@ -64,11 +67,13 @@ export default function App() {
         inbox: inbox.data,
         approvals: approvals.data,
         runs: runs.data,
+        turns: turns.data,
         agents: agents.data,
+
         assets: assets.data,
       });
       setDataSource(
-        [dashboard, inbox, approvals, runs, agents, assets].some((result) => result.source === "fixture")
+        [dashboard, inbox, approvals, runs, turns, agents, assets].some((result) => result.source === "fixture")
           ? "fixture"
           : "api",
       );
@@ -137,6 +142,17 @@ export default function App() {
     [normalizedSearchValue, snapshot.runs],
   );
 
+  const filteredTurns = useMemo(
+    () =>
+      snapshot.turns.filter((turn) =>
+        includesSearch(
+          [turn.id, turn.sessionId, turn.agentId, turn.agentRevisionId, turn.state, turn.retryCount],
+          normalizedSearchValue,
+        ),
+      ),
+    [normalizedSearchValue, snapshot.turns],
+  );
+
   const filteredAgents = useMemo(
     () =>
       snapshot.agents.filter((agent) =>
@@ -156,21 +172,27 @@ export default function App() {
     [normalizedSearchValue, snapshot.assets],
   );
 
+  const publishedAgentCount = filteredAgents.filter((agent) => agent.activeRevisionState === "published").length;
+  const trackedEnvironmentCount = new Set(filteredAgents.map((agent) => agent.environment)).size;
+  const liveSessionTotal = filteredAgents.reduce((total, agent) => total + agent.liveSessionCount, 0);
+  const delegatedWorkTotal = filteredAgents.reduce((total, agent) => total + agent.delegatedWorkCount, 0);
+
   const navSections: ShellNavSection[] = [
     {
-      title: "Operate",
+      title: "Primary surfaces",
       items: [
-        { id: "intake", label: "Intake" },
+        { id: "agents", label: "Agents", badge: snapshot.dashboard.activeAgentCount },
         { id: "dashboard", label: "Dashboard" },
-        { id: "inbox", label: "Inbox", badge: snapshot.dashboard.unreadConversationCount },
-        { id: "approvals", label: "Approvals", badge: snapshot.dashboard.approvalCount },
-        { id: "runs", label: "Runs", badge: snapshot.dashboard.activeRunCount },
+        { id: "intake", label: "Intake" },
       ],
     },
     {
-      title: "Govern",
+      title: "Operations",
       items: [
-        { id: "agents", label: "Agents", badge: snapshot.dashboard.activeAgentCount },
+        { id: "inbox", label: "Inbox", badge: snapshot.dashboard.unreadConversationCount },
+        { id: "approvals", label: "Approvals", badge: snapshot.dashboard.approvalCount },
+        { id: "runs", label: "Runs", badge: snapshot.dashboard.activeRunCount },
+        { id: "turns", label: "Turns", badge: snapshot.turns.filter((turn) => turn.state !== "completed").length },
         { id: "settings", label: "Settings" },
       ],
     },
@@ -271,17 +293,34 @@ export default function App() {
         />
       ),
     },
+    turns: {
+      title: "Turns",
+      subtitle: "Review session turn state, retry counts, and runtime handoffs.",
+      mainContent: <TurnsPage turns={filteredTurns} />,
+      contextContent: (
+        <ContextPanel
+          eyebrow="Turn journal"
+          title="Retries and state are visible here"
+          items={[
+            "Running and waiting turns stay visible instead of collapsing into a generic run row.",
+            "Retry count is derived from the turn journal and metadata so operators can see why a turn was retried.",
+          ]}
+        />
+      ),
+    },
     agents: {
       title: "Agents",
-      subtitle: "Track published revisions, environments, and delegated work.",
+      subtitle: "Registry-first cockpit for revisions, environments, live sessions, and delegated work.",
       mainContent: <AgentsPage agents={filteredAgents} />,
       contextContent: (
         <ContextPanel
-          eyebrow="Registry summary"
-          title="Agent state at a glance"
-          items={filteredAgents.map(
-            (agent) => `${agent.name}: ${agent.activeRevisionState} in ${agent.environment}`,
-          )}
+          eyebrow="Fixture boundary"
+          title="Agent control plane stays local-first here"
+          items={[
+            `${publishedAgentCount} published revisions across ${trackedEnvironmentCount} environments are visible in fixtures.`,
+            `${liveSessionTotal} live sessions and ${delegatedWorkTotal} delegated work items are surfaced without live writes.`,
+            "No Supabase persistence, provider routing, or publish/archive actions are wired from this machine.",
+          ]}
         />
       ),
     },

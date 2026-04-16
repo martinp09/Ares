@@ -5,18 +5,19 @@ import { MissionControlShell, type ShellNavSection } from "./MissionControlShell
 
 const navSections: ShellNavSection[] = [
   {
-    title: "Operate",
+    title: "Primary surfaces",
     items: [
+      { id: "agents", label: "Agents", badge: 2 },
       { id: "dashboard", label: "Dashboard" },
-      { id: "inbox", label: "Inbox", badge: 8 },
-      { id: "approvals", label: "Approvals", badge: 4 },
-      { id: "runs", label: "Runs", badge: 6 },
+      { id: "intake", label: "Intake" },
     ],
   },
   {
-    title: "Govern",
+    title: "Operations",
     items: [
-      { id: "agents", label: "Agents", badge: 3 },
+      { id: "inbox", label: "Inbox", badge: 8 },
+      { id: "approvals", label: "Approvals", badge: 4 },
+      { id: "runs", label: "Runs", badge: 6 },
       { id: "settings", label: "Settings" },
     ],
   },
@@ -42,8 +43,8 @@ describe("MissionControlShell", () => {
 
     expect(screen.getByRole("complementary", { name: /mission control/i })).toBeInTheDocument();
     expect(screen.getByRole("searchbox", { name: /search mission control/i })).toBeInTheDocument();
-    expect(screen.getByText("Operate")).toBeInTheDocument();
-    expect(screen.getByText("Govern")).toBeInTheDocument();
+    expect(screen.getByText("Primary surfaces")).toBeInTheDocument();
+    expect(screen.getByText("Operations")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /dashboard/i })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /inbox/i })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Dashboard" })).toBeInTheDocument();

@@ -30,10 +30,18 @@ from app.models.mission_control import (
     MissionControlThreadDetail,
     MissionControlThreadRecord,
     MissionControlThreadSummary,
+    MissionControlTurnSummary,
+    MissionControlTurnsResponse,
 )
 from app.models.runs import RunStatus
 from app.services.providers.resend import get_resend_status, send_test_email
 from app.services.providers.textgrid import get_textgrid_status, send_test_sms
+from app.services.audit_service import audit_service
+from app.services.secrets_service import secret_service
+from app.services.usage_service import usage_service
+from app.models.audit import AuditListResponse
+from app.models.secrets import SecretListResponse, SecretBindingListResponse
+from app.models.usage import UsageEventKind, UsageResponse
 
 ACTIVE_RUN_STATUSES = {RunStatus.QUEUED, RunStatus.IN_PROGRESS}
 
@@ -65,19 +73,23 @@ class MissionControlService:
                 for thread in store.mission_control_threads.values()
                 if self._matches_scope(thread.business_id, thread.environment, business_id, environment)
             ]
-            agents = list(store.agents.values())
+            agents = [
+                agent
+                for agent in store.agents.values()
+                if self._matches_scope(agent.business_id, agent.environment, business_id, environment)
+            ]
 
         distinct_channels = {thread.channel for thread in threads}
         pending_leads = [thread for thread in threads if thread.status in {"open", "waiting"} and thread.unread_count > 0]
-        booked_leads = [thread for thread in threads if thread.booking_status == "booked"]
+        booked_leads = [thread for thread in threads if self._thread_booking_status(thread) == "booked"]
         active_enrollments = [
             thread
             for thread in threads
-            if thread.sequence_status not in {None, "complete", "completed"}
-            and thread.booking_status != "booked"
+            if self._thread_sequence_status(thread) not in {None, "complete", "completed"}
+            and self._thread_booking_status(thread) != "booked"
         ]
-        manual_calls_due = [thread for thread in threads if thread.manual_call_due_at]
-        replies_needing_review = [thread for thread in threads if thread.reply_needs_review]
+        manual_calls_due = [thread for thread in threads if self._thread_manual_call_due_at(thread)]
+        replies_needing_review = [thread for thread in threads if self._thread_reply_needs_review(thread)]
         failed_runs = [run for run in runs if run.status == RunStatus.FAILED]
         recent_completed_runs = [run for run in runs if run.status == RunStatus.COMPLETED]
         system_status = "healthy"
@@ -185,6 +197,44 @@ class MissionControlService:
             ]
         )
 
+    def get_turns(
+        self,
+        *,
+        org_id: str | None = None,
+        business_id: str | None = None,
+        environment: str | None = None,
+    ) -> MissionControlTurnsResponse:
+        with self.client.transaction() as store:
+            scoped_sessions_by_id = {
+                session.id: session
+                for session in store.sessions.values()
+                if (org_id is None or session.org_id == org_id)
+                and self._matches_scope(session.business_id, session.environment, business_id, environment)
+            }
+            turns = [turn for turn in store.turns.values() if turn.session_id in scoped_sessions_by_id]
+
+        turns_by_id = {turn.id: turn for turn in turns}
+        ordered_turns = sorted(turns, key=lambda turn: (turn.updated_at, turn.created_at), reverse=True)
+        return MissionControlTurnsResponse(
+            turns=[
+                MissionControlTurnSummary(
+                    id=turn.id,
+                    session_id=turn.session_id,
+                    org_id=getattr(turn, "org_id", scoped_sessions_by_id[turn.session_id].org_id),
+                    business_id=scoped_sessions_by_id[turn.session_id].business_id,
+                    environment=scoped_sessions_by_id[turn.session_id].environment,
+                    agent_id=turn.agent_id,
+                    agent_revision_id=turn.agent_revision_id,
+                    turn_number=turn.turn_number,
+                    state=turn.status,
+                    retry_count=self._turn_retry_count(turn, turns_by_id),
+                    resumed_from_turn_id=turn.resumed_from_turn_id,
+                    updated_at=turn.updated_at,
+                )
+                for turn in ordered_turns
+            ]
+        )
+
     def get_approvals(
         self,
         *,
@@ -236,22 +286,22 @@ class MissionControlService:
             ]
 
         ordered_threads = sorted(
-            [thread for thread in threads if thread.manual_call_due_at or thread.reply_needs_review],
-            key=lambda thread: thread.manual_call_due_at or thread.updated_at.isoformat(),
+            [thread for thread in threads if self._thread_manual_call_due_at(thread) or self._thread_reply_needs_review(thread)],
+            key=lambda thread: self._thread_manual_call_due_at(thread) or thread.updated_at.isoformat(),
         )
         tasks = [
             MissionControlTaskSummary(
                 thread_id=thread.id,
                 lead_name=thread.contact.display_name,
                 channel=thread.channel,
-                booking_status=thread.booking_status or ("booked" if thread.status == "closed" else "pending"),
-                sequence_status=thread.sequence_status or thread.context.get("sequence_status", "idle"),
-                next_sequence_step=thread.next_sequence_step
+                booking_status=self._thread_booking_status(thread) or ("booked" if thread.status == "closed" else "pending"),
+                sequence_status=self._thread_sequence_status(thread) or thread.context.get("sequence_status", "idle"),
+                next_sequence_step=self._thread_next_sequence_step(thread)
                 or thread.context.get("next_sequence_step")
                 or thread.context.get("next_best_action", "Inspect thread"),
-                manual_call_due_at=thread.manual_call_due_at or "not scheduled",
-                recent_reply_preview=thread.recent_reply_preview,
-                reply_needs_review=thread.reply_needs_review,
+                manual_call_due_at=self._thread_manual_call_due_at(thread) or "not scheduled",
+                recent_reply_preview=self._thread_recent_reply_preview(thread),
+                reply_needs_review=self._thread_reply_needs_review(thread),
             )
             for thread in ordered_threads
         ]
@@ -264,7 +314,11 @@ class MissionControlService:
         environment: str | None = None,
     ) -> MissionControlAgentsResponse:
         with self.client.transaction() as store:
-            agents = list(store.agents.values())
+            agents = [
+                agent
+                for agent in store.agents.values()
+                if self._matches_scope(agent.business_id, agent.environment, business_id, environment)
+            ]
             revisions = dict(store.agent_revisions)
             sessions = list(store.sessions.values())
             permissions = list(store.permissions.values())
@@ -338,6 +392,58 @@ class MissionControlService:
             email=MissionControlProviderStatus(**get_resend_status(settings)),
         )
 
+    def get_secrets(self, *, org_id: str | None = None) -> SecretListResponse:
+        return SecretListResponse(secrets=secret_service.list_secrets(org_id=org_id))
+
+    def get_secret_bindings(self, *, revision_id: str) -> SecretBindingListResponse:
+        return SecretBindingListResponse(bindings=secret_service.list_bindings_for_revision(revision_id))
+
+    def get_audit(
+        self,
+        *,
+        org_id: str | None = None,
+        agent_id: str | None = None,
+        agent_revision_id: str | None = None,
+        session_id: str | None = None,
+        run_id: str | None = None,
+        resource_type: str | None = None,
+        resource_id: str | None = None,
+        event_type: str | None = None,
+        limit: int | None = None,
+    ) -> AuditListResponse:
+        return AuditListResponse(
+            events=audit_service.list_events(
+                org_id=org_id,
+                agent_id=agent_id,
+                agent_revision_id=agent_revision_id,
+                session_id=session_id,
+                run_id=run_id,
+                resource_type=resource_type,
+                resource_id=resource_id,
+                event_type=event_type,
+                limit=limit,
+            )
+        )
+
+    def get_usage(
+        self,
+        *,
+        org_id: str | None = None,
+        agent_id: str | None = None,
+        agent_revision_id: str | None = None,
+        kind: UsageEventKind | None = None,
+        source_kind: str | None = None,
+        limit: int | None = None,
+    ) -> UsageResponse:
+        return usage_service.list_usage(
+            org_id=org_id,
+            agent_id=agent_id,
+            agent_revision_id=agent_revision_id,
+            kind=kind,
+            source_kind=source_kind,
+            limit=limit,
+        )
+
     def send_test_sms(self, request: MissionControlSmsTestRequest) -> MissionControlOutboundSendResponse:
         settings = get_settings()
         result = send_test_sms(settings, to=request.to, body=request.body)
@@ -378,12 +484,12 @@ class MissionControlService:
             related_run_id=related_run_id,
             related_approval_id=thread.related_approval_id,
             contact=thread.contact,
-            booking_status=thread.booking_status,
-            sequence_status=thread.sequence_status,
-            next_sequence_step=thread.next_sequence_step,
-            manual_call_due_at=thread.manual_call_due_at,
-            recent_reply_preview=thread.recent_reply_preview,
-            reply_needs_review=thread.reply_needs_review,
+            booking_status=self._thread_booking_status(thread),
+            sequence_status=self._thread_sequence_status(thread),
+            next_sequence_step=self._thread_next_sequence_step(thread),
+            manual_call_due_at=self._thread_manual_call_due_at(thread),
+            recent_reply_preview=self._thread_recent_reply_preview(thread),
+            reply_needs_review=self._thread_reply_needs_review(thread),
         )
 
     def _build_thread_detail(
@@ -393,7 +499,7 @@ class MissionControlService:
         runs_by_id: dict[str, object],
         approvals_by_id: dict[str, object],
     ) -> MissionControlThreadDetail:
-        context = deepcopy(thread.context)
+        context = self._scrub_sensitive_data(deepcopy(thread.context))
         if thread.related_run_id is not None:
             run = runs_by_id.get(thread.related_run_id)
             if run is not None:
@@ -414,9 +520,120 @@ class MissionControlService:
             related_run_id=thread.related_run_id,
             related_approval_id=thread.related_approval_id,
             contact=thread.contact,
-            messages=sorted(thread.messages, key=lambda message: message.created_at),
+            booking_status=thread.booking_status or self._thread_booking_status(thread),
+            sequence_status=thread.sequence_status or self._thread_sequence_status(thread),
+            next_sequence_step=thread.next_sequence_step or self._thread_next_sequence_step(thread),
+            manual_call_due_at=thread.manual_call_due_at or self._thread_manual_call_due_at(thread),
+            recent_reply_preview=thread.recent_reply_preview or self._thread_recent_reply_preview(thread),
+            reply_needs_review=thread.reply_needs_review or self._thread_reply_needs_review(thread),
+            messages=thread.messages,
             context=context,
         )
+
+    @staticmethod
+    def _scrub_sensitive_data(value: object) -> object:
+        if isinstance(value, dict):
+            return {
+                key: "[redacted]" if isinstance(key, str) and MissionControlService._looks_sensitive(key) else MissionControlService._scrub_sensitive_data(item)
+                for key, item in value.items()
+            }
+        if isinstance(value, list):
+            return [MissionControlService._scrub_sensitive_data(item) for item in value]
+        if isinstance(value, tuple):
+            return tuple(MissionControlService._scrub_sensitive_data(item) for item in value)
+        return value
+
+    @staticmethod
+    def _looks_sensitive(key: str) -> bool:
+        normalized = key.lower()
+        markers = (
+            "secret",
+            "secretvalue",
+            "token",
+            "password",
+            "passphrase",
+            "apikey",
+            "api_key",
+            "clientsecret",
+            "client_secret",
+            "webhooksecret",
+            "webhook_secret",
+            "privatekey",
+            "private_key",
+            "authorization",
+            "credential",
+            "passwd",
+            "authtoken",
+            "access_token",
+            "refresh_token",
+        )
+        return any(marker in normalized for marker in markers)
+
+    @staticmethod
+    def _thread_booking_status(thread: MissionControlThreadRecord) -> str | None:
+        value = thread.booking_status or thread.context.get("booking_status")
+        return str(value) if value is not None else None
+
+    @staticmethod
+    def _thread_sequence_status(thread: MissionControlThreadRecord) -> str | None:
+        value = thread.sequence_status or thread.context.get("sequence_status")
+        return str(value) if value is not None else None
+
+    @staticmethod
+    def _thread_next_sequence_step(thread: MissionControlThreadRecord) -> str | None:
+        value = thread.next_sequence_step or thread.context.get("next_sequence_step")
+        return str(value) if value is not None else None
+
+    @staticmethod
+    def _thread_manual_call_due_at(thread: MissionControlThreadRecord) -> str | None:
+        value = thread.manual_call_due_at or thread.context.get("manual_call_due_at")
+        return str(value) if value is not None else None
+
+    @staticmethod
+    def _thread_recent_reply_preview(thread: MissionControlThreadRecord) -> str | None:
+        value = thread.recent_reply_preview or thread.context.get("recent_reply_preview")
+        if value is not None:
+            return str(value)
+        if thread.messages:
+            return thread.messages[-1].body
+        return None
+
+    @staticmethod
+    def _thread_reply_needs_review(thread: MissionControlThreadRecord) -> bool:
+        return bool(thread.reply_needs_review or thread.context.get("reply_needs_review"))
+
+    @staticmethod
+    def _turn_retry_count(turn, turns_by_id: dict[str, object]) -> int:
+        history_retry_count = 0
+        cursor = turn.resumed_from_turn_id
+        visited: set[str] = set()
+        while cursor is not None and cursor not in visited:
+            visited.add(cursor)
+            history_retry_count += 1
+            previous_turn = turns_by_id.get(cursor)
+            if previous_turn is None:
+                break
+            cursor = previous_turn.resumed_from_turn_id
+        metadata_retry_count = MissionControlService._metadata_retry_count(turn.metadata)
+        return max(history_retry_count, metadata_retry_count)
+
+    @staticmethod
+    def _metadata_retry_count(metadata: dict[str, object]) -> int:
+        candidates: list[int] = []
+        retry_count = metadata.get("retry_count")
+        if isinstance(retry_count, int):
+            candidates.append(retry_count)
+        retries = metadata.get("retries")
+        if isinstance(retries, int):
+            candidates.append(retries)
+        attempt_count = metadata.get("attempt_count")
+        if isinstance(attempt_count, int):
+            candidates.append(attempt_count - 1)
+        for nested_key in ("retry", "retry_state", "provider_retry"):
+            nested = metadata.get(nested_key)
+            if isinstance(nested, dict):
+                candidates.append(MissionControlService._metadata_retry_count(nested))
+        return max([0, *candidates])
 
     @staticmethod
     def _approval_reason(command_type: str) -> str:

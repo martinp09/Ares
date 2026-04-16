@@ -1,7 +1,7 @@
 # Mission Control Style System Design
 
 ## Scope
-Define the visual system for Mission Control in Hermes Central Command. This is the UI polish layer only: colors, typography, texture, spacing, component styling, and interaction states. No backend wiring, no Supabase/database work, and no live provider integration.
+Define the visual system for Mission Control in Ares. This is the UI polish layer only: colors, typography, texture, spacing, component styling, and interaction states. No backend wiring, no Supabase/database work, and no live provider integration.
 
 ## Goal
 Make Mission Control feel like a dense operator cockpit with atmosphere:

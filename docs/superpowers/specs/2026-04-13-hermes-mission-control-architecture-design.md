@@ -1,14 +1,14 @@
 # Hermes Mission Control Architecture Design
 
-> Native Mission Control inside Hermes Central Command. FastAPI remains the backend. React/TypeScript is the frontend. The system is AI-first, agentic-first, and designed for inbox visibility, approvals, orchestration, and multi-agent delegation.
+> Native Mission Control inside Ares. FastAPI remains the backend. React/TypeScript is the frontend. The system is AI-first, agentic-first, and designed for inbox visibility, approvals, orchestration, and multi-agent delegation.
 
 ## Goal
 
-Build a native Mission Control experience inside Hermes Central Command that becomes the operator cockpit for the business: a single place to see conversations, calls, leads, sequences, agent runs, approvals, and system status, while also allowing Hermes to deploy, supervise, and recover agents.
+Build a native Mission Control experience inside Ares that becomes the operator cockpit for the business: a single place to see conversations, calls, leads, sequences, agent runs, approvals, and system status, while also allowing Hermes to deploy, supervise, and recover agents.
 
 ## Architecture Summary
 
-Hermes Central Command stays the control plane and source of truth. The backend remains FastAPI. The frontend is a React/TypeScript app inside the same repo, not a separate product. Trigger.dev handles durable jobs, delayed sequences, retries, and background orchestration. Supabase stores canonical state. Twilio and Vapi remain transport/provider layers. MCP is the tool bridge. A2A is the agent-to-agent communication layer.
+Ares stays the control plane and source of truth. The backend remains FastAPI. The frontend is a React/TypeScript app inside the same repo, not a separate product. Trigger.dev handles durable jobs, delayed sequences, retries, and background orchestration. Supabase stores canonical state. Twilio and Vapi remain transport/provider layers. MCP is the tool bridge. A2A is the agent-to-agent communication layer.
 
 Implementation status:
 - The current branch already ships the Mission Control read models and native shell scaffold from phase 6.
@@ -36,7 +36,7 @@ Claude Managed Agents adds a second important lesson: Hermes should treat each a
 ## Core Principles
 
 1. Native, not separate
-- Mission Control must live inside Hermes Central Command.
+- Mission Control must live inside Ares.
 - It should share identity, state, approvals, and runtime surfaces with Hermes.
 - No parallel CRM backend and no detached dashboard app.
 
@@ -302,7 +302,7 @@ Use explicit guardrails for:
 ## Success Criteria
 
 The architecture is successful if:
-- Mission Control is clearly native to Hermes Central Command.
+- Mission Control is clearly native to Ares.
 - The operator can see every important message, call, run, and approval.
 - The backend remains FastAPI and the frontend remains React.
 - Autonomous work is possible without losing visibility or control.

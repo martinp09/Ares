@@ -65,7 +65,12 @@ def test_dashboard_endpoint_returns_operator_counts(client) -> None:
 
     created_agent = client.post(
         "/agents",
-        json={"name": "Mission Control Agent", "config": {"prompt": "Supervise runs"}},
+        json={
+            "business_id": "limitless",
+            "environment": "dev",
+            "name": "Mission Control Agent",
+            "config": {"prompt": "Supervise runs"},
+        },
         headers=AUTH_HEADERS,
     ).json()
     agent_id = created_agent["agent"]["id"]
@@ -75,6 +80,24 @@ def test_dashboard_endpoint_returns_operator_counts(client) -> None:
         headers=AUTH_HEADERS,
     )
     assert publish_response.status_code == 200
+
+    out_of_scope_agent = client.post(
+        "/agents",
+        json={
+            "business_id": "otherco",
+            "environment": "prod",
+            "name": "Out of scope Agent",
+            "config": {"prompt": "Ignore this one"},
+        },
+        headers=AUTH_HEADERS,
+    ).json()
+    other_agent_id = out_of_scope_agent["agent"]["id"]
+    other_revision_id = out_of_scope_agent["revisions"][0]["id"]
+    other_publish_response = client.post(
+        f"/agents/{other_agent_id}/revisions/{other_revision_id}/publish",
+        headers=AUTH_HEADERS,
+    )
+    assert other_publish_response.status_code == 200
 
     response = client.get(
         "/mission-control/dashboard?business_id=limitless&environment=dev",
@@ -90,6 +113,56 @@ def test_dashboard_endpoint_returns_operator_counts(client) -> None:
     assert body["recent_completed_count"] >= 0
     assert body["system_status"] in {"healthy", "watch", "degraded"}
     assert "updated_at" in body
+
+
+def test_agents_endpoint_filters_to_requested_scope(client) -> None:
+    reset_control_plane_state()
+
+    scoped_agent = client.post(
+        "/agents",
+        json={
+            "business_id": "limitless",
+            "environment": "dev",
+            "name": "Scoped Agent",
+            "config": {"prompt": "Stay scoped"},
+        },
+        headers=AUTH_HEADERS,
+    ).json()
+    scoped_agent_id = scoped_agent["agent"]["id"]
+    scoped_revision_id = scoped_agent["revisions"][0]["id"]
+    scoped_publish_response = client.post(
+        f"/agents/{scoped_agent_id}/revisions/{scoped_revision_id}/publish",
+        headers=AUTH_HEADERS,
+    )
+    assert scoped_publish_response.status_code == 200
+
+    other_agent = client.post(
+        "/agents",
+        json={
+            "business_id": "otherco",
+            "environment": "prod",
+            "name": "Other Agent",
+            "config": {"prompt": "Stay out of scope"},
+        },
+        headers=AUTH_HEADERS,
+    ).json()
+    other_agent_id = other_agent["agent"]["id"]
+    other_revision_id = other_agent["revisions"][0]["id"]
+    other_publish_response = client.post(
+        f"/agents/{other_agent_id}/revisions/{other_revision_id}/publish",
+        headers=AUTH_HEADERS,
+    )
+    assert other_publish_response.status_code == 200
+
+    response = client.get(
+        "/mission-control/agents?business_id=limitless&environment=dev",
+        headers=AUTH_HEADERS,
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert len(body["agents"]) == 1
+    assert body["agents"][0]["id"] == scoped_agent_id
 
 
 def test_inbox_endpoint_returns_thread_summaries_and_selected_thread_payload(client) -> None:
