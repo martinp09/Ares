@@ -1,7 +1,7 @@
 ---
 title: "Ares TODO / Handoff"
 status: active
-updated_at: "2026-04-16T13:48:45Z"
+updated_at: "2026-04-16T16:41:59Z"
 repo: "martinp09/Ares"
 local_checkout: "/home/workspace/Hermes-Central-Command"
 current_branch: "feature/ares-enterprise-platform"
@@ -11,22 +11,21 @@ current_branch: "feature/ares-enterprise-platform"
 
 ## Live pointers
 
-- `docs/superpowers/specs/Hermes — Instantly Lead Automation Final Spec 2026.md`
-- `docs/superpowers/plans/2026-04-16-harris-probate-keep-now-ingestion-plan.md`
-- `docs/superpowers/plans/2026-04-16-curative-title-cold-email-machine-plan.md`
+- `docs/superpowers/specs/2026-04-16-ares-lead-machine-superfile.md`
 
 ## What is in this TODO
 
-1. Implement the Harris County probate keep-now ingestion plan.
-2. Implement the curative title cold email machine plan.
-3. Implement the final Instantly-backed lead automation spec.
-4. Build the data model:
+1. Execute the lead machine superfile.
+   - primary: Harris County probate keep-now ingestion
+   - secondary: curative title cold email machine
+   - shared: Instantly / Trigger.dev / Mission Control loop
+2. Build the data model:
    - `leads`
    - `lead_events`
    - `automation_runs`
    - `campaign_memberships`
    - `tasks`
-5. Wire the Trigger.dev jobs:
+3. Wire the Trigger.dev jobs:
    - `lead-intake`
    - `instantly-enqueue-lead`
    - `instantly-webhook-ingest`
@@ -34,14 +33,14 @@ current_branch: "feature/ares-enterprise-platform"
    - `followup-step-runner`
    - `suppression-sync`
    - `task-reminder-or-overdue`
-6. Enforce the hard rule that only `email.sent` creates a manual call task.
-7. Build Mission Control fixture views for the inbox, lead timeline, suppression state, and exceptions.
-8. Verify idempotency, duplicate suppression, and webhook replay safety.
+4. Enforce the hard rule that only `email.sent` creates a manual call task.
+5. Build Mission Control fixture views for the inbox, lead timeline, suppression state, and exceptions.
+6. Verify idempotency, duplicate suppression, and webhook replay safety.
 
 ## Notes
 
-- The old plan docs are active, not archived.
-- Keep the repo scoped to these three live docs until the next explicit reopen.
+- The old plan docs are folded into the superfile and are now source notes, not separate live TODO items.
+- Keep the repo scoped to the superfile until the next explicit reopen.
 
 ## Bigger platform backlog
 

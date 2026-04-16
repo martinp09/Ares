@@ -123,11 +123,9 @@
 
 ## Open Work
 
-1. execute `docs/superpowers/specs/Hermes — Instantly Lead Automation Final Spec 2026.md`
-2. execute `docs/superpowers/plans/2026-04-16-harris-probate-keep-now-ingestion-plan.md`
-3. execute `docs/superpowers/plans/2026-04-16-curative-title-cold-email-machine-plan.md`
-4. keep the broader Ares enterprise platform backlog archived until the next explicit reopen
-5. continue using the repo-root TODO as the live handoff pointer instead of ad hoc chat notes
+1. execute `docs/superpowers/specs/2026-04-16-ares-lead-machine-superfile.md`
+2. keep the broader Ares enterprise platform backlog archived until the next explicit reopen
+3. continue using the repo-root TODO as the live handoff pointer instead of ad hoc chat notes
 
 ## Change Log
 

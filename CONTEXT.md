@@ -27,12 +27,10 @@
 
 ## Current TODO
 
-1. execute `docs/superpowers/specs/Hermes — Instantly Lead Automation Final Spec 2026.md`
-2. execute `docs/superpowers/plans/2026-04-16-harris-probate-keep-now-ingestion-plan.md`
-3. execute `docs/superpowers/plans/2026-04-16-curative-title-cold-email-machine-plan.md`
-4. keep older completed Ares platform tasks archived instead of re-adding them to the live TODO
-5. run the QC + devil's-advocate review loop when any new no-wire commits are added
-6. finish operator/docs alignment across this repo and `Mailers AWF`
+1. execute `docs/superpowers/specs/2026-04-16-ares-lead-machine-superfile.md`
+2. keep older source notes archived instead of re-adding them to the live TODO
+3. run the QC + devil's-advocate review loop when any new no-wire commits are added
+4. finish operator/docs alignment across this repo and `Mailers AWF`
 
 ## Read These Sections In `memory.md`
 
