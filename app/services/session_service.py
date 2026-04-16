@@ -5,6 +5,7 @@ from app.db.sessions import SessionsRepository
 from app.models.agents import AgentRevisionState
 from app.models.sessions import SessionAppendEventRequest, SessionCreateRequest, SessionRecord
 from app.services.compaction_service import CompactionService
+from app.services.audit_service import audit_service
 
 
 class SessionService:
@@ -32,7 +33,7 @@ class SessionService:
             raise ValueError("Cannot create a session from an unpublished revision")
         if request.business_id != agent.business_id or request.environment != agent.environment:
             raise ValueError("Session scope must match the owning agent scope")
-        return self.sessions_repository.create(
+        session = self.sessions_repository.create(
             agent_id=revision.agent_id,
             agent_revision_id=revision.id,
             org_id=effective_org_id,
@@ -40,6 +41,17 @@ class SessionService:
             environment=agent.environment,
             initial_message=request.initial_message,
         )
+        audit_service.append_event(
+            event_type="session_created",
+            summary=f"Created session {session.id}",
+            org_id=effective_org_id,
+            resource_type="session",
+            resource_id=session.id,
+            agent_id=agent.id,
+            agent_revision_id=revision.id,
+            session_id=session.id,
+        )
+        return session
 
     def get_session(self, session_id: str, *, org_id: str | None = None) -> SessionRecord | None:
         session = self.sessions_repository.get(session_id)
@@ -51,11 +63,23 @@ class SessionService:
         session = self.get_session(session_id, org_id=org_id)
         if session is None:
             return None
-        return self.sessions_repository.append_event(
+        session = self.sessions_repository.append_event(
             session_id,
             event_type=request.event_type,
             payload=request.payload,
         )
+        if session is not None:
+            audit_service.append_event(
+                event_type="session_event_appended",
+                summary=f"Appended session event {request.event_type}",
+                org_id=session.org_id,
+                resource_type="session",
+                resource_id=session.id,
+                session_id=session.id,
+                agent_id=session.agent_id,
+                agent_revision_id=session.agent_revision_id,
+            )
+        return session
 
     def append_turn_event(self, session_id: str, request: SessionAppendEventRequest, *, org_id: str | None = None) -> SessionRecord | None:
         return self.append_event(session_id, request, org_id=org_id)

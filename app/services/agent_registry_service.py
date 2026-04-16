@@ -5,6 +5,7 @@ from app.models.agents import AgentCreateRequest, AgentRecord, AgentResponse, Ag
 from app.models.providers import ProviderCapability, ProviderKind
 from app.services.provider_registry_service import provider_registry_service
 from app.services.skill_registry_service import skill_registry_service
+from app.services.audit_service import audit_service
 
 
 class AgentRegistryService:
@@ -51,6 +52,15 @@ class AgentRegistryService:
             provider_config=request.provider_config,
             provider_capabilities=[ProviderCapability(capability) for capability in resolved_capabilities],
         )
+        audit_service.append_event(
+            event_type="agent_created",
+            summary=f"Created agent {agent.name}",
+            org_id=request.org_id,
+            resource_type="agent",
+            resource_id=agent.id,
+            agent_id=agent.id,
+            agent_revision_id=revision.id,
+        )
         return AgentResponse(agent=agent, revisions=[revision])
 
     def get_agent(self, agent_id: str, *, org_id: str | None = None) -> AgentResponse | None:
@@ -88,7 +98,16 @@ class AgentRegistryService:
         result = self.agents_repository.publish_revision(agent_id, revision_id)
         if result is None:
             return None
-        agent, _ = result
+        agent, revision = result
+        audit_service.append_event(
+            event_type="agent_published",
+            summary=f"Published revision {revision.id}",
+            org_id=agent.org_id,
+            resource_type="agent_revision",
+            resource_id=revision.id,
+            agent_id=agent.id,
+            agent_revision_id=revision.id,
+        )
         return AgentResponse(agent=agent, revisions=self.agents_repository.list_revisions(agent_id))
 
     def archive_revision(self, agent_id: str, revision_id: str, *, org_id: str | None = None) -> AgentResponse | None:
@@ -98,7 +117,16 @@ class AgentRegistryService:
         result = self.agents_repository.archive_revision(agent_id, revision_id)
         if result is None:
             return None
-        agent, _ = result
+        agent, revision = result
+        audit_service.append_event(
+            event_type="agent_archived",
+            summary=f"Archived revision {revision.id}",
+            org_id=agent.org_id,
+            resource_type="agent_revision",
+            resource_id=revision.id,
+            agent_id=agent.id,
+            agent_revision_id=revision.id,
+        )
         return AgentResponse(agent=agent, revisions=self.agents_repository.list_revisions(agent_id))
 
     def get_revision_provider_kind(self, revision_id: str) -> ProviderKind | None:
@@ -124,7 +152,16 @@ class AgentRegistryService:
         result = self.agents_repository.clone_revision(agent_id, revision_id)
         if result is None:
             return None
-        agent, _ = result
+        agent, revision = result
+        audit_service.append_event(
+            event_type="agent_cloned",
+            summary=f"Cloned revision {revision.id}",
+            org_id=agent.org_id,
+            resource_type="agent_revision",
+            resource_id=revision.id,
+            agent_id=agent.id,
+            agent_revision_id=revision.id,
+        )
         return AgentResponse(agent=agent, revisions=self.agents_repository.list_revisions(agent_id))
 
 

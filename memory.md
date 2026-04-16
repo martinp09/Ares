@@ -34,7 +34,7 @@
 - Marketing control plane is the first execution domain
 - The immediate MVP is lease-option marketing, not research/copy generation
 - The live path is lead submit -> booking check -> confirmations -> non-booker SMS sequence -> inbound qualification
-- Current work is the enterprise-platform backlog, with the no-Supabase dogfood slice already finalized and the next slice set to enterprise controls
+- Current work is the enterprise-platform backlog; the phase-3 enterprise-controls slice is now complete in this worktree and live Supabase wiring remains deferred
 - Mission Control stays fixture-backed on this machine until live backend wiring is intentionally enabled later
 - The host-adapter/skill seam is now in-memory and additive, with trigger_dev as the default enabled adapter; dispatch requires published revisions and preserves per-revision host adapter config
 - Phase-0 docs now lock the product model: agents are the product unit, skills are reusable procedures, host runtimes are adapters, and Mission Control is the operator cockpit
@@ -130,6 +130,14 @@
 5. continue using the repo-root TODO as the live handoff pointer instead of ad hoc chat notes
 
 ## Change Log
+
+### 2026-04-16 Phase 3 Enterprise Controls Slice
+
+- Added in-memory audit hooks for session, agent, permission, RBAC, and secret write paths without introducing Supabase wiring
+- Wired secret create/bind/list behavior together and added the Mission Control secret-binding read surface
+- Fixed usage aggregation so summary counts are computed from the full filtered set even when a response limit is requested
+- Redacted sensitive metadata and Mission Control thread context on read so secret-like fields do not leak through governance surfaces
+- Verified the full Python suite with `pytest -q` after the slice landed
 
 ### 2026-04-16 Agent API + Session Fixture Cleanup
 

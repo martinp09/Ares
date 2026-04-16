@@ -36,6 +36,12 @@ from app.models.mission_control import (
 from app.models.runs import RunStatus
 from app.services.providers.resend import get_resend_status, send_test_email
 from app.services.providers.textgrid import get_textgrid_status, send_test_sms
+from app.services.audit_service import audit_service
+from app.services.secrets_service import secret_service
+from app.services.usage_service import usage_service
+from app.models.audit import AuditListResponse
+from app.models.secrets import SecretListResponse, SecretBindingListResponse
+from app.models.usage import UsageEventKind, UsageResponse
 
 ACTIVE_RUN_STATUSES = {RunStatus.QUEUED, RunStatus.IN_PROGRESS}
 
@@ -386,6 +392,58 @@ class MissionControlService:
             email=MissionControlProviderStatus(**get_resend_status(settings)),
         )
 
+    def get_secrets(self, *, org_id: str | None = None) -> SecretListResponse:
+        return SecretListResponse(secrets=secret_service.list_secrets(org_id=org_id))
+
+    def get_secret_bindings(self, *, revision_id: str) -> SecretBindingListResponse:
+        return SecretBindingListResponse(bindings=secret_service.list_bindings_for_revision(revision_id))
+
+    def get_audit(
+        self,
+        *,
+        org_id: str | None = None,
+        agent_id: str | None = None,
+        agent_revision_id: str | None = None,
+        session_id: str | None = None,
+        run_id: str | None = None,
+        resource_type: str | None = None,
+        resource_id: str | None = None,
+        event_type: str | None = None,
+        limit: int | None = None,
+    ) -> AuditListResponse:
+        return AuditListResponse(
+            events=audit_service.list_events(
+                org_id=org_id,
+                agent_id=agent_id,
+                agent_revision_id=agent_revision_id,
+                session_id=session_id,
+                run_id=run_id,
+                resource_type=resource_type,
+                resource_id=resource_id,
+                event_type=event_type,
+                limit=limit,
+            )
+        )
+
+    def get_usage(
+        self,
+        *,
+        org_id: str | None = None,
+        agent_id: str | None = None,
+        agent_revision_id: str | None = None,
+        kind: UsageEventKind | None = None,
+        source_kind: str | None = None,
+        limit: int | None = None,
+    ) -> UsageResponse:
+        return usage_service.list_usage(
+            org_id=org_id,
+            agent_id=agent_id,
+            agent_revision_id=agent_revision_id,
+            kind=kind,
+            source_kind=source_kind,
+            limit=limit,
+        )
+
     def send_test_sms(self, request: MissionControlSmsTestRequest) -> MissionControlOutboundSendResponse:
         settings = get_settings()
         result = send_test_sms(settings, to=request.to, body=request.body)
@@ -441,7 +499,7 @@ class MissionControlService:
         runs_by_id: dict[str, object],
         approvals_by_id: dict[str, object],
     ) -> MissionControlThreadDetail:
-        context = deepcopy(thread.context)
+        context = self._scrub_sensitive_data(deepcopy(thread.context))
         if thread.related_run_id is not None:
             run = runs_by_id.get(thread.related_run_id)
             if run is not None:
@@ -462,15 +520,54 @@ class MissionControlService:
             related_run_id=thread.related_run_id,
             related_approval_id=thread.related_approval_id,
             contact=thread.contact,
-            booking_status=self._thread_booking_status(thread),
-            sequence_status=self._thread_sequence_status(thread),
-            next_sequence_step=self._thread_next_sequence_step(thread),
-            manual_call_due_at=self._thread_manual_call_due_at(thread),
-            recent_reply_preview=self._thread_recent_reply_preview(thread),
-            reply_needs_review=self._thread_reply_needs_review(thread),
-            messages=sorted(thread.messages, key=lambda message: message.created_at),
+            booking_status=thread.booking_status or self._thread_booking_status(thread),
+            sequence_status=thread.sequence_status or self._thread_sequence_status(thread),
+            next_sequence_step=thread.next_sequence_step or self._thread_next_sequence_step(thread),
+            manual_call_due_at=thread.manual_call_due_at or self._thread_manual_call_due_at(thread),
+            recent_reply_preview=thread.recent_reply_preview or self._thread_recent_reply_preview(thread),
+            reply_needs_review=thread.reply_needs_review or self._thread_reply_needs_review(thread),
+            messages=thread.messages,
             context=context,
         )
+
+    @staticmethod
+    def _scrub_sensitive_data(value: object) -> object:
+        if isinstance(value, dict):
+            return {
+                key: "[redacted]" if isinstance(key, str) and MissionControlService._looks_sensitive(key) else MissionControlService._scrub_sensitive_data(item)
+                for key, item in value.items()
+            }
+        if isinstance(value, list):
+            return [MissionControlService._scrub_sensitive_data(item) for item in value]
+        if isinstance(value, tuple):
+            return tuple(MissionControlService._scrub_sensitive_data(item) for item in value)
+        return value
+
+    @staticmethod
+    def _looks_sensitive(key: str) -> bool:
+        normalized = key.lower()
+        markers = (
+            "secret",
+            "secretvalue",
+            "token",
+            "password",
+            "passphrase",
+            "apikey",
+            "api_key",
+            "clientsecret",
+            "client_secret",
+            "webhooksecret",
+            "webhook_secret",
+            "privatekey",
+            "private_key",
+            "authorization",
+            "credential",
+            "passwd",
+            "authtoken",
+            "access_token",
+            "refresh_token",
+        )
+        return any(marker in normalized for marker in markers)
 
     @staticmethod
     def _thread_booking_status(thread: MissionControlThreadRecord) -> str | None:

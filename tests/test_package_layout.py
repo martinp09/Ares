@@ -18,10 +18,14 @@ def test_db_modules_are_importable():
         InMemoryControlPlaneClient,
         OutcomesRepository,
         PermissionsRepository,
+        RBACRepository,
         RunsRepository,
+        SecretsRepository,
         SessionsRepository,
         SkillsRepository,
         HostAdapterDispatchesRepository,
+        AuditRepository,
+        UsageRepository,
     )
     from app.db.agent_assets import AgentAssetsRepository as agent_assets_repository_module
     from app.db.agents import AgentsRepository as agents_repository_module
@@ -33,9 +37,13 @@ def test_db_modules_are_importable():
     from app.db.host_adapter_dispatches import HostAdapterDispatchesRepository as host_adapter_dispatches_repository_module
     from app.db.outcomes import OutcomesRepository as outcomes_repository_module
     from app.db.permissions import PermissionsRepository as permissions_repository_module
+    from app.db.rbac import RBACRepository as rbac_repository_module
     from app.db.runs import RunsRepository as runs_repository_module
+    from app.db.secrets import SecretsRepository as secrets_repository_module
     from app.db.sessions import SessionsRepository as sessions_repository_module
     from app.db.skills import SkillsRepository as skills_repository_module
+    from app.db.audit import AuditRepository as audit_repository_module
+    from app.db.usage import UsageRepository as usage_repository_module
 
     assert AgentAssetsRepository is agent_assets_repository_module
     assert AgentsRepository is agents_repository_module
@@ -47,9 +55,13 @@ def test_db_modules_are_importable():
     assert InMemoryControlPlaneClient is client_module
     assert OutcomesRepository is outcomes_repository_module
     assert PermissionsRepository is permissions_repository_module
+    assert RBACRepository is rbac_repository_module
     assert RunsRepository is runs_repository_module
+    assert SecretsRepository is secrets_repository_module
     assert SessionsRepository is sessions_repository_module
     assert SkillsRepository is skills_repository_module
+    assert AuditRepository is audit_repository_module
+    assert UsageRepository is usage_repository_module
 
 
 def test_mission_control_modules_are_importable():

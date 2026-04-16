@@ -9,11 +9,15 @@ from app.api.marketing import router as marketing_router
 from app.api.mission_control import router as mission_control_router
 from app.api.outcomes import router as outcomes_router
 from app.api.permissions import router as permissions_router
+from app.api.rbac import router as rbac_router
 from app.api.replays import router as replays_router
 from app.api.runs import router as runs_router
+from app.api.secrets import router as secrets_router
 from app.api.sessions import router as sessions_router
 from app.api.skills import router as skills_router
 from app.api.site_events import router as site_events_router
+from app.api.audit import router as audit_router
+from app.api.usage import router as usage_router
 from app.api.trigger_callbacks import router as trigger_callbacks_router
 from app.core.config import Settings
 from app.core.dependencies import runtime_api_key_dependency, settings_dependency
@@ -33,6 +37,10 @@ def create_app() -> FastAPI:
     app.include_router(sessions_router, dependencies=protected_dependencies)
     app.include_router(skills_router, dependencies=protected_dependencies)
     app.include_router(permissions_router, dependencies=protected_dependencies)
+    app.include_router(rbac_router, dependencies=protected_dependencies)
+    app.include_router(secrets_router, dependencies=protected_dependencies)
+    app.include_router(audit_router, dependencies=protected_dependencies)
+    app.include_router(usage_router, dependencies=protected_dependencies)
     app.include_router(outcomes_router, dependencies=protected_dependencies)
     app.include_router(agent_assets_router, dependencies=protected_dependencies)
     app.include_router(mission_control_router, dependencies=protected_dependencies)
