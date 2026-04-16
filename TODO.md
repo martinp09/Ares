@@ -1,7 +1,7 @@
 ---
 title: "Ares TODO / Handoff"
 status: active
-updated_at: "2026-04-16T17:34:10Z"
+updated_at: "2026-04-16T17:51:37Z"
 repo: "martinp09/Ares"
 local_checkout: "/home/workspace/Hermes-Central-Command"
 current_branch: "feature/ares-enterprise-platform"
@@ -21,11 +21,14 @@ current_branch: "feature/ares-enterprise-platform"
    - secondary: curative title cold email machine
    - shared: Instantly / Trigger.dev / Mission Control loop
 2. Build the data model:
-   - `leads`
-   - `lead_events`
-   - `automation_runs`
-   - `campaign_memberships`
-   - `tasks`
+   - [done] `leads`
+   - [done] `lead_events`
+   - [done] `campaigns`
+   - [done] `automation_runs`
+   - [done] `campaign_memberships`
+   - [done] `suppression`
+   - [done] `tasks`
+   - [done] in-memory repository + store wiring + package exports
 3. Wire the Trigger.dev jobs:
    - `lead-intake`
    - `instantly-enqueue-lead`

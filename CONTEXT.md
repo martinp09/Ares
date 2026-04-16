@@ -24,6 +24,7 @@
 8. use think-before-coding for code edits and agentic-workflow-best-practices for multi-step orchestration work
 9. use claude-code-memory-best-practices, claude-code-settings-best-practices, claude-code-mcp-best-practices, claude-code-startup-flags-best-practices, and claude-code-power-ups-best-practices when working on Claude Code ergonomics or session configuration
 10. phase 3 enterprise controls slice is complete in this worktree; keep live Supabase wiring deferred
+11. lead-machine lane 1 foundation is now in-memory: canonical models, repositories, and package exports landed without adding live Supabase wiring
 
 ## Current TODO
 

@@ -35,6 +35,7 @@
 - The immediate MVP is lease-option marketing, not research/copy generation
 - The live path is lead submit -> booking check -> confirmations -> non-booker SMS sequence -> inbound qualification
 - Current work is the enterprise-platform backlog; the phase-3 enterprise-controls slice is now complete in this worktree and live Supabase wiring remains deferred
+- Lead-machine lane 1 is now scaffolded in-memory with canonical lead/campaign/event/run/suppression/task models, replay-safe repositories, and explicit package exports
 - Mission Control stays fixture-backed on this machine until live backend wiring is intentionally enabled later
 - The host-adapter/skill seam is now in-memory and additive, with trigger_dev as the default enabled adapter; dispatch requires published revisions and preserves per-revision host adapter config
 - Phase-0 docs now lock the product model: agents are the product unit, skills are reusable procedures, host runtimes are adapters, and Mission Control is the operator cockpit
@@ -124,10 +125,17 @@
 ## Open Work
 
 1. execute `docs/superpowers/specs/2026-04-16-ares-lead-machine-superfile.md`
-2. keep the broader Ares enterprise platform backlog archived until the next explicit reopen
-3. continue using the repo-root TODO as the live handoff pointer instead of ad hoc chat notes
+2. build the Instantly transport/client and lead-machine services on top of the new in-memory lane-1 repositories
+3. keep the broader Ares enterprise platform backlog archived until the next explicit reopen
+4. continue using the repo-root TODO as the live handoff pointer instead of ad hoc chat notes
 
 ## Change Log
+
+### 2026-04-16 Lead Machine Lane 1 Foundation
+
+- Added canonical lead-machine models for leads, campaigns/memberships, lead events/provider receipts, automation runs, suppression, and expanded tasks
+- Expanded the in-memory control-plane store with dedicated lead-machine slots, replay-safe indexes, and repository exports without adding live Supabase wiring
+- Added focused model/repository/package-layout coverage for the new lane and kept the legacy lease-option marketing flow green
 
 ### 2026-04-16 Phase 3 Enterprise Controls Slice
 

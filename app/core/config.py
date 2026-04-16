@@ -37,6 +37,11 @@ class Settings(BaseSettings):
     resend_api_key: str | None = None
     resend_from_email: str | None = None
     resend_reply_to_email: str | None = None
+    instantly_api_key: str | None = None
+    instantly_base_url: str = "https://api.instantly.ai"
+    instantly_webhook_secret: str | None = None
+    instantly_batch_size: int = 100
+    instantly_batch_wait_seconds: float = 0.25
     runtime_provider_default: Literal["anthropic", "openai_compat", "local"] = "anthropic"
     anthropic_api_key: str | None = None
     anthropic_base_url: str = "https://api.anthropic.com"

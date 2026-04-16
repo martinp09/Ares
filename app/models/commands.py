@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 from enum import StrEnum
+from hashlib import sha256
 from typing import Any
 from uuid import uuid4
 
@@ -14,6 +15,11 @@ def utc_now() -> datetime:
 
 def generate_id(prefix: str) -> str:
     return f"{prefix}_{uuid4().hex}"
+
+
+def generate_stable_id(prefix: str, *parts: str) -> str:
+    joined = "::".join(parts)
+    return f"{prefix}_{sha256(joined.encode('utf-8')).hexdigest()[:24]}"
 
 
 class CommandPolicy(StrEnum):
