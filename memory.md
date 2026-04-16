@@ -34,7 +34,7 @@
 - Marketing control plane is the first execution domain
 - The immediate MVP is lease-option marketing, not research/copy generation
 - The live path is lead submit -> booking check -> confirmations -> non-booker SMS sequence -> inbound qualification
-- Current work is the no-Supabase dogfood slice, now finalized: in-memory runtime fixes, agent-platform seams, and Mission Control polish are in place
+- Current work is the enterprise-platform backlog, with the no-Supabase dogfood slice already finalized and the next slice set to enterprise controls
 - Mission Control stays fixture-backed on this machine until live backend wiring is intentionally enabled later
 - The host-adapter/skill seam is now in-memory and additive, with trigger_dev as the default enabled adapter; dispatch requires published revisions and preserves per-revision host adapter config
 - Phase-0 docs now lock the product model: agents are the product unit, skills are reusable procedures, host runtimes are adapters, and Mission Control is the operator cockpit
