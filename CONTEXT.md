@@ -28,9 +28,10 @@
 ## Current TODO
 
 1. execute `docs/superpowers/specs/2026-04-16-ares-lead-machine-superfile.md`
-2. keep older source notes archived instead of re-adding them to the live TODO
-3. run the QC + devil's-advocate review loop when any new no-wire commits are added
-4. finish operator/docs alignment across this repo and `Mailers AWF`
+2. execute `docs/superpowers/plans/2026-04-16-ares-lead-machine-implementation-plan.md`
+3. keep older source notes archived instead of re-adding them to the live TODO
+4. run the QC + devil's-advocate review loop when any new no-wire commits are added
+5. finish operator/docs alignment across this repo and `Mailers AWF`
 
 ## Read These Sections In `memory.md`
 

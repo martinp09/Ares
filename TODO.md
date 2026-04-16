@@ -1,7 +1,7 @@
 ---
 title: "Ares TODO / Handoff"
 status: active
-updated_at: "2026-04-16T16:41:59Z"
+updated_at: "2026-04-16T17:34:10Z"
 repo: "martinp09/Ares"
 local_checkout: "/home/workspace/Hermes-Central-Command"
 current_branch: "feature/ares-enterprise-platform"
@@ -12,10 +12,11 @@ current_branch: "feature/ares-enterprise-platform"
 ## Live pointers
 
 - `docs/superpowers/specs/2026-04-16-ares-lead-machine-superfile.md`
+- `docs/superpowers/plans/2026-04-16-ares-lead-machine-implementation-plan.md`
 
 ## What is in this TODO
 
-1. Execute the lead machine superfile.
+1. Execute the lead machine superfile and its implementation plan.
    - primary: Harris County probate keep-now ingestion
    - secondary: curative title cold email machine
    - shared: Instantly / Trigger.dev / Mission Control loop
