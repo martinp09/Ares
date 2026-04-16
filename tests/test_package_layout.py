@@ -114,6 +114,7 @@ def test_lead_machine_models_are_exported():
         CampaignRecord,
         LeadEventRecord,
         LeadRecord,
+        ProbateLeadRecord,
         ProviderWebhookReceiptRecord,
         SuppressionRecord,
         TaskRecord,
@@ -124,6 +125,7 @@ def test_lead_machine_models_are_exported():
     from app.models.lead_events import LeadEventRecord as lead_event_record_module
     from app.models.lead_events import ProviderWebhookReceiptRecord as provider_webhook_receipt_record_module
     from app.models.leads import LeadRecord as lead_record_module
+    from app.models.probate_leads import ProbateLeadRecord as probate_lead_record_module
     from app.models.suppression import SuppressionRecord as suppression_record_module
     from app.models.tasks import TaskRecord as task_record_module
 
@@ -132,6 +134,7 @@ def test_lead_machine_models_are_exported():
     assert CampaignRecord is campaign_record_module
     assert LeadEventRecord is lead_event_record_module
     assert LeadRecord is lead_record_module
+    assert ProbateLeadRecord is probate_lead_record_module
     assert ProviderWebhookReceiptRecord is provider_webhook_receipt_record_module
     assert SuppressionRecord is suppression_record_module
     assert TaskRecord is task_record_module

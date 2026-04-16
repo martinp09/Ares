@@ -131,6 +131,12 @@
 
 ## Change Log
 
+### 2026-04-16 Harris Probate Intake Backend Slice
+
+- Added a fixture-backed probate intake model plus deterministic Harris probate normalization, keep-now filtering, HCAD matching, probate scoring, and canonical lead bridging services
+- Reused the existing lead-machine `LeadRecord`/`LeadSource` path through `LeadsRepository` so probate keep-now leads upsert without touching Supabase or the existing webhook/outbound/task slices
+- Added focused pytest coverage for probate intake normalization/filtering, HCAD matching, scoring, bridge upserts, and package exports; verified the targeted probate + lead-machine regression slice stays green
+
 ### 2026-04-16 Lead Machine Lane 1 Foundation
 
 - Added canonical lead-machine models for leads, campaigns/memberships, lead events/provider receipts, automation runs, suppression, and expanded tasks
