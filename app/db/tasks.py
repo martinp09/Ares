@@ -41,11 +41,26 @@ class TasksRepository:
         with self.client.transaction() as store:
             return store.tasks.get(task_id)
 
-    def list_for_lead(self, lead_id: str) -> list[TaskRecord]:
+    def list(
+        self,
+        *,
+        business_id: str | None = None,
+        environment: str | None = None,
+        lead_id: str | None = None,
+    ) -> list[TaskRecord]:
         with self.client.transaction() as store:
-            tasks = [task for task in store.tasks.values() if task.lead_id == lead_id]
+            tasks = list(store.tasks.values())
+        if business_id is not None:
+            tasks = [task for task in tasks if task.business_id == business_id]
+        if environment is not None:
+            tasks = [task for task in tasks if task.environment == environment]
+        if lead_id is not None:
+            tasks = [task for task in tasks if task.lead_id == lead_id]
         tasks.sort(key=lambda task: (task.due_at or task.created_at, task.created_at, task.id or ""))
         return tasks
+
+    def list_for_lead(self, lead_id: str) -> list[TaskRecord]:
+        return self.list(lead_id=lead_id)
 
     def create_manual_call(
         self,

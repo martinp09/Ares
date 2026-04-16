@@ -93,6 +93,7 @@ def test_mission_control_modules_are_importable():
     from app.models.mission_control import (
         MissionControlDashboardResponse,
         MissionControlInboxResponse,
+        MissionControlLeadMachineResponse,
         MissionControlRunsResponse,
         MissionControlThreadRecord,
     )
@@ -101,10 +102,26 @@ def test_mission_control_modules_are_importable():
     assert router is not None
     assert MissionControlDashboardResponse is not None
     assert MissionControlInboxResponse is not None
+    assert MissionControlLeadMachineResponse is not None
     assert MissionControlRunsResponse is not None
     assert MissionControlThreadRecord is not None
     assert MissionControlService is not None
     assert mission_control_service is not None
+
+
+def test_provider_extras_models_are_exported():
+    from app.models import (
+        InstantlyProviderExtrasSnapshot,
+        ProviderExtraFamilyStatus,
+        ProviderExtrasSummary,
+    )
+    from app.models.provider_extras import InstantlyProviderExtrasSnapshot as instantly_provider_extras_snapshot_module
+    from app.models.provider_extras import ProviderExtraFamilyStatus as provider_extra_family_status_module
+    from app.models.provider_extras import ProviderExtrasSummary as provider_extras_summary_module
+
+    assert InstantlyProviderExtrasSnapshot is instantly_provider_extras_snapshot_module
+    assert ProviderExtraFamilyStatus is provider_extra_family_status_module
+    assert ProviderExtrasSummary is provider_extras_summary_module
 
 
 def test_lead_machine_models_are_exported():

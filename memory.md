@@ -36,6 +36,9 @@
 - The live path is lead submit -> booking check -> confirmations -> non-booker SMS sequence -> inbound qualification
 - Current work is the enterprise-platform backlog; the phase-3 enterprise-controls slice is now complete in this worktree and live Supabase wiring remains deferred
 - Lead-machine lane 1 is now scaffolded in-memory with canonical lead/campaign/event/run/suppression/task models, replay-safe repositories, and explicit package exports
+- Campaign webhook ingestion now keeps campaign, lead, and membership state transitions aligned in-memory, including replay-safe completion handling for provider campaign-complete events
+- Mission Control now has a backend-only lead-machine surface that projects in-memory leads, tasks, events, and suppressions with redacted timeline metadata and deterministic ordering
+- Instantly provider extras are now scaffolded as a backend-only Mission Control projection driven by settings and in-memory records only, with feature-family capability/status snapshots and no live extras wiring
 - Mission Control stays fixture-backed on this machine until live backend wiring is intentionally enabled later
 - The host-adapter/skill seam is now in-memory and additive, with trigger_dev as the default enabled adapter; dispatch requires published revisions and preserves per-revision host adapter config
 - Phase-0 docs now lock the product model: agents are the product unit, skills are reusable procedures, host runtimes are adapters, and Mission Control is the operator cockpit
@@ -94,6 +97,8 @@
   - `POST /agent-assets/{asset_id}/bind`
   - `GET /mission-control/dashboard`
   - `GET /mission-control/inbox`
+  - `GET /mission-control/lead-machine`
+  - `GET /mission-control/providers/instantly/extras`
   - `GET /mission-control/runs`
   - `POST /site-events`
   - `POST /trigger/callbacks/runs/{run_id}/started`
@@ -130,6 +135,31 @@
 4. continue using the repo-root TODO as the live handoff pointer instead of ad hoc chat notes
 
 ## Change Log
+
+### 2026-04-16 Instantly Provider Extras Projection
+
+- Added `app/models/provider_extras.py` plus `ProviderExtrasService` so Instantly extras now expose explicit backend-only feature families for labels, tags, verification, deliverability, blocklists, inbox placement, CRM actions, and workspace resources without introducing guessed live endpoints
+- Exposed `GET /mission-control/providers/instantly/extras` as a deterministic Mission Control read surface backed by settings and in-memory records only, with scoped counts/flags and no secret leakage in the response
+- Added focused service/API/package tests for configured vs missing Instantly settings, projection counts, and secret-redaction expectations; re-verified with targeted pytest runs plus a full `pytest -q` pass
+
+### 2026-04-16 Lead-Machine Mission Control Surface
+
+- Added a backend-only `GET /mission-control/lead-machine` read surface that projects in-memory lead counts, generated tasks, event timeline rows, and active suppressions with explicit business/environment/lead/campaign/limit filters
+- Extended Mission Control models and service helpers to keep task/timeline ordering deterministic and to redact raw provider payloads plus secret-like metadata before surfacing webhook-derived events
+- Added repository list helpers plus focused API/package tests for task generation, reply suppression visibility, and campaign/lead filtering; re-verified with targeted Mission Control/webhook pytest runs and a full `pytest -q` pass
+
+### 2026-04-16 Webhook-Driven Campaign State Transitions
+
+- Wired `LeadWebhookService` to resolve campaigns through the in-memory lifecycle service and to translate `campaign.completed` webhooks into deterministic campaign completion transitions while keeping lead, membership, suppression, and task hooks intact
+- Added focused webhook service coverage for campaign completion, duplicate/replay safety, and preserved the existing reply-suppression and email-sent task expectations
+- Re-verified with focused webhook/campaign lifecycle pytest coverage and a full `pytest -q` run
+
+### 2026-04-16 Campaign Lifecycle Orchestration
+
+- Added an in-memory `CampaignLifecycleService` with an explicit, testable campaign state machine for create/upsert, activate/start, pause, resume, complete, archive, and active-enrollment validation
+- Added `CampaignsRepository.get_by_key` to support deterministic lifecycle upserts without bypassing repository patterns
+- Wired outbound lead enrollment to reject non-active campaigns before provider enqueue side effects while preserving suppressed-lead handling and membership writes for active campaigns
+- Verified with focused pytest for campaign lifecycle, outbound enrollment, and campaign repository coverage plus a full `pytest -q` run
 
 ### 2026-04-16 Harris Probate Intake Backend Slice
 

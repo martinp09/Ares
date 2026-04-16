@@ -32,6 +32,13 @@ class CampaignsRepository:
         with self.client.transaction() as store:
             return store.campaigns.get(campaign_id)
 
+    def get_by_key(self, *, business_id: str, environment: str, dedupe_key: str) -> CampaignRecord | None:
+        with self.client.transaction() as store:
+            campaign_id = store.campaign_keys.get((business_id, environment, dedupe_key))
+            if campaign_id is None:
+                return None
+            return store.campaigns.get(campaign_id)
+
     def list(self, *, business_id: str | None = None, environment: str | None = None) -> list[CampaignRecord]:
         with self.client.transaction() as store:
             records = list(store.campaigns.values())

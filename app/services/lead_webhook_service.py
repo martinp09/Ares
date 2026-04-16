@@ -12,6 +12,7 @@ from app.models.campaigns import CampaignRecord, CampaignStatus
 from app.models.lead_events import LeadEventRecord, ProviderWebhookReceiptRecord
 from app.models.leads import LeadInterestStatus, LeadLifecycleStatus, LeadRecord, LeadSource
 from app.providers.instantly import normalize_webhook_payload
+from app.services.campaign_lifecycle_service import CampaignLifecycleService
 from app.services.lead_sequence_runner import LeadSequenceRunner
 from app.services.lead_suppression_service import LeadSuppressionService
 from app.services.lead_task_service import LeadTaskService
@@ -29,6 +30,7 @@ class LeadWebhookService:
         suppression_service: LeadSuppressionService | None = None,
         sequence_runner: LeadSequenceRunner | None = None,
         task_service: LeadTaskService | None = None,
+        campaign_lifecycle_service: CampaignLifecycleService | None = None,
     ) -> None:
         self.leads_repository = leads_repository or LeadsRepository()
         self.lead_events_repository = lead_events_repository or LeadEventsRepository()
@@ -38,6 +40,7 @@ class LeadWebhookService:
         self.suppression_service = suppression_service or LeadSuppressionService()
         self.sequence_runner = sequence_runner or LeadSequenceRunner(self.memberships_repository)
         self.task_service = task_service or LeadTaskService()
+        self.campaign_lifecycle_service = campaign_lifecycle_service or CampaignLifecycleService(self.campaigns_repository)
 
     def handle_instantly_webhook(
         self,
@@ -93,20 +96,22 @@ class LeadWebhookService:
             self.provider_webhooks_repository.mark_processed(receipt.id, lead_event_id=event.id)
             return {"status": "duplicate", "receipt_id": receipt.id, "event_id": event.id}
 
+        updated_campaign = self._apply_event_to_campaign(campaign, event)
+        resolved_campaign = updated_campaign or campaign
         updated_lead = self._apply_event_to_lead(lead, event)
         suppression = self.suppression_service.apply_event(
             business_id=business_id,
             environment=environment,
             lead_id=updated_lead.id,
             lead_email=updated_lead.email,
-            campaign_id=campaign.id if campaign is not None else event.campaign_id,
+            campaign_id=resolved_campaign.id if resolved_campaign is not None else event.campaign_id,
             event=event,
         )
         membership = self.sequence_runner.handle_event(
             business_id=business_id,
             environment=environment,
             lead_id=updated_lead.id,
-            campaign_id=campaign.id if campaign is not None else event.campaign_id,
+            campaign_id=resolved_campaign.id if resolved_campaign is not None else event.campaign_id,
             event=event,
         )
         task = self.task_service.create_task_for_event(
@@ -174,20 +179,37 @@ class LeadWebhookService:
         provider_campaign_id = normalized.get("campaign_id")
         if not provider_campaign_id:
             return None
-        for record in self.campaigns_repository.list(business_id=business_id, environment=environment):
-            if record.provider_campaign_id == str(provider_campaign_id):
-                return record
-        return self.campaigns_repository.upsert(
+        provider_campaign_id = str(provider_campaign_id)
+        dedupe_key = f"provider:instantly:{provider_campaign_id.strip().casefold()}"
+        existing = self.campaigns_repository.get_by_key(
+            business_id=business_id,
+            environment=environment,
+            dedupe_key=dedupe_key,
+        )
+        if existing is not None:
+            return existing
+        return self.campaign_lifecycle_service.create_or_upsert(
             CampaignRecord(
                 business_id=business_id,
                 environment=environment,
                 name=str(normalized.get("campaign_name") or f"Instantly {provider_campaign_id}"),
                 provider_name="instantly",
-                provider_campaign_id=str(provider_campaign_id),
+                provider_campaign_id=provider_campaign_id,
                 status=CampaignStatus.ACTIVE,
                 raw_payload={"source": "webhook_seed"},
             )
         )
+
+    def _apply_event_to_campaign(self, campaign: CampaignRecord | None, event: LeadEventRecord) -> CampaignRecord | None:
+        if campaign is None or event.event_type != "campaign.completed" or not campaign.id:
+            return campaign
+        if campaign.status in {CampaignStatus.COMPLETED, CampaignStatus.ARCHIVED}:
+            return campaign
+        if campaign.status == CampaignStatus.DRAFT:
+            campaign = self.campaign_lifecycle_service.activate(campaign.id)
+        if campaign.status in {CampaignStatus.ACTIVE, CampaignStatus.PAUSED}:
+            return self.campaign_lifecycle_service.complete(campaign.id)
+        return campaign
 
     def _apply_event_to_lead(self, lead: LeadRecord, event: LeadEventRecord) -> LeadRecord:
         updates: dict[str, Any] = {

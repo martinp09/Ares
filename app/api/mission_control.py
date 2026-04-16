@@ -9,6 +9,7 @@ from app.models.mission_control import (
     MissionControlDashboardResponse,
     MissionControlEmailTestRequest,
     MissionControlInboxResponse,
+    MissionControlLeadMachineResponse,
     MissionControlOutboundSendResponse,
     MissionControlProvidersStatusResponse,
     MissionControlRunsResponse,
@@ -17,6 +18,7 @@ from app.models.mission_control import (
     MissionControlTurnsResponse,
 )
 from app.models.audit import AuditListResponse
+from app.models.provider_extras import InstantlyProviderExtrasSnapshot
 from app.models.secrets import SecretBindingListResponse, SecretListResponse
 from app.models.usage import UsageEventKind, UsageResponse
 from app.services.mission_control_service import mission_control_service
@@ -54,6 +56,23 @@ def get_tasks(
     environment: str | None = Query(default=None),
 ) -> MissionControlTasksResponse:
     return mission_control_service.get_tasks(business_id=business_id, environment=environment)
+
+
+@router.get("/lead-machine", response_model=MissionControlLeadMachineResponse)
+def get_lead_machine(
+    business_id: str | None = Query(default=None),
+    environment: str | None = Query(default=None),
+    lead_id: str | None = Query(default=None),
+    campaign_id: str | None = Query(default=None),
+    limit: int | None = Query(default=None, ge=1),
+) -> MissionControlLeadMachineResponse:
+    return mission_control_service.get_lead_machine(
+        business_id=business_id,
+        environment=environment,
+        lead_id=lead_id,
+        campaign_id=campaign_id,
+        limit=limit,
+    )
 
 
 @router.get("/approvals", response_model=MissionControlApprovalsResponse)
@@ -137,6 +156,17 @@ def get_usage(
 @router.get("/providers/status", response_model=MissionControlProvidersStatusResponse)
 def get_provider_status() -> MissionControlProvidersStatusResponse:
     return mission_control_service.get_provider_status()
+
+
+@router.get("/providers/instantly/extras", response_model=InstantlyProviderExtrasSnapshot)
+def get_instantly_provider_extras(
+    business_id: str | None = Query(default=None),
+    environment: str | None = Query(default=None),
+) -> InstantlyProviderExtrasSnapshot:
+    return mission_control_service.get_instantly_provider_extras(
+        business_id=business_id,
+        environment=environment,
+    )
 
 
 @router.post("/outbound/sms/test", response_model=MissionControlOutboundSendResponse, status_code=201)

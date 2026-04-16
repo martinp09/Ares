@@ -12,6 +12,7 @@ from app.models.automation_runs import AutomationRunRecord, AutomationRunStatus
 from app.models.campaigns import CampaignMembershipRecord, CampaignMembershipStatus
 from app.models.leads import LeadLifecycleStatus, LeadRecord
 from app.providers.instantly import InstantlyClient
+from app.services.campaign_lifecycle_service import CampaignLifecycleService
 from app.services.lead_suppression_service import LeadSuppressionService
 
 
@@ -50,6 +51,7 @@ class LeadOutboundService:
         memberships_repository: CampaignMembershipsRepository | None = None,
         automation_runs_repository: AutomationRunsRepository | None = None,
         suppression_service: LeadSuppressionService | None = None,
+        campaign_lifecycle_service: CampaignLifecycleService | None = None,
     ) -> None:
         self.instantly_client = instantly_client
         self.leads_repository = leads_repository or LeadsRepository()
@@ -57,12 +59,19 @@ class LeadOutboundService:
         self.memberships_repository = memberships_repository or CampaignMembershipsRepository()
         self.automation_runs_repository = automation_runs_repository or AutomationRunsRepository()
         self.suppression_service = suppression_service or LeadSuppressionService()
+        self.campaign_lifecycle_service = campaign_lifecycle_service or CampaignLifecycleService(self.campaigns_repository)
 
     def enqueue_leads(self, request: OutboundEnrollmentRequest) -> OutboundEnrollmentResult:
         if request.campaign_id and request.list_id:
             raise ValueError("campaign_id or list_id may be set, not both")
         if not request.lead_ids:
             raise ValueError("at least one lead_id is required")
+        if request.campaign_id:
+            self.campaign_lifecycle_service.require_active_campaign(
+                campaign_id=request.campaign_id,
+                business_id=request.business_id,
+                environment=request.environment,
+            )
 
         result = OutboundEnrollmentResult()
         outbound_rows: list[dict[str, Any]] = []

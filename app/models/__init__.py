@@ -7,6 +7,11 @@ from app.models.campaigns import (
 )
 from app.models.lead_events import LeadEventRecord, ProviderWebhookReceiptRecord
 from app.models.leads import LeadInterestStatus, LeadLifecycleStatus, LeadRecord, LeadSource
+from app.models.provider_extras import (
+    InstantlyProviderExtrasSnapshot,
+    ProviderExtraFamilyStatus,
+    ProviderExtrasSummary,
+)
 from app.models.probate_leads import (
     ProbateContactConfidence,
     ProbateHCADMatchStatus,
@@ -28,11 +33,14 @@ __all__ = [
     "LeadLifecycleStatus",
     "LeadRecord",
     "LeadSource",
+    "InstantlyProviderExtrasSnapshot",
     "ProbateContactConfidence",
     "ProbateHCADMatchStatus",
     "ProbateLeadRecord",
     "ProbateLeadSource",
+    "ProviderExtraFamilyStatus",
     "ProviderWebhookReceiptRecord",
+    "ProviderExtrasSummary",
     "SuppressionRecord",
     "SuppressionScope",
     "SuppressionSource",

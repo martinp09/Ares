@@ -1,18 +1,30 @@
 from app.db.campaign_memberships import CampaignMembershipsRepository
+from app.db.campaigns import CampaignsRepository
 from app.db.client import InMemoryControlPlaneClient, InMemoryControlPlaneStore
 from app.db.lead_events import LeadEventsRepository
 from app.db.leads import LeadsRepository
 from app.db.provider_webhooks import ProviderWebhooksRepository
 from app.db.suppression import SuppressionRepository
 from app.db.tasks import TasksRepository
+from app.models.campaigns import CampaignRecord, CampaignStatus
 from app.models.leads import LeadLifecycleStatus, LeadRecord
+from app.services.campaign_lifecycle_service import CampaignLifecycleService
 from app.services.lead_sequence_runner import LeadSequenceRunner
 from app.services.lead_suppression_service import LeadSuppressionService
 from app.services.lead_task_service import LeadTaskService
 from app.services.lead_webhook_service import LeadWebhookService
 
 
-def build_service() -> tuple[LeadWebhookService, LeadsRepository, LeadEventsRepository, TasksRepository, SuppressionRepository, CampaignMembershipsRepository]:
+def build_service() -> tuple[
+    LeadWebhookService,
+    LeadsRepository,
+    LeadEventsRepository,
+    TasksRepository,
+    SuppressionRepository,
+    CampaignMembershipsRepository,
+    CampaignsRepository,
+    CampaignLifecycleService,
+]:
     store = InMemoryControlPlaneStore()
     client = InMemoryControlPlaneClient(store)
     leads_repository = LeadsRepository(client)
@@ -20,20 +32,33 @@ def build_service() -> tuple[LeadWebhookService, LeadsRepository, LeadEventsRepo
     tasks_repository = TasksRepository(client)
     suppression_repository = SuppressionRepository(client)
     memberships_repository = CampaignMembershipsRepository(client)
+    campaigns_repository = CampaignsRepository(client)
+    campaign_lifecycle_service = CampaignLifecycleService(campaigns_repository)
     service = LeadWebhookService(
         leads_repository=leads_repository,
         lead_events_repository=lead_events_repository,
+        campaigns_repository=campaigns_repository,
         memberships_repository=memberships_repository,
         provider_webhooks_repository=ProviderWebhooksRepository(client),
         suppression_service=LeadSuppressionService(suppression_repository),
         sequence_runner=LeadSequenceRunner(memberships_repository),
         task_service=LeadTaskService(tasks_repository),
+        campaign_lifecycle_service=campaign_lifecycle_service,
     )
-    return service, leads_repository, lead_events_repository, tasks_repository, suppression_repository, memberships_repository
+    return (
+        service,
+        leads_repository,
+        lead_events_repository,
+        tasks_repository,
+        suppression_repository,
+        memberships_repository,
+        campaigns_repository,
+        campaign_lifecycle_service,
+    )
 
 
 def test_email_sent_webhook_creates_canonical_event_and_single_task() -> None:
-    service, leads_repository, lead_events_repository, tasks_repository, _, memberships_repository = build_service()
+    service, leads_repository, lead_events_repository, tasks_repository, _, memberships_repository, _, _ = build_service()
     lead = leads_repository.upsert(
         LeadRecord(business_id="limitless", environment="dev", email="lead@example.com", first_name="Lane")
     )
@@ -63,7 +88,7 @@ def test_email_sent_webhook_creates_canonical_event_and_single_task() -> None:
 
 
 def test_reply_webhook_suppresses_lead_without_creating_task() -> None:
-    service, leads_repository, lead_events_repository, tasks_repository, suppression_repository, memberships_repository = build_service()
+    service, leads_repository, lead_events_repository, tasks_repository, suppression_repository, memberships_repository, _, _ = build_service()
     lead = leads_repository.upsert(
         LeadRecord(business_id="limitless", environment="dev", email="lead@example.com", first_name="Lane")
     )
@@ -91,3 +116,48 @@ def test_reply_webhook_suppresses_lead_without_creating_task() -> None:
     assert lead_events_repository.list_for_lead(lead.id or "")[0].event_type == "lead.reply.received"
     memberships = memberships_repository.list_for_lead(lead.id or "")
     assert memberships[0].status == "suppressed"
+
+
+def test_campaign_completed_webhook_completes_campaign_and_is_duplicate_safe() -> None:
+    service, leads_repository, lead_events_repository, tasks_repository, suppression_repository, memberships_repository, campaigns_repository, campaign_lifecycle_service = build_service()
+    campaign = campaign_lifecycle_service.create_or_upsert(
+        CampaignRecord(
+            business_id="limitless",
+            environment="dev",
+            name="Probate Wave",
+            provider_name="instantly",
+            provider_campaign_id="camp_123",
+        )
+    )
+    campaign = campaign_lifecycle_service.activate(campaign.id or "")
+    assert campaign.status == CampaignStatus.ACTIVE
+
+    payload = {
+        "event_type": "campaign_completed",
+        "timestamp": "2026-04-16T17:10:00Z",
+        "campaign_id": "camp_123",
+        "campaign_name": "Probate Wave",
+        "lead_email": "lead@example.com",
+        "email_id": "msg_125",
+    }
+
+    first = service.handle_instantly_webhook(business_id="limitless", environment="dev", payload=payload)
+    second = service.handle_instantly_webhook(business_id="limitless", environment="dev", payload=payload)
+
+    assert first["status"] == "processed"
+    assert second["status"] == "duplicate"
+    refreshed_campaign = campaigns_repository.get(campaign.id or "")
+    assert refreshed_campaign is not None
+    assert refreshed_campaign.id == campaign.id
+    assert refreshed_campaign.status == CampaignStatus.COMPLETED
+    lead_events = lead_events_repository.list_for_lead(first["lead_id"])
+    assert [event.event_type for event in lead_events] == ["campaign.completed"]
+    refreshed_lead = leads_repository.get(first["lead_id"])
+    assert refreshed_lead is not None
+    assert refreshed_lead.lifecycle_status == LeadLifecycleStatus.CLOSED
+    memberships = memberships_repository.list_for_lead(first["lead_id"])
+    assert len(memberships) == 1
+    assert memberships[0].campaign_id == campaign.id
+    assert memberships[0].status == "completed"
+    assert tasks_repository.list_for_lead(first["lead_id"]) == []
+    assert suppression_repository.list_active(business_id="limitless", environment="dev") == []

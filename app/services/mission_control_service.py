@@ -7,6 +7,10 @@ from datetime import UTC, datetime
 
 from app.core.config import get_settings
 from app.db.client import ControlPlaneClient, get_control_plane_client
+from app.db.lead_events import LeadEventsRepository
+from app.db.leads import LeadsRepository
+from app.db.suppression import SuppressionRepository
+from app.db.tasks import TasksRepository
 from app.models.approvals import ApprovalStatus
 from app.models.mission_control import (
     MissionControlAgentSummary,
@@ -19,6 +23,10 @@ from app.models.mission_control import (
     MissionControlEmailTestRequest,
     MissionControlInboxResponse,
     MissionControlInboxSummary,
+    MissionControlLeadMachineResponse,
+    MissionControlLeadMachineSummary,
+    MissionControlLeadMachineTaskRecord,
+    MissionControlLeadMachineTimelineRecord,
     MissionControlOutboundSendResponse,
     MissionControlProviderStatus,
     MissionControlProvidersStatusResponse,
@@ -34,9 +42,12 @@ from app.models.mission_control import (
     MissionControlTurnsResponse,
 )
 from app.models.runs import RunStatus
+from app.models.tasks import TaskStatus
+from app.models.provider_extras import InstantlyProviderExtrasSnapshot
 from app.services.providers.resend import get_resend_status, send_test_email
 from app.services.providers.textgrid import get_textgrid_status, send_test_sms
 from app.services.audit_service import audit_service
+from app.services.provider_extras_service import provider_extras_service
 from app.services.secrets_service import secret_service
 from app.services.usage_service import usage_service
 from app.models.audit import AuditListResponse
@@ -49,6 +60,10 @@ ACTIVE_RUN_STATUSES = {RunStatus.QUEUED, RunStatus.IN_PROGRESS}
 class MissionControlService:
     def __init__(self, client: ControlPlaneClient | None = None) -> None:
         self.client = client or get_control_plane_client()
+        self.leads_repository = LeadsRepository(self.client)
+        self.lead_events_repository = LeadEventsRepository(self.client)
+        self.suppression_repository = SuppressionRepository(self.client)
+        self.tasks_repository = TasksRepository(self.client)
 
     def upsert_thread_projection(self, thread: MissionControlThreadRecord) -> MissionControlThreadRecord:
         with self.client.transaction() as store:
@@ -307,6 +322,144 @@ class MissionControlService:
         ]
         return MissionControlTasksResponse(due_count=len(tasks), tasks=tasks)
 
+    def get_lead_machine(
+        self,
+        *,
+        business_id: str | None = None,
+        environment: str | None = None,
+        lead_id: str | None = None,
+        campaign_id: str | None = None,
+        limit: int | None = None,
+    ) -> MissionControlLeadMachineResponse:
+        with self.client.transaction() as store:
+            campaigns = [
+                campaign
+                for campaign in store.campaigns.values()
+                if self._matches_scope(campaign.business_id, campaign.environment, business_id, environment)
+            ]
+        campaign_scope_ids = self._resolve_campaign_filter_ids(campaigns, campaign_id)
+        leads = self.leads_repository.list(business_id=business_id, environment=environment)
+        events = self.lead_events_repository.list(business_id=business_id, environment=environment)
+        tasks = self.tasks_repository.list(business_id=business_id, environment=environment, lead_id=lead_id)
+        suppressions = self.suppression_repository.list_active(business_id=business_id, environment=environment)
+
+        lead_by_id = {lead.id: lead for lead in leads if lead.id is not None}
+        event_by_id = {event.id: event for event in events if event.id is not None}
+
+        scoped_leads = [
+            lead
+            for lead in leads
+            if self._matches_lead_machine_filters(
+                resolved_lead_id=lead.id,
+                resolved_campaign_id=lead.campaign_id,
+                requested_lead_id=lead_id,
+                requested_campaign_ids=campaign_scope_ids,
+            )
+        ]
+        scoped_events = [
+            event
+            for event in events
+            if self._matches_lead_machine_filters(
+                resolved_lead_id=event.lead_id,
+                resolved_campaign_id=event.campaign_id,
+                requested_lead_id=lead_id,
+                requested_campaign_ids=campaign_scope_ids,
+            )
+        ]
+        scoped_tasks = [
+            task
+            for task in tasks
+            if self._task_matches_lead_machine_filters(
+                task,
+                lead_by_id=lead_by_id,
+                event_by_id=event_by_id,
+                requested_campaign_ids=campaign_scope_ids,
+            )
+        ]
+        scoped_suppressions = [
+            record
+            for record in suppressions
+            if self._suppression_matches_lead_machine_filters(
+                record,
+                lead_by_id=lead_by_id,
+                requested_lead_id=lead_id,
+                requested_campaign_ids=campaign_scope_ids,
+            )
+        ]
+
+        ordered_tasks = sorted(
+            scoped_tasks,
+            key=lambda task: (task.due_at or task.created_at, task.created_at, task.id or ""),
+        )
+        ordered_events = sorted(
+            scoped_events,
+            key=lambda event: (event.event_timestamp, event.received_at, event.id or ""),
+            reverse=True,
+        )
+        if limit is not None:
+            ordered_tasks = ordered_tasks[:limit]
+            ordered_events = ordered_events[:limit]
+
+        task_rows = []
+        for task in ordered_tasks:
+            lead = lead_by_id.get(task.lead_id or "") if task.lead_id is not None else None
+            source_event = event_by_id.get(task.source_event_id or "") if task.source_event_id is not None else None
+            task_rows.append(
+                MissionControlLeadMachineTaskRecord(
+                    id=task.id or "",
+                    business_id=task.business_id,
+                    environment=task.environment,
+                    lead_id=task.lead_id,
+                    campaign_id=(source_event.campaign_id if source_event is not None else (lead.campaign_id if lead is not None else None)),
+                    lead_name=self._lead_display_name(lead),
+                    lead_email=(lead.email if lead is not None else None),
+                    title=task.title,
+                    status=task.status,
+                    task_type=task.task_type,
+                    priority=task.priority,
+                    due_at=task.due_at,
+                    assigned_to=task.assigned_to,
+                    source_event_id=task.source_event_id,
+                    created_at=task.created_at,
+                    updated_at=task.updated_at,
+                    details=self._scrub_sensitive_data(deepcopy(task.details)),
+                )
+            )
+
+        timeline_rows = []
+        for event in ordered_events:
+            lead = lead_by_id.get(event.lead_id)
+            timeline_rows.append(
+                MissionControlLeadMachineTimelineRecord(
+                    id=event.id or "",
+                    business_id=event.business_id,
+                    environment=event.environment,
+                    lead_id=event.lead_id,
+                    campaign_id=event.campaign_id,
+                    lead_name=self._lead_display_name(lead),
+                    lead_email=(lead.email if lead is not None else None),
+                    event_type=event.event_type,
+                    provider_name=event.provider_name,
+                    provider_event_id=event.provider_event_id,
+                    provider_receipt_id=event.provider_receipt_id,
+                    event_timestamp=event.event_timestamp,
+                    received_at=event.received_at,
+                    metadata=self._scrub_lead_event_metadata(event.metadata),
+                )
+            )
+
+        return MissionControlLeadMachineResponse(
+            summary=MissionControlLeadMachineSummary(
+                lead_count=len(scoped_leads),
+                task_count=len(scoped_tasks),
+                open_task_count=sum(1 for task in scoped_tasks if task.status == TaskStatus.OPEN),
+                event_count=len(scoped_events),
+                suppression_count=len(scoped_suppressions),
+            ),
+            tasks=task_rows,
+            timeline=timeline_rows,
+        )
+
     def get_agents(
         self,
         *,
@@ -390,6 +543,17 @@ class MissionControlService:
         return MissionControlProvidersStatusResponse(
             sms=MissionControlProviderStatus(**get_textgrid_status(settings)),
             email=MissionControlProviderStatus(**get_resend_status(settings)),
+        )
+
+    def get_instantly_provider_extras(
+        self,
+        *,
+        business_id: str | None = None,
+        environment: str | None = None,
+    ) -> InstantlyProviderExtrasSnapshot:
+        return provider_extras_service.get_instantly_snapshot(
+            business_id=business_id,
+            environment=environment,
         )
 
     def get_secrets(self, *, org_id: str | None = None) -> SecretListResponse:
@@ -529,6 +693,102 @@ class MissionControlService:
             messages=thread.messages,
             context=context,
         )
+
+    @staticmethod
+    def _matches_lead_machine_filters(
+        *,
+        resolved_lead_id: str | None,
+        resolved_campaign_id: str | None,
+        requested_lead_id: str | None,
+        requested_campaign_ids: set[str] | None,
+    ) -> bool:
+        if requested_lead_id is not None and resolved_lead_id != requested_lead_id:
+            return False
+        if requested_campaign_ids is not None and resolved_campaign_id not in requested_campaign_ids:
+            return False
+        return True
+
+    @staticmethod
+    def _resolve_campaign_filter_ids(campaigns: list[object], requested_campaign_id: str | None) -> set[str] | None:
+        if requested_campaign_id is None:
+            return None
+        resolved = {requested_campaign_id}
+        for campaign in campaigns:
+            if requested_campaign_id not in {campaign.id, campaign.provider_campaign_id}:
+                continue
+            if campaign.id is not None:
+                resolved.add(campaign.id)
+            if campaign.provider_campaign_id is not None:
+                resolved.add(campaign.provider_campaign_id)
+        return resolved
+
+    @staticmethod
+    def _lead_display_name(lead) -> str | None:
+        if lead is None:
+            return None
+        full_name = " ".join(part.strip() for part in (lead.first_name or "", lead.last_name or "") if part and part.strip())
+        if full_name:
+            return full_name
+        if lead.company_name:
+            return str(lead.company_name)
+        if lead.email:
+            return str(lead.email)
+        return lead.id
+
+    @classmethod
+    def _task_matches_lead_machine_filters(
+        cls,
+        task,
+        *,
+        lead_by_id: dict[str, object],
+        event_by_id: dict[str, object],
+        requested_campaign_ids: set[str] | None,
+    ) -> bool:
+        if requested_campaign_ids is None:
+            return True
+        source_event = event_by_id.get(task.source_event_id or "") if task.source_event_id is not None else None
+        if source_event is not None and source_event.campaign_id in requested_campaign_ids:
+            return True
+        if task.lead_id is None:
+            return False
+        lead = lead_by_id.get(task.lead_id)
+        return lead is not None and lead.campaign_id in requested_campaign_ids
+
+    @classmethod
+    def _suppression_matches_lead_machine_filters(
+        cls,
+        record,
+        *,
+        lead_by_id: dict[str, object],
+        requested_lead_id: str | None,
+        requested_campaign_ids: set[str] | None,
+    ) -> bool:
+        if requested_lead_id is not None and record.lead_id != requested_lead_id:
+            return False
+        if requested_campaign_ids is None:
+            return True
+        if record.campaign_id in requested_campaign_ids:
+            return True
+        if record.lead_id is None:
+            return False
+        lead = lead_by_id.get(record.lead_id)
+        return lead is not None and lead.campaign_id in requested_campaign_ids
+
+    @classmethod
+    def _scrub_lead_event_metadata(cls, metadata: dict[str, object]) -> dict[str, object]:
+        redacted_keys = {"provider_payload", "payload", "email_html", "reply_html"}
+        scrubbed = {
+            key: cls._scrub_sensitive_data(value)
+            for key, value in metadata.items()
+            if key not in redacted_keys and value is not None
+        }
+        for text_key in ("email_text", "reply_text"):
+            value = metadata.get(text_key)
+            if value is None:
+                continue
+            preview = str(value).strip()
+            scrubbed[text_key] = preview[:160] if len(preview) <= 160 else f"{preview[:157]}..."
+        return scrubbed
 
     @staticmethod
     def _scrub_sensitive_data(value: object) -> object:

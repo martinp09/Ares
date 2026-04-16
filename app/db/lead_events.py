@@ -29,9 +29,26 @@ class LeadEventsRepository:
         with self.client.transaction() as store:
             return store.lead_events.get(event_id)
 
-    def list_for_lead(self, lead_id: str) -> list[LeadEventRecord]:
+    def list(
+        self,
+        *,
+        business_id: str | None = None,
+        environment: str | None = None,
+        lead_id: str | None = None,
+        campaign_id: str | None = None,
+    ) -> list[LeadEventRecord]:
         with self.client.transaction() as store:
-            event_ids = list(store.lead_event_ids_by_lead.get(lead_id, []))
-            events = [store.lead_events[event_id] for event_id in event_ids]
+            events = list(store.lead_events.values())
+        if business_id is not None:
+            events = [event for event in events if event.business_id == business_id]
+        if environment is not None:
+            events = [event for event in events if event.environment == environment]
+        if lead_id is not None:
+            events = [event for event in events if event.lead_id == lead_id]
+        if campaign_id is not None:
+            events = [event for event in events if event.campaign_id == campaign_id]
         events.sort(key=lambda record: (record.event_timestamp, record.received_at, record.id or ""))
         return events
+
+    def list_for_lead(self, lead_id: str) -> list[LeadEventRecord]:
+        return self.list(lead_id=lead_id)

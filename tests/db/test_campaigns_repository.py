@@ -42,3 +42,24 @@ def test_list_filters_by_business_and_environment() -> None:
 
     campaigns = repository.list(business_id="limitless", environment="dev")
     assert [campaign.name for campaign in campaigns] == ["A"]
+
+
+def test_get_by_key_returns_existing_campaign() -> None:
+    repository = build_repository()
+    created = repository.upsert(
+        CampaignRecord(
+            business_id="limitless",
+            environment="dev",
+            name="Probate",
+            provider_name="instantly",
+            provider_campaign_id="camp_456",
+        )
+    )
+
+    fetched = repository.get_by_key(
+        business_id="limitless",
+        environment="dev",
+        dedupe_key=created.identity_key(),
+    )
+
+    assert fetched == created

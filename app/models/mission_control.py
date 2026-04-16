@@ -7,6 +7,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from app.models.commands import generate_id
 from app.models.runs import RunStatus
+from app.models.tasks import TaskPriority, TaskStatus, TaskType
 from app.models.turns import TurnStatus
 
 MissionControlThreadStatus = Literal["open", "waiting", "closed"]
@@ -278,6 +279,65 @@ class MissionControlTasksResponse(BaseModel):
 
     due_count: int = Field(ge=0)
     tasks: list[MissionControlTaskSummary] = Field(default_factory=list)
+
+
+class MissionControlLeadMachineSummary(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    lead_count: int = Field(ge=0)
+    task_count: int = Field(ge=0)
+    open_task_count: int = Field(ge=0)
+    event_count: int = Field(ge=0)
+    suppression_count: int = Field(ge=0)
+
+
+class MissionControlLeadMachineTaskRecord(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    id: str
+    business_id: str
+    environment: str
+    lead_id: str | None = None
+    campaign_id: str | None = None
+    lead_name: str | None = None
+    lead_email: str | None = None
+    title: str
+    status: TaskStatus
+    task_type: TaskType
+    priority: TaskPriority
+    due_at: datetime | None = None
+    assigned_to: str | None = None
+    source_event_id: str | None = None
+    created_at: datetime
+    updated_at: datetime
+    details: dict[str, Any] = Field(default_factory=dict)
+
+
+class MissionControlLeadMachineTimelineRecord(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    id: str
+    business_id: str
+    environment: str
+    lead_id: str
+    campaign_id: str | None = None
+    lead_name: str | None = None
+    lead_email: str | None = None
+    event_type: str
+    provider_name: str | None = None
+    provider_event_id: str | None = None
+    provider_receipt_id: str | None = None
+    event_timestamp: datetime
+    received_at: datetime
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class MissionControlLeadMachineResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    summary: MissionControlLeadMachineSummary
+    tasks: list[MissionControlLeadMachineTaskRecord] = Field(default_factory=list)
+    timeline: list[MissionControlLeadMachineTimelineRecord] = Field(default_factory=list)
 
 
 class MissionControlAgentSummary(BaseModel):
