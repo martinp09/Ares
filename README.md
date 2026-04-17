@@ -14,6 +14,7 @@ This repo is the deterministic runtime, policy layer, orchestration surface, and
 - `memory.md` is the master memory file.
 - `CONTEXT.md` is the short router and TODO file. Keep it under 50 lines and point to exact sections in `memory.md`.
 - `WAT_Architecture.md` defines the operating model for workflows, agents, and tools.
+- Hermes <-> Ares setup/runbook: `docs/hermes-ares-integration-runbook.md`
 
 ## Initial Direction
 
