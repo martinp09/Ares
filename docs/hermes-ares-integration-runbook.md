@@ -196,54 +196,71 @@ HERMES_RUNTIME_API_KEY=dev-runtime-key
 
 That keeps the integration isolated to the `ares-lab` profile instead of leaking into every Hermes session.
 
-## Local development setup
+## Copy/paste setups
 
-### 1) Start Ares
+### 1) Local dev on one machine
 
-From the repo root:
+Use one terminal for each process.
+
+Terminal 1 — Ares API:
 
 ```bash
+cd /path/to/Ares
 uv sync
+uv run --with uvicorn uvicorn app.main:app --host 127.0.0.1 --port 8000
 ```
 
-Then run the FastAPI app with whatever ASGI runner exists in your environment, pointed at:
-
-```text
-app.main:app
-```
-
-A plain local example looks like this if `uvicorn` is available:
+Terminal 2 — Mission Control UI:
 
 ```bash
-uvicorn app.main:app --reload --port 8000
-```
-
-### 2) Start the Mission Control UI
-
-```bash
+cd /path/to/Ares
 npm --prefix apps/mission-control install
 npm --prefix apps/mission-control run dev
 ```
 
-### 3) Start the Trigger worker
+Terminal 3 — Trigger worker:
 
 ```bash
+cd /path/to/Ares
 npm --prefix trigger install
 npm --prefix trigger run dev
 ```
 
-### 4) Point Hermes at Ares
-
-On the Hermes side, set the connector to the Ares runtime URL and key:
+Terminal 4 — Hermes shell:
 
 ```bash
-export HERMES_RUNTIME_API_BASE_URL=http://localhost:8000
+export HERMES_RUNTIME_API_BASE_URL=http://127.0.0.1:8000
 export HERMES_RUNTIME_API_KEY=dev-runtime-key
+hermes -p ares-lab
 ```
 
-If you use Hermes profiles, put those values in the profile config or the profile env file used by that Hermes instance.
+### 2) Hermes gateway service on the operator box
 
-If Hermes is running as a gateway or CLI on another machine, point it at the Ares host instead of localhost.
+Use this when Hermes is your always-on shell and Ares lives on a different machine.
+
+```bash
+export HERMES_RUNTIME_API_BASE_URL=http://10.0.0.25:8000
+export HERMES_RUNTIME_API_KEY=dev-runtime-key
+hermes -p ares-lab gateway install
+hermes -p ares-lab gateway start
+hermes -p ares-lab gateway status
+```
+
+Replace `10.0.0.25` with the real Ares host IP or DNS name.
+
+### 3) Production host
+
+Use the same pattern with real secrets and the production Ares URL.
+
+```bash
+export HERMES_RUNTIME_API_BASE_URL=https://ares.yourdomain.com
+export HERMES_RUNTIME_API_KEY=replace-with-real-runtime-key
+hermes -p ares-prod gateway install
+hermes -p ares-prod gateway start
+hermes -p ares-prod gateway status
+```
+
+If you prefer a wrapper script, keep those same two env vars in the script instead of your shell.
 
 ## First smoke test
 
