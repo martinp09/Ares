@@ -13,6 +13,7 @@ current_branch: "feature/loose-ends"
 
 - `docs/superpowers/specs/2026-04-16-ares-lead-machine-superfile.md`
 - `docs/superpowers/plans/2026-04-16-ares-lead-machine-implementation-plan.md`
+- `docs/superpowers/plans/2026-04-17-ares-scaffold-completion-plan.md`
 
 ## What is in this TODO
 
