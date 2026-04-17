@@ -118,6 +118,26 @@ class MissionControlEmailTestRequest(BaseModel):
     html: str | None = None
 
 
+class MissionControlTaskCompletionRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    notes: str | None = None
+    follow_up_outcome: str | None = None
+
+
+class MissionControlLeadSuppressionRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    reason: str = Field(min_length=1)
+    note: str | None = None
+
+
+class MissionControlLeadUnsuppressionRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    note: str | None = None
+
+
 class MissionControlOutboundSendResponse(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -295,6 +315,31 @@ class MissionControlTaskSummary(BaseModel):
     manual_call_due_at: str
     recent_reply_preview: str | None = None
     reply_needs_review: bool = False
+
+
+class MissionControlTaskActionResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    thread_id: str
+    lead_name: str
+    completed_task_count: int = Field(default=0, ge=0)
+    status: Literal["completed"] = "completed"
+    notes: str | None = None
+    follow_up_outcome: str | None = None
+    updated_at: datetime
+
+
+class MissionControlLeadActionResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    thread_id: str
+    lead_name: str
+    action: Literal["suppressed", "unsuppressed"]
+    suppression_count: int = Field(default=0, ge=0)
+    lead_status: str
+    note: str | None = None
+    reason: str | None = None
+    updated_at: datetime
 
 
 class MissionControlTasksResponse(BaseModel):

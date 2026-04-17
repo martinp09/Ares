@@ -18,6 +18,8 @@ from app.db.tasks import TasksRepository
 from app.models.approvals import ApprovalStatus
 from app.models.campaigns import CampaignMembershipStatus, CampaignStatus
 from app.models.leads import LeadInterestStatus, LeadLifecycleStatus, LeadRecord, LeadSource
+from app.models.tasks import TaskStatus, TaskType
+from app.models.suppression import SuppressionRecord, SuppressionScope, SuppressionSource
 from app.models.mission_control import (
     MissionControlAgentsResponse,
     MissionControlAgentSummary,
@@ -45,6 +47,7 @@ from app.models.mission_control import (
     MissionControlOpportunityStageSummary,
     MissionControlRunSummary,
     MissionControlRunsResponse,
+    MissionControlTaskActionResponse,
     MissionControlTaskSummary,
     MissionControlTasksResponse,
     MissionControlThreadDetail,
@@ -52,6 +55,7 @@ from app.models.mission_control import (
     MissionControlThreadSummary,
     MissionControlTurnSummary,
     MissionControlTurnsResponse,
+    MissionControlLeadActionResponse,
 )
 from app.models.runs import RunStatus
 from app.models.provider_extras import InstantlyProviderExtrasSnapshot
@@ -281,6 +285,317 @@ class MissionControlService:
 
         ordered_tasks = sorted(tasks, key=lambda task: task.manual_call_due_at)
         return MissionControlTasksResponse(due_count=len(ordered_tasks), tasks=ordered_tasks)
+
+    def complete_task_for_thread(
+        self,
+        *,
+        thread_id: str,
+        notes: str | None = None,
+        follow_up_outcome: str | None = None,
+    ) -> MissionControlTaskActionResponse:
+        thread = self._require_thread_projection(thread_id)
+        lead = self._resolve_lead_for_thread(thread)
+        now = utc_now()
+        completed_task_count = 0
+
+        if lead is not None and lead.id is not None:
+            completed_task_count = self._complete_open_tasks_for_lead(
+                lead_id=lead.id,
+                notes=notes,
+                follow_up_outcome=follow_up_outcome,
+                completed_at=now,
+            )
+
+        thread_context = deepcopy(thread.context)
+        thread_context.pop("manual_call_due_at", None)
+        thread_context["reply_needs_review"] = False
+        thread_context["task_completed_at"] = now.isoformat()
+        if notes is not None:
+            thread_context["task_completion_note"] = notes
+        if follow_up_outcome is not None:
+            thread_context["follow_up_outcome"] = follow_up_outcome
+        if lead is not None and lead.id is not None:
+            thread_context.setdefault("lead_id", lead.id)
+
+        self.upsert_thread_projection(
+            thread.model_copy(update={"context": thread_context, "updated_at": now})
+        )
+
+        return MissionControlTaskActionResponse(
+            thread_id=thread.id,
+            lead_name=thread.contact.display_name,
+            completed_task_count=completed_task_count,
+            notes=notes,
+            follow_up_outcome=follow_up_outcome,
+            updated_at=now,
+        )
+
+    def suppress_thread(
+        self,
+        *,
+        thread_id: str,
+        reason: str,
+        note: str | None = None,
+    ) -> MissionControlLeadActionResponse:
+        thread = self._require_thread_projection(thread_id)
+        lead = self._resolve_lead_for_thread(thread)
+        if lead is None or lead.id is None:
+            raise KeyError(thread_id)
+
+        now = utc_now()
+        suppression = self.suppression_repository.upsert(
+            SuppressionRecord(
+                business_id=lead.business_id,
+                environment=lead.environment,
+                lead_id=lead.id,
+                email=lead.email,
+                phone=lead.phone,
+                scope=SuppressionScope.GLOBAL,
+                reason=reason,
+                source=SuppressionSource.MANUAL,
+                idempotency_key=f"mission-control:suppress:{thread.id}",
+                metadata={"thread_id": thread.id, "note": note, "operator_action": "suppress"},
+            )
+        )
+
+        self.leads_repository.upsert(
+            lead.model_copy(
+                update={
+                    "lifecycle_status": LeadLifecycleStatus.SUPPRESSED,
+                    "updated_at": now,
+                    "last_touched_at": now,
+                }
+            )
+        )
+        self._set_campaign_memberships_status(lead_id=lead.id, status=CampaignMembershipStatus.SUPPRESSED)
+        self._cancel_open_tasks_for_lead(lead_id=lead.id, suppression_reason=reason, note=note)
+        self.upsert_thread_projection(
+            thread.model_copy(
+                update={
+                    "context": self._merge_thread_context(
+                        thread.context,
+                        {
+                            "sequence_status": "suppressed",
+                            "reply_needs_review": False,
+                            "manual_call_due_at": None,
+                            "suppression_reason": reason,
+                            "suppressed_at": now.isoformat(),
+                            "last_operator_note": note,
+                        },
+                    ),
+                    "updated_at": now,
+                }
+            )
+        )
+
+        return MissionControlLeadActionResponse(
+            thread_id=thread.id,
+            lead_name=thread.contact.display_name,
+            action="suppressed",
+            suppression_count=len(
+                self.suppression_repository.list_active(business_id=lead.business_id, environment=lead.environment)
+            ),
+            lead_status=str(LeadLifecycleStatus.SUPPRESSED),
+            note=note,
+            reason=reason,
+            updated_at=now,
+        )
+
+    def unsuppress_thread(
+        self,
+        *,
+        thread_id: str,
+        note: str | None = None,
+    ) -> MissionControlLeadActionResponse:
+        thread = self._require_thread_projection(thread_id)
+        lead = self._resolve_lead_for_thread(thread)
+        if lead is None or lead.id is None:
+            raise KeyError(thread_id)
+
+        now = utc_now()
+        archived_count = self._archive_lead_suppressions(lead_id=lead.id, note=note)
+        restored_membership_count = self._set_campaign_memberships_status(lead_id=lead.id, status=CampaignMembershipStatus.ACTIVE)
+        lead_after_restore = self.leads_repository.upsert(
+            lead.model_copy(
+                update={
+                    "lifecycle_status": LeadLifecycleStatus.ACTIVE if restored_membership_count > 0 else LeadLifecycleStatus.READY,
+                    "updated_at": now,
+                    "last_touched_at": now,
+                }
+            )
+        )
+        self.upsert_thread_projection(
+            thread.model_copy(
+                update={
+                    "context": self._merge_thread_context(
+                        thread.context,
+                        {
+                            "sequence_status": "active",
+                            "suppression_reason": None,
+                            "suppressed_at": None,
+                            "last_operator_note": note,
+                        },
+                    ),
+                    "updated_at": now,
+                }
+            )
+        )
+
+        return MissionControlLeadActionResponse(
+            thread_id=thread.id,
+            lead_name=thread.contact.display_name,
+            action="unsuppressed",
+            suppression_count=archived_count,
+            lead_status=str(lead_after_restore.lifecycle_status),
+            note=note,
+            reason=None,
+            updated_at=now,
+        )
+
+    def _require_thread_projection(self, thread_id: str) -> MissionControlThreadRecord:
+        with self.client.transaction() as store:
+            thread = store.mission_control_threads.get(thread_id)
+            if thread is None:
+                raise KeyError(thread_id)
+            if isinstance(thread, MissionControlThreadRecord):
+                return thread
+            return MissionControlThreadRecord.model_validate(thread)
+
+    def _resolve_lead_for_thread(self, thread: MissionControlThreadRecord) -> LeadRecord | None:
+        lead_id = self._context_value(thread.context, "lead_id")
+        if lead_id is not None:
+            lead = self.leads_repository.get(lead_id)
+            if lead is not None:
+                return lead
+        if thread.contact.email:
+            lead = self.leads_repository.find_by_email(
+                business_id=thread.business_id,
+                environment=thread.environment,
+                email=thread.contact.email,
+            )
+            if lead is not None:
+                return lead
+        if thread.contact.phone:
+            normalized_phone = "".join(thread.contact.phone.split())
+            for lead in self.leads_repository.list(business_id=thread.business_id, environment=thread.environment):
+                if lead.phone is not None and "".join(lead.phone.split()) == normalized_phone:
+                    return lead
+        return None
+
+    def _complete_open_tasks_for_lead(
+        self,
+        *,
+        lead_id: str,
+        notes: str | None,
+        follow_up_outcome: str | None,
+        completed_at: datetime,
+    ) -> int:
+        completed_count = 0
+        for task in self.tasks_repository.list_for_lead(lead_id):
+            if task.status not in {TaskStatus.OPEN, TaskStatus.IN_PROGRESS, TaskStatus.BLOCKED}:
+                continue
+            if task.task_type not in {TaskType.MANUAL_CALL, TaskType.MANUAL_REVIEW, TaskType.FOLLOW_UP}:
+                continue
+            details = deepcopy(task.details)
+            details["completed_at"] = completed_at.isoformat()
+            if notes is not None:
+                details["operator_notes"] = notes
+            if follow_up_outcome is not None:
+                details["follow_up_outcome"] = follow_up_outcome
+            updated = self.tasks_repository.update(
+                task.id or "",
+                {
+                    "status": TaskStatus.COMPLETED,
+                    "details": details,
+                },
+            )
+            if updated is not None:
+                completed_count += 1
+        return completed_count
+
+    def _cancel_open_tasks_for_lead(
+        self,
+        *,
+        lead_id: str,
+        suppression_reason: str,
+        note: str | None,
+    ) -> int:
+        cancelled_count = 0
+        for task in self.tasks_repository.list_for_lead(lead_id):
+            if task.status not in {TaskStatus.OPEN, TaskStatus.IN_PROGRESS, TaskStatus.BLOCKED}:
+                continue
+            details = deepcopy(task.details)
+            details["suppression_reason"] = suppression_reason
+            if note is not None:
+                details["operator_note"] = note
+            updated = self.tasks_repository.update(
+                task.id or "",
+                {
+                    "status": TaskStatus.CANCELLED,
+                    "details": details,
+                },
+            )
+            if updated is not None:
+                cancelled_count += 1
+        return cancelled_count
+
+    def _set_campaign_memberships_status(
+        self,
+        *,
+        lead_id: str,
+        status: CampaignMembershipStatus,
+    ) -> int:
+        now = utc_now()
+        updated_count = 0
+        for membership in self.campaign_memberships_repository.list_for_lead(lead_id):
+            if membership.status == status:
+                continue
+            updates: dict[str, Any] = {
+                "status": status,
+                "last_synced_at": now,
+            }
+            if status == CampaignMembershipStatus.SUPPRESSED:
+                updates["unsubscribed_at"] = now
+            elif status == CampaignMembershipStatus.ACTIVE:
+                updates["unsubscribed_at"] = None
+            self.campaign_memberships_repository.upsert(membership.model_copy(update=updates))
+            updated_count += 1
+        return updated_count
+
+    def _archive_lead_suppressions(self, *, lead_id: str, note: str | None) -> int:
+        now = utc_now()
+        archived_count = 0
+        lead = self.leads_repository.get(lead_id)
+        if lead is None:
+            return 0
+        for suppression in self.suppression_repository.list_active(business_id=lead.business_id, environment=lead.environment):
+            if suppression.lead_id != lead_id and suppression.email != lead.email and suppression.phone != lead.phone:
+                continue
+            metadata = deepcopy(suppression.metadata)
+            metadata["archived_by"] = "mission_control"
+            if note is not None:
+                metadata["note"] = note
+            self.suppression_repository.upsert(
+                suppression.model_copy(
+                    update={
+                        "active": False,
+                        "archived_at": now,
+                        "metadata": metadata,
+                    }
+                )
+            )
+            archived_count += 1
+        return archived_count
+
+    @staticmethod
+    def _merge_thread_context(context: dict[str, Any], updates: dict[str, Any]) -> dict[str, Any]:
+        merged = deepcopy(context)
+        for key, value in updates.items():
+            if value is None:
+                merged.pop(key, None)
+            else:
+                merged[key] = value
+        return merged
 
     def get_lead_machine(
         self,

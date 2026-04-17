@@ -11,6 +11,7 @@ from app.models.automation_runs import AutomationRunRecord, AutomationRunStatus
 from app.models.campaigns import CampaignMembershipRecord, CampaignMembershipStatus, CampaignRecord, CampaignStatus
 from app.models.lead_events import LeadEventRecord
 from app.models.leads import LeadInterestStatus, LeadLifecycleStatus, LeadRecord, LeadSource
+from app.models.mission_control import MissionControlContactRecord, MissionControlMessageRecord, MissionControlThreadRecord
 from app.models.tasks import TaskPriority, TaskRecord, TaskStatus, TaskType
 from app.services.mission_control_service import MissionControlService
 
@@ -190,3 +191,164 @@ def test_get_lead_machine_builds_probate_outbound_summary() -> None:
     assert response.timeline.items[0].summary == "Call interested probate lead"
     assert response.timeline.items[1].summary == "lead_outbound_enrollment"
     assert response.timeline.items[2].summary == "lead.replied"
+
+
+def test_mission_control_task_actions_update_threads_leads_and_tasks() -> None:
+    client = InMemoryControlPlaneClient(InMemoryControlPlaneStore())
+    leads_repository = LeadsRepository(client)
+    campaigns_repository = CampaignsRepository(client)
+    memberships_repository = CampaignMembershipsRepository(client)
+    tasks_repository = TasksRepository(client)
+    service = MissionControlService(
+        client=client,
+        leads_repository=leads_repository,
+        campaigns_repository=campaigns_repository,
+        campaign_memberships_repository=memberships_repository,
+        tasks_repository=tasks_repository,
+    )
+    base_time = datetime(2026, 4, 17, 16, 0, tzinfo=UTC)
+
+    campaign = campaigns_repository.upsert(
+        CampaignRecord(
+            business_id="limitless",
+            environment="dev",
+            name="Call Back Wave",
+            status=CampaignStatus.ACTIVE,
+            created_at=base_time,
+            updated_at=base_time,
+        )
+    )
+    lead = leads_repository.upsert(
+        LeadRecord(
+            business_id="limitless",
+            environment="dev",
+            source=LeadSource.PROBATE_INTAKE,
+            lifecycle_status=LeadLifecycleStatus.ACTIVE,
+            campaign_id=campaign.id,
+            external_key="thread-lead-001",
+            email="operator@example.com",
+            phone="+15550001111",
+            first_name="Operator",
+            last_name="Lead",
+            created_at=base_time,
+            updated_at=base_time,
+        )
+    )
+    memberships_repository.upsert(
+        CampaignMembershipRecord(
+            business_id="limitless",
+            environment="dev",
+            lead_id=lead.id,
+            campaign_id=campaign.id,
+            status=CampaignMembershipStatus.ACTIVE,
+            subscribed_at=base_time,
+        )
+    )
+    task = tasks_repository.create(
+        TaskRecord(
+            business_id="limitless",
+            environment="dev",
+            lead_id=lead.id,
+            title="Call operator lead",
+            status=TaskStatus.OPEN,
+            task_type=TaskType.MANUAL_CALL,
+            priority=TaskPriority.HIGH,
+            due_at=base_time + timedelta(minutes=15),
+            idempotency_key="task-operator-lead",
+            details={"source": "mission_control"},
+            created_at=base_time,
+        )
+    )
+    thread = MissionControlThreadRecord(
+        business_id="limitless",
+        environment="dev",
+        channel="sms",
+        status="open",
+        unread_count=1,
+        contact=MissionControlContactRecord(display_name="Operator Lead", phone=lead.phone, email=lead.email),
+        messages=[
+            MissionControlMessageRecord(
+                direction="inbound",
+                channel="sms",
+                body="Please call me back.",
+                created_at=base_time + timedelta(minutes=1),
+            )
+        ],
+        context={
+            "lead_id": lead.id,
+            "manual_call_due_at": (base_time + timedelta(minutes=10)).isoformat(),
+            "reply_needs_review": True,
+            "sequence_status": "active",
+            "booking_status": "pending",
+        },
+        created_at=base_time,
+        updated_at=base_time,
+    )
+    service.upsert_thread_projection(thread)
+
+    complete_response = service.complete_task_for_thread(
+        thread_id=thread.id,
+        notes="Called and left a voicemail.",
+        follow_up_outcome="left_voicemail",
+    )
+
+    assert complete_response.thread_id == thread.id
+    assert complete_response.completed_task_count == 1
+    updated_task = tasks_repository.get(task.id)
+    assert updated_task is not None
+    assert updated_task.status == TaskStatus.COMPLETED
+    assert updated_task.details["operator_notes"] == "Called and left a voicemail."
+    assert updated_task.details["follow_up_outcome"] == "left_voicemail"
+    stored_thread = service._require_thread_projection(thread.id)
+    assert stored_thread.context.get("manual_call_due_at") is None
+    assert stored_thread.context["reply_needs_review"] is False
+    assert stored_thread.context["task_completion_note"] == "Called and left a voicemail."
+    assert stored_thread.context["follow_up_outcome"] == "left_voicemail"
+
+    review_task = tasks_repository.create(
+        TaskRecord(
+            business_id="limitless",
+            environment="dev",
+            lead_id=lead.id,
+            title="Review reply after callback",
+            status=TaskStatus.OPEN,
+            task_type=TaskType.SUPPRESSION_REVIEW,
+            priority=TaskPriority.NORMAL,
+            idempotency_key="task-review-follow-up",
+            details={"source": "review_queue"},
+            created_at=base_time + timedelta(minutes=1),
+        )
+    )
+
+    suppress_response = service.suppress_thread(thread_id=thread.id, reason="do_not_contact", note="owner requested")
+    assert suppress_response.action == "suppressed"
+    suppressed_lead = leads_repository.get(lead.id)
+    assert suppressed_lead is not None
+    assert suppressed_lead.lifecycle_status == LeadLifecycleStatus.SUPPRESSED
+    membership = memberships_repository.list_for_lead(lead.id)[0]
+    assert membership.status == CampaignMembershipStatus.SUPPRESSED
+    cancelled_task = tasks_repository.get(task.id)
+    assert cancelled_task is not None
+    assert cancelled_task.status == TaskStatus.COMPLETED
+    cancelled_review_task = tasks_repository.get(review_task.id)
+    assert cancelled_review_task is not None
+    assert cancelled_review_task.status == TaskStatus.CANCELLED
+    assert cancelled_review_task.details["suppression_reason"] == "do_not_contact"
+    suppressed_thread = service._require_thread_projection(thread.id)
+    assert suppressed_thread.context["sequence_status"] == "suppressed"
+    assert suppressed_thread.context.get("manual_call_due_at") is None
+    assert suppressed_thread.context["reply_needs_review"] is False
+    assert suppressed_thread.context["suppression_reason"] == "do_not_contact"
+
+    unsuppress_response = service.unsuppress_thread(thread_id=thread.id, note="reinstated")
+    assert unsuppress_response.action == "unsuppressed"
+    restored_lead = leads_repository.get(lead.id)
+    assert restored_lead is not None
+    assert restored_lead.lifecycle_status == LeadLifecycleStatus.ACTIVE
+    restored_membership = memberships_repository.list_for_lead(lead.id)[0]
+    assert restored_membership.status == CampaignMembershipStatus.ACTIVE
+    assert restored_membership.unsubscribed_at is None
+    restored_thread = service._require_thread_projection(thread.id)
+    assert restored_thread.context["sequence_status"] == "active"
+    assert restored_thread.context.get("suppression_reason") is None
+    assert restored_thread.context.get("suppressed_at") is None

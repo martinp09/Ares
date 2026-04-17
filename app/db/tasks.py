@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import Any
+
 from app.core.config import Settings, get_settings
 from app.db.client import ControlPlaneClient, get_control_plane_client, utc_now
 from app.db.marketing_supabase import (
@@ -66,6 +68,16 @@ class TasksRepository:
 
     def list_for_lead(self, lead_id: str) -> list[TaskRecord]:
         return self.list(lead_id=lead_id)
+
+    def update(self, task_id: str, updates: dict[str, Any]) -> TaskRecord | None:
+        now = utc_now()
+        with self.client.transaction() as store:
+            existing = store.tasks.get(task_id)
+            if existing is None:
+                return None
+            updated = existing.model_copy(update={**updates, "updated_at": now})
+            store.tasks[task_id] = updated
+            return updated
 
     def create_manual_call(
         self,
