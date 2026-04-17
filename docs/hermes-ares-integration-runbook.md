@@ -200,7 +200,13 @@ That keeps the integration isolated to the `ares-lab` profile instead of leaking
 
 ### 1) Local dev on one machine
 
-Use one terminal for each process.
+Use one terminal for each process, or let the repo print the commands for you:
+
+```bash
+make dev
+```
+
+That prints the same bootstrap steps below.
 
 Terminal 1 — Ares API:
 

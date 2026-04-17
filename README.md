@@ -72,7 +72,12 @@ Current implementation notes:
 - Lead machine smoke: `uv run python scripts/smoke/lead_machine_smoke.py`
 - Trigger.dev: `npx tsc -p trigger/tsconfig.json --noEmit`
 
-## Source Of Truth
+## Bootstrap
+
+- `make dev` prints the local Ares / Mission Control / Trigger bootstrap commands.
+- `make smoke` runs the lead machine smoke harness.
+
+## Source of Truth
 
 - `CONTEXT.md` for quick session routing
 - `memory.md` for indexed master memory

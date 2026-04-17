@@ -6,12 +6,14 @@ from app.db.campaigns import CampaignsRepository
 from app.db.client import InMemoryControlPlaneClient, InMemoryControlPlaneStore
 from app.db.lead_events import LeadEventsRepository
 from app.db.leads import LeadsRepository
+from app.db.opportunities import OpportunitiesRepository
 from app.db.tasks import TasksRepository
 from app.models.automation_runs import AutomationRunRecord, AutomationRunStatus
 from app.models.campaigns import CampaignMembershipRecord, CampaignMembershipStatus, CampaignRecord, CampaignStatus
 from app.models.lead_events import LeadEventRecord
 from app.models.leads import LeadInterestStatus, LeadLifecycleStatus, LeadRecord, LeadSource
 from app.models.mission_control import MissionControlContactRecord, MissionControlMessageRecord, MissionControlThreadRecord
+from app.models.opportunities import OpportunityRecord, OpportunitySourceLane, OpportunityStage
 from app.models.tasks import TaskPriority, TaskRecord, TaskStatus, TaskType
 from app.services.mission_control_service import MissionControlService
 
@@ -191,6 +193,40 @@ def test_get_lead_machine_builds_probate_outbound_summary() -> None:
     assert response.timeline.items[0].summary == "Call interested probate lead"
     assert response.timeline.items[1].summary == "lead_outbound_enrollment"
     assert response.timeline.items[2].summary == "lead.replied"
+
+
+def test_get_dashboard_groups_opportunities_by_lane_and_stage() -> None:
+    client = InMemoryControlPlaneClient(InMemoryControlPlaneStore())
+    opportunities_repository = OpportunitiesRepository(client)
+    service = MissionControlService(client=client, opportunities_repository=opportunities_repository)
+
+    opportunities_repository.upsert(
+        OpportunityRecord(
+            business_id="limitless",
+            environment="dev",
+            source_lane=OpportunitySourceLane.PROBATE,
+            lead_id="lead_1",
+            stage=OpportunityStage.QUALIFIED_OPPORTUNITY,
+        )
+    )
+    opportunities_repository.upsert(
+        OpportunityRecord(
+            business_id="limitless",
+            environment="dev",
+            source_lane=OpportunitySourceLane.LEASE_OPTION_INBOUND,
+            contact_id="contact_1",
+            stage=OpportunityStage.QUALIFIED_OPPORTUNITY,
+        )
+    )
+
+    dashboard = service.get_dashboard(business_id="limitless", environment="dev")
+
+    assert dashboard.opportunity_count == 2
+    assert [item.model_dump(mode="json") for item in dashboard.opportunity_stage_summaries or []] == [
+        {"source_lane": "lease_option_inbound", "stage": "qualified_opportunity", "count": 1},
+        {"source_lane": "probate", "stage": "qualified_opportunity", "count": 1},
+    ]
+
 
 
 def test_mission_control_task_actions_update_threads_leads_and_tasks() -> None:

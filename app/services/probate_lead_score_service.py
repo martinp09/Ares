@@ -18,7 +18,18 @@ class ProbateLeadScoreService:
     def score(self, lead: ProbateLeadRecord | Mapping[str, Any]) -> float:
         record = lead if isinstance(lead, ProbateLeadRecord) else ProbateLeadRecord.model_validate(lead)
         score = _BASE_FILING_TYPE_SCORES.get(record.filing_type, 35)
-        score += 8 if record.keep_now else -25
+        score += 12 if record.keep_now else -25
+
+        pain_stack = record.pain_stack if isinstance(record.pain_stack, dict) else {}
+        tax_delinquent = bool(record.tax_delinquent or pain_stack.get("tax_delinquent"))
+        estate_of = bool(record.estate_of or pain_stack.get("estate_of"))
+        if tax_delinquent:
+            score += 8
+        if estate_of:
+            score += 6
+        if tax_delinquent and estate_of:
+            score += 4
+
         if record.hcad_match_status == ProbateHCADMatchStatus.MATCHED:
             score += 14
         elif record.hcad_match_status == ProbateHCADMatchStatus.MULTIPLE:

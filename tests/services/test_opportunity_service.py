@@ -38,3 +38,26 @@ def test_advance_stage_rejects_backward_transition() -> None:
 
     with pytest.raises(ValueError):
         service.advance_stage(moved.id or "", OpportunityStage.QUALIFIED_OPPORTUNITY)
+
+
+def test_summarize_by_lane_and_stage_keeps_lane_and_stage_separate() -> None:
+    service = build_service()
+    service.create_for_lead(
+        business_id="limitless",
+        environment="dev",
+        lead_id="lead_1",
+        source_lane="probate",
+    )
+    service.create_for_contact(
+        business_id="limitless",
+        environment="dev",
+        contact_id="contact_1",
+        source_lane="lease_option_inbound",
+    )
+
+    summary = service.summarize_by_lane_and_stage(business_id="limitless", environment="dev")
+
+    assert [item.model_dump(mode="json") for item in summary] == [
+        {"source_lane": "lease_option_inbound", "stage": "qualified_opportunity", "count": 1},
+        {"source_lane": "probate", "stage": "qualified_opportunity", "count": 1},
+    ]

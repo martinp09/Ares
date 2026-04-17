@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from app.db.opportunities import OpportunitiesRepository
-from app.models.opportunities import OpportunityRecord, OpportunitySourceLane, OpportunityStage
+from app.models.opportunities import OpportunityLaneStageSummary, OpportunityRecord, OpportunitySourceLane, OpportunityStage
 
 _STAGE_ORDER = {
     OpportunityStage.QUALIFIED_OPPORTUNITY: 0,
@@ -74,6 +74,22 @@ class OpportunityService:
         if record.stage in {OpportunityStage.CLOSED, OpportunityStage.DEAD} and stage != record.stage:
             raise ValueError(f"cannot move terminal opportunity from {record.stage} to {stage}")
         return self.opportunities_repository.upsert(record.model_copy(update={"stage": stage}))
+
+    def summarize_by_lane_and_stage(
+        self,
+        *,
+        business_id: str | None = None,
+        environment: str | None = None,
+    ) -> list[OpportunityLaneStageSummary]:
+        opportunities = self.opportunities_repository.list(business_id=business_id, environment=environment)
+        counts: dict[tuple[str, str], int] = {}
+        for opportunity in opportunities:
+            key = (str(opportunity.source_lane), str(opportunity.stage))
+            counts[key] = counts.get(key, 0) + 1
+        return [
+            OpportunityLaneStageSummary(source_lane=lane, stage=stage, count=count)
+            for (lane, stage), count in sorted(counts.items())
+        ]
 
 
 opportunity_service = OpportunityService()

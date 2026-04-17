@@ -122,7 +122,7 @@ def test_intake_probate_cases_applies_upstream_overlays_before_keep_filtering() 
         {
             "case_number": "2026-10003",
             "keep_now": True,
-            "lead_score": 77.0,
+            "lead_score": 99.0,
             "hcad_match_status": "matched",
             "contact_confidence": "high",
             "bridged_lead_id": result["lead_ids"][0],
@@ -137,7 +137,7 @@ def test_intake_probate_cases_applies_upstream_overlays_before_keep_filtering() 
     assert persisted.custom_variables["tax_delinquent"] is True
     assert persisted.custom_variables["estate_of"] is True
     assert persisted.custom_variables["pain_stack"] == {"estate_of": True, "tax_delinquent": True}
-    assert persisted.score == 77.0
+    assert persisted.score == 99.0
     probate_lead = probate_leads_repository.get(persisted.raw_payload["probate_lead_id"])
     assert probate_lead is not None
     assert probate_lead.tax_delinquent is True

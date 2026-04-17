@@ -31,6 +31,31 @@ def test_unmatched_lead_without_mailing_address_scores_lower() -> None:
     assert service.score(lead) < 50
 
 
+def test_keep_now_leads_rank_above_generic_tax_delinquent_leads() -> None:
+    service = ProbateLeadScoreService()
+    keep_now_lead = ProbateLeadRecord(
+        case_number="2026-12346",
+        filing_type="PROBATE OF WILL (INDEPENDENT ADMINISTRATION)",
+        keep_now=True,
+        hcad_match_status=ProbateHCADMatchStatus.UNMATCHED,
+        contact_confidence=ProbateContactConfidence.LOW,
+        mailing_address="123 Main St, Houston, TX 77002",
+        decedent_name="Keep Now Lead",
+    )
+    tax_delinquent_lead = ProbateLeadRecord(
+        case_number="2026-12347",
+        filing_type="INDEPENDENT ADMINISTRATION",
+        keep_now=False,
+        hcad_match_status=ProbateHCADMatchStatus.UNMATCHED,
+        contact_confidence=ProbateContactConfidence.LOW,
+        pain_stack={"tax_delinquent": True},
+        tax_delinquent=True,
+        decedent_name="Tax Delinquent Lead",
+    )
+
+    assert service.score(keep_now_lead) > service.score(tax_delinquent_lead)
+
+
 def test_score_lead_returns_updated_record() -> None:
     service = ProbateLeadScoreService()
     lead = ProbateLeadRecord(

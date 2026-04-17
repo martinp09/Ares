@@ -80,3 +80,11 @@ class OpportunityRecord(BaseModel):
         if self.lead_id:
             return f"lead:{self.lead_id}"
         return f"contact:{self.contact_id}"
+
+
+class OpportunityLaneStageSummary(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    source_lane: OpportunitySourceLane
+    stage: OpportunityStage
+    count: int = Field(ge=0)

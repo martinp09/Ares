@@ -66,6 +66,7 @@ from app.services.agent_asset_service import AgentAssetService, agent_asset_serv
 from app.services.agent_registry_service import AgentRegistryService, agent_registry_service
 from app.services.approval_service import ApprovalService, approval_service
 from app.services.audit_service import audit_service
+from app.services.opportunity_service import OpportunityService
 from app.services.provider_extras_service import provider_extras_service
 from app.services.providers.resend import get_resend_status, send_test_email
 from app.services.providers.textgrid import get_textgrid_status, send_test_sms
@@ -83,6 +84,7 @@ class MissionControlService:
         agent_registry_service_dependency: AgentRegistryService | None = None,
         agent_asset_service_dependency: AgentAssetService | None = None,
         opportunities_repository: OpportunitiesRepository | None = None,
+        opportunity_service_dependency: OpportunityService | None = None,
         campaigns_repository: CampaignsRepository | None = None,
         leads_repository: LeadsRepository | None = None,
         suppression_repository: SuppressionRepository | None = None,
@@ -96,6 +98,7 @@ class MissionControlService:
         self.agent_registry_service = agent_registry_service_dependency or agent_registry_service
         self.agent_asset_service = agent_asset_service_dependency or agent_asset_service
         self.opportunities_repository = opportunities_repository or OpportunitiesRepository(client=self.client)
+        self.opportunity_service = opportunity_service_dependency or OpportunityService(self.opportunities_repository)
         self.campaigns_repository = campaigns_repository or CampaignsRepository(client=self.client)
         self.leads_repository = leads_repository or LeadsRepository(client=self.client)
         self.suppression_repository = suppression_repository or SuppressionRepository(client=self.client)
@@ -132,7 +135,6 @@ class MissionControlService:
                 for thread in store.mission_control_threads.values()
                 if self._matches_scope(thread.business_id, thread.environment, business_id, environment)
             ]
-        opportunities = self.opportunities_repository.list(business_id=business_id, environment=environment)
         lead_machine_summary = self._build_lead_machine_summary(business_id=business_id, environment=environment)
 
         latest_timestamps: list[datetime] = [approval.created_at for approval in approvals]
@@ -164,15 +166,16 @@ class MissionControlService:
         replies_needing_review_count = sum(
             1 for thread in threads if bool(thread.context.get("reply_needs_review"))
         )
-        opportunity_stage_counts: dict[tuple[str, str], int] = {}
-        for opportunity in opportunities:
-            lane = str(opportunity.source_lane)
-            stage = str(opportunity.stage)
-            key = (lane, stage)
-            opportunity_stage_counts[key] = opportunity_stage_counts.get(key, 0) + 1
         opportunity_stage_summaries = [
-            MissionControlOpportunityStageSummary(source_lane=lane, stage=stage, count=count)
-            for (lane, stage), count in sorted(opportunity_stage_counts.items())
+            MissionControlOpportunityStageSummary(
+                source_lane=str(summary.source_lane),
+                stage=str(summary.stage),
+                count=summary.count,
+            )
+            for summary in self.opportunity_service.summarize_by_lane_and_stage(
+                business_id=business_id,
+                environment=environment,
+            )
         ]
         has_marketing_context = any(self._has_marketing_context(thread.context) for thread in threads)
         has_lead_machine_context = lead_machine_summary is not None
@@ -198,7 +201,7 @@ class MissionControlService:
             due_manual_call_count=(due_manual_call_count if has_marketing_context else None),
             replies_needing_review_count=(replies_needing_review_count if has_marketing_context else None),
             lead_machine_summary=(lead_machine_summary if has_lead_machine_context else None),
-            opportunity_count=(sum(opportunity_stage_counts.values()) if has_opportunity_context else None),
+            opportunity_count=(sum(summary.count for summary in opportunity_stage_summaries) if has_opportunity_context else None),
             opportunity_stage_summaries=(opportunity_stage_summaries if has_opportunity_context else None),
             system_status=system_status,
             updated_at=latest_updated_at.isoformat(),
