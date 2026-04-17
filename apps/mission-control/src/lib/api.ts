@@ -6,7 +6,8 @@ export type MissionControlView =
   | "agents"
   | "settings"
   | "tasks"
-  | "pipeline";
+  | "pipeline"
+  | "suppression";
 export type MissionControlDataSource = "api" | "fixture";
 export type SystemStatus = "healthy" | "watch" | "degraded";
 export type ApprovalRisk = "low" | "medium" | "high";

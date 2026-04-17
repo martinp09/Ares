@@ -1,10 +1,10 @@
 ---
 title: "Ares TODO / Handoff"
 status: active
-updated_at: "2026-04-16T17:51:37Z"
+updated_at: "2026-04-17T14:26:56Z"
 repo: "martinp09/Ares"
-local_checkout: "/home/workspace/Hermes-Central-Command"
-current_branch: "feature/ares-enterprise-platform"
+local_checkout: "/home/workspace/Hermes-Central-Command/.worktrees/loose-ends"
+current_branch: "feature/loose-ends"
 ---
 
 # Ares TODO / Handoff
@@ -30,15 +30,15 @@ current_branch: "feature/ares-enterprise-platform"
    - [done] `tasks`
    - [done] in-memory repository + store wiring + package exports
 3. Wire the Trigger.dev jobs:
-   - `lead-intake`
-   - `instantly-enqueue-lead`
-   - `instantly-webhook-ingest`
-   - `create-manual-call-task`
-   - `followup-step-runner`
-   - `suppression-sync`
-   - `task-reminder-or-overdue`
-4. Enforce the hard rule that only `email.sent` creates a manual call task.
-5. Build Mission Control fixture views for the inbox, lead timeline, suppression state, and exceptions.
+   - [done] `lead-intake`
+   - [done] `instantly-enqueue-lead`
+   - [done] `instantly-webhook-ingest`
+   - [done] `create-manual-call-task`
+   - [done] `followup-step-runner`
+   - [done] `suppression-sync`
+   - [done] `task-reminder-or-overdue`
+4. [done] Enforce the hard rule that only `email.sent` creates a manual call task.
+5. [done] Build Mission Control fixture views for the inbox, lead timeline, suppression state, and exceptions.
 6. Verify idempotency, duplicate suppression, and webhook replay safety.
 
 ## Notes

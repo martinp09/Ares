@@ -80,7 +80,7 @@ export const runLeaseOptionSequenceStep = task({
     });
 
     if (currentStep.manualCallCheckpoint) {
-      await tasks.trigger("marketing-create-manual-call-task", {
+      await tasks.trigger("create-manual-call-task", {
         leadId: payload.leadId,
         businessId: payload.businessId,
         environment: payload.environment,

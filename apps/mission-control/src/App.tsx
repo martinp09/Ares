@@ -18,6 +18,7 @@ import { DashboardPage } from "./pages/DashboardPage";
 import { InboxPage } from "./pages/InboxPage";
 import { PipelinePage } from "./pages/PipelinePage";
 import { RunsPage } from "./pages/RunsPage";
+import { SuppressionPage } from "./pages/SuppressionPage";
 import { TasksPage } from "./pages/TasksPage";
 
 const api = createMissionControlApi();
@@ -117,6 +118,7 @@ export default function App() {
             ["runs", runs.source],
             ["agents", agents.source],
             ["settings", assets.source],
+            ["suppression", dashboard.source],
           ] as const
         )
           .filter(([, source]) => source === "fixture")
@@ -224,6 +226,7 @@ export default function App() {
           items: [
             { id: "dashboard", label: "Queue", badge: snapshot.dashboard.pendingLeadCount ?? 0 },
             { id: "inbox", label: "Replies", badge: snapshot.dashboard.unreadConversationCount },
+            { id: "suppression", label: "Suppression", badge: snapshot.dashboard.repliesNeedingReviewCount ?? 0 },
             { id: "runs", label: "Campaign State", badge: snapshot.dashboard.activeRunCount },
             { id: "tasks", label: "Tasks", badge: snapshot.dashboard.dueManualCallCount ?? 0 },
           ],
@@ -266,6 +269,29 @@ export default function App() {
                 `Stage: ${contextThread.stage}`,
                 `Tags: ${contextThread.tags.join(", ") || "none"}`,
                 ...contextThread.notes,
+              ]}
+            />
+          ),
+        },
+        suppression: {
+          title: "Lead Machine / Suppression",
+          subtitle: "Track review queues, blocked leads, and the exceptions that stop the lane cold.",
+          mainContent: (
+            <SuppressionPage
+              dashboard={snapshot.dashboard}
+              inbox={snapshot.inbox}
+              runs={filteredRuns}
+              tasks={{ dueCount: filteredTasks.length, tasks: filteredTasks }}
+            />
+          ),
+          contextContent: (
+            <ContextPanel
+              eyebrow="Suppression posture"
+              title="Exceptions stay explicit"
+              items={[
+                `${snapshot.dashboard.repliesNeedingReviewCount ?? 0} replies need review`,
+                `${snapshot.dashboard.failedRunCount} failed runs`,
+                `${filteredTasks.length} tasks waiting on human action`,
               ]}
             />
           ),
