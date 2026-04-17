@@ -5,6 +5,7 @@ from app.api.agents import router as agents_router
 from app.api.approvals import router as approvals_router
 from app.api.commands import router as commands_router
 from app.api.hermes_tools import router as hermes_tools_router
+from app.api.lead_machine import router as lead_machine_router
 from app.api.marketing import router as marketing_router
 from app.api.mission_control import router as mission_control_router
 from app.api.outcomes import router as outcomes_router
@@ -47,6 +48,7 @@ def create_app() -> FastAPI:
     app.include_router(site_events_router, dependencies=protected_dependencies)
     app.include_router(trigger_callbacks_router, dependencies=protected_dependencies)
     app.include_router(marketing_router, dependencies=protected_dependencies)
+    app.include_router(lead_machine_router, dependencies=protected_dependencies)
 
     @app.get("/health")
     def health_check(_: Settings = Depends(settings_dependency)) -> dict[str, str]:

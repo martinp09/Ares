@@ -132,11 +132,25 @@ async def handle_calcom_webhook(
     request: Request,
     x_cal_signature: str | None = Header(default=None),
 ) -> BookingWebhookResponse:
+    raw_body = await request.body()
     payload = await request.json()
     handler = booking_service.handle_calcom_webhook
-    kwargs = {"signature": x_cal_signature}
-    if "raw_body" in inspect.signature(handler).parameters:
-        kwargs["raw_body"] = await request.body()
+    signature_params = inspect.signature(handler).parameters
+    kwargs: dict[str, Any] = {"signature": x_cal_signature}
+    if "raw_body" in signature_params:
+        kwargs["raw_body"] = raw_body
+    if "request_url" in signature_params:
+        kwargs["request_url"] = str(request.url)
+    if "request_headers" in signature_params:
+        kwargs["request_headers"] = dict(request.headers)
+    if "provider_event_id" in signature_params:
+        kwargs["provider_event_id"] = request.headers.get("x-cal-event-id")
+    if "idempotency_key" in signature_params:
+        kwargs["idempotency_key"] = (
+            request.headers.get("x-cal-event-id")
+            or request.headers.get("x-cal-request-id")
+            or request.headers.get("x-request-id")
+        )
     try:
         result = handler(payload, **kwargs)
     except ValueError as exc:
@@ -149,12 +163,28 @@ async def handle_textgrid_webhook(
     request: Request,
     x_textgrid_signature: str | None = Header(default=None),
 ) -> SmsWebhookResponse:
+    raw_body = await request.body()
     payload = await request.json()
     handler = inbound_sms_service.handle_textgrid_webhook
-    kwargs = {"signature": x_textgrid_signature}
+    kwargs: dict[str, Any] = {"signature": x_textgrid_signature}
     signature_params = inspect.signature(handler).parameters
     if "request_url" in signature_params:
         kwargs["request_url"] = str(request.url)
+    if "raw_body" in signature_params:
+        kwargs["raw_body"] = raw_body
+    if "request_headers" in signature_params:
+        kwargs["request_headers"] = dict(request.headers)
+    if "provider_event_id" in signature_params:
+        kwargs["provider_event_id"] = (
+            request.headers.get("x-textgrid-event-id")
+            or request.headers.get("x-textgrid-message-id")
+        )
+    if "idempotency_key" in signature_params:
+        kwargs["idempotency_key"] = (
+            request.headers.get("x-textgrid-event-id")
+            or request.headers.get("x-textgrid-message-id")
+            or request.headers.get("x-request-id")
+        )
     try:
         result = handler(payload, **kwargs)
     except ValueError as exc:

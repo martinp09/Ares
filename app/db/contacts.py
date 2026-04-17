@@ -72,15 +72,25 @@ class ContactsRepository:
         self,
         *,
         phone: str,
+        business_id: str | None = None,
+        environment: str | None = None,
     ) -> MarketingLeadRecord | None:
         if marketing_backend_enabled(self.settings) and not self._force_memory:
-            return self._find_by_phone_in_supabase(phone=phone)
+            return self._find_by_phone_in_supabase(
+                phone=phone,
+                business_id=business_id,
+                environment=environment,
+            )
         with self.client.transaction() as store:
             contact_rows: dict[str, MarketingLeadRecord] = getattr(
                 store, "marketing_contact_rows", {}
             )
             for record in contact_rows.values():
                 if record.phone == phone:
+                    if business_id is not None and record.business_id != business_id:
+                        continue
+                    if environment is not None and record.environment != environment:
+                        continue
                     return record
             return None
 
@@ -184,14 +194,25 @@ class ContactsRepository:
         row = rows[0]
         return self._record_from_supabase(row, str(row["business_id"]), str(row["environment"]))
 
-    def _find_by_phone_in_supabase(self, *, phone: str) -> MarketingLeadRecord | None:
+    def _find_by_phone_in_supabase(
+        self,
+        *,
+        phone: str,
+        business_id: str | None = None,
+        environment: str | None = None,
+    ) -> MarketingLeadRecord | None:
+        params = {
+            "select": "id,external_contact_id,name,email,phone,metadata,business_id,environment,created_at,updated_at",
+            "phone": f"eq.{phone}",
+            "limit": "1",
+        }
+        if business_id is not None and environment is not None:
+            tenant = resolve_tenant(business_id, environment, settings=self.settings)
+            params["business_id"] = f"eq.{tenant.business_pk}"
+            params["environment"] = f"eq.{tenant.environment}"
         rows = fetch_rows(
             "contacts",
-            params={
-                "select": "id,external_contact_id,name,email,phone,metadata,business_id,environment,created_at,updated_at",
-                "phone": f"eq.{phone}",
-                "limit": "1",
-            },
+            params=params,
             settings=self.settings,
         )
         if not rows:

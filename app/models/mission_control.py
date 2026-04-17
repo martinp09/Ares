@@ -5,18 +5,13 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from app.models.agent_assets import AgentAssetStatus, AgentAssetType
+from app.models.approvals import ApprovalStatus
 from app.models.commands import generate_id
 from app.models.runs import RunStatus
-from app.models.tasks import TaskPriority, TaskStatus, TaskType
-from app.models.turns import TurnStatus
 
 MissionControlThreadStatus = Literal["open", "waiting", "closed"]
 MissionControlMessageDirection = Literal["inbound", "outbound", "internal"]
-MissionControlApprovalRisk = Literal["low", "medium", "high"]
-MissionControlAssetStatus = Literal["connected", "attention", "unbound"]
-MissionControlProviderName = Literal["textgrid", "resend"]
-MissionControlProviderChannel = Literal["sms", "email"]
-MissionControlOutboundSendStatus = Literal["queued", "sent", "failed"]
 
 
 class MissionControlContactRecord(BaseModel):
@@ -55,12 +50,6 @@ class MissionControlThreadRecord(BaseModel):
     requires_approval: bool = False
     related_run_id: str | None = None
     related_approval_id: str | None = None
-    booking_status: str | None = None
-    sequence_status: str | None = None
-    next_sequence_step: str | None = None
-    manual_call_due_at: str | None = None
-    recent_reply_preview: str | None = None
-    reply_needs_review: bool = False
     context: dict[str, Any] = Field(default_factory=dict)
     created_at: datetime
     updated_at: datetime
@@ -73,64 +62,112 @@ class MissionControlDashboardResponse(BaseModel):
     active_run_count: int = Field(ge=0)
     failed_run_count: int = Field(ge=0)
     active_agent_count: int = Field(ge=0)
-    unread_conversation_count: int = Field(ge=0)
-    busy_channel_count: int = Field(ge=0)
-    recent_completed_count: int = Field(ge=0)
-    pending_lead_count: int = Field(ge=0)
-    booked_lead_count: int = Field(ge=0)
-    active_non_booker_enrollment_count: int = Field(ge=0)
-    due_manual_call_count: int = Field(ge=0)
-    replies_needing_review_count: int = Field(ge=0)
-    system_status: str
-    updated_at: datetime
+    unread_conversation_count: int = Field(default=0, ge=0)
+    busy_channel_count: int = Field(default=0, ge=0)
+    recent_completed_count: int = Field(default=0, ge=0)
+    pending_lead_count: int | None = Field(default=None, ge=0)
+    booked_lead_count: int | None = Field(default=None, ge=0)
+    active_non_booker_enrollment_count: int | None = Field(default=None, ge=0)
+    due_manual_call_count: int | None = Field(default=None, ge=0)
+    replies_needing_review_count: int | None = Field(default=None, ge=0)
+    lead_machine_summary: MissionControlLeadMachineSummary | None = None
+    opportunity_count: int | None = Field(default=None, ge=0)
+    opportunity_stage_summaries: list[MissionControlOpportunityStageSummary] | None = None
+    system_status: Literal["healthy", "watch", "degraded"] = "healthy"
+    updated_at: str
 
 
-class MissionControlProviderStatus(BaseModel):
+class MissionControlLeadMachineSummary(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    provider: MissionControlProviderName
-    configured: bool
-    can_send: bool
-    sender_identity: str | None = None
-    endpoint: str | None = None
-    details: str | None = None
-    checked_at: datetime
+    active_campaign_count: int = Field(ge=0)
+    ready_lead_count: int = Field(ge=0)
+    active_lead_count: int = Field(ge=0)
+    interested_lead_count: int = Field(ge=0)
+    suppressed_lead_count: int = Field(ge=0)
 
 
-class MissionControlProvidersStatusResponse(BaseModel):
+class MissionControlLeadMachineQueueSummary(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    sms: MissionControlProviderStatus
-    email: MissionControlProviderStatus
+    total_lead_count: int = Field(ge=0)
+    ready_count: int = Field(ge=0)
+    active_count: int = Field(ge=0)
+    suppressed_count: int = Field(ge=0)
+    interested_count: int = Field(ge=0)
 
 
-class MissionControlSmsTestRequest(BaseModel):
+class MissionControlLeadMachineCampaignSummary(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    to: str = Field(min_length=1)
-    body: str = Field(min_length=1)
+    campaign_id: str
+    name: str
+    status: str
+    member_count: int = Field(ge=0)
+    active_member_count: int = Field(ge=0)
+    suppressed_member_count: int = Field(ge=0)
 
 
-class MissionControlEmailTestRequest(BaseModel):
+class MissionControlLeadMachineCampaignsSummary(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    to: str = Field(min_length=1)
-    subject: str = Field(min_length=1)
-    text: str = Field(min_length=1)
-    html: str | None = None
+    total_campaign_count: int = Field(ge=0)
+    active_campaign_count: int = Field(ge=0)
+    items: list[MissionControlLeadMachineCampaignSummary] = Field(default_factory=list)
 
 
-class MissionControlOutboundSendResponse(BaseModel):
+class MissionControlLeadMachineTaskSummary(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    channel: MissionControlProviderChannel
-    provider: MissionControlProviderName
-    status: MissionControlOutboundSendStatus
-    provider_message_id: str | None = None
-    to: str
-    from_identity: str | None = None
-    attempted_at: datetime
-    error_message: str | None = None
+    task_id: str
+    title: str
+    status: str
+    priority: str
+    lead_id: str | None = None
+    due_at: datetime | None = None
+
+
+class MissionControlLeadMachineTasksSummary(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    open_count: int = Field(ge=0)
+    items: list[MissionControlLeadMachineTaskSummary] = Field(default_factory=list)
+
+
+class MissionControlLeadMachineTimelineItem(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    kind: Literal["event", "run", "task"]
+    occurred_at: datetime
+    summary: str = Field(min_length=1)
+    lead_id: str | None = None
+    campaign_id: str | None = None
+    task_id: str | None = None
+    automation_run_id: str | None = None
+
+
+class MissionControlLeadMachineTimelineSummary(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    items: list[MissionControlLeadMachineTimelineItem] = Field(default_factory=list)
+
+
+class MissionControlOpportunityStageSummary(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    source_lane: str = Field(min_length=1)
+    stage: str = Field(min_length=1)
+    count: int = Field(ge=0)
+
+
+class MissionControlLeadMachineResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    queue: MissionControlLeadMachineQueueSummary
+    campaigns: MissionControlLeadMachineCampaignsSummary
+    tasks: MissionControlLeadMachineTasksSummary
+    timeline: MissionControlLeadMachineTimelineSummary
+    updated_at: str
 
 
 class MissionControlInboxSummary(BaseModel):
@@ -153,13 +190,13 @@ class MissionControlThreadSummary(BaseModel):
     requires_approval: bool = False
     related_run_id: str | None = None
     related_approval_id: str | None = None
-    contact: MissionControlContactRecord
     booking_status: str | None = None
     sequence_status: str | None = None
     next_sequence_step: str | None = None
     manual_call_due_at: str | None = None
     recent_reply_preview: str | None = None
     reply_needs_review: bool = False
+    contact: MissionControlContactRecord
 
 
 class MissionControlThreadDetail(BaseModel):
@@ -172,13 +209,13 @@ class MissionControlThreadDetail(BaseModel):
     requires_approval: bool = False
     related_run_id: str | None = None
     related_approval_id: str | None = None
-    contact: MissionControlContactRecord
     booking_status: str | None = None
     sequence_status: str | None = None
     next_sequence_step: str | None = None
     manual_call_due_at: str | None = None
     recent_reply_preview: str | None = None
     reply_needs_review: bool = False
+    contact: MissionControlContactRecord
     messages: list[MissionControlMessageRecord] = Field(default_factory=list)
     context: dict[str, Any] = Field(default_factory=dict)
 
@@ -190,6 +227,27 @@ class MissionControlInboxResponse(BaseModel):
     threads: list[MissionControlThreadSummary] = Field(default_factory=list)
     selected_thread_id: str | None = None
     selected_thread: MissionControlThreadDetail | None = None
+
+
+class MissionControlTaskSummary(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    thread_id: str
+    lead_name: str
+    channel: str
+    booking_status: str | None = None
+    sequence_status: str | None = None
+    next_sequence_step: str | None = None
+    manual_call_due_at: str
+    recent_reply_preview: str | None = None
+    reply_needs_review: bool = False
+
+
+class MissionControlTasksResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    due_count: int = Field(default=0, ge=0)
+    tasks: list[MissionControlTaskSummary] = Field(default_factory=list)
 
 
 class MissionControlRunSummary(BaseModel):
@@ -218,40 +276,19 @@ class MissionControlRunsResponse(BaseModel):
     runs: list[MissionControlRunSummary] = Field(default_factory=list)
 
 
-class MissionControlTurnSummary(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-
-    id: str
-    session_id: str
-    org_id: str
-    business_id: str
-    environment: str
-    agent_id: str
-    agent_revision_id: str
-    turn_number: int = Field(ge=1)
-    state: TurnStatus
-    retry_count: int = Field(default=0, ge=0)
-    resumed_from_turn_id: str | None = None
-    updated_at: datetime
-
-
-class MissionControlTurnsResponse(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-
-    turns: list[MissionControlTurnSummary] = Field(default_factory=list)
-
-
 class MissionControlApprovalSummary(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     id: str
-    title: str
-    reason: str
-    risk_level: MissionControlApprovalRisk
-    status: str
+    command_id: str
+    business_id: str
+    environment: str
     command_type: str
-    requested_at: datetime
-    payload_preview: str
+    status: ApprovalStatus
+    payload_snapshot: dict[str, Any] = Field(default_factory=dict)
+    created_at: datetime
+    approved_at: datetime | None = None
+    actor_id: str | None = None
 
 
 class MissionControlApprovalsResponse(BaseModel):
@@ -260,96 +297,18 @@ class MissionControlApprovalsResponse(BaseModel):
     approvals: list[MissionControlApprovalSummary] = Field(default_factory=list)
 
 
-class MissionControlTaskSummary(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-
-    thread_id: str
-    lead_name: str
-    channel: str
-    booking_status: str
-    sequence_status: str
-    next_sequence_step: str
-    manual_call_due_at: str
-    recent_reply_preview: str | None = None
-    reply_needs_review: bool = False
-
-
-class MissionControlTasksResponse(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-
-    due_count: int = Field(ge=0)
-    tasks: list[MissionControlTaskSummary] = Field(default_factory=list)
-
-
-class MissionControlLeadMachineSummary(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-
-    lead_count: int = Field(ge=0)
-    task_count: int = Field(ge=0)
-    open_task_count: int = Field(ge=0)
-    event_count: int = Field(ge=0)
-    suppression_count: int = Field(ge=0)
-
-
-class MissionControlLeadMachineTaskRecord(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-
-    id: str
-    business_id: str
-    environment: str
-    lead_id: str | None = None
-    campaign_id: str | None = None
-    lead_name: str | None = None
-    lead_email: str | None = None
-    title: str
-    status: TaskStatus
-    task_type: TaskType
-    priority: TaskPriority
-    due_at: datetime | None = None
-    assigned_to: str | None = None
-    source_event_id: str | None = None
-    created_at: datetime
-    updated_at: datetime
-    details: dict[str, Any] = Field(default_factory=dict)
-
-
-class MissionControlLeadMachineTimelineRecord(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-
-    id: str
-    business_id: str
-    environment: str
-    lead_id: str
-    campaign_id: str | None = None
-    lead_name: str | None = None
-    lead_email: str | None = None
-    event_type: str
-    provider_name: str | None = None
-    provider_event_id: str | None = None
-    provider_receipt_id: str | None = None
-    event_timestamp: datetime
-    received_at: datetime
-    metadata: dict[str, Any] = Field(default_factory=dict)
-
-
-class MissionControlLeadMachineResponse(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-
-    summary: MissionControlLeadMachineSummary
-    tasks: list[MissionControlLeadMachineTaskRecord] = Field(default_factory=list)
-    timeline: list[MissionControlLeadMachineTimelineRecord] = Field(default_factory=list)
-
-
 class MissionControlAgentSummary(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     id: str
-    name: str
-    active_revision_id: str | None = None
-    active_revision_state: str
+    business_id: str
     environment: str
-    live_session_count: int = Field(ge=0)
-    delegated_work_count: int = Field(ge=0)
+    name: str
+    description: str | None = None
+    active_revision_id: str | None = None
+    active_revision_state: str | None = None
+    created_at: datetime
+    updated_at: datetime
 
 
 class MissionControlAgentsResponse(BaseModel):
@@ -362,10 +321,14 @@ class MissionControlAssetSummary(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     id: str
-    name: str
-    category: str
-    status: MissionControlAssetStatus
-    binding_target: str
+    agent_id: str
+    business_id: str
+    environment: str
+    asset_type: AgentAssetType
+    label: str
+    connect_later: bool
+    status: AgentAssetStatus
+    binding_reference: str | None = None
     updated_at: datetime
 
 

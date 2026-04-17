@@ -35,11 +35,6 @@ describe("App", () => {
           recent_completed_count: 3,
           system_status: "watch",
           updated_at: "2026-04-13T20:00:00+00:00",
-          pending_lead_count: 1,
-          booked_lead_count: 1,
-          active_non_booker_enrollment_count: 1,
-          due_manual_call_count: 1,
-          replies_needing_review_count: 1,
         });
       }
 
@@ -76,7 +71,7 @@ describe("App", () => {
                 requires_approval: true,
                 related_run_id: null,
                 related_approval_id: null,
-                contact: { display_name: "Taylor Brooks", phone: "+155****0001" },
+                contact: { display_name: "Taylor Brooks", phone: "+15551230001" },
                 messages: [
                   {
                     id: "msg-1",
@@ -103,13 +98,7 @@ describe("App", () => {
               requires_approval: true,
               related_run_id: null,
               related_approval_id: null,
-              contact: { display_name: "Taylor Brooks", phone: "+155****0001" },
-              booking_status: "pending",
-              sequence_status: "active",
-              next_sequence_step: "manual_call_day_3",
-              manual_call_due_at: "2026-04-13T20:16:00+00:00",
-              recent_reply_preview: "Taylor preview",
-              reply_needs_review: true,
+              contact: { display_name: "Taylor Brooks", phone: "+15551230001" },
             },
             {
               thread_id: "thread-2",
@@ -122,17 +111,15 @@ describe("App", () => {
               related_run_id: null,
               related_approval_id: null,
               contact: { display_name: "Jordan Patel", email: "jordan@example.com" },
-              booking_status: "pending",
-              sequence_status: "active",
-              next_sequence_step: "send_packet",
-              manual_call_due_at: null,
-              recent_reply_preview: "Jordan preview",
-              reply_needs_review: false,
             },
           ],
-          selected_thread_id: selectedThreadId ?? "thread-1",
+          selected_thread_id: selectedThread.thread_id,
           selected_thread: selectedThread,
         });
+      }
+
+      if (url.includes("/mission-control/tasks")) {
+        return jsonResponse({ due_count: 0, tasks: [] });
       }
 
       if (url.includes("/mission-control/approvals")) {
@@ -141,26 +128,6 @@ describe("App", () => {
 
       if (url.includes("/mission-control/runs")) {
         return jsonResponse({ runs: [] });
-      }
-
-      if (url.includes("/mission-control/turns")) {
-        return jsonResponse({
-          turns: [
-            {
-              id: "turn-1",
-              session_id: "ses-1",
-              business_id: "limitless",
-              environment: "dev",
-              agent_id: "agt-1",
-              agent_revision_id: "rev-1",
-              turn_number: 1,
-              state: "completed",
-              retry_count: 0,
-              resumed_from_turn_id: null,
-              updated_at: "2026-04-13T20:00:00+00:00",
-            },
-          ],
-        });
       }
 
       if (url.includes("/mission-control/agents")) {
@@ -178,7 +145,7 @@ describe("App", () => {
 
     render(<App />);
 
-    fireEvent.click(await screen.findByRole("button", { name: /inbox/i }));
+    fireEvent.click(await screen.findByRole("button", { name: /replies/i }));
 
     expect(await screen.findByText("Taylor detail from API")).toBeInTheDocument();
 
@@ -210,11 +177,6 @@ describe("App", () => {
           recent_completed_count: 3,
           system_status: "watch",
           updated_at: "2026-04-13T20:00:00+00:00",
-          pending_lead_count: 1,
-          booked_lead_count: 1,
-          active_non_booker_enrollment_count: 1,
-          due_manual_call_count: 1,
-          replies_needing_review_count: 1,
         });
       }
 
@@ -238,13 +200,7 @@ describe("App", () => {
               requires_approval: true,
               related_run_id: null,
               related_approval_id: null,
-              contact: { display_name: "Taylor Brooks", phone: "+155****0001" },
-              booking_status: "pending",
-              sequence_status: "active",
-              next_sequence_step: "manual_call_day_3",
-              manual_call_due_at: "2026-04-13T20:16:00+00:00",
-              recent_reply_preview: "Taylor preview",
-              reply_needs_review: true,
+              contact: { display_name: "Taylor Brooks", phone: "+15551230001" },
             },
             {
               thread_id: "thread-2",
@@ -257,12 +213,6 @@ describe("App", () => {
               related_run_id: null,
               related_approval_id: null,
               contact: { display_name: "Jordan Patel", email: "jordan@example.com" },
-              booking_status: "pending",
-              sequence_status: "active",
-              next_sequence_step: "send_packet",
-              manual_call_due_at: null,
-              recent_reply_preview: "Jordan preview",
-              reply_needs_review: false,
             },
           ],
           selected_thread_id: "thread-1",
@@ -274,7 +224,7 @@ describe("App", () => {
             requires_approval: true,
             related_run_id: null,
             related_approval_id: null,
-            contact: { display_name: "Taylor Brooks", phone: "+155****0001" },
+            contact: { display_name: "Taylor Brooks", phone: "+15551230001" },
             messages: [
               {
                 id: "msg-1",
@@ -290,32 +240,16 @@ describe("App", () => {
         });
       }
 
+      if (url.includes("/mission-control/tasks")) {
+        return jsonResponse({ due_count: 0, tasks: [] });
+      }
+
       if (url.includes("/mission-control/approvals")) {
         return jsonResponse({ approvals: [] });
       }
 
       if (url.includes("/mission-control/runs")) {
         return jsonResponse({ runs: [] });
-      }
-
-      if (url.includes("/mission-control/turns")) {
-        return jsonResponse({
-          turns: [
-            {
-              id: "turn-1",
-              session_id: "ses-1",
-              business_id: "limitless",
-              environment: "dev",
-              agent_id: "agt-1",
-              agent_revision_id: "rev-1",
-              turn_number: 1,
-              state: "completed",
-              retry_count: 0,
-              resumed_from_turn_id: null,
-              updated_at: "2026-04-13T20:00:00+00:00",
-            },
-          ],
-        });
       }
 
       if (url.includes("/mission-control/agents")) {
@@ -333,14 +267,129 @@ describe("App", () => {
 
     render(<App />);
 
-    fireEvent.click(await screen.findByRole("button", { name: /inbox/i }));
-
-    expect(await screen.findByText("Approve the pricing reply draft and launch research follow-up.")).toBeInTheDocument();
+    fireEvent.click(await screen.findByRole("button", { name: /replies/i }));
+    expect(await screen.findByText("Taylor detail from API")).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: /jordan patel/i }));
 
-    expect(await screen.findByText("Schedule a retry call window for tomorrow morning.")).toBeInTheDocument();
-    expect(screen.queryByText("Jordan detail from API")).not.toBeInTheDocument();
-    expect(screen.getByText("Using local fixtures until the native read-model endpoints are wired.")).toBeInTheDocument();
+    expect(await screen.findByText("API + fixture fallback (inbox)")).toBeInTheDocument();
+    expect(screen.queryByText("Taylor detail from API")).not.toBeInTheDocument();
+    expect(screen.getByText("Using fixture fallback for: inbox.")).toBeInTheDocument();
+  });
+
+  it("switches between lead machine, marketing, and pipeline workspaces", async () => {
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+      const url = typeof input === "string" ? input : input instanceof URL ? input.toString() : input.url;
+
+      if (url.includes("/mission-control/dashboard")) {
+        return jsonResponse({
+          approval_count: 1,
+          active_run_count: 2,
+          failed_run_count: 0,
+          active_agent_count: 1,
+          unread_conversation_count: 3,
+          busy_channel_count: 2,
+          recent_completed_count: 5,
+          pending_lead_count: 6,
+          booked_lead_count: 2,
+          active_non_booker_enrollment_count: 4,
+          due_manual_call_count: 1,
+          replies_needing_review_count: 2,
+          opportunity_count: 3,
+          opportunity_stage_summaries: [
+            { stage: "qualified_opportunity", count: 2 },
+            { stage: "under_negotiation", count: 1 },
+          ],
+          system_status: "healthy",
+          updated_at: "2026-04-16T22:00:00+00:00",
+        });
+      }
+
+      if (url.includes("/mission-control/inbox")) {
+        return jsonResponse({
+          summary: { thread_count: 1, unread_count: 1, approval_required_count: 0 },
+          threads: [
+            {
+              thread_id: "thread-1",
+              channel: "sms",
+              status: "open",
+              unread_count: 1,
+              last_message_preview: "Jordan preview",
+              last_message_at: "2026-04-16T22:05:00+00:00",
+              requires_approval: false,
+              related_run_id: null,
+              related_approval_id: null,
+              contact: { display_name: "Jordan Patel", phone: "+15551230001" },
+            },
+          ],
+          selected_thread_id: "thread-1",
+          selected_thread: {
+            thread_id: "thread-1",
+            channel: "sms",
+            status: "open",
+            unread_count: 1,
+            requires_approval: false,
+            related_run_id: null,
+            related_approval_id: null,
+            contact: { display_name: "Jordan Patel", phone: "+15551230001" },
+            messages: [],
+            context: { stage: "Qualified", next_best_action: "Review the thread." },
+          },
+        });
+      }
+
+      if (url.includes("/mission-control/tasks")) {
+        return jsonResponse({
+          due_count: 1,
+          tasks: [
+            {
+              thread_id: "thread-1",
+              lead_name: "Jordan Patel",
+              channel: "sms",
+              booking_status: "pending",
+              sequence_status: "active",
+              next_sequence_step: "manual_call_day_3",
+              manual_call_due_at: "2026-04-16T22:30:00+00:00",
+              recent_reply_preview: "Can we talk tonight?",
+              reply_needs_review: true,
+            },
+          ],
+        });
+      }
+
+      if (url.includes("/mission-control/approvals")) {
+        return jsonResponse({ approvals: [] });
+      }
+
+      if (url.includes("/mission-control/runs")) {
+        return jsonResponse({ runs: [] });
+      }
+
+      if (url.includes("/mission-control/agents")) {
+        return jsonResponse({ agents: [] });
+      }
+
+      if (url.includes("/mission-control/settings/assets")) {
+        return jsonResponse({ assets: [] });
+      }
+
+      throw new Error(`Unexpected fetch URL: ${url}`);
+    });
+
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<App />);
+
+    expect(await screen.findByRole("tab", { name: "Lead Machine" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /queue/i })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("tab", { name: "Marketing" }));
+    expect(screen.getByRole("button", { name: /submissions/i })).toBeInTheDocument();
+    expect(screen.getByText(/Lease-option submissions, booked vs pending/i)).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("tab", { name: "Pipeline" }));
+    expect(screen.getByRole("heading", { name: /pipeline board/i, level: 2 })).toBeInTheDocument();
+    expect(screen.getByText("Qualified Opportunity")).toBeInTheDocument();
+    expect(screen.getByText("Under Negotiation")).toBeInTheDocument();
   });
 });

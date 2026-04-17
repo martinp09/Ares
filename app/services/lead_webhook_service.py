@@ -16,6 +16,8 @@ from app.services.campaign_lifecycle_service import CampaignLifecycleService
 from app.services.lead_sequence_runner import LeadSequenceRunner
 from app.services.lead_suppression_service import LeadSuppressionService
 from app.services.lead_task_service import LeadTaskService
+from app.services.opportunity_service import OpportunityService
+from app.models.opportunities import OpportunitySourceLane
 
 
 class LeadWebhookService:
@@ -31,6 +33,7 @@ class LeadWebhookService:
         sequence_runner: LeadSequenceRunner | None = None,
         task_service: LeadTaskService | None = None,
         campaign_lifecycle_service: CampaignLifecycleService | None = None,
+        opportunity_service: OpportunityService | None = None,
     ) -> None:
         self.leads_repository = leads_repository or LeadsRepository()
         self.lead_events_repository = lead_events_repository or LeadEventsRepository()
@@ -41,6 +44,7 @@ class LeadWebhookService:
         self.sequence_runner = sequence_runner or LeadSequenceRunner(self.memberships_repository)
         self.task_service = task_service or LeadTaskService()
         self.campaign_lifecycle_service = campaign_lifecycle_service or CampaignLifecycleService(self.campaigns_repository)
+        self.opportunity_service = opportunity_service or OpportunityService()
 
     def handle_instantly_webhook(
         self,
@@ -99,6 +103,7 @@ class LeadWebhookService:
         updated_campaign = self._apply_event_to_campaign(campaign, event)
         resolved_campaign = updated_campaign or campaign
         updated_lead = self._apply_event_to_lead(lead, event)
+        self._sync_opportunity(updated_lead, resolved_campaign, event)
         suppression = self.suppression_service.apply_event(
             business_id=business_id,
             environment=environment,
@@ -135,6 +140,13 @@ class LeadWebhookService:
     def _resolve_lead(self, *, business_id: str, environment: str, normalized: Mapping[str, Any]) -> LeadRecord:
         lead_email = str(normalized.get("lead_email") or "").strip()
         if lead_email:
+            existing_by_email = self.leads_repository.find_by_email(
+                business_id=business_id,
+                environment=environment,
+                email=lead_email,
+            )
+            if existing_by_email is not None:
+                return existing_by_email
             existing = self.leads_repository.get_by_key(
                 business_id=business_id,
                 environment=environment,
@@ -339,6 +351,26 @@ class LeadWebhookService:
         elif event.event_type == "lead.email.bounced":
             updates["lifecycle_status"] = LeadLifecycleStatus.SUPPRESSED
         return self.leads_repository.upsert(lead.model_copy(update=updates))
+
+    def _sync_opportunity(
+        self,
+        lead: LeadRecord,
+        campaign: CampaignRecord | None,
+        event: LeadEventRecord,
+    ) -> None:
+        if event.event_type not in {"lead.reply.received", "lead.status.interested"}:
+            return
+        self.opportunity_service.create_for_lead(
+            business_id=lead.business_id,
+            environment=lead.environment,
+            lead_id=lead.id or "",
+            source_lane=OpportunitySourceLane.PROBATE,
+            metadata={
+                "campaign_id": event.campaign_id,
+                "campaign_name": campaign.name if campaign is not None else None,
+                "last_event_type": event.event_type,
+            },
+        )
 
 
 lead_webhook_service = LeadWebhookService()

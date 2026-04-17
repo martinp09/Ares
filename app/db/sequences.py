@@ -83,6 +83,38 @@ class SequencesRepository:
                 return None
             return record
 
+    def find_latest(
+        self,
+        *,
+        business_id: str,
+        environment: str,
+        contact_id: str,
+        sequence_key: str,
+    ) -> SequenceEnrollmentRecord | None:
+        if marketing_backend_enabled(self.settings) and not self._force_memory:
+            return self._find_latest_in_supabase(
+                business_id=business_id,
+                environment=environment,
+                contact_id=contact_id,
+                sequence_key=sequence_key,
+            )
+        with self.client.transaction() as store:
+            enrollment_rows: dict[str, SequenceEnrollmentRecord] = getattr(
+                store, "marketing_sequence_rows", {}
+            )
+            matches = [
+                record
+                for record in enrollment_rows.values()
+                if record.business_id == business_id
+                and record.environment == environment
+                and record.contact_id == contact_id
+                and record.sequence_key == sequence_key
+            ]
+            if not matches:
+                return None
+            matches.sort(key=lambda record: (record.updated_at, record.created_at, record.id))
+            return matches[-1]
+
     def pause(
         self,
         enrollment_id: str,
@@ -272,6 +304,55 @@ class SequencesRepository:
             updated_at=row["updated_at"],
         )
 
+    def _find_latest_in_supabase(
+        self,
+        *,
+        business_id: str,
+        environment: str,
+        contact_id: str,
+        sequence_key: str,
+    ) -> SequenceEnrollmentRecord | None:
+        tenant = resolve_tenant(business_id, environment, settings=self.settings)
+        contact_rows = fetch_rows(
+            "contacts",
+            params={
+                "select": "id",
+                "business_id": f"eq.{tenant.business_pk}",
+                "environment": f"eq.{tenant.environment}",
+                "external_contact_id": f"eq.{contact_id}",
+                "limit": "1",
+            },
+            settings=self.settings,
+        )
+        if not contact_rows:
+            return None
+        rows = fetch_rows(
+            "sequence_enrollments",
+            params={
+                "select": "id,status,created_at,updated_at",
+                "business_id": f"eq.{tenant.business_pk}",
+                "environment": f"eq.{tenant.environment}",
+                "contact_id": f"eq.{contact_rows[0]['id']}",
+                "sequence_key": f"eq.{sequence_key}",
+                "order": "updated_at.desc,created_at.desc,id.desc",
+                "limit": "1",
+            },
+            settings=self.settings,
+        )
+        if not rows:
+            return None
+        row = rows[0]
+        return SequenceEnrollmentRecord(
+            id=f"seq_{row['id']}",
+            business_id=business_id,
+            environment=environment,
+            contact_id=contact_id,
+            sequence_key=sequence_key,
+            status=SequenceEnrollmentStatus(str(row["status"])),
+            created_at=row["created_at"],
+            updated_at=row["updated_at"],
+        )
+
     def _update_status_in_supabase(
         self,
         enrollment_id: str,
@@ -281,17 +362,38 @@ class SequencesRepository:
         status: SequenceEnrollmentStatus,
     ) -> SequenceEnrollmentRecord | None:
         numeric_id = enrollment_id.removeprefix("seq_")
+        tenant = resolve_tenant(business_id, environment, settings=self.settings)
         rows = patch_rows(
             "sequence_enrollments",
-            params={"id": f"eq.{numeric_id}"},
+            params={
+                "id": f"eq.{numeric_id}",
+                "business_id": f"eq.{tenant.business_pk}",
+                "environment": f"eq.{tenant.environment}",
+            },
             row={"status": status.value},
-            select="id,status,created_at,updated_at,sequence_key",
+            select="id,status,created_at,updated_at,sequence_key,contact_id",
             settings=self.settings,
         )
         if not rows:
             return None
         row = rows[0]
-        contact_id = ""
+        contact_id = str(row.get("contact_id") or "")
+        if contact_id:
+            contact_rows = fetch_rows(
+                "contacts",
+                params={
+                    "select": "external_contact_id",
+                    "business_id": f"eq.{tenant.business_pk}",
+                    "environment": f"eq.{tenant.environment}",
+                    "id": f"eq.{contact_id}",
+                    "limit": "1",
+                },
+                settings=self.settings,
+            )
+            if contact_rows:
+                contact_id = str(contact_rows[0].get("external_contact_id") or f"ctc_{contact_id}")
+            else:
+                contact_id = f"ctc_{contact_id}"
         return SequenceEnrollmentRecord(
             id=f"seq_{row['id']}",
             business_id=business_id,

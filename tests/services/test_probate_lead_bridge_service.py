@@ -10,6 +10,7 @@ def test_upsert_keep_now_lead_builds_canonical_probate_record() -> None:
     repository = LeadsRepository(client)
     service = ProbateLeadBridgeService(repository)
     probate_lead = ProbateLeadRecord(
+        id="prob_12345",
         case_number="2026-12345",
         filing_type="PROBATE OF WILL (INDEPENDENT ADMINISTRATION)",
         estate_name="Estate of Jane Example",
@@ -34,6 +35,7 @@ def test_upsert_keep_now_lead_builds_canonical_probate_record() -> None:
     assert record.external_key == probate_lead.identity_key()
     assert record.probate_case_number == "2026-12345"
     assert record.score == 96.0
+    assert record.raw_payload["probate_lead_id"] == probate_lead.id
     assert record.raw_payload["probate_lead"]["case_number"] == "2026-12345"
 
 

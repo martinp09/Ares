@@ -1,4 +1,32 @@
-import type { MissionControlSnapshot } from "./api";
+import type { MissionControlSnapshot, TasksData } from "./api";
+
+export const missionControlTasksFixture: TasksData = {
+  dueCount: 2,
+  tasks: [
+    {
+      threadId: "mc-thread-lease-option-1",
+      leadName: "Jordan Pending",
+      channel: "sms",
+      bookingStatus: "pending",
+      sequenceStatus: "active",
+      nextSequenceStep: "manual_call_day_3",
+      manualCallDueAt: "2026-04-16T22:30:00+00:00",
+      recentReplyPreview: "If this works I can jump on a call tonight.",
+      replyNeedsReview: true,
+    },
+    {
+      threadId: "mc-thread-lease-option-2",
+      leadName: "Morgan Callback",
+      channel: "call",
+      bookingStatus: "pending",
+      sequenceStatus: "paused",
+      nextSequenceStep: "manual_call_followup",
+      manualCallDueAt: "2026-04-16T23:15:00+00:00",
+      recentReplyPreview: null,
+      replyNeedsReview: false,
+    },
+  ],
+};
 
 export const missionControlFixtures: MissionControlSnapshot = {
   dashboard: {
@@ -9,6 +37,17 @@ export const missionControlFixtures: MissionControlSnapshot = {
     unreadConversationCount: 8,
     busyChannelCount: 2,
     recentCompletedCount: 14,
+    pendingLeadCount: 7,
+    bookedLeadCount: 4,
+    activeNonBookerEnrollmentCount: 5,
+    dueManualCallCount: 2,
+    repliesNeedingReviewCount: 3,
+    opportunityCount: 6,
+    opportunityStageSummaries: [
+      { stage: "qualified_opportunity", count: 3 },
+      { stage: "contract_sent", count: 2 },
+      { stage: "title_open", count: 1 },
+    ],
     systemStatus: "healthy",
     updatedAt: "Updated 2 minutes ago",
   },
@@ -128,6 +167,7 @@ export const missionControlFixtures: MissionControlSnapshot = {
       },
     },
   },
+  tasks: missionControlTasksFixture,
   approvals: [
     {
       id: "apr-1001",
