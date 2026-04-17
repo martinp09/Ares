@@ -13,15 +13,15 @@ def test_lead_machine_trigger_jobs_cover_the_todo_set() -> None:
     contracts = {
         "leadIntake.ts": (
             'id: "lead-intake"',
-            'LEAD_MACHINE_ENDPOINTS.probateIntake',
+            "invokeLeadMachineRuntimeApi",
         ),
         "instantlyEnqueueLead.ts": (
             'id: "instantly-enqueue-lead"',
-            'LEAD_MACHINE_ENDPOINTS.outboundEnqueue',
+            "invokeLeadMachineRuntimeApi",
         ),
         "instantlyWebhookIngest.ts": (
             'id: "instantly-webhook-ingest"',
-            'LEAD_MACHINE_ENDPOINTS.instantlyWebhookIngest',
+            "invokeLeadMachineRuntimeApi",
         ),
         "createManualCallTask.ts": (
             'id: "create-manual-call-task"',
@@ -29,22 +29,22 @@ def test_lead_machine_trigger_jobs_cover_the_todo_set() -> None:
         ),
         "followupStepRunner.ts": (
             'id: "followup-step-runner"',
-            'LEAD_MACHINE_ENDPOINTS.followupStepRunner',
+            "invokeLeadMachineRuntimeApi",
         ),
         "suppressionSync.ts": (
             'id: "suppression-sync"',
-            'LEAD_MACHINE_ENDPOINTS.suppressionSync',
+            "invokeLeadMachineRuntimeApi",
         ),
         "taskReminderOrOverdue.ts": (
             'id: "task-reminder-or-overdue"',
-            'LEAD_MACHINE_ENDPOINTS.taskReminderOrOverdue',
+            "invokeLeadMachineRuntimeApi",
         ),
     }
 
-    for filename, (id_snippet, endpoint_snippet) in contracts.items():
+    for filename, (id_snippet, helper_snippet) in contracts.items():
         source = _source(LEAD_MACHINE_DIR / filename)
         assert id_snippet in source
-        assert endpoint_snippet in source
+        assert helper_snippet in source
 
 
 def test_lead_machine_runtime_exports_all_todo_endpoints() -> None:
@@ -61,8 +61,15 @@ def test_lead_machine_runtime_exports_all_todo_endpoints() -> None:
         assert endpoint in source
 
 
+def test_lead_machine_runtime_client_centralizes_runtime_invocation() -> None:
+    source = _source(LEAD_MACHINE_DIR / "runtimeClient.ts")
+
+    assert 'invokeLeadMachineRuntimeApi' in source
+    assert 'LEAD_MACHINE_ENDPOINTS[endpoint]' in source
+
+
 def test_lead_machine_trigger_files_are_grouped_under_the_same_namespace() -> None:
     source = _source(LEAD_MACHINE_DIR / "followupStepRunner.ts")
 
     assert re.search(r'task\(\{\s*id:\s*"followup-step-runner"', source, re.S)
-    assert 'invokeRuntimeApi' in source
+    assert 'invokeLeadMachineRuntimeApi' in source

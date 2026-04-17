@@ -69,6 +69,7 @@ Current implementation notes:
 ## Verification
 
 - Python: `uv run pytest -q`
+- Lead machine smoke: `uv run python scripts/smoke/lead_machine_smoke.py`
 - Trigger.dev: `npx tsc -p trigger/tsconfig.json --noEmit`
 
 ## Source Of Truth

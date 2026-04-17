@@ -307,6 +307,19 @@ Expected:
 - `200` for a deduped repeat
 - a response body with `policy`, `status`, and either `run_id` or `approval_id`
 
+### Lead machine smoke harness
+
+For the P1 smoke path, run:
+
+```bash
+uv run python scripts/smoke/lead_machine_smoke.py
+```
+
+Expected:
+- duplicate webhook intake returns `duplicate` on the second call
+- replaying a safe autonomous run returns a child run without approval
+- duplicate reminder generation returns `deduped` on the second call
+
 ## How Hermes should use it day to day
 
 ### Research / intake
