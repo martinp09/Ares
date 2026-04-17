@@ -28,6 +28,13 @@ describe("MissionControlShell", () => {
     render(
       <MissionControlShell
         navSections={navSections}
+        workspaces={[
+          { id: "lead-machine", label: "Lead Machine" },
+          { id: "marketing", label: "Marketing" },
+          { id: "pipeline", label: "Pipeline" },
+        ]}
+        activeWorkspaceId="lead-machine"
+        onSelectWorkspace={vi.fn()}
         activeItemId="dashboard"
         onNavigate={vi.fn()}
         searchValue=""
@@ -47,6 +54,9 @@ describe("MissionControlShell", () => {
     expect(screen.getByText("Operations")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /dashboard/i })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /inbox/i })).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: "Lead Machine" })).toHaveClass("workspace-switcher__item--active");
+    expect(screen.getByRole("tab", { name: "Marketing" })).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: "Pipeline" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Dashboard" })).toBeInTheDocument();
     expect(screen.getByText("Dashboard workspace")).toBeInTheDocument();
   });

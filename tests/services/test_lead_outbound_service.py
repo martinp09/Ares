@@ -146,3 +146,29 @@ def test_enqueue_leads_rejects_inactive_campaigns() -> None:
     assert sent_batches == []
     assert memberships_repository.list_for_campaign(campaign.id or "") == []
     assert automation_runs_repository.list(business_id="limitless", environment="dev") == []
+
+
+def test_require_active_campaign_accepts_slug_request_for_numeric_supabase_campaign(monkeypatch) -> None:
+    campaigns_repository = CampaignsRepository()
+    campaign_lifecycle_service = CampaignLifecycleService(campaigns_repository)
+    campaign = CampaignRecord(
+        id="camp_123",
+        business_id="1",
+        environment="dev",
+        name="Remote Probate",
+        status="active",
+    )
+
+    monkeypatch.setattr(campaign_lifecycle_service, "_require_campaign", lambda campaign_id: campaign)
+    monkeypatch.setattr(
+        "app.services.campaign_lifecycle_service.resolve_tenant",
+        lambda business_id, environment: type("Tenant", (), {"business_pk": 1, "environment": "dev"})(),
+    )
+
+    resolved = campaign_lifecycle_service.require_active_campaign(
+        campaign_id="camp_123",
+        business_id="limitless",
+        environment="dev",
+    )
+
+    assert resolved is campaign

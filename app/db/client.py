@@ -46,6 +46,8 @@ class InMemoryControlPlaneStore:
     audit_events: dict[str, object] = field(default_factory=dict)
     usage_events: dict[str, object] = field(default_factory=dict)
     outcomes: dict[str, object] = field(default_factory=dict)
+    probate_leads: dict[str, object] = field(default_factory=dict)
+    probate_lead_keys: dict[tuple[str, str, str], str] = field(default_factory=dict)
     leads: dict[str, object] = field(default_factory=dict)
     lead_keys: dict[tuple[str, str, str], str] = field(default_factory=dict)
     lead_events: dict[str, object] = field(default_factory=dict)
@@ -112,6 +114,8 @@ def reset_control_plane_store(store: InMemoryControlPlaneStore | None = None) ->
     target.audit_events.clear()
     target.usage_events.clear()
     target.outcomes.clear()
+    target.probate_leads.clear()
+    target.probate_lead_keys.clear()
     target.leads.clear()
     target.lead_keys.clear()
     target.lead_events.clear()
@@ -131,6 +135,10 @@ def reset_control_plane_store(store: InMemoryControlPlaneStore | None = None) ->
     target.provider_webhook_keys.clear()
     target.tasks.clear()
     target.task_keys.clear()
+    if hasattr(target, "opportunity_rows"):
+        target.opportunity_rows.clear()
+    if hasattr(target, "opportunity_keys"):
+        target.opportunity_keys.clear()
     target.skills.clear()
     target.skill_keys.clear()
     target.host_adapter_dispatches.clear()

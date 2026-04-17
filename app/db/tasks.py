@@ -2,7 +2,12 @@ from __future__ import annotations
 
 from app.core.config import Settings, get_settings
 from app.db.client import ControlPlaneClient, get_control_plane_client, utc_now
-from app.db.marketing_supabase import insert_rows, marketing_backend_enabled, resolve_tenant
+from app.db.marketing_supabase import (
+    fetch_rows,
+    insert_rows,
+    marketing_backend_enabled,
+    resolve_tenant,
+)
 from app.models.commands import generate_id, generate_stable_id
 from app.models.tasks import TaskPriority, TaskRecord, TaskStatus, TaskType
 
@@ -69,6 +74,7 @@ class TasksRepository:
         environment: str,
         contact_id: str,
         title: str,
+        dedupe_key: str | None = None,
     ) -> TaskRecord:
         if marketing_backend_enabled(self.settings) and not self._force_memory:
             return self._create_manual_call_in_supabase(
@@ -76,7 +82,9 @@ class TasksRepository:
                 environment=environment,
                 contact_id=contact_id,
                 title=title,
+                dedupe_key=dedupe_key,
             )
+        resolved_dedupe_key = dedupe_key or f"manual_call:{contact_id}:{title}"
         record = TaskRecord(
             business_id=business_id,
             environment=environment,
@@ -86,9 +94,10 @@ class TasksRepository:
             status=TaskStatus.OPEN,
             task_type=TaskType.MANUAL_CALL,
             priority=TaskPriority.NORMAL,
+            idempotency_key=resolved_dedupe_key,
             created_at=utc_now(),
         )
-        return self.create(record)
+        return self.create(record, dedupe_key=resolved_dedupe_key)
 
     def _create_manual_call_in_supabase(
         self,
@@ -97,8 +106,40 @@ class TasksRepository:
         environment: str,
         contact_id: str,
         title: str,
+        dedupe_key: str | None = None,
     ) -> TaskRecord:
         tenant = resolve_tenant(business_id, environment, settings=self.settings)
+        resolved_dedupe_key = dedupe_key or f"manual_call:{contact_id}:{title}"
+        existing_rows = fetch_rows(
+            "tasks",
+            params={
+                "select": "id,created_at",
+                "business_id": f"eq.{tenant.business_pk}",
+                "environment": f"eq.{tenant.environment}",
+                "task_type": "eq.manual_call",
+                "status": "eq.open",
+                "idempotency_key": f"eq.{resolved_dedupe_key}",
+                "limit": "1",
+            },
+            settings=self.settings,
+        )
+        if existing_rows:
+            row = existing_rows[0]
+            return TaskRecord(
+                id=f"tsk_{row['id']}",
+                business_id=business_id,
+                environment=environment,
+                run_id=contact_id,
+                lead_id=contact_id,
+                title=title,
+                status=TaskStatus.OPEN,
+                task_type=TaskType.MANUAL_CALL,
+                priority=TaskPriority.NORMAL,
+                idempotency_key=resolved_dedupe_key,
+                created_at=row["created_at"],
+                updated_at=row["created_at"],
+                deduped=True,
+            )
         row = insert_rows(
             "tasks",
             [
@@ -108,6 +149,7 @@ class TasksRepository:
                     "task_type": "manual_call",
                     "status": "open",
                     "priority": "normal",
+                    "idempotency_key": resolved_dedupe_key,
                     "details": {"contact_external_id": contact_id, "title": title},
                 }
             ],
@@ -124,6 +166,7 @@ class TasksRepository:
             status=TaskStatus.OPEN,
             task_type=TaskType.MANUAL_CALL,
             priority=TaskPriority.NORMAL,
+            idempotency_key=resolved_dedupe_key,
             created_at=row["created_at"],
             updated_at=row["created_at"],
         )

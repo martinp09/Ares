@@ -23,6 +23,7 @@ class BookingsRepository:
         provider: str,
         external_booking_id: str | None = None,
         metadata: dict[str, object] | None = None,
+        idempotency_key: str | None = None,
     ) -> BookingEventRecord:
         if marketing_backend_enabled(self.settings) and not self._force_memory:
             return self._append_event_in_supabase(
@@ -34,23 +35,40 @@ class BookingsRepository:
                 provider=provider,
                 external_booking_id=external_booking_id,
                 metadata=metadata,
+                idempotency_key=idempotency_key,
             )
-        record = BookingEventRecord(
-            business_id=business_id,
-            environment=environment,
-            contact_id=contact_id,
-            conversation_id=conversation_id,
-            event_type=event_type,
-            provider=provider,
-            external_booking_id=external_booking_id,
-            metadata=metadata or {},
-        )
         with self.client.transaction() as store:
             booking_rows: dict[str, BookingEventRecord] = getattr(
                 store, "marketing_booking_rows", {}
             )
+            booking_keys: dict[tuple[str, str, str, str], str] = getattr(
+                store, "marketing_booking_keys", {}
+            )
             setattr(store, "marketing_booking_rows", booking_rows)
+            setattr(store, "marketing_booking_keys", booking_keys)
+
+            replay_key = idempotency_key or (
+                f"{provider}:{event_type}:{external_booking_id}" if external_booking_id else None
+            )
+            if replay_key is not None:
+                dedupe_key = (business_id, environment, provider, replay_key)
+                existing_id = booking_keys.get(dedupe_key)
+                if existing_id is not None:
+                    return booking_rows[existing_id]
+
+            record = BookingEventRecord(
+                business_id=business_id,
+                environment=environment,
+                contact_id=contact_id,
+                conversation_id=conversation_id,
+                event_type=event_type,
+                provider=provider,
+                external_booking_id=external_booking_id,
+                metadata=metadata or {},
+            )
             booking_rows[record.id] = record
+            if replay_key is not None:
+                booking_keys[dedupe_key] = record.id
         return record
 
     def _append_event_in_supabase(
@@ -64,6 +82,7 @@ class BookingsRepository:
         provider: str,
         external_booking_id: str | None = None,
         metadata: dict[str, object] | None = None,
+        idempotency_key: str | None = None,
     ) -> BookingEventRecord:
         tenant = resolve_tenant(business_id, environment, settings=self.settings)
         contact_pk = int(
@@ -93,6 +112,34 @@ class BookingsRepository:
                 settings=self.settings,
             )
             conversation_pk = int(rows[0]["id"]) if rows else None
+        if external_booking_id is not None:
+            existing_rows = fetch_rows(
+                "booking_events",
+                params={
+                    "select": "id,created_at",
+                    "business_id": f"eq.{tenant.business_pk}",
+                    "environment": f"eq.{tenant.environment}",
+                    "provider": f"eq.{provider}",
+                    "event_type": f"eq.{event_type}",
+                    "external_booking_id": f"eq.{external_booking_id}",
+                    "limit": "1",
+                },
+                settings=self.settings,
+            )
+            if existing_rows:
+                row = existing_rows[0]
+                return BookingEventRecord(
+                    id=f"bkg_{row['id']}",
+                    business_id=business_id,
+                    environment=environment,
+                    contact_id=contact_id,
+                    conversation_id=conversation_id,
+                    event_type=event_type,
+                    provider=provider,
+                    external_booking_id=external_booking_id,
+                    metadata=metadata or {},
+                    created_at=row["created_at"],
+                )
         row = insert_rows(
             "booking_events",
             [
@@ -104,7 +151,10 @@ class BookingsRepository:
                     "event_type": event_type,
                     "provider": provider,
                     "external_booking_id": external_booking_id,
-                    "details": metadata or {},
+                    "details": {
+                        **(metadata or {}),
+                        **({"idempotency_key": idempotency_key} if idempotency_key else {}),
+                    },
                 }
             ],
             select="id,created_at",

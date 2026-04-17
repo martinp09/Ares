@@ -12,8 +12,16 @@ export interface ShellNavSection {
   items: ShellNavItem[];
 }
 
+export interface ShellWorkspace {
+  id: string;
+  label: string;
+}
+
 interface MissionControlShellProps {
   navSections: ShellNavSection[];
+  workspaces: ShellWorkspace[];
+  activeWorkspaceId: string;
+  onSelectWorkspace: (workspaceId: string) => void;
   activeItemId: string;
   onNavigate: (itemId: string) => void;
   searchValue: string;
@@ -28,6 +36,9 @@ interface MissionControlShellProps {
 
 export function MissionControlShell({
   navSections,
+  workspaces,
+  activeWorkspaceId,
+  onSelectWorkspace,
   activeItemId,
   onNavigate,
   searchValue,
@@ -90,6 +101,23 @@ export function MissionControlShell({
         <header className="workspace-header">
           <div>
             <p className="workspace-header__eyebrow">Active workspace</p>
+            <div className="workspace-switcher" role="tablist" aria-label="Workspace switcher">
+              {workspaces.map((workspace) => {
+                const isActive = workspace.id === activeWorkspaceId;
+                return (
+                  <button
+                    key={workspace.id}
+                    aria-selected={isActive}
+                    className={`workspace-switcher__item${isActive ? " workspace-switcher__item--active" : ""}`}
+                    onClick={() => onSelectWorkspace(workspace.id)}
+                    role="tab"
+                    type="button"
+                  >
+                    {workspace.label}
+                  </button>
+                );
+              })}
+            </div>
             <h2 className="workspace-header__title">{workspaceTitle}</h2>
             <p className="workspace-header__subtitle">{workspaceSubtitle}</p>
           </div>

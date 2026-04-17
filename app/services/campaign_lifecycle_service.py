@@ -3,6 +3,7 @@ from __future__ import annotations
 from collections.abc import Mapping
 
 from app.db.campaigns import CampaignsRepository
+from app.db.lead_machine_supabase import resolve_tenant
 from app.models.campaigns import CampaignRecord, CampaignStatus
 
 
@@ -97,7 +98,7 @@ class CampaignLifecycleService:
 
     def require_active_campaign(self, *, campaign_id: str, business_id: str, environment: str) -> CampaignRecord:
         campaign = self._require_campaign(campaign_id)
-        if campaign.business_id != business_id or campaign.environment != environment:
+        if not self._campaign_matches_tenant(campaign=campaign, business_id=business_id, environment=environment):
             raise InactiveCampaignEnrollmentError(
                 f"campaign {campaign_id} does not belong to {business_id}/{environment}"
             )
@@ -136,6 +137,20 @@ class CampaignLifecycleService:
             raise InvalidCampaignTransitionError(
                 f"cannot move campaign from {current_status.value} to {target_status.value}; allowed targets: {allowed}"
             )
+
+    @staticmethod
+    def _campaign_matches_tenant(*, campaign: CampaignRecord, business_id: str, environment: str) -> bool:
+        if campaign.environment != environment:
+            return False
+        if campaign.business_id == business_id:
+            return True
+        if campaign.business_id.isdigit() and not business_id.isdigit():
+            try:
+                tenant = resolve_tenant(business_id, environment)
+            except RuntimeError:
+                return False
+            return campaign.business_id == str(tenant.business_pk)
+        return False
 
 
 campaign_lifecycle_service = CampaignLifecycleService()

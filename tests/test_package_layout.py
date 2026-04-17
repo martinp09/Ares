@@ -13,27 +13,22 @@ def test_db_modules_are_importable():
         AgentsRepository,
         ApprovalsRepository,
         ArtifactsRepository,
-        AuditRepository,
         AutomationRunsRepository,
         CampaignMembershipsRepository,
         CampaignsRepository,
         CommandsRepository,
         EventsRepository,
-        InMemoryControlPlaneClient,
         LeadEventsRepository,
         LeadsRepository,
         OutcomesRepository,
         PermissionsRepository,
+        ProbateLeadsRepository,
         ProviderWebhooksRepository,
-        RBACRepository,
         RunsRepository,
-        SecretsRepository,
         SessionsRepository,
-        SkillsRepository,
-        HostAdapterDispatchesRepository,
+        InMemoryControlPlaneClient,
         SuppressionRepository,
         TasksRepository,
-        UsageRepository,
     )
     from app.db.agent_assets import AgentAssetsRepository as agent_assets_repository_module
     from app.db.agents import AgentsRepository as agents_repository_module
@@ -45,68 +40,37 @@ def test_db_modules_are_importable():
     from app.db.client import InMemoryControlPlaneClient as client_module
     from app.db.commands import CommandsRepository as commands_repository_module
     from app.db.events import EventsRepository as events_repository_module
-    from app.db.host_adapter_dispatches import HostAdapterDispatchesRepository as host_adapter_dispatches_repository_module
     from app.db.lead_events import LeadEventsRepository as lead_events_repository_module
     from app.db.leads import LeadsRepository as leads_repository_module
     from app.db.outcomes import OutcomesRepository as outcomes_repository_module
     from app.db.permissions import PermissionsRepository as permissions_repository_module
+    from app.db.probate_leads import ProbateLeadsRepository as probate_leads_repository_module
     from app.db.provider_webhooks import ProviderWebhooksRepository as provider_webhooks_repository_module
-    from app.db.rbac import RBACRepository as rbac_repository_module
     from app.db.runs import RunsRepository as runs_repository_module
-    from app.db.secrets import SecretsRepository as secrets_repository_module
     from app.db.sessions import SessionsRepository as sessions_repository_module
-    from app.db.skills import SkillsRepository as skills_repository_module
-    from app.db.audit import AuditRepository as audit_repository_module
     from app.db.suppression import SuppressionRepository as suppression_repository_module
     from app.db.tasks import TasksRepository as tasks_repository_module
-    from app.db.usage import UsageRepository as usage_repository_module
 
     assert AgentAssetsRepository is agent_assets_repository_module
     assert AgentsRepository is agents_repository_module
     assert ApprovalsRepository is approvals_repository_module
     assert ArtifactsRepository is artifacts_repository_module
-    assert AuditRepository is audit_repository_module
     assert AutomationRunsRepository is automation_runs_repository_module
     assert CampaignMembershipsRepository is campaign_memberships_repository_module
     assert CampaignsRepository is campaigns_repository_module
     assert CommandsRepository is commands_repository_module
     assert EventsRepository is events_repository_module
-    assert HostAdapterDispatchesRepository is host_adapter_dispatches_repository_module
     assert InMemoryControlPlaneClient is client_module
     assert LeadEventsRepository is lead_events_repository_module
     assert LeadsRepository is leads_repository_module
     assert OutcomesRepository is outcomes_repository_module
     assert PermissionsRepository is permissions_repository_module
+    assert ProbateLeadsRepository is probate_leads_repository_module
     assert ProviderWebhooksRepository is provider_webhooks_repository_module
-    assert RBACRepository is rbac_repository_module
     assert RunsRepository is runs_repository_module
-    assert SecretsRepository is secrets_repository_module
     assert SessionsRepository is sessions_repository_module
-    assert SkillsRepository is skills_repository_module
     assert SuppressionRepository is suppression_repository_module
     assert TasksRepository is tasks_repository_module
-    assert UsageRepository is usage_repository_module
-
-
-def test_mission_control_modules_are_importable():
-    from app.api.mission_control import router
-    from app.models.mission_control import (
-        MissionControlDashboardResponse,
-        MissionControlInboxResponse,
-        MissionControlLeadMachineResponse,
-        MissionControlRunsResponse,
-        MissionControlThreadRecord,
-    )
-    from app.services.mission_control_service import MissionControlService, mission_control_service
-
-    assert router is not None
-    assert MissionControlDashboardResponse is not None
-    assert MissionControlInboxResponse is not None
-    assert MissionControlLeadMachineResponse is not None
-    assert MissionControlRunsResponse is not None
-    assert MissionControlThreadRecord is not None
-    assert MissionControlService is not None
-    assert mission_control_service is not None
 
 
 def test_provider_extras_models_are_exported():

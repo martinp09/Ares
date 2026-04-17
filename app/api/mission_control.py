@@ -26,7 +26,11 @@ from app.services.mission_control_service import mission_control_service
 router = APIRouter(prefix="/mission-control", tags=["mission-control"])
 
 
-@router.get("/dashboard", response_model=MissionControlDashboardResponse)
+@router.get(
+    "/dashboard",
+    response_model=MissionControlDashboardResponse,
+    response_model_exclude_none=True,
+)
 def get_dashboard(
     business_id: str | None = Query(default=None),
     environment: str | None = Query(default=None),
@@ -48,6 +52,14 @@ def get_inbox(
         )
     except KeyError as exc:
         raise HTTPException(status_code=404, detail="Mission Control thread not found") from exc
+
+
+@router.get("/runs", response_model=MissionControlRunsResponse)
+def get_runs(
+    business_id: str | None = Query(default=None),
+    environment: str | None = Query(default=None),
+) -> MissionControlRunsResponse:
+    return mission_control_service.get_runs(business_id=business_id, environment=environment)
 
 
 @router.get("/tasks", response_model=MissionControlTasksResponse)
@@ -92,7 +104,7 @@ def get_agents(
 
 
 @router.get("/settings/assets", response_model=MissionControlAssetsResponse)
-def get_assets(
+def get_settings_assets(
     business_id: str | None = Query(default=None),
     environment: str | None = Query(default=None),
 ) -> MissionControlAssetsResponse:
@@ -196,11 +208,3 @@ def get_turns(
         business_id=business_id,
         environment=environment,
     )
-
-
-@router.get("/runs", response_model=MissionControlRunsResponse)
-def get_runs(
-    business_id: str | None = Query(default=None),
-    environment: str | None = Query(default=None),
-) -> MissionControlRunsResponse:
-    return mission_control_service.get_runs(business_id=business_id, environment=environment)

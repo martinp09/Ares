@@ -10,7 +10,10 @@ from app.core.config import Settings, get_settings
 from app.db.contacts import ContactsRepository
 from app.db.conversations import ConversationsRepository
 from app.db.messages import MessagesRepository
+from app.db.provider_webhooks import ProviderWebhooksRepository
 from app.db.sequences import SequencesRepository
+from app.models.lead_events import ProviderWebhookReceiptRecord
+from app.models.marketing_leads import MarketingLeadRecord
 from app.providers.resend import build_send_email_request
 from app.providers.textgrid import build_outbound_sms_request, normalize_incoming_webhook, verify_webhook_signature
 
@@ -26,6 +29,8 @@ class NormalizedSmsEvent:
     body: str
     from_number: str
     to_number: str
+    external_id: str | None = None
+    metadata: dict[str, Any] | None = None
 
 
 @dataclass(slots=True)
@@ -61,6 +66,29 @@ class SequenceReplyService(Protocol):
     def pause(self, *, phone_number: str) -> None: ...
 
 
+class WebhookReceiptService(Protocol):
+    def record_textgrid_event(
+        self,
+        *,
+        event: NormalizedSmsEvent,
+        lead: MarketingLeadRecord | None,
+        payload: dict[str, Any],
+    ) -> tuple[str | None, bool]: ...
+
+    def mark_processed(self, receipt_id: str | None) -> None: ...
+
+
+class MessageLoggingHook(Protocol):
+    def log_sequence_dispatch(
+        self,
+        *,
+        lead_id: str,
+        channel: Literal["sms", "email"],
+        body: str,
+        provider: str,
+    ) -> None: ...
+
+
 class _DefaultTextgridWebhookAdapter:
     def __init__(self, settings: Settings | None = None) -> None:
         self.settings = settings or get_settings()
@@ -91,6 +119,8 @@ class _DefaultTextgridWebhookAdapter:
             body=str(normalized.get("content") or ""),
             from_number=str(normalized.get("from") or ""),
             to_number=str(normalized.get("to") or ""),
+            external_id=None if normalized.get("external_id") is None else str(normalized.get("external_id")),
+            metadata=dict(normalized.get("metadata") or {}),
         )
 
 
@@ -171,6 +201,108 @@ class _SequenceReplyAdapter:
             )
 
 
+class _NoopWebhookReceiptService:
+    def record_textgrid_event(
+        self,
+        *,
+        event: NormalizedSmsEvent,
+        lead: MarketingLeadRecord | None,
+        payload: dict[str, Any],
+    ) -> tuple[str | None, bool]:
+        return None, False
+
+    def mark_processed(self, receipt_id: str | None) -> None:
+        return None
+
+
+class _ProviderWebhookReceiptAdapter:
+    def __init__(self, provider_webhooks: ProviderWebhooksRepository | None = None) -> None:
+        self.provider_webhooks = provider_webhooks or ProviderWebhooksRepository()
+
+    def record_textgrid_event(
+        self,
+        *,
+        event: NormalizedSmsEvent,
+        lead: MarketingLeadRecord | None,
+        payload: dict[str, Any],
+    ) -> tuple[str | None, bool]:
+        if lead is None:
+            return None, False
+        idempotency_seed = event.external_id or (
+            f"{event.event_type}:{event.from_number}:{event.to_number}:{event.body.strip().casefold()}"
+        )
+        receipt = self.provider_webhooks.record(
+            ProviderWebhookReceiptRecord(
+                business_id=lead.business_id,
+                environment=lead.environment,
+                provider="textgrid",
+                event_type=event.event_type,
+                idempotency_key=f"textgrid:{idempotency_seed}",
+                provider_event_id=event.external_id,
+                provider_receipt_id=event.external_id,
+                payload={"body": payload, "from": event.from_number, "to": event.to_number},
+            )
+        )
+        return receipt.id, bool(receipt.deduped)
+
+    def mark_processed(self, receipt_id: str | None) -> None:
+        if receipt_id is None:
+            return None
+        self.provider_webhooks.mark_processed(receipt_id)
+
+
+class _NoopMessageLoggingHook:
+    def log_sequence_dispatch(
+        self,
+        *,
+        lead_id: str,
+        channel: Literal["sms", "email"],
+        body: str,
+        provider: str,
+    ) -> None:
+        return None
+
+
+class _RepositoryMessageLoggingHook:
+    def __init__(
+        self,
+        *,
+        contacts: ContactsRepository | None = None,
+        conversations: ConversationsRepository | None = None,
+        messages: MessagesRepository | None = None,
+    ) -> None:
+        self.contacts = contacts or ContactsRepository()
+        self.conversations = conversations or ConversationsRepository()
+        self.messages = messages or MessagesRepository()
+
+    def log_sequence_dispatch(
+        self,
+        *,
+        lead_id: str,
+        channel: Literal["sms", "email"],
+        body: str,
+        provider: str,
+    ) -> None:
+        lead = self.contacts.get_lead(lead_id)
+        if lead is None:
+            return
+        conversation = self.conversations.get_or_create(
+            business_id=lead.business_id,
+            environment=lead.environment,
+            contact_id=lead.id,
+            channel=channel,
+        )
+        self.messages.append_outbound(
+            business_id=lead.business_id,
+            environment=lead.environment,
+            contact_id=lead.id,
+            conversation_id=conversation.provider_thread_id,
+            channel=channel,
+            provider=provider,
+            body=body,
+        )
+
+
 class InboundSmsService:
     def __init__(
         self,
@@ -180,12 +312,18 @@ class InboundSmsService:
         message_repository: MessageRepository | None = None,
         sequence_service: SequenceReplyService | None = None,
         request_sender: RequestSender | None = None,
+        contacts: ContactsRepository | None = None,
+        webhook_receipts: WebhookReceiptService | None = None,
+        message_logging_hook: MessageLoggingHook | None = None,
     ) -> None:
         self.settings = settings or get_settings()
         self.textgrid_adapter = textgrid_adapter or _DefaultTextgridWebhookAdapter(self.settings)
         self.message_repository = message_repository or _MarketingMessageRepository()
         self.sequence_service = sequence_service or _SequenceReplyAdapter()
         self.request_sender = request_sender or _default_request_sender
+        self.contacts = contacts or ContactsRepository()
+        self.webhook_receipts = webhook_receipts or _ProviderWebhookReceiptAdapter()
+        self.message_logging_hook = message_logging_hook or _RepositoryMessageLoggingHook(contacts=self.contacts)
 
     def handle_textgrid_webhook(
         self,
@@ -197,19 +335,25 @@ class InboundSmsService:
         if not self.textgrid_adapter.verify_signature(payload, signature=signature, request_url=request_url):
             raise ValueError("Invalid TextGrid webhook signature")
         event = self.textgrid_adapter.normalize(payload)
+        lead = self.contacts.find_by_phone(phone=event.from_number)
+        receipt_id, deduped = self.webhook_receipts.record_textgrid_event(event=event, lead=lead, payload=payload)
+        if deduped:
+            self.webhook_receipts.mark_processed(receipt_id)
+            return {"status": "processed", "event_type": event.event_type, "action": self._decide_action(event)}
         self.message_repository.append_inbound_message(event)
         action = self._decide_action(event)
         if action == "stop":
             self.sequence_service.stop(phone_number=event.from_number)
         elif action == "pause":
             self.sequence_service.pause(phone_number=event.from_number)
+        self.webhook_receipts.mark_processed(receipt_id)
         return {"status": "processed", "event_type": event.event_type, "action": action}
 
     def dispatch_lease_option_sequence_step(
         self,
         request: LeaseOptionSequenceStepRequest,
     ) -> dict[str, str]:
-        lead = ContactsRepository().get_lead(request.lead_id)
+        lead = self.contacts.get_lead(request.lead_id)
         if lead is None:
             return {"message_id": f"msg_{request.lead_id}_{request.day}_{request.channel}", "channel": request.channel, "status": "queued"}
         if request.channel == "sms":
@@ -219,24 +363,38 @@ class InboundSmsService:
                 and self.settings.textgrid_from_number
             ):
                 return {"message_id": f"msg_{request.lead_id}_{request.day}_sms", "channel": request.channel, "status": "queued"}
+            message_body = f"Day {request.day + 1}: lease-option follow-up"
             outbound_request = build_outbound_sms_request(
                 account_sid=self.settings.textgrid_account_sid,
                 auth_token=self.settings.textgrid_auth_token,
                 from_number=self.settings.textgrid_from_number,
                 to_number=lead.phone,
-                body=f"Day {request.day + 1}: lease-option follow-up",
+                body=message_body,
                 base_url=self.settings.textgrid_sms_url or "https://api.textgrid.com",
             )
             self.request_sender(outbound_request)
+            self.message_logging_hook.log_sequence_dispatch(
+                lead_id=lead.id,
+                channel="sms",
+                body=message_body,
+                provider="textgrid",
+            )
         elif request.channel == "email" and lead.email and self.settings.resend_api_key and self.settings.resend_from_email:
+            message_body = f"Hi {lead.first_name}, just checking in on your lease-option request."
             self.request_sender(
                 build_send_email_request(
                     api_key=self.settings.resend_api_key,
                     from_email=self.settings.resend_from_email,
                     to_email=lead.email,
                     subject="Checking in on your lease-option request",
-                    text_body=f"Hi {lead.first_name}, just checking in on your lease-option request.",
+                    text_body=message_body,
                 )
+            )
+            self.message_logging_hook.log_sequence_dispatch(
+                lead_id=lead.id,
+                channel="email",
+                body=message_body,
+                provider="resend",
             )
         else:
             return {"message_id": f"msg_{request.lead_id}_{request.day}_{request.channel}", "channel": request.channel, "status": "queued"}

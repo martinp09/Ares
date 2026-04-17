@@ -8,11 +8,16 @@ from urllib import request as http_request
 from app.core.config import Settings, get_settings
 from app.db.bookings import BookingsRepository
 from app.db.contacts import ContactsRepository
+from app.db.provider_webhooks import ProviderWebhooksRepository
 from app.db.sequences import SequencesRepository
 from app.db.tasks import TasksRepository
+from app.models.lead_events import ProviderWebhookReceiptRecord
+from app.models.marketing_leads import MarketingLeadRecord
+from app.models.opportunities import OpportunitySourceLane
 from app.providers.calcom import normalize_booking_webhook, verify_webhook_signature
 from app.providers.resend import build_send_email_request
 from app.providers.textgrid import build_outbound_sms_request
+from app.services.opportunity_service import OpportunityService
 
 
 BookingStatus = Literal["pending", "booked", "rescheduled", "cancelled"]
@@ -78,6 +83,18 @@ class SequenceEnrollmentService(Protocol):
     def suppress_for_booked_lead(self, *, lead_id: str) -> None: ...
 
     def enroll_non_booker(self, *, lead_id: str, business_id: str, environment: str) -> None: ...
+
+
+class WebhookReceiptService(Protocol):
+    def record_calcom_event(
+        self,
+        *,
+        event: NormalizedBookingEvent,
+        lead: MarketingLeadRecord | None,
+        payload: dict[str, Any],
+    ) -> tuple[str | None, bool]: ...
+
+    def mark_processed(self, receipt_id: str | None) -> None: ...
 
 
 class _DefaultCalcomWebhookAdapter:
@@ -149,6 +166,54 @@ class _MarketingBookingStateRepository:
 class _NoopAppointmentNotifier:
     def send_appointment_confirmation(self, *, lead_id: str) -> None:
         return None
+
+
+class _NoopWebhookReceiptService:
+    def record_calcom_event(
+        self,
+        *,
+        event: NormalizedBookingEvent,
+        lead: MarketingLeadRecord | None,
+        payload: dict[str, Any],
+    ) -> tuple[str | None, bool]:
+        return None, False
+
+    def mark_processed(self, receipt_id: str | None) -> None:
+        return None
+
+
+class _ProviderWebhookReceiptAdapter:
+    def __init__(self, provider_webhooks: ProviderWebhooksRepository | None = None) -> None:
+        self.provider_webhooks = provider_webhooks or ProviderWebhooksRepository()
+
+    def record_calcom_event(
+        self,
+        *,
+        event: NormalizedBookingEvent,
+        lead: MarketingLeadRecord | None,
+        payload: dict[str, Any],
+    ) -> tuple[str | None, bool]:
+        if lead is None:
+            return None, False
+        idempotency_seed = event.external_booking_id or f"{event.event_name}:{event.booking_status}:{event.lead_id}"
+        receipt = self.provider_webhooks.record(
+            ProviderWebhookReceiptRecord(
+                business_id=lead.business_id,
+                environment=lead.environment,
+                provider="cal.com",
+                event_type=event.event_name,
+                idempotency_key=f"calcom:{idempotency_seed}",
+                provider_event_id=event.external_booking_id,
+                provider_receipt_id=event.external_booking_id,
+                payload={"body": payload, "lead_id": event.lead_id, "booking_status": event.booking_status},
+            )
+        )
+        return receipt.id, bool(receipt.deduped)
+
+    def mark_processed(self, receipt_id: str | None) -> None:
+        if receipt_id is None:
+            return None
+        self.provider_webhooks.mark_processed(receipt_id)
 
 
 class _ConfiguredAppointmentNotifier:
@@ -244,12 +309,18 @@ class BookingService:
         booking_repository: BookingStateRepository | None = None,
         appointment_notifier: AppointmentNotifier | None = None,
         sequence_service: SequenceEnrollmentService | None = None,
+        contacts: ContactsRepository | None = None,
+        webhook_receipts: WebhookReceiptService | None = None,
+        opportunity_service: OpportunityService | None = None,
     ) -> None:
         self.settings = settings or get_settings()
         self.calcom_adapter = calcom_adapter or _DefaultCalcomWebhookAdapter(self.settings)
         self.booking_repository = booking_repository or _MarketingBookingStateRepository()
         self.appointment_notifier = appointment_notifier or _ConfiguredAppointmentNotifier(settings=self.settings)
         self.sequence_service = sequence_service or _SequenceEnrollmentAdapter()
+        self.contacts = contacts or ContactsRepository()
+        self.webhook_receipts = webhook_receipts or _ProviderWebhookReceiptAdapter()
+        self.opportunity_service = opportunity_service or OpportunityService()
 
     def handle_calcom_webhook(
         self,
@@ -259,11 +330,18 @@ class BookingService:
         raw_body: bytes | None = None,
     ) -> dict[str, str]:
         event = self.calcom_adapter.normalize(payload, signature=signature, raw_body=raw_body)
+        lead = self.contacts.get_lead(event.lead_id)
+        receipt_id, deduped = self.webhook_receipts.record_calcom_event(event=event, lead=lead, payload=payload)
+        if deduped:
+            self.webhook_receipts.mark_processed(receipt_id)
+            return {"status": "processed", "lead_id": event.lead_id, "booking_status": event.booking_status}
         newly_booked = self.booking_repository.apply_booking_event(event)
         if newly_booked:
             self.appointment_notifier.send_appointment_confirmation(lead_id=event.lead_id)
+            self._sync_opportunity(lead, event)
         if event.booking_status in {"booked", "rescheduled"}:
             self.sequence_service.suppress_for_booked_lead(lead_id=event.lead_id)
+        self.webhook_receipts.mark_processed(receipt_id)
         return {"status": "processed", "lead_id": event.lead_id, "booking_status": event.booking_status}
 
     def run_non_booker_check(self, request: NonBookerCheckRequest) -> dict[str, str | bool | int]:
@@ -300,6 +378,20 @@ class BookingService:
             title=f"Call lead: {request.reason} (day {request.sequence_day})",
         )
         return {"task_id": task.id, "status": str(task.status)}
+
+    def _sync_opportunity(self, lead: MarketingLeadRecord | None, event: NormalizedBookingEvent) -> None:
+        if lead is None or event.booking_status != "booked":
+            return
+        self.opportunity_service.create_for_contact(
+            business_id=lead.business_id,
+            environment=lead.environment,
+            contact_id=lead.id,
+            source_lane=OpportunitySourceLane.LEASE_OPTION_INBOUND,
+            metadata={
+                "booking_status": event.booking_status,
+                "event_name": event.event_name,
+            },
+        )
 
 
 def _default_request_sender(outbound_request: dict[str, Any]) -> None:

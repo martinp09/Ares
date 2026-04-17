@@ -32,6 +32,15 @@ def test_marketing_migration_adds_sequence_status_guardrail() -> None:
     )
 
 
+def test_marketing_migration_matches_live_booking_event_types() -> None:
+    sql = _sql()
+
+    assert re.search(
+        r"constraint\s+booking_events_event_type_check\s+check\s*\(\s*event_type\s+in\s*\('booked',\s*'rescheduled',\s*'cancelled'\)\s*\)",
+        sql,
+    )
+
+
 def test_marketing_migration_adds_minimum_indexes_for_marketing_queries() -> None:
     sql = _sql()
 

@@ -59,7 +59,7 @@ create table if not exists public.booking_events (
     references public.conversations (id, business_id, environment)
     on delete set null,
   constraint booking_events_event_type_check
-    check (event_type in ('created', 'rescheduled', 'cancelled'))
+    check (event_type in ('booked', 'rescheduled', 'cancelled'))
 );
 
 create table if not exists public.sequence_enrollments (

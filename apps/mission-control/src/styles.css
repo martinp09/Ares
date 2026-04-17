@@ -319,6 +319,27 @@ textarea:focus-visible {
   border-color: rgba(255, 140, 0, 0.18);
 }
 
+.workspace-switcher {
+  display: flex;
+  gap: 10px;
+  margin: 10px 0 14px;
+  flex-wrap: wrap;
+}
+
+.workspace-switcher__item {
+  border: 1px solid rgba(141, 165, 199, 0.2);
+  background: rgba(10, 20, 34, 0.82);
+  color: #c0d2eb;
+  border-radius: 999px;
+  padding: 8px 12px;
+}
+
+.workspace-switcher__item--active {
+  border-color: rgba(109, 168, 255, 0.5);
+  background: rgba(17, 38, 64, 0.95);
+  color: #f1f6ff;
+}
+
 .shell__content {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 332px;

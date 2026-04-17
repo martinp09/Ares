@@ -4,21 +4,47 @@ import { ContextPanel } from "./components/ContextPanel";
 import {
   MissionControlShell,
   type ShellNavSection,
+  type ShellWorkspace,
 } from "./components/MissionControlShell";
-import { createMissionControlApi, type MissionControlSnapshot, type MissionControlView } from "./lib/api";
+import {
+  createMissionControlApi,
+  type MissionControlSnapshot,
+  type MissionControlView,
+  type OutboundSendResponse,
+} from "./lib/api";
 import { missionControlFixtures } from "./lib/fixtures";
 import { queryClient } from "./lib/queryClient";
-import { AgentsPage } from "./pages/AgentsPage";
-import { ApprovalsPage } from "./pages/ApprovalsPage";
 import { DashboardPage } from "./pages/DashboardPage";
 import { InboxPage } from "./pages/InboxPage";
-import { IntakePage } from "./pages/IntakePage";
+import { PipelinePage } from "./pages/PipelinePage";
 import { RunsPage } from "./pages/RunsPage";
-import { TurnsPage } from "./pages/TurnsPage";
-import { SettingsPage } from "./pages/SettingsPage";
+import { TasksPage } from "./pages/TasksPage";
 
 const api = createMissionControlApi();
-const missionControlScope = { businessId: "limitless", environment: "dev" };
+
+async function unsupportedSend(): Promise<OutboundSendResponse> {
+  return {
+    status: "unsupported",
+    providerMessageId: null,
+    errorMessage: "Provider test actions are not wired in this Mission Control build.",
+  };
+}
+
+type WorkspaceId = "lead-machine" | "marketing" | "pipeline";
+
+interface WorkspacePage {
+  title: string;
+  subtitle: string;
+  mainContent: JSX.Element;
+  contextContent: JSX.Element;
+}
+
+interface WorkspaceDefinition {
+  label: string;
+  defaultView: MissionControlView;
+  navSections: ShellNavSection[];
+  pages: Partial<Record<MissionControlView, WorkspacePage>>;
+}
 
 function includesSearch(haystack: Array<string | number | null | undefined>, searchValue: string): boolean {
   if (!searchValue) {
@@ -33,13 +59,13 @@ function includesSearch(haystack: Array<string | number | null | undefined>, sea
 }
 
 export default function App() {
-  const [activeView, setActiveView] = useState<MissionControlView>("agents");
+  const [activeWorkspace, setActiveWorkspace] = useState<WorkspaceId>("lead-machine");
+  const [activeView, setActiveView] = useState<MissionControlView>("dashboard");
   const [searchValue, setSearchValue] = useState("");
   const [snapshot, setSnapshot] = useState<MissionControlSnapshot>(missionControlFixtures);
-  const [selectedConversationId, setSelectedConversationId] = useState(
-    missionControlFixtures.inbox.selectedConversationId,
-  );
+  const [selectedConversationId, setSelectedConversationId] = useState("");
   const [dataSource, setDataSource] = useState<"api" | "fixture">("fixture");
+  const [fallbackViews, setFallbackViews] = useState<MissionControlView[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
@@ -48,12 +74,16 @@ export default function App() {
     async function load() {
       setIsLoading(true);
 
-      const [dashboard, inbox, approvals, runs, turns, agents, assets] = await Promise.all([
+      const [dashboard, inbox, tasks, approvals, runs, agents, assets] = await Promise.all([
         queryClient.fetch("dashboard", api.getDashboard, missionControlFixtures.dashboard),
-        queryClient.fetch(`inbox:${selectedConversationId}`, () => api.getInbox(selectedConversationId), missionControlFixtures.inbox),
+        queryClient.fetch(
+          `inbox:${selectedConversationId || "default"}`,
+          () => api.getInbox(selectedConversationId || undefined),
+          missionControlFixtures.inbox,
+        ),
+        queryClient.fetch("tasks", api.getTasks, missionControlFixtures.tasks),
         queryClient.fetch("approvals", api.getApprovals, missionControlFixtures.approvals),
         queryClient.fetch("runs", api.getRuns, missionControlFixtures.runs),
-        queryClient.fetch("turns:limitless:dev", () => api.getTurns(missionControlScope), missionControlFixtures.turns),
         queryClient.fetch("agents", api.getAgents, missionControlFixtures.agents),
         queryClient.fetch("assets", api.getAssets, missionControlFixtures.assets),
       ]);
@@ -65,17 +95,32 @@ export default function App() {
       setSnapshot({
         dashboard: dashboard.data,
         inbox: inbox.data,
+        tasks: tasks.data,
         approvals: approvals.data,
         runs: runs.data,
-        turns: turns.data,
+        turns: missionControlFixtures.turns,
         agents: agents.data,
-
         assets: assets.data,
       });
       setDataSource(
-        [dashboard, inbox, approvals, runs, turns, agents, assets].some((result) => result.source === "fixture")
+        [dashboard, inbox, tasks, approvals, runs, agents, assets].some((result) => result.source === "fixture")
           ? "fixture"
           : "api",
+      );
+      setFallbackViews(
+        (
+          [
+            ["dashboard", dashboard.source],
+            ["inbox", inbox.source],
+            ["tasks", tasks.source],
+            ["approvals", approvals.source],
+            ["runs", runs.source],
+            ["agents", agents.source],
+            ["settings", assets.source],
+          ] as const
+        )
+          .filter(([, source]) => source === "fixture")
+          .map(([viewId]) => viewId),
       );
       setSelectedConversationId((currentId) =>
         inbox.data.conversations.some((conversation) => conversation.id === currentId)
@@ -111,6 +156,24 @@ export default function App() {
     [normalizedSearchValue, snapshot.inbox.conversations],
   );
 
+  const filteredTasks = useMemo(
+    () =>
+      snapshot.tasks.tasks.filter((task) =>
+        includesSearch(
+          [
+            task.leadName,
+            task.channel,
+            task.bookingStatus,
+            task.sequenceStatus,
+            task.nextSequenceStep,
+            task.recentReplyPreview,
+          ],
+          normalizedSearchValue,
+        ),
+      ),
+    [normalizedSearchValue, snapshot.tasks.tasks],
+  );
+
   const visibleConversationId =
     filteredConversations.find((conversation) => conversation.id === selectedConversationId)?.id ??
     filteredConversations[0]?.id ??
@@ -119,17 +182,12 @@ export default function App() {
   const visibleThread =
     snapshot.inbox.threadsById[visibleConversationId] ??
     snapshot.inbox.threadsById[snapshot.inbox.selectedConversationId];
-
-  const filteredApprovals = useMemo(
-    () =>
-      snapshot.approvals.filter((approval) =>
-        includesSearch(
-          [approval.title, approval.reason, approval.commandType, approval.payloadPreview],
-          normalizedSearchValue,
-        ),
-      ),
-    [normalizedSearchValue, snapshot.approvals],
-  );
+  const contextThread = visibleThread ?? {
+    nextBestAction: "Select a thread to inspect context.",
+    stage: "No thread selected",
+    tags: [] as string[],
+    notes: ["No conversation detail is currently available."],
+  };
 
   const filteredRuns = useMemo(
     () =>
@@ -142,215 +200,246 @@ export default function App() {
     [normalizedSearchValue, snapshot.runs],
   );
 
-  const filteredTurns = useMemo(
+  const filteredOpportunityStages = useMemo(
     () =>
-      snapshot.turns.filter((turn) =>
-        includesSearch(
-          [turn.id, turn.sessionId, turn.agentId, turn.agentRevisionId, turn.state, turn.retryCount],
-          normalizedSearchValue,
-        ),
+      (snapshot.dashboard.opportunityStageSummaries ?? []).filter((stage) =>
+        includesSearch([stage.stage, stage.count], normalizedSearchValue),
       ),
-    [normalizedSearchValue, snapshot.turns],
+    [normalizedSearchValue, snapshot.dashboard.opportunityStageSummaries],
   );
 
-  const filteredAgents = useMemo(
-    () =>
-      snapshot.agents.filter((agent) =>
-        includesSearch(
-          [agent.name, agent.activeRevisionId, agent.activeRevisionState, agent.environment],
-          normalizedSearchValue,
-        ),
-      ),
-    [normalizedSearchValue, snapshot.agents],
-  );
-
-  const filteredAssets = useMemo(
-    () =>
-      snapshot.assets.filter((asset) =>
-        includesSearch([asset.name, asset.category, asset.status, asset.bindingTarget], normalizedSearchValue),
-      ),
-    [normalizedSearchValue, snapshot.assets],
-  );
-
-  const publishedAgentCount = filteredAgents.filter((agent) => agent.activeRevisionState === "published").length;
-  const trackedEnvironmentCount = new Set(filteredAgents.map((agent) => agent.environment)).size;
-  const liveSessionTotal = filteredAgents.reduce((total, agent) => total + agent.liveSessionCount, 0);
-  const delegatedWorkTotal = filteredAgents.reduce((total, agent) => total + agent.delegatedWorkCount, 0);
-
-  const navSections: ShellNavSection[] = [
-    {
-      title: "Primary surfaces",
-      items: [
-        { id: "agents", label: "Agents", badge: snapshot.dashboard.activeAgentCount },
-        { id: "dashboard", label: "Dashboard" },
-        { id: "intake", label: "Intake" },
-      ],
-    },
-    {
-      title: "Operations",
-      items: [
-        { id: "inbox", label: "Inbox", badge: snapshot.dashboard.unreadConversationCount },
-        { id: "approvals", label: "Approvals", badge: snapshot.dashboard.approvalCount },
-        { id: "runs", label: "Runs", badge: snapshot.dashboard.activeRunCount },
-        { id: "turns", label: "Turns", badge: snapshot.turns.filter((turn) => turn.state !== "completed").length },
-        { id: "settings", label: "Settings" },
-      ],
-    },
+  const workspaces: ShellWorkspace[] = [
+    { id: "lead-machine", label: "Lead Machine" },
+    { id: "marketing", label: "Marketing" },
+    { id: "pipeline", label: "Pipeline" },
   ];
 
-  const pageMap: Record<
-    MissionControlView,
-    {
-      title: string;
-      subtitle: string;
-      mainContent: JSX.Element;
-      contextContent: JSX.Element;
-    }
-  > = {
-    intake: {
-      title: "Intake",
-      subtitle: "Submission-to-appointment happy path, fixture-backed on this machine.",
-      mainContent: <IntakePage />,
-      contextContent: (
-        <ContextPanel
-          eyebrow="Execution lane"
-          title="No Supabase or provider wiring on this machine"
-          items={[
-            "Fixtures only here.",
-            "Your local MacBook handles live persistence, provider writes, and database cutover.",
-            "The operator still sees the entire happy path in Mission Control.",
-          ]}
-        />
-      ),
+  const workspaceDefinitions: Record<WorkspaceId, WorkspaceDefinition> = {
+    "lead-machine": {
+      label: "Lead Machine",
+      defaultView: "dashboard",
+      navSections: [
+        {
+          title: "Lead Machine",
+          items: [
+            { id: "dashboard", label: "Queue", badge: snapshot.dashboard.pendingLeadCount ?? 0 },
+            { id: "inbox", label: "Replies", badge: snapshot.dashboard.unreadConversationCount },
+            { id: "runs", label: "Campaign State", badge: snapshot.dashboard.activeRunCount },
+            { id: "tasks", label: "Tasks", badge: snapshot.dashboard.dueManualCallCount ?? 0 },
+          ],
+        },
+      ],
+      pages: {
+        dashboard: {
+          title: "Lead Machine / Queue",
+          subtitle: "Outbound probate queue, campaign posture, and operator attention in one lane.",
+          mainContent: <DashboardPage data={snapshot.dashboard} />,
+          contextContent: (
+            <ContextPanel
+              eyebrow="Probate lane"
+              title="Outbound machine posture"
+              items={[
+                `${snapshot.dashboard.pendingLeadCount ?? 0} probate leads ready for operator review`,
+                `${snapshot.dashboard.activeRunCount} active campaign flows`,
+                `${snapshot.dashboard.dueManualCallCount ?? 0} follow-ups waiting on a human`,
+              ]}
+            />
+          ),
+        },
+        inbox: {
+          title: "Lead Machine / Replies",
+          subtitle: "Review probate reply context, suppression signals, and next actions without leaving the lane.",
+          mainContent: (
+            <InboxPage
+              data={{ ...snapshot.inbox, conversations: filteredConversations }}
+              selectedConversationId={visibleConversationId}
+              onSelectConversation={setSelectedConversationId}
+              onSendSmsTest={unsupportedSend}
+              onSendEmailTest={unsupportedSend}
+            />
+          ),
+          contextContent: (
+            <ContextPanel
+              eyebrow="Selected reply"
+              title={contextThread.nextBestAction}
+              items={[
+                `Stage: ${contextThread.stage}`,
+                `Tags: ${contextThread.tags.join(", ") || "none"}`,
+                ...contextThread.notes,
+              ]}
+            />
+          ),
+        },
+        runs: {
+          title: "Lead Machine / Campaign State",
+          subtitle: "Inspect outbound automation runs and keep campaign lineage visible.",
+          mainContent: <RunsPage runs={filteredRuns} />,
+          contextContent: (
+            <ContextPanel
+              eyebrow="Campaign state"
+              title="Automation posture"
+              items={[
+                "Root and child runs stay surfaced together.",
+                "Provider and suppression failures stay visible to operators.",
+              ]}
+            />
+          ),
+        },
+        tasks: {
+          title: "Lead Machine / Tasks",
+          subtitle: "Manual call checkpoints and reply review tasks for the outbound lane.",
+          mainContent: <TasksPage data={{ dueCount: filteredTasks.length, tasks: filteredTasks }} />,
+          contextContent: (
+            <ContextPanel
+              eyebrow="Operator tasks"
+              title="Human follow-up remains explicit"
+              items={[
+                `${filteredTasks.length} tasks are visible in the queue`,
+                "Manual reviews stay separate from automated campaign state.",
+              ]}
+            />
+          ),
+        },
+      },
     },
-    dashboard: {
-      title: "Dashboard",
-      subtitle: "Live posture across inbox, approvals, runs, and agent health.",
-      mainContent: <DashboardPage data={snapshot.dashboard} />,
-      contextContent: (
-        <ContextPanel
-          eyebrow="Queue posture"
-          title="Current operator priorities"
-          items={[
-            `${snapshot.dashboard.approvalCount} approvals waiting`,
-            `${snapshot.dashboard.unreadConversationCount} unread conversations`,
-            `${snapshot.dashboard.failedRunCount} failed automation flows`,
-          ]}
-        />
-      ),
+    marketing: {
+      label: "Marketing",
+      defaultView: "dashboard",
+      navSections: [
+        {
+          title: "Marketing",
+          items: [
+            { id: "dashboard", label: "Overview", badge: snapshot.dashboard.pendingLeadCount ?? 0 },
+            { id: "inbox", label: "Submissions", badge: snapshot.dashboard.unreadConversationCount },
+            { id: "tasks", label: "Tasks", badge: snapshot.dashboard.dueManualCallCount ?? 0 },
+          ],
+        },
+      ],
+      pages: {
+        dashboard: {
+          title: "Marketing / Overview",
+          subtitle: "Lease-option submissions, booked vs pending, and non-booker follow-up health.",
+          mainContent: <DashboardPage data={snapshot.dashboard} />,
+          contextContent: (
+            <ContextPanel
+              eyebrow="Lease-option lane"
+              title="Inbound marketing posture"
+              items={[
+                `${snapshot.dashboard.pendingLeadCount ?? 0} pending lease-option leads`,
+                `${snapshot.dashboard.bookedLeadCount ?? 0} booked consultations`,
+                `${snapshot.dashboard.activeNonBookerEnrollmentCount ?? 0} active non-booker sequences`,
+              ]}
+            />
+          ),
+        },
+        inbox: {
+          title: "Marketing / Submissions",
+          subtitle: "Work new lease-option submissions and inbound replies in a dedicated operator workspace.",
+          mainContent: (
+            <InboxPage
+              data={{ ...snapshot.inbox, conversations: filteredConversations }}
+              selectedConversationId={visibleConversationId}
+              onSelectConversation={setSelectedConversationId}
+              onSendSmsTest={unsupportedSend}
+              onSendEmailTest={unsupportedSend}
+            />
+          ),
+          contextContent: (
+            <ContextPanel
+              eyebrow="Submission context"
+              title={contextThread.nextBestAction}
+              items={[
+                `Stage: ${contextThread.stage}`,
+                `Tags: ${contextThread.tags.join(", ") || "none"}`,
+                ...contextThread.notes,
+              ]}
+            />
+          ),
+        },
+        tasks: {
+          title: "Marketing / Tasks",
+          subtitle: "Surface booked vs pending follow-up work and replies that need an operator decision.",
+          mainContent: <TasksPage data={{ dueCount: filteredTasks.length, tasks: filteredTasks }} />,
+          contextContent: (
+            <ContextPanel
+              eyebrow="Sequence posture"
+              title="Non-booker follow-up stays visible"
+              items={[
+                `${snapshot.dashboard.repliesNeedingReviewCount ?? 0} replies need review`,
+                `${filteredTasks.length} manual call checkpoints remain active`,
+              ]}
+            />
+          ),
+        },
+      },
     },
-    inbox: {
-      title: "Inbox",
-      subtitle: "Three-pane thread review with context kept on screen.",
-      mainContent: (
-        <InboxPage
-          data={{ ...snapshot.inbox, conversations: filteredConversations }}
-          selectedConversationId={visibleConversationId}
-          onSelectConversation={setSelectedConversationId}
-          onSendSmsTest={(payload) => api.sendTestSms(payload)}
-          onSendEmailTest={(payload) => api.sendTestEmail(payload)}
-        />
-      ),
-      contextContent: (
-        <ContextPanel
-          eyebrow="Selected thread"
-          title={visibleThread.nextBestAction}
-          items={[
-            `Stage: ${visibleThread.stage}`,
-            `Tags: ${visibleThread.tags.join(", ")}`,
-            ...visibleThread.notes,
-          ]}
-        />
-      ),
-    },
-    approvals: {
-      title: "Approvals",
-      subtitle: "Review risk-triggered actions without leaving the cockpit.",
-      mainContent: <ApprovalsPage approvals={filteredApprovals} />,
-      contextContent: (
-        <ContextPanel
-          eyebrow="Approval policy"
-          title="Fast decisions, visible risk"
-          items={[
-            "Customer-facing replies should remain explicit approvals.",
-            "Voice launch requests stay gated until live policy tuning is done.",
-          ]}
-        />
-      ),
-    },
-    runs: {
-      title: "Runs",
-      subtitle: "Inspect active, failed, and child runs with visible lineage.",
-      mainContent: <RunsPage runs={filteredRuns} />,
-      contextContent: (
-        <ContextPanel
-          eyebrow="Run status"
-          title="Lineage stays visible"
-          items={[
-            "Root and child runs stay on the same timeline.",
-            "Failed jobs remain surfaced instead of disappearing into logs.",
-          ]}
-        />
-      ),
-    },
-    turns: {
-      title: "Turns",
-      subtitle: "Review session turn state, retry counts, and runtime handoffs.",
-      mainContent: <TurnsPage turns={filteredTurns} />,
-      contextContent: (
-        <ContextPanel
-          eyebrow="Turn journal"
-          title="Retries and state are visible here"
-          items={[
-            "Running and waiting turns stay visible instead of collapsing into a generic run row.",
-            "Retry count is derived from the turn journal and metadata so operators can see why a turn was retried.",
-          ]}
-        />
-      ),
-    },
-    agents: {
-      title: "Agents",
-      subtitle: "Registry-first cockpit for revisions, environments, live sessions, and delegated work.",
-      mainContent: <AgentsPage agents={filteredAgents} />,
-      contextContent: (
-        <ContextPanel
-          eyebrow="Fixture boundary"
-          title="Agent control plane stays local-first here"
-          items={[
-            `${publishedAgentCount} published revisions across ${trackedEnvironmentCount} environments are visible in fixtures.`,
-            `${liveSessionTotal} live sessions and ${delegatedWorkTotal} delegated work items are surfaced without live writes.`,
-            "No Supabase persistence, provider routing, or publish/archive actions are wired from this machine.",
-          ]}
-        />
-      ),
-    },
-    settings: {
-      title: "Settings / Assets",
-      subtitle: "Connect-later operational assets only. No page builder or CRM setup.",
-      mainContent: <SettingsPage assets={filteredAssets} />,
-      contextContent: (
-        <ContextPanel
-          eyebrow="Connect later"
-          title="Asset binding is scaffold-only on this machine"
-          items={[
-            "Bindings are visible but not wired to live providers here.",
-            "Supabase and provider cutover stay deferred.",
-          ]}
-        />
-      ),
+    pipeline: {
+      label: "Pipeline",
+      defaultView: "pipeline",
+      navSections: [
+        {
+          title: "Pipeline",
+          items: [{ id: "pipeline", label: "Board", badge: snapshot.dashboard.opportunityCount ?? 0 }],
+        },
+      ],
+      pages: {
+        pipeline: {
+          title: "Pipeline Board",
+          subtitle: "Minimal downstream opportunity stages without collapsing lane boundaries.",
+          mainContent: (
+            <PipelinePage
+              stages={filteredOpportunityStages}
+              totalCount={snapshot.dashboard.opportunityCount ?? filteredOpportunityStages.length}
+            />
+          ),
+          contextContent: (
+            <ContextPanel
+              eyebrow="Downstream seam"
+              title="Thin contract-to-close skeleton"
+              items={[
+                "Opportunities stay visible without pretending title or dispo are finished.",
+                "Lead Machine and Marketing can both hand off into the same minimal board.",
+              ]}
+            />
+          ),
+        },
+      },
     },
   };
 
-  const activePage = pageMap[activeView];
-  const statusBadge = isLoading ? "Loading shell" : dataSource === "api" ? "Live API" : "Fixture mode";
+  const activeWorkspaceDefinition = workspaceDefinitions[activeWorkspace];
+  const activePage =
+    activeWorkspaceDefinition.pages[activeView] ?? activeWorkspaceDefinition.pages[activeWorkspaceDefinition.defaultView];
+
+  if (!activePage) {
+    throw new Error(`Missing page definition for ${activeWorkspace}:${activeView}`);
+  }
+
+  const fallbackLabel = fallbackViews.length > 0 ? ` (${fallbackViews.join(", ")})` : "";
+  const statusBadge = isLoading
+    ? "Loading shell"
+    : dataSource === "api"
+      ? "Live API"
+      : fallbackViews.length === 7
+        ? "Fixture mode"
+        : `API + fixture fallback${fallbackLabel}`;
   const footerNote =
     dataSource === "api"
       ? "Mission Control is reading Hermes runtime data."
-      : "Using local fixtures until the native read-model endpoints are wired.";
+      : fallbackViews.length === 7
+        ? "Using local fixtures until the native read-model endpoints are wired."
+        : `Using fixture fallback for: ${fallbackViews.join(", ")}.`;
 
   return (
     <MissionControlShell
-      navSections={navSections}
+      navSections={activeWorkspaceDefinition.navSections}
+      workspaces={workspaces}
+      activeWorkspaceId={activeWorkspace}
+      onSelectWorkspace={(workspaceId) => {
+        const nextWorkspace = workspaceId as WorkspaceId;
+        setActiveWorkspace(nextWorkspace);
+        setActiveView(workspaceDefinitions[nextWorkspace].defaultView);
+      }}
       activeItemId={activeView}
       onNavigate={(itemId) => setActiveView(itemId as MissionControlView)}
       searchValue={searchValue}

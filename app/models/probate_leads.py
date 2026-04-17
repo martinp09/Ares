@@ -27,6 +27,7 @@ class ProbateContactConfidence(StrEnum):
 class ProbateLeadRecord(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
+    id: str | None = None
     case_number: str = Field(min_length=1)
     file_date: date | None = None
     court_number: str | None = None
@@ -46,6 +47,9 @@ class ProbateLeadRecord(BaseModel):
     lead_score: float | None = None
     outreach_status: str | None = None
     matched_candidate_count: int = Field(default=0, ge=0)
+    tax_delinquent: bool = False
+    estate_of: bool = False
+    pain_stack: dict[str, Any] = Field(default_factory=dict)
     last_seen_at: datetime | None = None
     raw_payload: dict[str, Any] = Field(default_factory=dict)
 
