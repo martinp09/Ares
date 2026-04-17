@@ -6,7 +6,12 @@ import {
   type ShellNavSection,
   type ShellWorkspace,
 } from "./components/MissionControlShell";
-import { createMissionControlApi, type MissionControlSnapshot, type MissionControlView } from "./lib/api";
+import {
+  createMissionControlApi,
+  type MissionControlSnapshot,
+  type MissionControlView,
+  type OutboundSendResponse,
+} from "./lib/api";
 import { missionControlFixtures } from "./lib/fixtures";
 import { queryClient } from "./lib/queryClient";
 import { DashboardPage } from "./pages/DashboardPage";
@@ -16,6 +21,14 @@ import { RunsPage } from "./pages/RunsPage";
 import { TasksPage } from "./pages/TasksPage";
 
 const api = createMissionControlApi();
+
+async function unsupportedSend(): Promise<OutboundSendResponse> {
+  return {
+    status: "unsupported",
+    providerMessageId: null,
+    errorMessage: "Provider test actions are not wired in this Mission Control build.",
+  };
+}
 
 type WorkspaceId = "lead-machine" | "marketing" | "pipeline";
 
@@ -85,6 +98,7 @@ export default function App() {
         tasks: tasks.data,
         approvals: approvals.data,
         runs: runs.data,
+        turns: missionControlFixtures.turns,
         agents: agents.data,
         assets: assets.data,
       });
@@ -240,6 +254,8 @@ export default function App() {
               data={{ ...snapshot.inbox, conversations: filteredConversations }}
               selectedConversationId={visibleConversationId}
               onSelectConversation={setSelectedConversationId}
+              onSendSmsTest={unsupportedSend}
+              onSendEmailTest={unsupportedSend}
             />
           ),
           contextContent: (
@@ -324,6 +340,8 @@ export default function App() {
               data={{ ...snapshot.inbox, conversations: filteredConversations }}
               selectedConversationId={visibleConversationId}
               onSelectConversation={setSelectedConversationId}
+              onSendSmsTest={unsupportedSend}
+              onSendEmailTest={unsupportedSend}
             />
           ),
           contextContent: (

@@ -1,9 +1,11 @@
 from __future__ import annotations
 
 from copy import deepcopy
+from datetime import UTC
 from datetime import datetime
 from typing import Any
 
+from app.core.config import get_settings
 from app.db.automation_runs import AutomationRunsRepository
 from app.db.campaign_memberships import CampaignMembershipsRepository
 from app.db.campaigns import CampaignsRepository
@@ -24,6 +26,7 @@ from app.models.mission_control import (
     MissionControlAssetsResponse,
     MissionControlAssetSummary,
     MissionControlDashboardResponse,
+    MissionControlEmailTestRequest,
     MissionControlInboxResponse,
     MissionControlInboxSummary,
     MissionControlLeadMachineCampaignSummary,
@@ -31,6 +34,10 @@ from app.models.mission_control import (
     MissionControlLeadMachineQueueSummary,
     MissionControlLeadMachineResponse,
     MissionControlLeadMachineSummary,
+    MissionControlOutboundSendResponse,
+    MissionControlProviderStatus,
+    MissionControlProvidersStatusResponse,
+    MissionControlSmsTestRequest,
     MissionControlLeadMachineTaskSummary,
     MissionControlLeadMachineTasksSummary,
     MissionControlLeadMachineTimelineItem,
@@ -43,11 +50,23 @@ from app.models.mission_control import (
     MissionControlThreadDetail,
     MissionControlThreadRecord,
     MissionControlThreadSummary,
+    MissionControlTurnSummary,
+    MissionControlTurnsResponse,
 )
 from app.models.runs import RunStatus
+from app.models.provider_extras import InstantlyProviderExtrasSnapshot
+from app.models.audit import AuditListResponse
+from app.models.secrets import SecretBindingListResponse, SecretListResponse
+from app.models.usage import UsageEventKind, UsageResponse
 from app.services.agent_asset_service import AgentAssetService, agent_asset_service
 from app.services.agent_registry_service import AgentRegistryService, agent_registry_service
 from app.services.approval_service import ApprovalService, approval_service
+from app.services.audit_service import audit_service
+from app.services.provider_extras_service import provider_extras_service
+from app.services.providers.resend import get_resend_status, send_test_email
+from app.services.providers.textgrid import get_textgrid_status, send_test_sms
+from app.services.secrets_service import secret_service
+from app.services.usage_service import usage_service
 
 ACTIVE_RUN_STATUSES = {RunStatus.QUEUED, RunStatus.IN_PROGRESS}
 
@@ -268,6 +287,9 @@ class MissionControlService:
         *,
         business_id: str | None = None,
         environment: str | None = None,
+        lead_id: str | None = None,
+        campaign_id: str | None = None,
+        limit: int | None = None,
     ) -> MissionControlLeadMachineResponse:
         leads = self._lead_machine_leads(business_id=business_id, environment=environment)
         campaigns = self.campaigns_repository.list(business_id=business_id, environment=environment)
@@ -416,6 +438,44 @@ class MissionControlService:
             ]
         )
 
+    def get_turns(
+        self,
+        *,
+        org_id: str | None = None,
+        business_id: str | None = None,
+        environment: str | None = None,
+    ) -> MissionControlTurnsResponse:
+        with self.client.transaction() as store:
+            scoped_sessions_by_id = {
+                session.id: session
+                for session in store.sessions.values()
+                if (org_id is None or session.org_id == org_id)
+                and self._matches_scope(session.business_id, session.environment, business_id, environment)
+            }
+            turns = [turn for turn in store.turns.values() if turn.session_id in scoped_sessions_by_id]
+
+        turns_by_id = {turn.id: turn for turn in turns}
+        ordered_turns = sorted(turns, key=lambda turn: (turn.updated_at, turn.created_at), reverse=True)
+        return MissionControlTurnsResponse(
+            turns=[
+                MissionControlTurnSummary(
+                    id=turn.id,
+                    session_id=turn.session_id,
+                    org_id=getattr(turn, "org_id", scoped_sessions_by_id[turn.session_id].org_id),
+                    business_id=scoped_sessions_by_id[turn.session_id].business_id,
+                    environment=scoped_sessions_by_id[turn.session_id].environment,
+                    agent_id=turn.agent_id,
+                    agent_revision_id=turn.agent_revision_id,
+                    turn_number=turn.turn_number,
+                    state=turn.status,
+                    retry_count=self._turn_retry_count(turn, turns_by_id),
+                    resumed_from_turn_id=turn.resumed_from_turn_id,
+                    updated_at=turn.updated_at,
+                )
+                for turn in ordered_turns
+            ]
+        )
+
     def get_approvals(
         self,
         *,
@@ -503,6 +563,117 @@ class MissionControlService:
                 for asset in ordered_assets
             ]
         )
+
+    def get_assets(
+        self,
+        *,
+        business_id: str | None = None,
+        environment: str | None = None,
+    ) -> MissionControlAssetsResponse:
+        return self.get_settings_assets(business_id=business_id, environment=environment)
+
+    def get_provider_status(self) -> MissionControlProvidersStatusResponse:
+        settings = get_settings()
+        return MissionControlProvidersStatusResponse(
+            sms=MissionControlProviderStatus(**get_textgrid_status(settings)),
+            email=MissionControlProviderStatus(**get_resend_status(settings)),
+        )
+
+    def get_instantly_provider_extras(
+        self,
+        *,
+        business_id: str | None = None,
+        environment: str | None = None,
+    ) -> InstantlyProviderExtrasSnapshot:
+        return provider_extras_service.get_instantly_snapshot(
+            business_id=business_id,
+            environment=environment,
+        )
+
+    def get_secrets(self, *, org_id: str | None = None) -> SecretListResponse:
+        return SecretListResponse(secrets=secret_service.list_secrets(org_id=org_id))
+
+    def get_secret_bindings(self, *, revision_id: str) -> SecretBindingListResponse:
+        return SecretBindingListResponse(bindings=secret_service.list_bindings_for_revision(revision_id))
+
+    def get_audit(
+        self,
+        *,
+        org_id: str | None = None,
+        agent_id: str | None = None,
+        agent_revision_id: str | None = None,
+        session_id: str | None = None,
+        run_id: str | None = None,
+        resource_type: str | None = None,
+        resource_id: str | None = None,
+        event_type: str | None = None,
+        limit: int | None = None,
+    ) -> AuditListResponse:
+        return AuditListResponse(
+            events=audit_service.list_events(
+                org_id=org_id,
+                agent_id=agent_id,
+                agent_revision_id=agent_revision_id,
+                session_id=session_id,
+                run_id=run_id,
+                resource_type=resource_type,
+                resource_id=resource_id,
+                event_type=event_type,
+                limit=limit,
+            )
+        )
+
+    def get_usage(
+        self,
+        *,
+        org_id: str | None = None,
+        agent_id: str | None = None,
+        agent_revision_id: str | None = None,
+        kind: UsageEventKind | None = None,
+        source_kind: str | None = None,
+        limit: int | None = None,
+    ) -> UsageResponse:
+        return usage_service.list_usage(
+            org_id=org_id,
+            agent_id=agent_id,
+            agent_revision_id=agent_revision_id,
+            kind=kind,
+            source_kind=source_kind,
+            limit=limit,
+        )
+
+    def send_test_sms(self, request: MissionControlSmsTestRequest) -> MissionControlOutboundSendResponse:
+        settings = get_settings()
+        result = send_test_sms(settings, to=request.to, body=request.body)
+        return MissionControlOutboundSendResponse(**result)
+
+    def send_test_email(self, request: MissionControlEmailTestRequest) -> MissionControlOutboundSendResponse:
+        settings = get_settings()
+        result = send_test_email(
+            settings,
+            to=request.to,
+            subject=request.subject,
+            text=request.text,
+            html=request.html,
+        )
+        return MissionControlOutboundSendResponse(**result)
+
+    @staticmethod
+    def _turn_retry_count(turn: Any, turns_by_id: dict[str, Any]) -> int:
+        metadata = getattr(turn, "metadata", None)
+        if isinstance(metadata, dict):
+            retry_count = metadata.get("retry_count")
+            if isinstance(retry_count, int) and retry_count >= 0:
+                return retry_count
+        retry_count = 0
+        resumed_from_turn_id = getattr(turn, "resumed_from_turn_id", None)
+        while resumed_from_turn_id:
+            retry_count += 1
+            resumed_turn = turns_by_id.get(resumed_from_turn_id)
+            if resumed_turn is None:
+                break
+            resumed_from_turn_id = getattr(resumed_turn, "resumed_from_turn_id", None)
+        return retry_count
 
     def _build_thread_summary(
         self,

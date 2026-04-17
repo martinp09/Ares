@@ -9,9 +9,15 @@ from app.models.agent_assets import AgentAssetStatus, AgentAssetType
 from app.models.approvals import ApprovalStatus
 from app.models.commands import generate_id
 from app.models.runs import RunStatus
+from app.models.tasks import TaskPriority, TaskStatus, TaskType
+from app.models.turns import TurnStatus
 
 MissionControlThreadStatus = Literal["open", "waiting", "closed"]
 MissionControlMessageDirection = Literal["inbound", "outbound", "internal"]
+MissionControlApprovalRisk = Literal["low", "medium", "high"]
+MissionControlProviderName = Literal["textgrid", "resend"]
+MissionControlProviderChannel = Literal["sms", "email"]
+MissionControlOutboundSendStatus = Literal["queued", "sent", "failed"]
 
 
 class MissionControlContactRecord(BaseModel):
@@ -75,6 +81,54 @@ class MissionControlDashboardResponse(BaseModel):
     opportunity_stage_summaries: list[MissionControlOpportunityStageSummary] | None = None
     system_status: Literal["healthy", "watch", "degraded"] = "healthy"
     updated_at: str
+
+
+class MissionControlProviderStatus(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    provider: MissionControlProviderName
+    configured: bool
+    can_send: bool
+    sender_identity: str | None = None
+    endpoint: str | None = None
+    details: str | None = None
+    checked_at: datetime
+
+
+class MissionControlProvidersStatusResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    sms: MissionControlProviderStatus
+    email: MissionControlProviderStatus
+
+
+class MissionControlSmsTestRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    to: str = Field(min_length=1)
+    body: str = Field(min_length=1)
+
+
+class MissionControlEmailTestRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    to: str = Field(min_length=1)
+    subject: str = Field(min_length=1)
+    text: str = Field(min_length=1)
+    html: str | None = None
+
+
+class MissionControlOutboundSendResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    channel: MissionControlProviderChannel
+    provider: MissionControlProviderName
+    status: MissionControlOutboundSendStatus
+    provider_message_id: str | None = None
+    to: str
+    from_identity: str | None = None
+    attempted_at: datetime
+    error_message: str | None = None
 
 
 class MissionControlLeadMachineSummary(BaseModel):
@@ -274,6 +328,29 @@ class MissionControlRunsResponse(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     runs: list[MissionControlRunSummary] = Field(default_factory=list)
+
+
+class MissionControlTurnSummary(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    id: str
+    session_id: str
+    org_id: str
+    business_id: str
+    environment: str
+    agent_id: str
+    agent_revision_id: str
+    turn_number: int = Field(ge=1)
+    state: TurnStatus
+    retry_count: int = Field(default=0, ge=0)
+    resumed_from_turn_id: str | None = None
+    updated_at: datetime
+
+
+class MissionControlTurnsResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    turns: list[MissionControlTurnSummary] = Field(default_factory=list)
 
 
 class MissionControlApprovalSummary(BaseModel):

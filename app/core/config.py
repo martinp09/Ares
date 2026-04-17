@@ -4,15 +4,23 @@ from typing import Literal
 from pydantic import AliasChoices, Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+DEFAULT_INTERNAL_ORG_ID = "org_internal"
+DEFAULT_INTERNAL_ACTOR_ID = "ares-runtime"
+DEFAULT_INTERNAL_ACTOR_TYPE = "service"
+
 
 class Settings(BaseSettings):
-    app_name: str = "Hermes Central Command Runtime"
+    app_name: str = "Ares Runtime"
     runtime_api_key: str = "dev-runtime-key"
+    default_org_id: str = DEFAULT_INTERNAL_ORG_ID
+    default_actor_id: str = DEFAULT_INTERNAL_ACTOR_ID
+    default_actor_type: Literal["user", "service", "system"] = DEFAULT_INTERNAL_ACTOR_TYPE
     control_plane_backend: Literal["memory", "supabase"] = "memory"
     marketing_backend: Literal["memory", "supabase"] = "memory"
     lead_machine_backend: Literal["memory", "supabase"] = "memory"
     database_url: str | None = None
     site_events_backend: Literal["memory", "supabase"] = "supabase"
+    runtime_provider_default: Literal["anthropic", "openai_compat", "local"] = "anthropic"
     supabase_url: str | None = Field(
         default=None,
         validation_alias=AliasChoices("supabase_url", "SUPABASE_URL"),
@@ -57,23 +65,61 @@ class Settings(BaseSettings):
         default=0.25,
         validation_alias=AliasChoices("instantly_batch_wait_seconds", "INSTANTLY_BATCH_WAIT_SECONDS"),
     )
+    anthropic_api_key: str | None = Field(
+        default=None,
+        validation_alias=AliasChoices("anthropic_api_key", "ANTHROPIC_API_KEY"),
+    )
+    anthropic_base_url: str = Field(
+        default="https://api.anthropic.com",
+        validation_alias=AliasChoices("anthropic_base_url", "ANTHROPIC_BASE_URL"),
+    )
+    openai_compat_api_key: str | None = Field(
+        default=None,
+        validation_alias=AliasChoices("openai_compat_api_key", "OPENAI_COMPAT_API_KEY"),
+    )
+    openai_compat_base_url: str | None = Field(
+        default=None,
+        validation_alias=AliasChoices("openai_compat_base_url", "OPENAI_COMPAT_BASE_URL"),
+    )
+    local_provider_enabled: bool = Field(
+        default=True,
+        validation_alias=AliasChoices("local_provider_enabled", "LOCAL_PROVIDER_ENABLED"),
+    )
     provider_request_max_retries: int = Field(
         default=2,
         validation_alias=AliasChoices("provider_request_max_retries", "PROVIDER_REQUEST_MAX_RETRIES"),
     )
+    provider_request_timeout_seconds: float = Field(
+        default=10.0,
+        validation_alias=AliasChoices(
+            "provider_request_timeout_seconds",
+            "PROVIDER_REQUEST_TIMEOUT_SECONDS",
+        ),
+    )
     provider_retry_base_delay_seconds: float = Field(
-        default=1.0,
+        default=0.25,
         validation_alias=AliasChoices(
             "provider_retry_base_delay_seconds",
             "PROVIDER_RETRY_BASE_DELAY_SECONDS",
         ),
     )
     provider_retry_max_delay_seconds: float = Field(
-        default=8.0,
+        default=2.0,
         validation_alias=AliasChoices(
             "provider_retry_max_delay_seconds",
             "PROVIDER_RETRY_MAX_DELAY_SECONDS",
         ),
+    )
+    provider_tool_schema_max_bytes: int = Field(
+        default=32768,
+        validation_alias=AliasChoices(
+            "provider_tool_schema_max_bytes",
+            "PROVIDER_TOOL_SCHEMA_MAX_BYTES",
+        ),
+    )
+    textgrid_base_url: str = Field(
+        default="https://api.textgrid.com",
+        validation_alias=AliasChoices("textgrid_base_url", "TEXTGRID_BASE_URL"),
     )
     textgrid_account_sid: str | None = Field(
         default=None,
@@ -99,9 +145,17 @@ class Settings(BaseSettings):
         default=None,
         validation_alias=AliasChoices("resend_api_key", "RESEND_API_KEY"),
     )
+    resend_email_url: str = Field(
+        default="https://api.resend.com/emails",
+        validation_alias=AliasChoices("resend_email_url", "RESEND_EMAIL_URL"),
+    )
     resend_from_email: str | None = Field(
         default=None,
         validation_alias=AliasChoices("resend_from_email", "RESEND_FROM_EMAIL", "RESEND_EMAIL_URL"),
+    )
+    resend_reply_to_email: str | None = Field(
+        default=None,
+        validation_alias=AliasChoices("resend_reply_to_email", "RESEND_REPLY_TO_EMAIL"),
     )
     cal_api_key: str | None = Field(
         default=None,

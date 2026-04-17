@@ -68,6 +68,8 @@ export interface SelectedThread {
   conversationId: string;
   leadName: string;
   company: string;
+  email?: string | null;
+  phone?: string | null;
   stage: string;
   nextBestAction: string;
   tags: string[];
@@ -110,6 +112,26 @@ export interface RunSummary {
   summary: string;
 }
 
+export interface TurnSummary {
+  id: string;
+  sessionId: string;
+  businessId: string;
+  environment: string;
+  agentId: string;
+  agentRevisionId: string;
+  turnNumber: number;
+  state: string;
+  retryCount: number;
+  resumedFromTurnId?: string | null;
+  updatedAt: string;
+}
+
+export interface OutboundSendResponse {
+  status: string;
+  providerMessageId?: string | null;
+  errorMessage?: string | null;
+}
+
 export interface AgentSummary {
   id: string;
   name: string;
@@ -135,6 +157,7 @@ export interface MissionControlSnapshot {
   tasks: TasksData;
   approvals: ApprovalItem[];
   runs: RunSummary[];
+  turns: TurnSummary[];
   agents: AgentSummary[];
   assets: AssetSummary[];
 }
@@ -508,6 +531,8 @@ function mapThreadFromSummary(
     conversationId: asString(summary.thread_id),
     leadName: displayName,
     company: asString(summary.contact?.email, asString(summary.contact?.phone, "Unknown account")),
+    email: asNullableString(summary.contact?.email),
+    phone: asNullableString(summary.contact?.phone),
     stage,
     nextBestAction,
     tags: [channel.toLowerCase(), status, requiresApproval ? "approval-required" : "clear"],
@@ -538,6 +563,8 @@ function mapThreadDetail(detail: InboxThreadDetailPayload): SelectedThread {
     conversationId: asString(detail.thread_id),
     leadName: displayName,
     company: asString(detail.contact?.email, asString(detail.contact?.phone, "Unknown account")),
+    email: asNullableString(detail.contact?.email),
+    phone: asNullableString(detail.contact?.phone),
     stage,
     nextBestAction,
     tags: tags.length > 0 ? tags : [asString(detail.channel, "channel"), status],
