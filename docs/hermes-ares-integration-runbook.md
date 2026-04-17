@@ -1,7 +1,7 @@
 ---
 title: "Hermes <-> Ares Integration Runbook"
 status: draft
-updated_at: "2026-04-17T14:44:47Z"
+updated_at: "2026-04-17T14:58:00Z"
 ---
 
 # Hermes <-> Ares Integration Runbook
@@ -153,6 +153,48 @@ The Trigger worker uses the same runtime pointer:
 - `HERMES_RUNTIME_API_KEY` or `RUNTIME_API_KEY`
 
 That is wired in `trigger/src/shared/runtimeApi.ts`.
+
+## Hermes connector example
+
+### Option 1: launch Hermes with explicit env vars
+
+This is the simplest and least magical setup.
+
+```bash
+HERMES_RUNTIME_API_BASE_URL=http://10.0.0.25:8000 \
+HERMES_RUNTIME_API_KEY=dev-runtime-key \
+hermes -p ares-lab
+```
+
+Use the real Ares host IP or DNS name instead of `10.0.0.25`.
+If Hermes is running on the same machine as Ares, `http://localhost:8000` is fine.
+
+### Option 2: wrapper script for a named Hermes entrypoint
+
+If you want a dedicated launcher instead of typing env vars every time:
+
+```bash
+#!/usr/bin/env bash
+set -euo pipefail
+
+export HERMES_RUNTIME_API_BASE_URL="${HERMES_RUNTIME_API_BASE_URL:-http://10.0.0.25:8000}"
+export HERMES_RUNTIME_API_KEY="${HERMES_RUNTIME_API_KEY:-dev-runtime-key}"
+
+exec hermes -p ares-lab "$@"
+```
+
+Save that as something like `~/bin/hermes-ares`, make it executable, and use it as your normal Hermes command.
+
+### Option 3: profile-specific environment file
+
+If your Hermes install keeps per-profile env files, put the same two variables there:
+
+```bash
+HERMES_RUNTIME_API_BASE_URL=http://10.0.0.25:8000
+HERMES_RUNTIME_API_KEY=dev-runtime-key
+```
+
+That keeps the integration isolated to the `ares-lab` profile instead of leaking into every Hermes session.
 
 ## Local development setup
 
