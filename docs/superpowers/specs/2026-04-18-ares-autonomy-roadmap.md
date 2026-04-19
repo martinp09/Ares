@@ -2,17 +2,9 @@
 
 ## Summary
 
-Ares is not becoming a full autonomous operator in one shot. It is becoming one in phases.
+Ares is a self-hosted operating system for distressed real-estate lead management. It owns the data, automates the workflow, and surfaces only the decisions that require a human.
 
-The right shape is:
-
-- keep the deterministic runtime and control plane as the backbone
-- add agentic planning on top of it
-- then let Ares execute bounded tools
-- then let it run narrow workflows with guardrails
-- only later widen autonomy across markets and lead types
-
-The current probate + tax-delinquent MVP is the first real vertical slice. This roadmap explains how that slice evolves into an autonomous real-estate agent over time.
+The current probate + tax-delinquent MVP is the first vertical slice of that system. From there, Ares grows in phases: planner, bounded executor, workflow agent, and eventually a guardrailed autonomous operator.
 
 ## Goal
 

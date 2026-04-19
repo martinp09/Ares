@@ -13,28 +13,18 @@
 
 ## Current Scope
 
-1. lock the product thesis: Ares is the runtime, not the main agent
-2. treat source lanes, strategy lanes, and operational stages as separate first-class concepts
-3. ship a combined probate outbound + lease-option inbound MVP tonight
-4. preserve a thin contract-to-close skeleton so title, TC, and dispo fit later without a rewrite
-5. keep Hermes/browser work outside Ares and keep Ares deterministic
+1. keep the new repo, GitHub remote, Trigger.dev setup, and fresh Supabase baseline clean
+2. keep the runtime/app split explicit: Hermes shell here, seller-ops legacy stays outside
+3. implement the marketing control plane first
+4. keep Mission Control portable: Trigger.dev backbone, Supabase state, platform-agnostic core, adapter-only integrations
+5. keep Ares framed as the self-hosted operating system for distressed real-estate lead management
 
 ## Current TODO
 
-1. execute `docs/superpowers/plans/2026-04-16-probate-outbound-lease-option-inbound-mvp-implementation-plan.md`
-2. use probate as the current outbound source lane and cold email as the current outbound method
-3. harden lease-option inbound as a first-class MVP lane, not a sidecar
-4. keep the two-lane MVP stable:
-   - probate outbound via Instantly
-   - lease-option inbound via marketing submit / booking / SMS
-5. probate positive replies / interested events now create opportunities; expand only if later tasks require more stage wiring
-6. lease-option booked contacts now create opportunities; operator-ready and broader stage wiring still remain
-7. prioritize composite pain stacks such as `estate_of + tax_delinquent` when data is available
-8. keep Supabase as the canonical backend for both live MVP lanes and keep the live smoke path passing
-9. keep Mission Control additive:
-   - `Lead Machine`
-   - `Marketing`
-   - `Pipeline`
+1. replace the in-memory runtime store with Supabase-backed persistence
+2. attach Trigger tasks to runtime run/artifact/event updates
+3. propagate the Mission Control portability + Zo adapter stance across remaining operator/docs surfaces
+4. start the QC + devil's-advocate review loop once the remaining docs/schema commits are in
 
 ## Read These Sections In `memory.md`
 

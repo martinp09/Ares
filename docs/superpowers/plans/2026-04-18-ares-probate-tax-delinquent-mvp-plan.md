@@ -738,7 +738,7 @@ Add the new Ares runtime surface to `README.md`, and update `CONTEXT.md` / `memo
 
 Keep the wording short and operational. The docs should say:
 
-- Ares is the real-estate lead machine slice.
+- Ares is a self-hosted operating system for distressed real-estate lead management.
 - Probate is the primary lane.
 - Tax delinquency is an overlay on probate.
 - Tax-only work should focus on `estate of` properties.

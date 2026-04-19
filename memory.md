@@ -31,6 +31,8 @@
 - This repo should become the reusable real-estate operating runtime those drivers call into
 - Generalist runtime first, lanes and strategies second
 - Real estate is the first optimization target
+- Marketing control plane is the first execution domain
+- Ares North Star: self-hosted operating system for distressed real-estate lead management
 - The runtime must cover data gathering, prospecting, acquisitions, transaction coordination, title, and dispo
 - Source lanes, strategy lanes, and operational stages must stay separate concepts
 - The current MVP path is a two-lane cut:
@@ -297,3 +299,13 @@
 - Added in-memory services to support idempotent command ingestion and replay safety
 - Added Trigger.dev marketing worker chain scaffold in `trigger/`
 - Added landing-page site-event forwarding plus runtime ingestion tests
+
+### 2026-04-13 Mission Control Plan Rewrite
+
+- Rewrote the Mission Control orchestration plan under `docs/superpowers/plans/2026-04-13-hermes-mission-control-orchestration-plan.md`
+- Made Hermes portability explicit: platform-agnostic core, installable anywhere the runtime stack can run
+- Added feature-fit, anti-lock-in, and anti-duplication language so borrowed cloud-computer patterns stay adapter-friendly and Trigger.dev remains the durable execution backbone
+
+### 2026-04-19 Ares North Star
+
+- Framed Ares in repo-facing docs as the self-hosted operating system for distressed real-estate lead management; the operator UI is a visibility layer, not the core product.

@@ -516,7 +516,7 @@ git commit -m "feat: add ares api runtime"
 
 Add the merged Ares runtime surface to the repo docs and update the router/memory notes so the next session understands that:
 
-- Ares is the real-estate lead machine slice
+- Ares is a self-hosted operating system for distressed real-estate lead management
 - probate is the primary lane
 - tax delinquency is the overlay on probate
 - tax-only work should focus on `estate of` properties
