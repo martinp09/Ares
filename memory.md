@@ -27,17 +27,18 @@
 
 ## Current Direction
 
-- Hermes is the current primary control shell and browser-capable driver
-- This repo should become the reusable real-estate operating runtime those drivers call into
-- Generalist runtime first, lanes and strategies second
+- Hermes is the control shell
+- This repo is the deterministic runtime
+- Generalist core comes before industry-specific packs
 - Real estate is the first optimization target
-- The runtime must cover data gathering, prospecting, acquisitions, transaction coordination, title, and dispo
-- Source lanes, strategy lanes, and operational stages must stay separate concepts
-- The current MVP path is a two-lane cut:
-  - outbound probate as source lane with cold email as outbound method
-  - inbound lease-option marketing as a separate first-class lane
-- Supabase should be the canonical backend for both live MVP lanes
-- The runtime should preserve a thin contract-to-close skeleton even while the MVP stays focused on lead intake, outreach, replies, and operator handoff
+- Marketing control plane is the first execution domain
+- The immediate MVP is lease-option marketing, not research/copy generation
+- The live path is lead submit -> booking check -> confirmations -> non-booker SMS sequence -> inbound qualification
+- Current work is the enterprise-platform backlog, with the no-Supabase dogfood slice already finalized and the next slice set to enterprise controls
+- Mission Control stays fixture-backed on this machine until live backend wiring is intentionally enabled later
+- The host-adapter/skill seam is now in-memory and additive, with trigger_dev as the default enabled adapter; dispatch requires published revisions and preserves per-revision host adapter config
+- Phase-0 docs now lock the product model: agents are the product unit, skills are reusable procedures, host runtimes are adapters, and Mission Control is the operator cockpit
+- Ralph loop is now the master execution plan for the remaining phases, with `gpt-5.3-codex` as the work model
 
 ## Repo Conventions
 
@@ -134,17 +135,20 @@
 
 ## Open Work
 
-1. keep the live MVP lanes stable on Supabase-backed persistence and keep the remote smoke checks passing
-2. add broader stage wiring only where the business actually needs it next:
-   - operator-ready lease-option opportunities
-   - later title / TC / dispo advancement
-3. model composite pain stacks such as `estate_of + tax_delinquent` more explicitly in scoring and Mission Control prioritization
-4. keep browser acquisition and ambiguous research in Hermes or other driver agents, not inside Ares
-5. add durable Trigger lead-machine jobs only where sync paths become operationally risky
+1. execute `docs/superpowers/plans/2026-04-20-ralph-loop-full-implementation-plan.md`
+2. keep the source docs from the Ralph plan as reference inputs, not separate live targets
+3. keep the broader Ares enterprise platform backlog archived until the next explicit reopen
+4. continue using the repo-root TODO as the live handoff pointer instead of ad hoc chat notes
 
 ## Change Log
 
-### 2026-04-16 Live Supabase Smoke + Adapter Hardening
+### 2026-04-20 Ralph Loop Master Plan
+
+- Added `docs/superpowers/plans/2026-04-20-ralph-loop-full-implementation-plan.md` as the master execution plan for the remaining enterprise-platform phases
+- Repointed the repo-root TODO and context files at the Ralph loop plan as the live handoff target
+- Kept the older Instantly/probate/curative-title docs as source inputs under the new master plan
+
+### 2026-04-16 Agent API + Session Fixture Cleanup
 
 - Repaired remote Supabase migration history on project `awmsrjeawcxndfnggoxw` and applied:
   - `202604160001_lead_machine_runtime.sql`

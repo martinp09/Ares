@@ -1,7 +1,7 @@
 ---
 title: "Ares TODO / Handoff"
 status: active
-updated_at: "2026-04-17T14:26:56Z"
+updated_at: "2026-04-20T12:32:10Z"
 repo: "martinp09/Ares"
 local_checkout: "/home/workspace/Hermes-Central-Command/.worktrees/loose-ends"
 current_branch: "feature/loose-ends"
@@ -9,43 +9,34 @@ current_branch: "feature/loose-ends"
 
 # Ares TODO / Handoff
 
-## Live pointers
+## Live pointer
 
-- `docs/superpowers/specs/2026-04-16-ares-lead-machine-superfile.md`
-- `docs/superpowers/plans/2026-04-16-ares-lead-machine-implementation-plan.md`
-- `docs/superpowers/plans/2026-04-17-ares-scaffold-completion-plan.md`
+- `docs/superpowers/plans/2026-04-20-ralph-loop-full-implementation-plan.md`
+
+## Source inputs
+
+- `docs/superpowers/specs/Hermes — Instantly Lead Automation Final Spec 2026.md`
+- `docs/superpowers/plans/2026-04-16-harris-probate-keep-now-ingestion-plan.md`
+- `docs/superpowers/plans/2026-04-16-curative-title-cold-email-machine-plan.md`
+- `docs/superpowers/plans/2026-04-15-ares-enterprise-agent-platform-implementation-plan.md` *(deprecated)*
 
 ## What is in this TODO
 
-1. Execute the lead machine superfile and its implementation plan.
-   - primary: Harris County probate keep-now ingestion
-   - secondary: curative title cold email machine
-   - shared: Instantly / Trigger.dev / Mission Control loop
-2. Build the data model:
-   - [done] `leads`
-   - [done] `lead_events`
-   - [done] `campaigns`
-   - [done] `automation_runs`
-   - [done] `campaign_memberships`
-   - [done] `suppression`
-   - [done] `tasks`
-   - [done] in-memory repository + store wiring + package exports
-3. Wire the Trigger.dev jobs:
-   - [done] `lead-intake`
-   - [done] `instantly-enqueue-lead`
-   - [done] `instantly-webhook-ingest`
-   - [done] `create-manual-call-task`
-   - [done] `followup-step-runner`
-   - [done] `suppression-sync`
-   - [done] `task-reminder-or-overdue`
-4. [done] Enforce the hard rule that only `email.sent` creates a manual call task.
-5. [done] Build Mission Control fixture views for the inbox, lead timeline, suppression state, and exceptions.
-6. Verify idempotency, duplicate suppression, and webhook replay safety.
+1. Execute the Ralph loop plan phase by phase.
+2. Keep the source docs above as inputs, not separate live targets.
+3. Do not reopen completed phases unless a regression appears.
+4. Finish the remaining phases in order:
+   - Phase 2 adapter contract gaps
+   - Phase 4 replay-safe release management
+   - Phase 5 Mission Control dogfood polish
+   - Phase 6 internal catalog and marketplace
+5. Keep the repo scoped to the master plan until the next explicit reopen.
 
 ## Notes
 
-- The old plan docs are folded into the superfile and are now source notes, not separate live TODO items.
-- Keep the repo scoped to the superfile until the next explicit reopen.
+- The Ralph loop plan is now the authoritative execution map.
+- The older implementation plan stays in the repo but is deprecated.
+- The older docs remain valid source material, but they no longer drive the live TODO independently.
 
 ## Bigger platform backlog
 
