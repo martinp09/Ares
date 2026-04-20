@@ -17,22 +17,23 @@
 1. keep the branch clean and defer live Supabase wiring for this job
 2. finish every safe in-memory/runtime/document/UI slice that does not require Supabase
 3. keep the runtime/app split explicit: Hermes shell here, seller-ops legacy stays outside
-4. implement the marketing control plane and agent-platform seams in-memory first
+4. implement the lead-machine / marketing control plane in-memory first
 5. keep managed-agent primitives scaffolded in-memory until live Supabase wiring happens on Martin's MacBook
 6. keep Mission Control read models and the native frontend shell scaffold-first; the Intake happy-path view stays fixture-backed
 7. keep the Mission Control UI aligned to the approved dark industrial terminal / pixel CRT style system
 8. use think-before-coding for code edits and agentic-workflow-best-practices for multi-step orchestration work
 9. use claude-code-memory-best-practices, claude-code-settings-best-practices, claude-code-mcp-best-practices, claude-code-startup-flags-best-practices, and claude-code-power-ups-best-practices when working on Claude Code ergonomics or session configuration
 10. Phase 1 org tenancy plumbing for turn-loop routes is now wired in-memory; the phase-2 API cleanup (unknown-skill 422 translation + scoped session fixtures) is passing in this worktree
-11. Ralph loop now owns the full remaining enterprise-platform roadmap as the master execution plan
+11. The current branch scope is the probate outbound + lease-option inbound MVP, not the enterprise-platform backlog
 
 ## Current TODO
 
-1. execute `docs/superpowers/plans/2026-04-20-ralph-loop-full-implementation-plan.md`
-2. keep `docs/superpowers/specs/Hermes — Instantly Lead Automation Final Spec 2026.md`, `docs/superpowers/plans/2026-04-16-harris-probate-keep-now-ingestion-plan.md`, `docs/superpowers/plans/2026-04-16-curative-title-cold-email-machine-plan.md`, and `docs/superpowers/plans/2026-04-15-ares-enterprise-agent-platform-implementation-plan.md` as source inputs, with the 2026-04-15 implementation plan marked deprecated
-3. keep older completed Ares platform tasks archived instead of re-adding them to the live TODO
-4. run the QC + devil's-advocate review loop when any new no-wire commits are added
-5. finish operator/docs alignment across this repo and `Mailers AWF`
+1. execute `docs/superpowers/plans/2026-04-16-probate-outbound-lease-option-inbound-mvp-implementation-plan.md`
+2. keep `docs/superpowers/specs/2026-04-16-ares-lead-machine-superfile.md` and `docs/superpowers/plans/2026-04-17-ares-scaffold-completion-plan.md` as the live source inputs for this branch
+3. keep `docs/superpowers/plans/2026-04-15-ares-enterprise-agent-platform-implementation-plan.md` archived / deprecated, not live scope
+4. keep older completed Ares platform tasks archived instead of re-adding them to the live TODO
+5. run the QC + devil's-advocate review loop when any new no-wire commits are added
+6. finish operator/docs alignment across this repo and `Mailers AWF`
 
 ## Read These Sections In `memory.md`
 
