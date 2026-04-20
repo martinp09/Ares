@@ -115,6 +115,9 @@ def test_dashboard_endpoint_returns_operator_counts(client) -> None:
     assert body["busy_channel_count"] >= 0
     assert body["recent_completed_count"] >= 0
     assert body["system_status"] in {"healthy", "watch", "degraded"}
+    assert "outbound_probate_summary" not in body
+    assert "inbound_lease_option_summary" not in body
+    assert "opportunity_pipeline_summary" not in body
     assert "updated_at" in body
 
 

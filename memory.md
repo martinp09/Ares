@@ -144,6 +144,90 @@
 
 ## Change Log
 
+### 2026-04-20 Loose-Ends QC Blocker Fixes
+
+- Fixed inbound SMS stop/pause mutation scoping:
+  - `InboundSmsService` now passes the resolved lead identity into sequence mutation calls
+  - `_SequenceReplyAdapter` now resolves active enrollments with scoped `business_id + environment + contact_id` when available instead of relying on global phone lookup
+  - ambiguous/unresolved replies still create manual-review tasks and receipts, but do not mutate sequence state
+- Fixed provider-thread resolution safety:
+  - `_resolve_inbound_lead()` now uses provider-thread matching only when tenant metadata is present
+  - unscoped provider-thread fallback is skipped, so duplicate thread IDs without tenant metadata fall through to manual review / phone resolution only
+  - in-memory `ConversationsRepository` no longer keys rows by `provider_thread_id`, so duplicate external thread IDs can coexist across tenants
+- Added regression coverage for:
+  - shared-phone stop replies only stopping the resolved tenant's sequence
+  - duplicate provider-thread IDs resolving correctly with tenant metadata
+  - unscoped provider-thread metadata skipping the global thread matcher
+- Verified with `uv run pytest tests/services/test_inbound_sms_service.py tests/api/test_marketing_webhooks.py -q` (`16 passed`)
+
+### 2026-04-20 Ralph Story-06 Verification
+
+- Completed branch-level rollout gates for the loose-ends MVP in memory mode:
+  - backend: `uv run pytest -q` (`257 passed`)
+  - Mission Control: `typecheck`, `vitest --run` (`14 passed`), `build`
+  - Trigger: `npm --prefix trigger run typecheck`
+- Executed fixture-backed smoke flows:
+  - lease-option submit -> booking webhook -> sequence guard (`booked` -> `stopped`)
+  - probate intake -> outbound enqueue -> Instantly webhook ingest
+- Verified runtime startup/health with Supabase env vars unset and all backends forced to memory (`MEMORY_STARTUP=PASS`).
+
+### 2026-04-20 Ralph Story-05 Verification
+
+- Added RED/GREEN coverage for thin opportunity seam progression:
+  - direct opportunity forward-stage transition (`qualified_opportunity -> offer_path_selected`)
+  - Mission Control operator task completion path that advances lease-option opportunities when follow-up outcome marks the contact ready
+- Added Mission Control service opportunity sync from thread context for lease-option contacts:
+  - uses booking status and follow-up outcome to decide whether to open/advance opportunity
+  - resolves marketing contact from thread context `lead_id` (contact id) or phone fallback
+  - advances to `offer_path_selected` when operator marks outcome ready
+- Verified story-05 gates with:
+  - `uv run pytest -q` (`257 passed`)
+  - `npm --prefix apps/mission-control run typecheck`
+  - `npm --prefix apps/mission-control run test -- --run` (`14 passed`)
+  - `npm --prefix apps/mission-control run build`
+
+### 2026-04-20 Ralph Story-04 Verification
+
+- Added explicit lane-separated Mission Control dashboard read models:
+  - `outbound_probate_summary`
+  - `inbound_lease_option_summary`
+  - `opportunity_pipeline_summary` (lane+stage summaries)
+- Kept additive compatibility by retaining existing dashboard totals while exposing lane-specific aggregates for Mission Control workspace badges/context.
+- Updated Mission Control frontend mapping and fixtures so opportunity stages preserve `source_lane` instead of flattening by stage.
+- Updated Pipeline board rendering so stage cards remain lane-labeled and do not collapse probate vs lease-option rows.
+- Verified story-04 gates with:
+  - `uv run pytest -q` (`255 passed`)
+  - `npm --prefix apps/mission-control run typecheck`
+  - `npm --prefix apps/mission-control run test -- --run` (`14 passed`)
+  - `npm --prefix apps/mission-control run build`
+
+### 2026-04-20 Ralph Story-03 Verification
+
+- Hardened the lease-option inbound lane in memory mode with:
+  - sequence guard state derived from latest enrollment status (active/paused/completed/stopped) for pending leads
+  - booking-confirmation timeline logging into `messages` for SMS and email channels when configured
+  - inbound SMS resolution order: provider thread metadata first, then tenant-scoped phone matching
+  - explicit manual-review task creation when inbound SMS lead resolution is ambiguous or unmatched
+- Added focused regression coverage for:
+  - paused sequence guard behavior
+  - booking confirmation message timeline writes
+  - thread-first inbound SMS resolution
+  - ambiguity task creation for duplicate phone matches
+- Verified lease-option and full backend gates with:
+  - `uv run pytest tests/services/test_booking_service.py tests/api/test_marketing_webhooks.py -q` (`14 passed`)
+  - `uv run pytest tests/api/test_marketing_leads.py tests/api/test_marketing_webhooks.py tests/api/test_marketing_runtime.py tests/api/test_marketing_sequence.py tests/domains/marketing/test_marketing_flow.py tests/services/test_booking_service.py -q` (`33 passed`)
+  - `uv run pytest -q` (`255 passed`)
+
+### 2026-04-20 Ralph Story-02 Verification
+
+- Verified the probate outbound write path acceptance gate in memory-backed mode for:
+  - `POST /lead-machine/probate/intake`
+  - `POST /lead-machine/outbound/enqueue`
+  - `POST /lead-machine/webhooks/instantly`
+- Confirmed replay-safe webhook handling and receipt-first processing remain covered by existing API/service tests
+- Verified branch health with `uv run pytest -q` (`251 passed`) and `npm --prefix trigger run typecheck`
+- Updated Ralph board state so `story-02-build-probate-outbound-write-path` is marked `done` / `passes: true`
+
 ### 2026-04-20 Loose-Ends Scope Repoint
 
 - Repointed the loose-ends branch back to the probate outbound + lease-option inbound MVP implementation plan

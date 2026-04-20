@@ -2,15 +2,20 @@ from __future__ import annotations
 
 from app.core.config import Settings, get_settings
 from app.db.client import ControlPlaneClient, get_control_plane_client
-from app.db.marketing_supabase import fetch_rows, insert_rows, marketing_backend_enabled, patch_rows, resolve_tenant
+from app.db.marketing_supabase import fetch_rows, insert_rows, marketing_backend_enabled, resolve_tenant
 from app.models.commands import generate_id
 from app.models.conversations import ConversationRecord
 
 
 class ConversationsRepository:
-    def __init__(self, client: ControlPlaneClient | None = None, settings: Settings | None = None):
+    def __init__(
+        self,
+        client: ControlPlaneClient | None = None,
+        settings: Settings | None = None,
+        force_memory: bool | None = None,
+    ):
         self.client = client or get_control_plane_client()
-        self._force_memory = client is not None
+        self._force_memory = False if force_memory is None else force_memory
         self.settings = settings or get_settings()
 
     def get_or_create(
@@ -41,13 +46,9 @@ class ConversationsRepository:
             setattr(store, "marketing_conversation_keys", conversation_keys)
 
             dedupe_key = (business_id, environment, contact_id, channel)
-            existing_id = conversation_keys.get(dedupe_key)
-            if existing_id is not None:
-                existing = conversation_rows[existing_id]
-                if provider_thread_id and existing.provider_thread_id != provider_thread_id:
-                    existing = existing.model_copy(update={"provider_thread_id": provider_thread_id})
-                    conversation_rows[existing_id] = existing
-                return existing
+            row_id = conversation_keys.get(dedupe_key)
+            if row_id is not None:
+                return conversation_rows[row_id]
 
             record = ConversationRecord(
                 business_id=business_id,
@@ -56,8 +57,9 @@ class ConversationsRepository:
                 channel=channel,
                 provider_thread_id=provider_thread_id or generate_id("cnv"),
             )
-            conversation_rows[record.provider_thread_id] = record
-            conversation_keys[dedupe_key] = record.provider_thread_id
+            row_id = generate_id("cnvrow")
+            conversation_rows[row_id] = record
+            conversation_keys[dedupe_key] = row_id
             return record
 
     def find_by_provider_thread(
@@ -79,12 +81,81 @@ class ConversationsRepository:
             conversation_rows: dict[str, ConversationRecord] = getattr(
                 store, "marketing_conversation_rows", {}
             )
-            record = conversation_rows.get(provider_thread_id)
-            if record is None:
-                return None
-            if record.business_id != business_id or record.environment != environment or record.channel != channel:
-                return None
-            return record
+            for record in conversation_rows.values():
+                if (
+                    record.business_id == business_id
+                    and record.environment == environment
+                    and record.channel == channel
+                    and record.provider_thread_id == provider_thread_id
+                ):
+                    return record
+            return None
+
+    def find_all_by_provider_thread(
+        self,
+        *,
+        channel: str,
+        provider_thread_id: str,
+        business_id: str | None = None,
+        environment: str | None = None,
+    ) -> list[ConversationRecord]:
+        if marketing_backend_enabled(self.settings) and not self._force_memory:
+            params = {
+                "select": "external_conversation_id,status,contact_id,business_id,environment,channel",
+                "channel": f"eq.{channel}",
+                "external_conversation_id": f"eq.{provider_thread_id}",
+            }
+            if business_id is not None:
+                params["business_id"] = f"eq.{business_id}"
+            if environment is not None:
+                params["environment"] = f"eq.{environment}"
+            rows = fetch_rows(
+                "conversations",
+                params=params,
+                settings=self.settings,
+            )
+            records: list[ConversationRecord] = []
+            for row in rows:
+                contact_pk = row.get("contact_id")
+                contact_rows = fetch_rows(
+                    "contacts",
+                    params={
+                        "select": "external_contact_id",
+                        "business_id": f"eq.{row['business_id']}",
+                        "environment": f"eq.{row['environment']}",
+                        "id": f"eq.{contact_pk}",
+                        "limit": "1",
+                    },
+                    settings=self.settings,
+                )
+                contact_external_id = (
+                    str(contact_rows[0].get("external_contact_id") or f"ctc_{contact_pk}")
+                    if contact_rows
+                    else f"ctc_{contact_pk}"
+                )
+                records.append(
+                    ConversationRecord(
+                        business_id=str(row["business_id"]),
+                        environment=str(row["environment"]),
+                        contact_id=contact_external_id,
+                        channel=str(row.get("channel") or channel),
+                        provider_thread_id=str(row.get("external_conversation_id") or provider_thread_id),
+                        status=str(row.get("status") or "open"),
+                    )
+                )
+            return records
+        with self.client.transaction() as store:
+            conversation_rows: dict[str, ConversationRecord] = getattr(
+                store, "marketing_conversation_rows", {}
+            )
+            return [
+                record
+                for record in conversation_rows.values()
+                if record.channel == channel
+                and record.provider_thread_id == provider_thread_id
+                and (business_id is None or record.business_id == business_id)
+                and (environment is None or record.environment == environment)
+            ]
 
     def _get_or_create_in_supabase(
         self,
@@ -125,20 +196,6 @@ class ConversationsRepository:
         if rows:
             row = rows[0]
             row_external_id = str(row.get("external_conversation_id") or "")
-            if provider_thread_id and provider_thread_id != row_external_id:
-                updated_row = patch_rows(
-                    "conversations",
-                    params={
-                        "business_id": f"eq.{tenant.business_pk}",
-                        "environment": f"eq.{tenant.environment}",
-                        "contact_id": f"eq.{contact_pk}",
-                        "channel": f"eq.{channel}",
-                    },
-                    row={"external_conversation_id": provider_thread_id},
-                    select="external_conversation_id,status",
-                    settings=self.settings,
-                )[0]
-                row_external_id = str(updated_row.get("external_conversation_id") or row_external_id)
             return ConversationRecord(
                 business_id=business_id,
                 environment=environment,

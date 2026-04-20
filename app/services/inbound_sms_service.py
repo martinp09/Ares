@@ -9,11 +9,15 @@ from urllib.parse import urlencode
 from app.core.config import Settings, get_settings
 from app.db.contacts import ContactsRepository
 from app.db.conversations import ConversationsRepository
+from app.db.lead_events import LeadEventsRepository
+from app.db.lead_machine_supabase import lead_machine_backend_enabled
 from app.db.messages import MessagesRepository
 from app.db.provider_webhooks import ProviderWebhooksRepository
 from app.db.sequences import SequencesRepository
-from app.models.lead_events import ProviderWebhookReceiptRecord
+from app.db.tasks import TasksRepository
+from app.models.lead_events import LeadEventRecord, ProviderWebhookReceiptRecord
 from app.models.marketing_leads import MarketingLeadRecord
+from app.models.tasks import TaskPriority, TaskRecord, TaskStatus, TaskType
 from app.providers.resend import build_send_email_request
 from app.providers.textgrid import build_outbound_sms_request, normalize_incoming_webhook, verify_webhook_signature
 
@@ -44,6 +48,15 @@ class LeaseOptionSequenceStepRequest:
     manual_call_checkpoint: bool = False
 
 
+@dataclass(slots=True)
+class ResolvedInboundLead:
+    lead: MarketingLeadRecord | None
+    provider_thread_id: str | None
+    thread_matched: bool = False
+    ambiguous: bool = False
+    unresolved: bool = False
+
+
 class TextgridWebhookAdapter(Protocol):
     def verify_signature(
         self,
@@ -57,13 +70,33 @@ class TextgridWebhookAdapter(Protocol):
 
 
 class MessageRepository(Protocol):
-    def append_inbound_message(self, event: NormalizedSmsEvent) -> None: ...
+    def append_inbound_message(
+        self,
+        event: NormalizedSmsEvent,
+        *,
+        lead: MarketingLeadRecord,
+        provider_thread_id: str | None = None,
+    ) -> None: ...
 
 
 class SequenceReplyService(Protocol):
-    def stop(self, *, phone_number: str) -> None: ...
+    def stop(
+        self,
+        *,
+        phone_number: str,
+        business_id: str | None = None,
+        environment: str | None = None,
+        contact_id: str | None = None,
+    ) -> None: ...
 
-    def pause(self, *, phone_number: str) -> None: ...
+    def pause(
+        self,
+        *,
+        phone_number: str,
+        business_id: str | None = None,
+        environment: str | None = None,
+        contact_id: str | None = None,
+    ) -> None: ...
 
 
 class WebhookReceiptService(Protocol):
@@ -136,17 +169,21 @@ class _MarketingMessageRepository:
         self.conversations = conversations or ConversationsRepository()
         self.messages = messages or MessagesRepository()
 
-    def append_inbound_message(self, event: NormalizedSmsEvent) -> None:
+    def append_inbound_message(
+        self,
+        event: NormalizedSmsEvent,
+        *,
+        lead: MarketingLeadRecord,
+        provider_thread_id: str | None = None,
+    ) -> None:
         if event.event_type != "inbound":
-            return
-        lead = self.contacts.find_by_phone(phone=event.from_number)
-        if lead is None:
             return
         conversation = self.conversations.get_or_create(
             business_id=lead.business_id,
             environment=lead.environment,
             contact_id=lead.id,
             channel="sms",
+            provider_thread_id=provider_thread_id,
         )
         self.messages.append_inbound(
             business_id=lead.business_id,
@@ -169,20 +206,65 @@ class _SequenceReplyAdapter:
         self.contacts = contacts or ContactsRepository()
         self.sequences = sequences or SequencesRepository()
 
-    def stop(self, *, phone_number: str) -> None:
-        self._update(phone_number=phone_number, action="stop")
+    def stop(
+        self,
+        *,
+        phone_number: str,
+        business_id: str | None = None,
+        environment: str | None = None,
+        contact_id: str | None = None,
+    ) -> None:
+        self._update(
+            phone_number=phone_number,
+            action="stop",
+            business_id=business_id,
+            environment=environment,
+            contact_id=contact_id,
+        )
 
-    def pause(self, *, phone_number: str) -> None:
-        self._update(phone_number=phone_number, action="pause")
+    def pause(
+        self,
+        *,
+        phone_number: str,
+        business_id: str | None = None,
+        environment: str | None = None,
+        contact_id: str | None = None,
+    ) -> None:
+        self._update(
+            phone_number=phone_number,
+            action="pause",
+            business_id=business_id,
+            environment=environment,
+            contact_id=contact_id,
+        )
 
-    def _update(self, *, phone_number: str, action: Literal["pause", "stop"]) -> None:
-        lead = self.contacts.find_by_phone(phone=phone_number)
-        if lead is None:
-            return
+    def _update(
+        self,
+        *,
+        phone_number: str,
+        action: Literal["pause", "stop"],
+        business_id: str | None = None,
+        environment: str | None = None,
+        contact_id: str | None = None,
+    ) -> None:
+        resolved_business_id = business_id
+        resolved_environment = environment
+        resolved_contact_id = contact_id
+        if not (resolved_business_id and resolved_environment and resolved_contact_id):
+            lead = self.contacts.find_by_phone(
+                phone=phone_number,
+                business_id=business_id,
+                environment=environment,
+            )
+            if lead is None:
+                return
+            resolved_business_id = lead.business_id
+            resolved_environment = lead.environment
+            resolved_contact_id = lead.id
         enrollment = self.sequences.find_active(
-            business_id=lead.business_id,
-            environment=lead.environment,
-            contact_id=lead.id,
+            business_id=resolved_business_id,
+            environment=resolved_environment,
+            contact_id=resolved_contact_id,
             sequence_key=LEASE_OPTION_SEQUENCE_KEY,
         )
         if enrollment is None:
@@ -190,14 +272,14 @@ class _SequenceReplyAdapter:
         if action == "pause":
             self.sequences.pause(
                 enrollment.id,
-                business_id=lead.business_id,
-                environment=lead.environment,
+                business_id=resolved_business_id,
+                environment=resolved_environment,
             )
         else:
             self.sequences.stop(
                 enrollment.id,
-                business_id=lead.business_id,
-                environment=lead.environment,
+                business_id=resolved_business_id,
+                environment=resolved_environment,
             )
 
 
@@ -226,20 +308,22 @@ class _ProviderWebhookReceiptAdapter:
         lead: MarketingLeadRecord | None,
         payload: dict[str, Any],
     ) -> tuple[str | None, bool]:
-        if lead is None:
-            return None, False
+        metadata = dict(event.metadata or {})
+        business_id = lead.business_id if lead is not None else str(metadata.get("business_id") or "unknown")
+        environment = lead.environment if lead is not None else str(metadata.get("environment") or "unknown")
         idempotency_seed = event.external_id or (
             f"{event.event_type}:{event.from_number}:{event.to_number}:{event.body.strip().casefold()}"
         )
         receipt = self.provider_webhooks.record(
             ProviderWebhookReceiptRecord(
-                business_id=lead.business_id,
-                environment=lead.environment,
+                business_id=business_id,
+                environment=environment,
                 provider="textgrid",
                 event_type=event.event_type,
                 idempotency_key=f"textgrid:{idempotency_seed}",
                 provider_event_id=event.external_id,
                 provider_receipt_id=event.external_id,
+                lead_email=lead.email if lead is not None else None,
                 payload={"body": payload, "from": event.from_number, "to": event.to_number},
             )
         )
@@ -272,8 +356,8 @@ class _RepositoryMessageLoggingHook:
         messages: MessagesRepository | None = None,
     ) -> None:
         self.contacts = contacts or ContactsRepository()
-        self.conversations = conversations or ConversationsRepository()
-        self.messages = messages or MessagesRepository()
+        self.conversations = conversations or ConversationsRepository(self.contacts.client)
+        self.messages = messages or MessagesRepository(self.contacts.client)
 
     def log_sequence_dispatch(
         self,
@@ -313,17 +397,60 @@ class InboundSmsService:
         sequence_service: SequenceReplyService | None = None,
         request_sender: RequestSender | None = None,
         contacts: ContactsRepository | None = None,
+        conversations: ConversationsRepository | None = None,
         webhook_receipts: WebhookReceiptService | None = None,
         message_logging_hook: MessageLoggingHook | None = None,
+        lead_events_repository: LeadEventsRepository | None = None,
     ) -> None:
         self.settings = settings or get_settings()
         self.textgrid_adapter = textgrid_adapter or _DefaultTextgridWebhookAdapter(self.settings)
-        self.message_repository = message_repository or _MarketingMessageRepository()
-        self.sequence_service = sequence_service or _SequenceReplyAdapter()
-        self.request_sender = request_sender or _default_request_sender
         self.contacts = contacts or ContactsRepository()
-        self.webhook_receipts = webhook_receipts or _ProviderWebhookReceiptAdapter()
-        self.message_logging_hook = message_logging_hook or _RepositoryMessageLoggingHook(contacts=self.contacts)
+        repo_force_memory = getattr(self.contacts, "_force_memory", False)
+        self.conversations = conversations or ConversationsRepository(
+            self.contacts.client,
+            settings=self.settings,
+            force_memory=repo_force_memory,
+        )
+        self.message_repository = message_repository or _MarketingMessageRepository(
+            contacts=self.contacts,
+            conversations=self.conversations,
+            messages=MessagesRepository(
+                self.contacts.client,
+                settings=self.settings,
+                force_memory=repo_force_memory,
+            ),
+        )
+        self.sequence_service = sequence_service or _SequenceReplyAdapter(
+            contacts=self.contacts,
+            sequences=SequencesRepository(
+                self.contacts.client,
+                settings=self.settings,
+                force_memory=repo_force_memory,
+            ),
+        )
+        self.request_sender = request_sender or _default_request_sender
+        self.tasks = TasksRepository(
+            self.contacts.client,
+            settings=self.settings,
+            force_memory=repo_force_memory,
+        )
+        self.webhook_receipts = webhook_receipts or _ProviderWebhookReceiptAdapter(
+            ProviderWebhooksRepository(
+                self.contacts.client,
+                settings=self.settings,
+                force_memory=repo_force_memory,
+            )
+        )
+        self.message_logging_hook = message_logging_hook or _RepositoryMessageLoggingHook(
+            contacts=self.contacts,
+            conversations=self.conversations,
+            messages=MessagesRepository(
+                self.contacts.client,
+                settings=self.settings,
+                force_memory=repo_force_memory,
+            ),
+        )
+        self.lead_events_repository = lead_events_repository or LeadEventsRepository(self.contacts.client, settings=self.settings)
 
     def handle_textgrid_webhook(
         self,
@@ -335,18 +462,36 @@ class InboundSmsService:
         if not self.textgrid_adapter.verify_signature(payload, signature=signature, request_url=request_url):
             raise ValueError("Invalid TextGrid webhook signature")
         event = self.textgrid_adapter.normalize(payload)
-        lead = self.contacts.find_by_phone(phone=event.from_number)
-        receipt_id, deduped = self.webhook_receipts.record_textgrid_event(event=event, lead=lead, payload=payload)
-        if deduped:
-            self.webhook_receipts.mark_processed(receipt_id)
-            return {"status": "processed", "event_type": event.event_type, "action": self._decide_action(event)}
-        self.message_repository.append_inbound_message(event)
+        resolved = self._resolve_inbound_lead(event)
+        should_record_receipt = (
+            not lead_machine_backend_enabled(self.settings)
+            or resolved.lead is not None
+            or self._has_tenant_metadata(event)
+        )
+        receipt_id: str | None = None
+        deduped = False
+        if should_record_receipt:
+            receipt_id, deduped = self.webhook_receipts.record_textgrid_event(event=event, lead=resolved.lead, payload=payload)
+            if deduped:
+                self.webhook_receipts.mark_processed(receipt_id)
+                return {"status": "processed", "event_type": event.event_type, "action": self._decide_action(event)}
+        if resolved.lead is not None:
+            self._append_inbound_message(
+                event=event,
+                lead=resolved.lead,
+                provider_thread_id=resolved.provider_thread_id if resolved.thread_matched else None,
+            )
+        if resolved.ambiguous or resolved.unresolved:
+            self._record_inbound_review_signal(event=event, resolved=resolved)
+            self._create_inbound_manual_review_task(event, resolved=resolved)
         action = self._decide_action(event)
-        if action == "stop":
-            self.sequence_service.stop(phone_number=event.from_number)
-        elif action == "pause":
-            self.sequence_service.pause(phone_number=event.from_number)
-        self.webhook_receipts.mark_processed(receipt_id)
+        if resolved.lead is not None:
+            if action == "stop":
+                self._mutate_sequence(action=action, lead=resolved.lead)
+            elif action == "pause":
+                self._mutate_sequence(action=action, lead=resolved.lead)
+        if receipt_id is not None:
+            self.webhook_receipts.mark_processed(receipt_id)
         return {"status": "processed", "event_type": event.event_type, "action": action}
 
     def dispatch_lease_option_sequence_step(
@@ -399,6 +544,155 @@ class InboundSmsService:
         else:
             return {"message_id": f"msg_{request.lead_id}_{request.day}_{request.channel}", "channel": request.channel, "status": "queued"}
         return {"message_id": f"msg_{request.lead_id}_{request.day}_{request.channel}", "channel": request.channel, "status": "queued"}
+
+    def _resolve_inbound_lead(self, event: NormalizedSmsEvent) -> ResolvedInboundLead:
+        metadata = dict(event.metadata or {})
+        provider_thread_id = self._extract_provider_thread_id(metadata)
+        business_id = metadata.get("business_id")
+        environment = metadata.get("environment")
+        tenant_business = str(business_id) if business_id else None
+        tenant_environment = str(environment) if environment else None
+        if provider_thread_id and tenant_business and tenant_environment:
+            conversation = self.conversations.find_by_provider_thread(
+                business_id=tenant_business,
+                environment=tenant_environment,
+                channel="sms",
+                provider_thread_id=provider_thread_id,
+            )
+            if conversation is not None:
+                lead = self.contacts.get_lead(conversation.contact_id)
+                if lead is not None:
+                    return ResolvedInboundLead(lead=lead, provider_thread_id=provider_thread_id, thread_matched=True)
+
+        tenant_business = str(business_id) if business_id else None
+        tenant_environment = str(environment) if environment else None
+        phone_matches = self.contacts.find_all_by_phone(
+            phone=event.from_number,
+            business_id=tenant_business,
+            environment=tenant_environment,
+        )
+        if len(phone_matches) == 1:
+            return ResolvedInboundLead(lead=phone_matches[0], provider_thread_id=provider_thread_id)
+        if len(phone_matches) > 1:
+            return ResolvedInboundLead(lead=None, provider_thread_id=provider_thread_id, ambiguous=True)
+        return ResolvedInboundLead(lead=None, provider_thread_id=provider_thread_id, unresolved=True)
+
+    def _append_inbound_message(
+        self,
+        *,
+        event: NormalizedSmsEvent,
+        lead: MarketingLeadRecord,
+        provider_thread_id: str | None,
+    ) -> None:
+        try:
+            self.message_repository.append_inbound_message(
+                event,
+                lead=lead,
+                provider_thread_id=provider_thread_id,
+            )
+        except TypeError:
+            self.message_repository.append_inbound_message(event)
+
+    def _mutate_sequence(self, *, action: Literal["pause", "stop"], lead: MarketingLeadRecord) -> None:
+        kwargs = {
+            "phone_number": lead.phone,
+            "business_id": lead.business_id,
+            "environment": lead.environment,
+            "contact_id": lead.id,
+        }
+        try:
+            if action == "pause":
+                self.sequence_service.pause(**kwargs)
+            else:
+                self.sequence_service.stop(**kwargs)
+        except TypeError:
+            if action == "pause":
+                self.sequence_service.pause(phone_number=lead.phone)
+            else:
+                self.sequence_service.stop(phone_number=lead.phone)
+
+    def _record_inbound_review_signal(
+        self,
+        *,
+        event: NormalizedSmsEvent,
+        resolved: ResolvedInboundLead,
+    ) -> None:
+        if resolved.lead is None or not lead_machine_backend_enabled(self.settings):
+            return
+        reason = "ambiguous_match" if resolved.ambiguous else "unmatched_inbound"
+        idempotency_tail = event.external_id or f"{event.event_type}:{event.from_number}:{event.to_number}:{event.body.strip().casefold()}"
+        self.lead_events_repository.append(
+            LeadEventRecord(
+                business_id=resolved.lead.business_id,
+                environment=resolved.lead.environment,
+                lead_id=resolved.lead.id,
+                provider_name="textgrid",
+                provider_event_id=event.external_id,
+                event_type="lead.reply.needs_review",
+                idempotency_key=f"inbound_sms_review:{reason}:{idempotency_tail}",
+                payload={
+                    "from_number": event.from_number,
+                    "to_number": event.to_number,
+                    "body": event.body,
+                    "provider_thread_id": resolved.provider_thread_id,
+                },
+                metadata={
+                    "reason": reason,
+                    "reply_needs_review": True,
+                    "thread_matched": resolved.thread_matched,
+                    "ambiguous": resolved.ambiguous,
+                    "unresolved": resolved.unresolved,
+                },
+            )
+        )
+
+    def _create_inbound_manual_review_task(
+        self,
+        event: NormalizedSmsEvent,
+        *,
+        resolved: ResolvedInboundLead,
+    ) -> None:
+        if lead_machine_backend_enabled(self.settings):
+            return
+        metadata = dict(event.metadata or {})
+        business_id = str(metadata.get("business_id") or "unknown")
+        environment = str(metadata.get("environment") or "unknown")
+        lead_id = resolved.lead.id if resolved.lead is not None else None
+        reason = "ambiguous_match" if resolved.ambiguous else "unmatched_inbound"
+        idempotency_tail = event.external_id or f"{event.event_type}:{event.from_number}:{event.to_number}:{event.body.strip().casefold()}"
+        dedupe_key = f"inbound_sms_review:{reason}:{idempotency_tail}"
+        self.tasks.create(
+            TaskRecord(
+                business_id=business_id,
+                environment=environment,
+                title=f"Review inbound SMS ({reason})",
+                status=TaskStatus.OPEN,
+                task_type=TaskType.MANUAL_REVIEW,
+                priority=TaskPriority.HIGH,
+                lead_id=lead_id,
+                details={
+                    "from_number": event.from_number,
+                    "to_number": event.to_number,
+                    "body": event.body,
+                    "provider_thread_id": resolved.provider_thread_id,
+                },
+                idempotency_key=dedupe_key,
+            ),
+            dedupe_key=dedupe_key,
+        )
+
+    @staticmethod
+    def _extract_provider_thread_id(metadata: dict[str, Any]) -> str | None:
+        for key in ("provider_thread_id", "thread_id", "conversation_id"):
+            value = metadata.get(key)
+            if isinstance(value, str) and value.strip():
+                return value.strip()
+        return None
+
+    @staticmethod
+    def _has_tenant_metadata(event: NormalizedSmsEvent) -> bool:
+        metadata = dict(event.metadata or {})
+        return bool(metadata.get("business_id")) and bool(metadata.get("environment"))
 
     @staticmethod
     def _decide_action(event: NormalizedSmsEvent) -> SmsAction:

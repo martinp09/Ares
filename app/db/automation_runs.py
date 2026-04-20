@@ -18,7 +18,7 @@ from app.models.commands import generate_stable_id
 class AutomationRunsRepository:
     def __init__(self, client: ControlPlaneClient | None = None, settings: Settings | None = None):
         self.client = client or get_control_plane_client()
-        self._force_memory = client is not None
+        self._force_memory = False
         self.settings = settings or get_settings()
 
     def create(self, record: AutomationRunRecord) -> AutomationRunRecord:

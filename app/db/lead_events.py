@@ -17,7 +17,7 @@ from app.models.lead_events import LeadEventRecord
 class LeadEventsRepository:
     def __init__(self, client: ControlPlaneClient | None = None, settings: Settings | None = None):
         self.client = client or get_control_plane_client()
-        self._force_memory = client is not None
+        self._force_memory = False
         self.settings = settings or get_settings()
 
     def append(self, record: LeadEventRecord, *, replay_key: str | None = None) -> LeadEventRecord:

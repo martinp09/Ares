@@ -25,15 +25,22 @@
 9. use claude-code-memory-best-practices, claude-code-settings-best-practices, claude-code-mcp-best-practices, claude-code-startup-flags-best-practices, and claude-code-power-ups-best-practices when working on Claude Code ergonomics or session configuration
 10. Phase 1 org tenancy plumbing for turn-loop routes is now wired in-memory; the phase-2 API cleanup (unknown-skill 422 translation + scoped session fixtures) is passing in this worktree
 11. The current branch scope is the probate outbound + lease-option inbound MVP, not the enterprise-platform backlog
+12. story-02 probate write path acceptance is verified in-memory (`/lead-machine/probate/intake`, `/lead-machine/outbound/enqueue`, `/lead-machine/webhooks/instantly`)
+13. story-03 lease-option inbound hardening is verified in-memory (sequence guard state, booking confirmation timeline logging, thread-first SMS resolution, ambiguity tasking)
+14. inbound SMS QC blockers are fixed in-memory: duplicate-thread resolution now stays tenant-scoped and shared-phone stop/pause mutations stay bound to the resolved lead
+15. story-04 mission-control dual-lane surfaces are verified in-memory (lane-specific dashboard summaries + lane-separated pipeline stage summaries in API and UI)
+16. story-05 thin opportunity seam is verified in-memory (forward stage updates covered + lease-option operator-ready path advances opportunity stage)
+17. story-06 rollout gates are verified in-memory (backend + Mission Control + Trigger checks passing, both lane fixture smokes passing, memory-mode startup confirmed with Supabase env vars unset)
 
 ## Current TODO
 
-1. execute `docs/superpowers/plans/2026-04-16-probate-outbound-lease-option-inbound-mvp-implementation-plan.md`
+1. keep `docs/superpowers/plans/2026-04-16-probate-outbound-lease-option-inbound-mvp-implementation-plan.md` as the completed MVP execution reference for this branch
 2. keep `docs/superpowers/specs/2026-04-16-ares-lead-machine-superfile.md` and `docs/superpowers/plans/2026-04-17-ares-scaffold-completion-plan.md` as the live source inputs for this branch
-3. keep `docs/superpowers/plans/2026-04-15-ares-enterprise-agent-platform-implementation-plan.md` archived / deprecated, not live scope
-4. keep older completed Ares platform tasks archived instead of re-adding them to the live TODO
-5. run the QC + devil's-advocate review loop when any new no-wire commits are added
-6. finish operator/docs alignment across this repo and `Mailers AWF`
+3. use `scripts/ralph/prd.json`, `scripts/ralph/session-prompt.md`, and `scripts/ralph/watchdog.sh` for fresh-session Ralph/Codex loop execution on this branch
+4. keep `docs/superpowers/plans/2026-04-15-ares-enterprise-agent-platform-implementation-plan.md` archived / deprecated, not live scope
+5. keep older completed Ares platform tasks archived instead of re-adding them to the live TODO
+6. run the QC + devil's-advocate review loop when any new no-wire commits are added
+7. finish operator/docs alignment across this repo and `Mailers AWF`
 
 ## Read These Sections In `memory.md`
 

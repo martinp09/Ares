@@ -3,12 +3,15 @@ from fastapi.testclient import TestClient
 from app.core.config import Settings
 from app.db.client import InMemoryControlPlaneClient, InMemoryControlPlaneStore
 from app.db.contacts import ContactsRepository
+from app.db.conversations import ConversationsRepository
+from app.db.sequences import SequencesRepository
 from app.db.tasks import TasksRepository
 from app.main import app
 from app.services.booking_service import BookingService, ManualCallTaskRequest, NormalizedBookingEvent
 from app.services.inbound_sms_service import InboundSmsService, LeaseOptionSequenceStepRequest, NormalizedSmsEvent
 from app.services.marketing_lead_service import LeadIntakePayload, MarketingLeadService
 from app.models.marketing_leads import LeadUpsertRequest
+from app.models.sequences import SequenceEnrollmentStatus
 
 AUTH_HEADERS = {"Authorization": "Bearer dev-runtime-key"}
 
@@ -44,8 +47,8 @@ def test_post_textgrid_webhook_processes_inbound_sms(monkeypatch) -> None:
         def __init__(self) -> None:
             self.calls = []
 
-        def handle_textgrid_webhook(self, payload, *, signature):
-            self.calls.append((payload, signature))
+        def handle_textgrid_webhook(self, payload, *, signature, request_url=None):
+            self.calls.append((payload, signature, request_url))
             return {"status": "processed", "event_type": "inbound_message", "action": "qualify"}
 
     from app.api import marketing as marketing_api
@@ -63,6 +66,7 @@ def test_post_textgrid_webhook_processes_inbound_sms(monkeypatch) -> None:
     assert response.status_code == 200
     assert response.json() == {"status": "processed", "event_type": "inbound_message", "action": "qualify"}
     assert len(stub.calls) == 1
+    assert stub.calls[0][2] == "http://testserver/marketing/webhooks/textgrid"
 
 
 def test_post_non_booker_check_runs_internal_check(monkeypatch) -> None:
@@ -355,3 +359,195 @@ def test_sequence_step_calls_message_logging_hook_after_dispatch() -> None:
     assert result["status"] == "queued"
     assert len(hook.calls) == 1
     assert hook.calls[0][0] == lead.id
+
+
+def test_inbound_sms_resolves_lead_by_provider_thread_before_phone_match() -> None:
+    client = InMemoryControlPlaneClient(InMemoryControlPlaneStore())
+    contacts = ContactsRepository(client)
+    conversations = ConversationsRepository(client)
+    lead = contacts.upsert_lead(
+        LeadUpsertRequest(
+            business_id="limitless",
+            environment="dev",
+            first_name="Maya",
+            phone="+15551234567",
+            email="maya@example.com",
+            property_address="123 Main St, Houston, TX",
+        )
+    )
+    conversations.get_or_create(
+        business_id=lead.business_id,
+        environment=lead.environment,
+        contact_id=lead.id,
+        channel="sms",
+        provider_thread_id="thread_123",
+    )
+
+    class StubTextgridAdapter:
+        def verify_signature(self, payload, *, signature, request_url=None):
+            return True
+
+        def normalize(self, payload):
+            return NormalizedSmsEvent(
+                event_type="inbound",
+                body="stop",
+                from_number="+15550000000",
+                to_number="+13467725914",
+                external_id="sms_123",
+                metadata={
+                    "provider_thread_id": "thread_123",
+                    "business_id": lead.business_id,
+                    "environment": lead.environment,
+                },
+            )
+
+    class StubSequenceService:
+        def __init__(self) -> None:
+            self.stop_calls = 0
+
+        def stop(self, *, phone_number: str) -> None:
+            self.stop_calls += 1
+
+        def pause(self, *, phone_number: str) -> None:
+            return None
+
+    sequence = StubSequenceService()
+    service = InboundSmsService(
+        textgrid_adapter=StubTextgridAdapter(),
+        sequence_service=sequence,
+        contacts=contacts,
+    )
+    result = service.handle_textgrid_webhook({}, signature=None)
+
+    assert result["status"] == "processed"
+    assert sequence.stop_calls == 1
+    message_rows = getattr(client.store, "marketing_message_rows", {})
+    assert len(message_rows) == 1
+    stored = next(iter(message_rows.values()))
+    assert stored.contact_id == lead.id
+    assert stored.conversation_id == "thread_123"
+
+
+def test_inbound_sms_creates_manual_review_task_when_phone_is_ambiguous() -> None:
+    client = InMemoryControlPlaneClient(InMemoryControlPlaneStore())
+    contacts = ContactsRepository(client)
+    first_lead = contacts.upsert_lead(
+        LeadUpsertRequest(
+            business_id="limitless",
+            environment="dev",
+            first_name="Maya",
+            phone="+15551234567",
+            email="maya@example.com",
+            property_address="123 Main St, Houston, TX",
+        )
+    )
+    contacts.upsert_lead(
+        LeadUpsertRequest(
+            business_id="other-biz",
+            environment="dev",
+            first_name="Alex",
+            phone="+15551234567",
+            email="alex@example.com",
+            property_address="987 Oak St, Houston, TX",
+        )
+    )
+
+    class StubTextgridAdapter:
+        def verify_signature(self, payload, *, signature, request_url=None):
+            return True
+
+        def normalize(self, payload):
+            return NormalizedSmsEvent(
+                event_type="inbound",
+                body="call me",
+                from_number=first_lead.phone,
+                to_number="+13467725914",
+                external_id="sms_ambiguous_1",
+                metadata={},
+            )
+
+    service = InboundSmsService(
+        textgrid_adapter=StubTextgridAdapter(),
+        contacts=contacts,
+    )
+    service.handle_textgrid_webhook({}, signature=None)
+
+    tasks = TasksRepository(client).list()
+    assert len(tasks) == 1
+    assert tasks[0].task_type.value == "manual_review"
+
+
+def test_inbound_sms_stop_reply_with_shared_phone_does_not_stop_other_tenant_sequence() -> None:
+    client = InMemoryControlPlaneClient(InMemoryControlPlaneStore())
+    contacts = ContactsRepository(client)
+    sequences = SequencesRepository(client)
+    other = contacts.upsert_lead(
+        LeadUpsertRequest(
+            business_id="other-biz",
+            environment="dev",
+            first_name="Alex",
+            phone="+15551234567",
+            email="alex@example.com",
+            property_address="987 Oak St, Houston, TX",
+        )
+    )
+    target = contacts.upsert_lead(
+        LeadUpsertRequest(
+            business_id="limitless",
+            environment="dev",
+            first_name="Maya",
+            phone="+15551234567",
+            email="maya@example.com",
+            property_address="123 Main St, Houston, TX",
+        )
+    )
+    other_enrollment = sequences.create(
+        business_id=other.business_id,
+        environment=other.environment,
+        contact_id=other.id,
+        sequence_key="lease_option_non_booker_v1",
+    )
+    target_enrollment = sequences.create(
+        business_id=target.business_id,
+        environment=target.environment,
+        contact_id=target.id,
+        sequence_key="lease_option_non_booker_v1",
+    )
+
+    class StubTextgridAdapter:
+        def verify_signature(self, payload, *, signature, request_url=None):
+            return True
+
+        def normalize(self, payload):
+            return NormalizedSmsEvent(
+                event_type="inbound",
+                body="stop",
+                from_number=target.phone,
+                to_number="+13467725914",
+                external_id="sms_shared_phone_1",
+                metadata={
+                    "business_id": target.business_id,
+                    "environment": target.environment,
+                },
+            )
+
+    service = InboundSmsService(
+        textgrid_adapter=StubTextgridAdapter(),
+        contacts=contacts,
+    )
+
+    result = service.handle_textgrid_webhook({}, signature=None)
+
+    assert result["status"] == "processed"
+    assert sequences.find_latest(
+        business_id=target.business_id,
+        environment=target.environment,
+        contact_id=target.id,
+        sequence_key="lease_option_non_booker_v1",
+    ).status == SequenceEnrollmentStatus.STOPPED
+    assert sequences.find_latest(
+        business_id=other.business_id,
+        environment=other.environment,
+        contact_id=other.id,
+        sequence_key="lease_option_non_booker_v1",
+    ).status == SequenceEnrollmentStatus.ACTIVE

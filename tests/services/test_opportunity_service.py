@@ -40,6 +40,20 @@ def test_advance_stage_rejects_backward_transition() -> None:
         service.advance_stage(moved.id or "", OpportunityStage.QUALIFIED_OPPORTUNITY)
 
 
+def test_advance_stage_allows_forward_transition() -> None:
+    service = build_service()
+    created = service.create_for_contact(
+        business_id="limitless",
+        environment="dev",
+        contact_id="contact_1",
+        source_lane="lease_option_inbound",
+    )
+
+    moved = service.advance_stage(created.id or "", OpportunityStage.OFFER_PATH_SELECTED)
+
+    assert moved.stage == OpportunityStage.OFFER_PATH_SELECTED
+
+
 def test_summarize_by_lane_and_stage_keeps_lane_and_stage_separate() -> None:
     service = build_service()
     service.create_for_lead(

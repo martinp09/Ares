@@ -76,9 +76,12 @@ class MissionControlDashboardResponse(BaseModel):
     active_non_booker_enrollment_count: int | None = Field(default=None, ge=0)
     due_manual_call_count: int | None = Field(default=None, ge=0)
     replies_needing_review_count: int | None = Field(default=None, ge=0)
+    outbound_probate_summary: MissionControlOutboundProbateSummary | None = None
+    inbound_lease_option_summary: MissionControlInboundLeaseOptionSummary | None = None
     lead_machine_summary: MissionControlLeadMachineSummary | None = None
     opportunity_count: int | None = Field(default=None, ge=0)
     opportunity_stage_summaries: list[MissionControlOpportunityStageSummary] | None = None
+    opportunity_pipeline_summary: MissionControlOpportunityPipelineSummary | None = None
     system_status: Literal["healthy", "watch", "degraded"] = "healthy"
     updated_at: str
 
@@ -232,6 +235,34 @@ class MissionControlOpportunityStageSummary(BaseModel):
     source_lane: str = Field(min_length=1)
     stage: str = Field(min_length=1)
     count: int = Field(ge=0)
+
+
+class MissionControlOpportunityPipelineSummary(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    total_opportunity_count: int = Field(ge=0)
+    lane_stage_summaries: list[MissionControlOpportunityStageSummary] = Field(default_factory=list)
+
+
+class MissionControlOutboundProbateSummary(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    active_campaign_count: int = Field(ge=0)
+    ready_lead_count: int = Field(ge=0)
+    active_lead_count: int = Field(ge=0)
+    interested_lead_count: int = Field(ge=0)
+    suppressed_lead_count: int = Field(ge=0)
+    open_task_count: int = Field(ge=0)
+
+
+class MissionControlInboundLeaseOptionSummary(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    pending_lead_count: int = Field(ge=0)
+    booked_lead_count: int = Field(ge=0)
+    active_non_booker_enrollment_count: int = Field(ge=0)
+    due_manual_call_count: int = Field(ge=0)
+    replies_needing_review_count: int = Field(ge=0)
 
 
 class MissionControlLeadMachineResponse(BaseModel):

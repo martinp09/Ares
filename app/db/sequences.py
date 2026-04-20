@@ -7,9 +7,14 @@ from app.models.sequences import SequenceEnrollmentRecord, SequenceEnrollmentSta
 
 
 class SequencesRepository:
-    def __init__(self, client: ControlPlaneClient | None = None, settings: Settings | None = None):
+    def __init__(
+        self,
+        client: ControlPlaneClient | None = None,
+        settings: Settings | None = None,
+        force_memory: bool | None = None,
+    ):
         self.client = client or get_control_plane_client()
-        self._force_memory = client is not None
+        self._force_memory = False if force_memory is None else force_memory
         self.settings = settings or get_settings()
 
     def create(

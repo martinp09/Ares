@@ -5,6 +5,7 @@ from app.db.campaign_memberships import CampaignMembershipsRepository
 from app.db.campaigns import CampaignsRepository
 from app.db.client import InMemoryControlPlaneClient, InMemoryControlPlaneStore
 from app.db.lead_events import LeadEventsRepository
+from app.db.contacts import ContactsRepository
 from app.db.leads import LeadsRepository
 from app.db.opportunities import OpportunitiesRepository
 from app.db.tasks import TasksRepository
@@ -12,6 +13,7 @@ from app.models.automation_runs import AutomationRunRecord, AutomationRunStatus
 from app.models.campaigns import CampaignMembershipRecord, CampaignMembershipStatus, CampaignRecord, CampaignStatus
 from app.models.lead_events import LeadEventRecord
 from app.models.leads import LeadInterestStatus, LeadLifecycleStatus, LeadRecord, LeadSource
+from app.models.marketing_leads import LeadUpsertRequest
 from app.models.mission_control import MissionControlContactRecord, MissionControlMessageRecord, MissionControlThreadRecord
 from app.models.opportunities import OpportunityRecord, OpportunitySourceLane, OpportunityStage
 from app.models.tasks import TaskPriority, TaskRecord, TaskStatus, TaskType
@@ -226,6 +228,14 @@ def test_get_dashboard_groups_opportunities_by_lane_and_stage() -> None:
         {"source_lane": "lease_option_inbound", "stage": "qualified_opportunity", "count": 1},
         {"source_lane": "probate", "stage": "qualified_opportunity", "count": 1},
     ]
+    assert dashboard.outbound_probate_summary is None
+    assert dashboard.inbound_lease_option_summary is None
+    assert dashboard.opportunity_pipeline_summary is not None
+    assert dashboard.opportunity_pipeline_summary.total_opportunity_count == 2
+    assert [item.model_dump(mode="json") for item in dashboard.opportunity_pipeline_summary.lane_stage_summaries] == [
+        {"source_lane": "lease_option_inbound", "stage": "qualified_opportunity", "count": 1},
+        {"source_lane": "probate", "stage": "qualified_opportunity", "count": 1},
+    ]
 
 
 
@@ -388,3 +398,188 @@ def test_mission_control_task_actions_update_threads_leads_and_tasks() -> None:
     assert restored_thread.context["sequence_status"] == "active"
     assert restored_thread.context.get("suppression_reason") is None
     assert restored_thread.context.get("suppressed_at") is None
+
+
+def test_complete_task_for_booked_thread_with_ready_outcome_advances_lease_option_opportunity() -> None:
+    client = InMemoryControlPlaneClient(InMemoryControlPlaneStore())
+    contacts_repository = ContactsRepository(client)
+    opportunities_repository = OpportunitiesRepository(client)
+    service = MissionControlService(
+        client=client,
+        opportunities_repository=opportunities_repository,
+    )
+    base_time = datetime(2026, 4, 17, 18, 0, tzinfo=UTC)
+    contact = contacts_repository.upsert_lead(
+        LeadUpsertRequest(
+            business_id="limitless",
+            environment="dev",
+            first_name="Ready Contact",
+            phone="+15559990000",
+            email="ready-contact@example.com",
+            property_address="123 Main St, Houston, TX",
+            booking_status="booked",
+        )
+    )
+    service.opportunity_service.create_for_contact(
+        business_id=contact.business_id,
+        environment=contact.environment,
+        contact_id=contact.id,
+        source_lane=OpportunitySourceLane.LEASE_OPTION_INBOUND,
+    )
+    thread = MissionControlThreadRecord(
+        business_id="limitless",
+        environment="dev",
+        channel="sms",
+        status="open",
+        unread_count=1,
+        contact=MissionControlContactRecord(
+            display_name="Ready Contact",
+            phone=contact.phone,
+            email=contact.email,
+        ),
+        messages=[
+            MissionControlMessageRecord(
+                direction="inbound",
+                channel="sms",
+                body="Let's move forward.",
+                created_at=base_time + timedelta(minutes=1),
+            )
+        ],
+        context={
+            "lead_id": contact.id,
+            "booking_status": "booked",
+            "sequence_status": "active",
+            "reply_needs_review": True,
+        },
+        created_at=base_time,
+        updated_at=base_time,
+    )
+    service.upsert_thread_projection(thread)
+
+    service.complete_task_for_thread(
+        thread_id=thread.id,
+        notes="Qualified and ready to proceed.",
+        follow_up_outcome="ready_for_offer",
+    )
+
+    opportunities = opportunities_repository.list(business_id="limitless", environment="dev")
+
+    assert len(opportunities) == 1
+    assert opportunities[0].source_lane == OpportunitySourceLane.LEASE_OPTION_INBOUND
+    assert opportunities[0].contact_id == contact.id
+    assert opportunities[0].stage == OpportunityStage.OFFER_PATH_SELECTED
+
+
+def test_contact_backed_thread_actions_resolve_marketing_contacts_and_restore_booking_status() -> None:
+    client = InMemoryControlPlaneClient(InMemoryControlPlaneStore())
+    contacts_repository = ContactsRepository(client)
+    opportunities_repository = OpportunitiesRepository(client)
+    tasks_repository = TasksRepository(client)
+    service = MissionControlService(
+        client=client,
+        opportunities_repository=opportunities_repository,
+    )
+    base_time = datetime(2026, 4, 17, 19, 0, tzinfo=UTC)
+    contact = contacts_repository.upsert_lead(
+        LeadUpsertRequest(
+            business_id="limitless",
+            environment="dev",
+            first_name="Lease Contact",
+            phone="+155****9012",
+            email="lease-contact@example.com",
+            property_address="456 Oak Ave, Houston, TX",
+            booking_status="booked",
+        )
+    )
+    manual_task = tasks_repository.create(
+        TaskRecord(
+            business_id="limitless",
+            environment="dev",
+            lead_id=contact.id,
+            title="Call lease-option contact",
+            status=TaskStatus.OPEN,
+            task_type=TaskType.MANUAL_CALL,
+            priority=TaskPriority.HIGH,
+            idempotency_key="task-contact-call",
+            details={"source": "mission_control"},
+            created_at=base_time,
+        )
+    )
+    review_task = tasks_repository.create(
+        TaskRecord(
+            business_id="limitless",
+            environment="dev",
+            lead_id=contact.id,
+            title="Review lease-option reply",
+            status=TaskStatus.OPEN,
+            task_type=TaskType.SUPPRESSION_REVIEW,
+            priority=TaskPriority.NORMAL,
+            idempotency_key="task-contact-review",
+            details={"source": "mission_control"},
+            created_at=base_time,
+        )
+    )
+    thread = MissionControlThreadRecord(
+        business_id="limitless",
+        environment="dev",
+        channel="sms",
+        status="open",
+        unread_count=1,
+        contact=MissionControlContactRecord(
+            display_name="Lease Contact",
+            phone=contact.phone,
+            email=contact.email,
+        ),
+        messages=[
+            MissionControlMessageRecord(
+                direction="inbound",
+                channel="sms",
+                body="We’re ready to talk.",
+                created_at=base_time + timedelta(minutes=1),
+            )
+        ],
+        context={
+            "lead_id": contact.id,
+            "booking_status": "booked",
+            "sequence_status": "active",
+            "reply_needs_review": True,
+        },
+        created_at=base_time,
+        updated_at=base_time,
+    )
+    service.upsert_thread_projection(thread)
+
+    complete_response = service.complete_task_for_thread(
+        thread_id=thread.id,
+        notes="Qualified and ready to proceed.",
+        follow_up_outcome="ready_for_offer",
+    )
+    assert complete_response.completed_task_count == 1
+    assert tasks_repository.get(manual_task.id).status == TaskStatus.COMPLETED
+    assert tasks_repository.get(review_task.id).status == TaskStatus.OPEN
+    opportunities = opportunities_repository.list(business_id="limitless", environment="dev")
+    assert len(opportunities) == 1
+    assert opportunities[0].source_lane == OpportunitySourceLane.LEASE_OPTION_INBOUND
+    assert opportunities[0].contact_id == contact.id
+    assert opportunities[0].stage == OpportunityStage.OFFER_PATH_SELECTED
+
+    suppress_response = service.suppress_thread(thread_id=thread.id, reason="do_not_contact", note="owner requested")
+    assert suppress_response.action == "suppressed"
+    suppressed_contact = contacts_repository.get_lead(contact.id)
+    assert suppressed_contact is not None
+    assert suppressed_contact.booking_status == "cancelled"
+    assert tasks_repository.get(review_task.id).status == TaskStatus.CANCELLED
+    refreshed_thread = service._require_thread_projection(thread.id)
+    assert refreshed_thread.context["sequence_status"] == "suppressed"
+    assert refreshed_thread.context["booking_status"] == "cancelled"
+    assert refreshed_thread.context["booking_status_before_suppression"] == "booked"
+
+    unsuppress_response = service.unsuppress_thread(thread_id=thread.id, note="reinstated")
+    assert unsuppress_response.action == "unsuppressed"
+    restored_contact = contacts_repository.get_lead(contact.id)
+    assert restored_contact is not None
+    assert restored_contact.booking_status == "booked"
+    restored_thread = service._require_thread_projection(thread.id)
+    assert restored_thread.context["sequence_status"] == "active"
+    assert restored_thread.context["booking_status"] == "booked"
+    assert restored_thread.context.get("booking_status_before_suppression") is None

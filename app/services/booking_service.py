@@ -8,6 +8,8 @@ from urllib import request as http_request
 from app.core.config import Settings, get_settings
 from app.db.bookings import BookingsRepository
 from app.db.contacts import ContactsRepository
+from app.db.conversations import ConversationsRepository
+from app.db.messages import MessagesRepository
 from app.db.provider_webhooks import ProviderWebhooksRepository
 from app.db.sequences import SequencesRepository
 from app.db.tasks import TasksRepository
@@ -83,6 +85,10 @@ class SequenceEnrollmentService(Protocol):
     def suppress_for_booked_lead(self, *, lead_id: str) -> None: ...
 
     def enroll_non_booker(self, *, lead_id: str, business_id: str, environment: str) -> None: ...
+
+
+class BookingMessageLogService(Protocol):
+    def log_appointment_confirmation(self, *, lead: MarketingLeadRecord) -> None: ...
 
 
 class WebhookReceiptService(Protocol):
@@ -180,6 +186,65 @@ class _NoopWebhookReceiptService:
 
     def mark_processed(self, receipt_id: str | None) -> None:
         return None
+
+
+class _NoopBookingMessageLogService:
+    def log_appointment_confirmation(self, *, lead: MarketingLeadRecord) -> None:
+        return None
+
+
+class _RepositoryBookingMessageLogService:
+    def __init__(
+        self,
+        *,
+        settings: Settings,
+        contacts: ContactsRepository,
+        conversations: ConversationsRepository | None = None,
+        messages: MessagesRepository | None = None,
+    ) -> None:
+        self.settings = settings
+        self.contacts = contacts
+        self.conversations = conversations or ConversationsRepository(self.contacts.client)
+        self.messages = messages or MessagesRepository(self.contacts.client)
+
+    def log_appointment_confirmation(self, *, lead: MarketingLeadRecord) -> None:
+        confirmation = f"Thanks {lead.first_name}, your lease-option appointment is confirmed."
+        if (
+            self.settings.textgrid_account_sid
+            and self.settings.textgrid_auth_token
+            and self.settings.textgrid_from_number
+        ):
+            conversation = self.conversations.get_or_create(
+                business_id=lead.business_id,
+                environment=lead.environment,
+                contact_id=lead.id,
+                channel="sms",
+            )
+            self.messages.append_outbound(
+                business_id=lead.business_id,
+                environment=lead.environment,
+                contact_id=lead.id,
+                conversation_id=conversation.provider_thread_id,
+                channel="sms",
+                provider="textgrid",
+                body=confirmation,
+            )
+        if lead.email and self.settings.resend_api_key and self.settings.resend_from_email:
+            conversation = self.conversations.get_or_create(
+                business_id=lead.business_id,
+                environment=lead.environment,
+                contact_id=lead.id,
+                channel="email",
+            )
+            self.messages.append_outbound(
+                business_id=lead.business_id,
+                environment=lead.environment,
+                contact_id=lead.id,
+                conversation_id=conversation.provider_thread_id,
+                channel="email",
+                provider="resend",
+                body=confirmation,
+            )
 
 
 class _ProviderWebhookReceiptAdapter:
@@ -312,6 +377,8 @@ class BookingService:
         contacts: ContactsRepository | None = None,
         webhook_receipts: WebhookReceiptService | None = None,
         opportunity_service: OpportunityService | None = None,
+        sequences: SequencesRepository | None = None,
+        message_log_service: BookingMessageLogService | None = None,
     ) -> None:
         self.settings = settings or get_settings()
         self.calcom_adapter = calcom_adapter or _DefaultCalcomWebhookAdapter(self.settings)
@@ -319,8 +386,15 @@ class BookingService:
         self.appointment_notifier = appointment_notifier or _ConfiguredAppointmentNotifier(settings=self.settings)
         self.sequence_service = sequence_service or _SequenceEnrollmentAdapter()
         self.contacts = contacts or ContactsRepository()
-        self.webhook_receipts = webhook_receipts or _ProviderWebhookReceiptAdapter()
+        self.webhook_receipts = webhook_receipts or _ProviderWebhookReceiptAdapter(
+            ProviderWebhooksRepository(self.contacts.client)
+        )
         self.opportunity_service = opportunity_service or OpportunityService()
+        self.sequences = sequences or SequencesRepository(self.contacts.client)
+        self.message_log_service = message_log_service or _RepositoryBookingMessageLogService(
+            settings=self.settings,
+            contacts=self.contacts,
+        )
 
     def handle_calcom_webhook(
         self,
@@ -338,6 +412,8 @@ class BookingService:
         newly_booked = self.booking_repository.apply_booking_event(event)
         if newly_booked:
             self.appointment_notifier.send_appointment_confirmation(lead_id=event.lead_id)
+            if lead is not None:
+                self.message_log_service.log_appointment_confirmation(lead=lead)
             self._sync_opportunity(lead, event)
         if event.booking_status in {"booked", "rescheduled"}:
             self.sequence_service.suppress_for_booked_lead(lead_id=event.lead_id)
@@ -360,11 +436,27 @@ class BookingService:
         request: LeaseOptionSequenceGuardRequest,
     ) -> dict[str, str | bool]:
         booking_status = self.booking_repository.get_booking_status(request.lead_id)
-        sequence_status: SequenceStatus = "active" if booking_status == "pending" else "stopped"
+        if booking_status != "pending":
+            return {
+                "booking_status": booking_status,
+                "sequence_status": "stopped",
+                "opted_out": False,
+            }
+        sequence_status: SequenceStatus = "active"
+        opted_out = False
+        enrollment = self.sequences.find_latest(
+            business_id=request.business_id,
+            environment=request.environment,
+            contact_id=request.lead_id,
+            sequence_key=LEASE_OPTION_SEQUENCE_KEY,
+        )
+        if enrollment is not None:
+            sequence_status = enrollment.status.value  # type: ignore[assignment]
+            opted_out = enrollment.status.value == "stopped"
         return {
             "booking_status": booking_status,
             "sequence_status": sequence_status,
-            "opted_out": False,
+            "opted_out": opted_out,
         }
 
     def create_manual_call_task(self, request: ManualCallTaskRequest) -> dict[str, str]:

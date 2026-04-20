@@ -1,0 +1,274 @@
+# Ralph loop progress — feature/loose-ends
+# Update after every fresh-session run.
+#
+# Suggested entry shape:
+# [timestamp] story-id status
+# summary: one sentence
+# files:
+#   - path/a
+#   - path/b
+# checks:
+#   - command :: PASS
+#   - command :: FAIL
+# blockers: none | exact blocker text
+#
+[2026-04-20T15:18:05Z] bootstrap ready
+summary: Created the loose-ends Ralph loop board, fresh-session prompt, watchdog wrapper, and progress trail; patched dry-run to stop after one iteration.
+files:
+  - scripts/ralph/prd.json
+  - scripts/ralph/session-prompt.md
+  - scripts/ralph/watchdog.sh
+  - scripts/ralph/README.md
+  - CONTEXT.md
+  - TODO.md
+checks:
+  - jq '.boardName, (.userStories | length), (.deferredStories | length), .userStories[0].id' scripts/ralph/prd.json :: PASS
+  - bash -n scripts/ralph/watchdog.sh :: PASS
+  - RALPH_DRY_RUN=1 scripts/ralph/watchdog.sh :: PASS
+blockers: none
+
+[2026-04-20T17:01:59Z] watchdog hardening
+summary: Fixed the Ralph watchdog to default to Codex bypass mode on this host, stop immediately on worker `status: blocked`, and sync the blocked story status instead of looping forever and wasting tokens.
+files:
+  - scripts/ralph/watchdog.sh
+  - scripts/ralph/README.md
+checks:
+  - codex exec -m gpt-5.3-codex --dangerously-bypass-approvals-and-sandbox -C /home/workspace/Hermes-Central-Command/.worktrees/loose-ends -o /tmp/codex-bypass-last.txt - < /tmp/codex-bypass-test-prompt.txt :: PASS
+  - bash -n scripts/ralph/watchdog.sh :: PASS
+  - RALPH_DRY_RUN=1 scripts/ralph/watchdog.sh :: PASS
+  - simulated blocked-worker harness for watchdog stop/sync behavior :: PASS
+blockers: none
+
+[2026-04-20T15:20:31Z] watchdog iteration 1 starting story-01-port-probate-lead-machine-slice
+
+[2026-04-20T15:20:47Z] watchdog iteration 2 starting story-01-port-probate-lead-machine-slice
+
+[2026-04-20T15:21:02Z] watchdog iteration 3 starting story-01-port-probate-lead-machine-slice
+
+[2026-04-20T15:21:17Z] watchdog iteration 4 starting story-01-port-probate-lead-machine-slice
+
+[2026-04-20T15:22:06Z] watchdog iteration 1 starting story-01-port-probate-lead-machine-slice
+
+[2026-04-20T15:35:44Z] watchdog iteration 1 starting story-01-port-probate-lead-machine-slice
+
+[2026-04-20T16:11:19Z] watchdog iteration 1 starting story-01-port-probate-lead-machine-slice
+[2026-04-20T16:12:50Z] watchdog iteration 1 exit=0 story=story-01-port-probate-lead-machine-slice
+
+[2026-04-20T16:13:05Z] watchdog iteration 2 starting story-01-port-probate-lead-machine-slice
+[2026-04-20T16:14:29Z] watchdog iteration 2 exit=0 story=story-01-port-probate-lead-machine-slice
+
+[2026-04-20T16:14:44Z] watchdog iteration 3 starting story-01-port-probate-lead-machine-slice
+[2026-04-20T16:15:47Z] watchdog iteration 3 exit=0 story=story-01-port-probate-lead-machine-slice
+
+[2026-04-20T16:16:02Z] watchdog iteration 4 starting story-01-port-probate-lead-machine-slice
+[2026-04-20T16:17:01Z] watchdog iteration 4 exit=0 story=story-01-port-probate-lead-machine-slice
+
+[2026-04-20T16:17:16Z] watchdog iteration 5 starting story-01-port-probate-lead-machine-slice
+[2026-04-20T16:18:25Z] watchdog iteration 5 exit=0 story=story-01-port-probate-lead-machine-slice
+
+[2026-04-20T16:18:40Z] watchdog iteration 6 starting story-01-port-probate-lead-machine-slice
+[2026-04-20T16:19:58Z] watchdog iteration 6 exit=0 story=story-01-port-probate-lead-machine-slice
+
+[2026-04-20T16:20:14Z] watchdog iteration 7 starting story-01-port-probate-lead-machine-slice
+[2026-04-20T16:21:23Z] watchdog iteration 7 exit=0 story=story-01-port-probate-lead-machine-slice
+
+[2026-04-20T16:21:38Z] watchdog iteration 8 starting story-01-port-probate-lead-machine-slice
+[2026-04-20T16:22:54Z] watchdog iteration 8 exit=0 story=story-01-port-probate-lead-machine-slice
+
+[2026-04-20T16:23:09Z] watchdog iteration 9 starting story-01-port-probate-lead-machine-slice
+[2026-04-20T16:24:24Z] watchdog iteration 9 exit=0 story=story-01-port-probate-lead-machine-slice
+
+[2026-04-20T16:24:39Z] watchdog iteration 10 starting story-01-port-probate-lead-machine-slice
+[2026-04-20T16:25:52Z] watchdog iteration 10 exit=0 story=story-01-port-probate-lead-machine-slice
+
+[2026-04-20T16:26:07Z] watchdog iteration 11 starting story-01-port-probate-lead-machine-slice
+[2026-04-20T16:27:21Z] watchdog iteration 11 exit=0 story=story-01-port-probate-lead-machine-slice
+
+[2026-04-20T16:27:36Z] watchdog iteration 12 starting story-01-port-probate-lead-machine-slice
+[2026-04-20T16:28:39Z] watchdog iteration 12 exit=0 story=story-01-port-probate-lead-machine-slice
+
+[2026-04-20T16:28:55Z] watchdog iteration 13 starting story-01-port-probate-lead-machine-slice
+[2026-04-20T16:29:52Z] watchdog iteration 13 exit=0 story=story-01-port-probate-lead-machine-slice
+
+[2026-04-20T16:30:08Z] watchdog iteration 14 starting story-01-port-probate-lead-machine-slice
+[2026-04-20T16:31:19Z] watchdog iteration 14 exit=0 story=story-01-port-probate-lead-machine-slice
+
+[2026-04-20T16:31:34Z] watchdog iteration 15 starting story-01-port-probate-lead-machine-slice
+[2026-04-20T16:32:53Z] watchdog iteration 15 exit=0 story=story-01-port-probate-lead-machine-slice
+
+[2026-04-20T16:33:08Z] watchdog iteration 16 starting story-01-port-probate-lead-machine-slice
+[2026-04-20T16:34:22Z] watchdog iteration 16 exit=0 story=story-01-port-probate-lead-machine-slice
+
+[2026-04-20T16:34:37Z] watchdog iteration 17 starting story-01-port-probate-lead-machine-slice
+[2026-04-20T16:35:46Z] watchdog iteration 17 exit=0 story=story-01-port-probate-lead-machine-slice
+
+[2026-04-20T16:36:02Z] watchdog iteration 18 starting story-01-port-probate-lead-machine-slice
+[2026-04-20T16:37:22Z] watchdog iteration 18 exit=0 story=story-01-port-probate-lead-machine-slice
+
+[2026-04-20T16:37:37Z] watchdog iteration 19 starting story-01-port-probate-lead-machine-slice
+[2026-04-20T16:38:40Z] watchdog iteration 19 exit=0 story=story-01-port-probate-lead-machine-slice
+
+[2026-04-20T16:38:56Z] watchdog iteration 20 starting story-01-port-probate-lead-machine-slice
+[2026-04-20T16:40:07Z] watchdog iteration 20 exit=0 story=story-01-port-probate-lead-machine-slice
+
+[2026-04-20T16:40:22Z] watchdog iteration 21 starting story-01-port-probate-lead-machine-slice
+[2026-04-20T16:41:30Z] watchdog iteration 21 exit=0 story=story-01-port-probate-lead-machine-slice
+
+[2026-04-20T16:41:46Z] watchdog iteration 22 starting story-01-port-probate-lead-machine-slice
+[2026-04-20T16:42:56Z] watchdog iteration 22 exit=0 story=story-01-port-probate-lead-machine-slice
+
+[2026-04-20T16:43:11Z] watchdog iteration 23 starting story-01-port-probate-lead-machine-slice
+[2026-04-20T16:44:17Z] watchdog iteration 23 exit=0 story=story-01-port-probate-lead-machine-slice
+
+[2026-04-20T16:44:33Z] watchdog iteration 24 starting story-01-port-probate-lead-machine-slice
+[2026-04-20T16:45:47Z] watchdog iteration 24 exit=0 story=story-01-port-probate-lead-machine-slice
+
+[2026-04-20T16:46:02Z] watchdog iteration 25 starting story-01-port-probate-lead-machine-slice
+[2026-04-20T16:47:20Z] watchdog iteration 25 exit=0 story=story-01-port-probate-lead-machine-slice
+
+[2026-04-20T16:47:35Z] watchdog iteration 26 starting story-01-port-probate-lead-machine-slice
+[2026-04-20T16:49:12Z] watchdog iteration 26 exit=0 story=story-01-port-probate-lead-machine-slice
+
+[2026-04-20T16:49:27Z] watchdog iteration 27 starting story-01-port-probate-lead-machine-slice
+[2026-04-20T16:50:28Z] watchdog iteration 27 exit=0 story=story-01-port-probate-lead-machine-slice
+
+[2026-04-20T16:50:44Z] watchdog iteration 28 starting story-01-port-probate-lead-machine-slice
+[2026-04-20T16:51:58Z] watchdog iteration 28 exit=0 story=story-01-port-probate-lead-machine-slice
+
+[2026-04-20T16:52:13Z] watchdog iteration 29 starting story-01-port-probate-lead-machine-slice
+[2026-04-20T16:53:15Z] watchdog iteration 29 exit=0 story=story-01-port-probate-lead-machine-slice
+
+[2026-04-20T16:53:30Z] watchdog iteration 30 starting story-01-port-probate-lead-machine-slice
+[2026-04-20T16:54:56Z] watchdog iteration 30 exit=0 story=story-01-port-probate-lead-machine-slice
+
+[2026-04-20T16:55:11Z] watchdog iteration 31 starting story-01-port-probate-lead-machine-slice
+[2026-04-20T16:56:21Z] watchdog iteration 31 exit=0 story=story-01-port-probate-lead-machine-slice
+
+[2026-04-20T16:56:37Z] watchdog iteration 32 starting story-01-port-probate-lead-machine-slice
+[2026-04-20T16:57:47Z] watchdog iteration 32 exit=0 story=story-01-port-probate-lead-machine-slice
+
+[2026-04-20T16:58:02Z] watchdog iteration 33 starting story-01-port-probate-lead-machine-slice
+
+[2026-04-20T17:01:57Z] watchdog iteration 1 starting story-01-port-probate-lead-machine-slice
+
+[2026-04-20T17:02:54Z] watchdog iteration 1 starting story-01-port-probate-lead-machine-slice
+
+[2026-04-20T17:24:20Z] watchdog iteration 1 starting story-01-port-probate-lead-machine-slice
+[2026-04-20T17:25:31Z] watchdog iteration 1 exit=0 story=story-01-port-probate-lead-machine-slice
+
+[2026-04-20T17:25:47Z] watchdog iteration 2 starting story-01-port-probate-lead-machine-slice
+
+[2026-04-20T17:27:41Z] story-01-port-probate-lead-machine-slice done
+summary: Verified the probate/lead-machine slice is ported and runnable in memory mode for this branch; only expected scoring/test deltas remain versus origin/main.
+files:
+  - scripts/ralph/prd.json
+  - scripts/ralph/progress.txt
+checks:
+  - git branch --show-current :: PASS (feature/loose-ends)
+  - git diff origin/main -- app/models app/db app/services app/api tests :: PASS (lead-machine/probate slice present; targeted deltas only)
+  - uv run pytest -q :: PASS (251 passed)
+blockers: none
+[2026-04-20T17:28:09Z] watchdog iteration 2 exit=0 story=story-01-port-probate-lead-machine-slice
+
+[2026-04-20T17:28:24Z] watchdog iteration 3 starting story-02-build-probate-outbound-write-path
+[2026-04-20T17:31:14Z] story-02-build-probate-outbound-write-path done
+summary: Verified the probate outbound intake/enqueue/webhook write path acceptance gate as replay-safe in memory mode and advanced the Ralph board state.
+files:
+  - scripts/ralph/prd.json
+  - scripts/ralph/progress.txt
+  - CONTEXT.md
+  - TODO.md
+  - memory.md
+checks:
+  - uv run pytest tests/api/test_lead_machine.py tests/services/test_probate_write_path_service.py tests/services/test_lead_webhook_service.py -q :: PASS (20 passed)
+  - uv run pytest -q :: PASS (251 passed)
+  - npm --prefix trigger run typecheck :: PASS
+blockers: none
+[2026-04-20T17:32:10Z] watchdog iteration 3 exit=0 story=story-02-build-probate-outbound-write-path
+
+[2026-04-20T17:32:25Z] watchdog iteration 4 starting story-03-harden-lease-option-inbound-lane
+[2026-04-20T17:42:43Z] story-03-harden-lease-option-inbound-lane done
+summary: Hardened lease-option inbound reliability with sequence-state guarding, receipt-safe inbound resolution, ambiguity operator tasks, and booking confirmation timeline logging while keeping memory-backed execution.
+files:
+  - app/db/contacts.py
+  - app/db/conversations.py
+  - app/services/booking_service.py
+  - app/services/inbound_sms_service.py
+  - tests/api/test_marketing_webhooks.py
+  - tests/services/test_booking_service.py
+  - scripts/ralph/prd.json
+  - scripts/ralph/progress.txt
+checks:
+  - uv run pytest tests/services/test_booking_service.py tests/api/test_marketing_webhooks.py -q :: PASS (14 passed)
+  - uv run pytest tests/api/test_marketing_leads.py tests/api/test_marketing_webhooks.py tests/api/test_marketing_runtime.py tests/api/test_marketing_sequence.py tests/domains/marketing/test_marketing_flow.py tests/services/test_booking_service.py -q :: PASS (33 passed)
+  - uv run pytest -q :: PASS (255 passed)
+blockers: none
+[2026-04-20T17:43:41Z] watchdog iteration 4 exit=0 story=story-03-harden-lease-option-inbound-lane
+
+[2026-04-20T17:43:56Z] watchdog iteration 5 starting story-04-add-mission-control-dual-lane-surfaces
+[2026-04-20T17:51:34Z] story-04-add-mission-control-dual-lane-surfaces done
+summary: Added lane-separated Mission Control dashboard/pipeline read models and frontend rendering so probate outbound, lease-option inbound, and pipeline stages stay explicitly separated in one cockpit.
+files:
+  - app/models/mission_control.py
+  - app/services/mission_control_service.py
+  - tests/services/test_mission_control_service.py
+  - tests/api/test_mission_control.py
+  - apps/mission-control/src/lib/api.ts
+  - apps/mission-control/src/lib/api.test.ts
+  - apps/mission-control/src/lib/fixtures.ts
+  - apps/mission-control/src/App.tsx
+  - apps/mission-control/src/pages/PipelinePage.tsx
+  - scripts/ralph/prd.json
+  - CONTEXT.md
+  - TODO.md
+  - memory.md
+  - scripts/ralph/progress.txt
+checks:
+  - uv run pytest -q :: PASS (255 passed)
+  - npm --prefix apps/mission-control run typecheck :: PASS
+  - npm --prefix apps/mission-control run test -- --run :: PASS (14 passed)
+  - npm --prefix apps/mission-control run build :: PASS
+blockers: none
+[2026-04-20T17:52:35Z] watchdog iteration 5 exit=0 story=story-04-add-mission-control-dual-lane-surfaces
+
+[2026-04-20T17:52:50Z] watchdog iteration 6 starting story-05-add-thin-opportunity-seam
+[2026-04-20T17:58:31Z] story-05-add-thin-opportunity-seam done
+summary: Completed the thin opportunity seam by adding forward-stage opportunity coverage and Mission Control operator-ready wiring for lease-option contacts while keeping execution memory-backed.
+files:
+  - app/services/mission_control_service.py
+  - tests/services/test_opportunity_service.py
+  - tests/services/test_mission_control_service.py
+  - scripts/ralph/prd.json
+  - CONTEXT.md
+  - TODO.md
+  - memory.md
+  - scripts/ralph/progress.txt
+checks:
+  - uv run pytest tests/services/test_opportunity_service.py tests/services/test_mission_control_service.py -q :: PASS (8 passed)
+  - uv run pytest -q :: PASS (257 passed)
+  - npm --prefix apps/mission-control run typecheck :: PASS
+  - npm --prefix apps/mission-control run test -- --run :: PASS (14 passed)
+  - npm --prefix apps/mission-control run build :: PASS
+blockers: none
+[2026-04-20T17:59:24Z] watchdog iteration 6 exit=0 story=story-05-add-thin-opportunity-seam
+
+[2026-04-20T17:59:39Z] watchdog iteration 7 starting story-06-run-verification-and-rollout-gates
+
+[2026-04-20T18:05:08Z] story-06-run-verification-and-rollout-gates done
+summary: Completed full branch verification gates, executed lane fixture smokes for lease-option and probate write paths, and confirmed runtime health in forced memory mode without live Supabase env vars.
+files:
+  - scripts/ralph/prd.json
+  - scripts/ralph/progress.txt
+  - CONTEXT.md
+  - TODO.md
+  - memory.md
+checks:
+  - uv run pytest -q :: PASS (257 passed)
+  - npm --prefix apps/mission-control run typecheck :: PASS
+  - npm --prefix apps/mission-control run test -- --run :: PASS (14 passed)
+  - npm --prefix apps/mission-control run build :: PASS
+  - npm --prefix trigger run typecheck :: PASS
+  - uv run python - <<'PY' (lease-option submit->booking->guard + probate intake->enqueue->webhook fixture smokes) :: PASS
+  - env -u SUPABASE_URL -u SUPABASE_SERVICE_ROLE_KEY -u SUPABASE_SECRET_KEY -u LEAD_MACHINE_SUPABASE_URL -u LEAD_MACHINE_SUPABASE_SERVICE_ROLE_KEY -u LEAD_MACHINE_SUPABASE_SECRET_KEY CONTROL_PLANE_BACKEND=memory MARKETING_BACKEND=memory LEAD_MACHINE_BACKEND=memory SITE_EVENTS_BACKEND=memory uv run python - <<'PY' (health startup probe) :: PASS
+blockers: none
+[2026-04-20T18:06:19Z] watchdog iteration 7 exit=0 story=story-06-run-verification-and-rollout-gates
