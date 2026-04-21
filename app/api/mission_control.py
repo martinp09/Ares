@@ -3,6 +3,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from app.core.dependencies import actor_context_dependency
 from app.models.actors import ActorContext
 from app.models.mission_control import (
+    MissionControlAutonomyVisibilityResponse,
     MissionControlAgentsResponse,
     MissionControlApprovalsResponse,
     MissionControlAssetsResponse,
@@ -65,6 +66,14 @@ def get_runs(
     environment: str | None = Query(default=None),
 ) -> MissionControlRunsResponse:
     return mission_control_service.get_runs(business_id=business_id, environment=environment)
+
+
+@router.get("/autonomy-visibility", response_model=MissionControlAutonomyVisibilityResponse)
+def get_autonomy_visibility(
+    business_id: str | None = Query(default=None),
+    environment: str | None = Query(default=None),
+) -> MissionControlAutonomyVisibilityResponse:
+    return mission_control_service.get_autonomy_visibility(business_id=business_id, environment=environment)
 
 
 @router.get("/tasks", response_model=MissionControlTasksResponse)

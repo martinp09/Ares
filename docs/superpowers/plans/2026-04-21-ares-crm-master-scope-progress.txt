@@ -1,0 +1,21 @@
+phase0-baseline-lock | passed | Baseline runtime readiness checks passed (commands/runs/replays, Mission Control phase3, marketing flow, compileall).
+phase1-models-contracts | passed | Added Ares domain models with county/source contracts, run-request defaults, and explicit estate_of inference; package layout and domain tests pass.
+phase1-matching-overlay-tiering | passed | Added probate-first matching service with verified tax overlay tiering and estate-only tax-only fallback; service tests pass.
+phase1-briefs-drafts | passed | Added Ares copy service lead briefs and pending-human-approval outreach drafts with rationale/county/source/rank context; copy service tests pass.
+phase1-api-route | passed | Added /ares/run API route wired in main app, with phase-1 runtime request/response tests passing.
+phase1-docs-memory | passed | Updated CONTEXT/README/memory to anchor full merged phased plan + PRD handoff, with explicit counties, probate-first tax-overlay rule, and pending-human-approval drafts.
+shared-agent-registry | passed | Added versioned Ares agent registry models/service with active revision tracking and snapshot round-trip tests.
+shared-durable-memory | passed | Added JSON-backed Ares durable memory service covering market/county preferences plus lead, outreach, operator decision, outcome, and exception history with load/save persistence tests.
+shared-tool-policy | passed | Added deterministic Ares tool policy service with explicit allowlists, typed contracts, hard-approval gating, magical side-effect blocking, audit trail, and kill-switch enforcement; tests pass.
+shared-evaluation-loop | passed | Added durable Ares evaluation-loop service with required quality/risk metrics and stable-contract tests; verification command passes.
+shared-mission-control-visibility | passed | Added Mission Control autonomy-visibility read model (phase/active run/pending approvals/failed steps/lead quality/confidence/next action) with phase3 API test coverage.
+phase2-planner-models | passed | Added planner goal/lane/check/step/rationale models with side-effect approval gating and passing planner+layout tests.
+phase2-planner-service | passed | Added Ares planner service goal-to-lane/check/step planning with operator explanation and approval-gated side effects; tests pass.
+phase2-planner-api-mission-control | passed | Added /ares/plans route, surfaced latest planner output in Mission Control autonomy visibility, and passed planner API + package layout tests.
+phase3-execution-contracts-and-guardrails | passed | Added bounded execution contracts and guardrail enforcement (budget/retry/scope/tool allowlist/audit/kill-switch) with policy+execution tests passing.
+phase3-bounded-execution-service | passed | Added bounded execution pipeline for county fetch/normalize/dedupe/enrich + overlay ranking, drafts/tasks/follow-up queue, and recoverable interruptible failures; tests pass.
+phase3-execution-api-and-mission-control | passed | Added /ares/execution/run bounded execution route, surfaced execution_review in Mission Control autonomy visibility, and verified API/layout tests.
+phase4-workflow-models | passed | Added workflow scope/step/history/state models with next-best-action + append-only history contract tests; verification command passes.
+phase4-playbook-state-eval-services | passed | Added playbook runner plus workflow state/eval services with retry/fallback and exception surfacing; required tests passed.
+phase4-execution-and-mission-control-integration | passed | Integrated execution with workflow playbook/eval, enforced high-risk approval policy checks, added drift detection, and surfaced decision/failure explanations in Mission Control.
+phase5-autonomous-operator-wiring | passed | Added guarded /ares/operator/run wiring with policy-gated autonomy snapshot surfaced in Mission Control and initialized at app startup; verification tests passed.

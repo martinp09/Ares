@@ -1,5 +1,6 @@
 from fastapi import Depends, FastAPI
 
+from app.api.ares import router as ares_router
 from app.api.agent_assets import router as agent_assets_router
 from app.api.agents import router as agents_router
 from app.api.approvals import router as approvals_router
@@ -22,10 +23,12 @@ from app.api.usage import router as usage_router
 from app.api.trigger_callbacks import router as trigger_callbacks_router
 from app.core.config import Settings
 from app.core.dependencies import runtime_api_key_dependency, settings_dependency
+from app.services.ares_autonomous_operator_service import autonomous_operator_service
 
 
 def create_app() -> FastAPI:
     app = FastAPI(title="Ares Runtime")
+    autonomous_operator_service.initialize_surface()
 
     protected_dependencies = [Depends(runtime_api_key_dependency)]
 
@@ -49,6 +52,7 @@ def create_app() -> FastAPI:
     app.include_router(trigger_callbacks_router, dependencies=protected_dependencies)
     app.include_router(marketing_router, dependencies=protected_dependencies)
     app.include_router(lead_machine_router, dependencies=protected_dependencies)
+    app.include_router(ares_router, dependencies=protected_dependencies)
 
     @app.get("/health")
     def health_check(_: Settings = Depends(settings_dependency)) -> dict[str, str]:
