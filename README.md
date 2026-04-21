@@ -23,6 +23,10 @@ This repo is the deterministic runtime, policy layer, orchestration surface, and
 - Real estate first
 - Marketing control plane before seller-ops cutover
 
+## Ares North Star
+
+Ares is a self-hosted operating system for distressed real-estate lead management. It owns the data, automates the workflow, and surfaces only the decisions that require a human.
+
 ## Current Runtime Surface
 
 - `GET /health`
