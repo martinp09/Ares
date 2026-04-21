@@ -1,15 +1,19 @@
 from __future__ import annotations
-
 from app.db.client import STORE, reset_control_plane_store, utc_now
 from app.db.commands import CommandsRepository
 from app.db.events import EventsRepository
 from app.db.runs import RunsRepository
 from app.models.commands import CommandRecord, CommandStatus
 from app.models.runs import RunDetailResponse, RunRecord, RunStatus
+import shutil
+from pathlib import Path
 
 
 def reset_control_plane_state() -> None:
     reset_control_plane_store(STORE)
+    runtime_root = Path("/tmp/ares-runtime")
+    if runtime_root.exists():
+        shutil.rmtree(runtime_root)
 
 
 class RunService:

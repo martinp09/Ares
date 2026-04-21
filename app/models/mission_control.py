@@ -5,6 +5,7 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from app.domains.ares import AresPlannerPlan
 from app.models.agent_assets import AgentAssetStatus, AgentAssetType
 from app.models.approvals import ApprovalStatus
 from app.models.commands import generate_id
@@ -404,6 +405,134 @@ class MissionControlRunsResponse(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     runs: list[MissionControlRunSummary] = Field(default_factory=list)
+
+
+class MissionControlFailedStepSummary(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    run_id: str
+    step: str = Field(min_length=1)
+    error_classification: str | None = None
+    error_message: str | None = None
+    failed_at: datetime
+
+
+class MissionControlPlannerReviewSummary(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    business_id: str = Field(min_length=1)
+    environment: str = Field(min_length=1)
+    goal: str = Field(min_length=1)
+    explanation: str = Field(min_length=1)
+    plan: AresPlannerPlan
+    generated_at: str
+
+
+class MissionControlExecutionRankedLeadSummary(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    rank: int = Field(ge=1)
+    tier: str = Field(min_length=1)
+    tax_delinquent: bool
+    county: str = Field(min_length=1)
+    source_lane: str = Field(min_length=1)
+
+
+class MissionControlExecutionHighRiskPolicyCheckSummary(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    tool_name: str = Field(min_length=1)
+    decision: str = Field(min_length=1)
+    reason: str = Field(min_length=1)
+    requires_human_approval: bool
+
+
+class MissionControlExecutionWorkflowEvalSummary(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    workflow_id: str = Field(min_length=1)
+    exception_count: int = Field(ge=0)
+    surfaced_exceptions: list[str] = Field(default_factory=list)
+    suggested_next_action: str = Field(min_length=1)
+
+
+class MissionControlExecutionDriftDetectionSummary(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    detected: bool
+    reason: str = Field(min_length=1)
+
+
+class MissionControlExecutionReviewSummary(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    run_id: str = Field(min_length=1)
+    business_id: str = Field(min_length=1)
+    environment: str = Field(min_length=1)
+    market: str = Field(min_length=1)
+    counties: list[str] = Field(default_factory=list)
+    state: str = Field(min_length=1)
+    interrupted: bool
+    lead_count: int = Field(ge=0)
+    failure_count: int = Field(ge=0)
+    high_risk_policy_checks: list[MissionControlExecutionHighRiskPolicyCheckSummary] = Field(default_factory=list)
+    workflow_eval: MissionControlExecutionWorkflowEvalSummary
+    drift_detection: MissionControlExecutionDriftDetectionSummary
+    major_decisions: list[str] = Field(default_factory=list)
+    major_failures: list[str] = Field(default_factory=list)
+    ranked_leads: list[MissionControlExecutionRankedLeadSummary] = Field(default_factory=list)
+    generated_at: str
+
+
+class MissionControlAutonomousOperatorPolicyCheckSummary(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    tool_name: str = Field(min_length=1)
+    decision: str = Field(min_length=1)
+    reason: str = Field(min_length=1)
+
+
+class MissionControlAutonomousOperatorSummary(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    run_id: str = Field(min_length=1)
+    objective_id: str = Field(min_length=1)
+    business_id: str = Field(min_length=1)
+    environment: str = Field(min_length=1)
+    market: str = Field(min_length=1)
+    counties: list[str] = Field(default_factory=list)
+    state: str = Field(min_length=1)
+    agent_name: str = Field(min_length=1)
+    agent_revision: str = Field(min_length=1)
+    playbook_workflow_id: str = Field(min_length=1)
+    next_action: str = Field(min_length=1)
+    adaptation_summary: str = Field(min_length=1)
+    escalation_required: bool
+    escalation_reason: str | None = None
+    policy_checks: list[MissionControlAutonomousOperatorPolicyCheckSummary] = Field(default_factory=list)
+    decision_log: list[str] = Field(default_factory=list)
+    exception_log: list[str] = Field(default_factory=list)
+    eval_metrics: dict[str, float] = Field(default_factory=dict)
+    memory_counts: dict[str, int] = Field(default_factory=dict)
+    audit_log: list[dict[str, Any]] = Field(default_factory=list)
+    generated_at: str
+
+
+class MissionControlAutonomyVisibilityResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    current_phase: str = Field(min_length=1)
+    active_run: MissionControlRunSummary | None = None
+    pending_approval_count: int = Field(ge=0)
+    pending_approvals: list[MissionControlApprovalSummary] = Field(default_factory=list)
+    failed_steps: list[MissionControlFailedStepSummary] = Field(default_factory=list)
+    planner_review: MissionControlPlannerReviewSummary | None = None
+    execution_review: MissionControlExecutionReviewSummary | None = None
+    autonomous_operator: MissionControlAutonomousOperatorSummary | None = None
+    lead_quality: float = Field(ge=0.0, le=1.0)
+    confidence: float = Field(ge=0.0, le=1.0)
+    next_action: str = Field(min_length=1)
+    updated_at: str
 
 
 class MissionControlTurnSummary(BaseModel):

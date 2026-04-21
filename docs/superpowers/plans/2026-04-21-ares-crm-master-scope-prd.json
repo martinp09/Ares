@@ -1,0 +1,370 @@
+{
+  "project": "Ares CRM Master Scope",
+  "branchName": "spec/ares-crm-master-scope",
+  "description": "Full merged scope for the entire Ares CRM master implementation plan: Phase 0 baseline, Phase 1 lead wedge, shared autonomy foundations, Phase 2 planner, Phase 3 bounded executor, Phase 4 workflow agent, and Phase 5 guarded autonomous operator. This replaces the phase-1-only PRD.",
+  "verificationCommands": [
+    "uv run python -m compileall app tests",
+    "git diff --check",
+    "git status --short"
+  ],
+  "stories": [
+    {
+      "id": "phase0-baseline-lock",
+      "title": "Lock the baseline runtime and verify readiness",
+      "description": "Confirm the current runtime surface is stable enough to host the Ares autonomy stack before changing anything.",
+      "priority": 1,
+      "status": "passed",
+      "passes": 1,
+      "acceptanceCriteria": [
+        "The runtime boots cleanly on the current branch.",
+        "The current command, approval, run, and replay surface is still intact.",
+        "Mission Control still renders the lead-machine shell and read models.",
+        "The marketing lane still works as a separate execution path.",
+        "The WAT architecture doc remains the operating-model reference.",
+        "The baseline still uses the in-memory control plane where it already does."
+      ],
+      "verificationCommands": [
+        "uv run pytest tests/api/test_commands.py tests/api/test_runs.py tests/api/test_replays.py tests/api/test_mission_control_phase3.py tests/domains/marketing/test_marketing_flow.py -q",
+        "uv run python -m compileall app tests"
+      ]
+    },
+    {
+      "id": "phase1-models-contracts",
+      "title": "Lock the Ares lead models and county/source contracts",
+      "description": "Create the Ares domain models and tests that define the five counties, source lanes, run request defaults, and explicit estate_of detection on lead records.",
+      "priority": 2,
+      "status": "passed",
+      "passes": 1,
+      "acceptanceCriteria": [
+        "AresCounty enumerates Harris, Tarrant, Montgomery, Dallas, and Travis in that order.",
+        "AresRunRequest coerces county strings into enums and defaults include_briefs and include_drafts to true.",
+        "AresLeadRecord exposes estate_of as true when the owner name or tax-only source indicates an estate-of property.",
+        "Package layout tests pass for the new domain module."
+      ],
+      "verificationCommands": [
+        "uv run pytest tests/domains/ares/test_models.py tests/test_package_layout.py -q"
+      ]
+    },
+    {
+      "id": "phase1-matching-overlay-tiering",
+      "title": "Implement probate-first matching, tax overlays, and tiering",
+      "description": "Build the matching and scoring service that treats probate as the primary lane, applies tax delinquency as an overlay, and gives verified probate plus tax-delinquent leads the highest rank.",
+      "priority": 3,
+      "status": "passed",
+      "passes": 1,
+      "acceptanceCriteria": [
+        "Probate is the primary source lane.",
+        "Tax delinquency is treated as an overlay filter on probate records.",
+        "Overlap between probate and verified tax delinquency ranks highest.",
+        "Tax-only work is limited to estate-of properties and then confirmed for true delinquency.",
+        "Service tests cover the matching and tiering rules."
+      ],
+      "verificationCommands": [
+        "uv run pytest tests/services/test_ares_service.py -q"
+      ]
+    },
+    {
+      "id": "phase1-briefs-drafts",
+      "title": "Add lead briefs and outreach drafts",
+      "description": "Generate operator-facing lead briefs and human-review-only outreach drafts for the ranked opportunities without auto-sending anything.",
+      "priority": 4,
+      "status": "passed",
+      "passes": 1,
+      "acceptanceCriteria": [
+        "Ares can generate a concise lead brief for each ranked opportunity.",
+        "Ares can generate outreach drafts that remain pending human approval.",
+        "Draft output preserves the lead rationale, county, source lane, and rank.",
+        "Copy service tests cover the brief and draft generation paths."
+      ],
+      "verificationCommands": [
+        "uv run pytest tests/services/test_ares_copy_service.py -q"
+      ]
+    },
+    {
+      "id": "phase1-api-route",
+      "title": "Add the Ares API route and wire it into the app",
+      "description": "Expose the Ares runtime through the API surface and wire the route into the FastAPI app so the phase-1 slice can be called end to end.",
+      "priority": 5,
+      "status": "passed",
+      "passes": 1,
+      "acceptanceCriteria": [
+        "The Ares route is registered in the app.",
+        "The route can execute the phase-1 runtime path.",
+        "API tests cover the expected request and response shape.",
+        "The app still boots with the new route wired in."
+      ],
+      "verificationCommands": [
+        "uv run pytest tests/api/test_ares_runtime.py tests/test_package_layout.py -q"
+      ]
+    },
+    {
+      "id": "phase1-docs-memory",
+      "title": "Update repo docs and memory with the full master scope",
+      "description": "Update the repo-facing docs and memory surfaces so the branch of record reflects the full merged Ares phased implementation plan, not just the first wedge.",
+      "priority": 6,
+      "status": "passed",
+      "passes": 1,
+      "acceptanceCriteria": [
+        "The repo docs point to the full merged Ares phased implementation plan as the source of truth.",
+        "The five counties remain explicitly named in the handoff docs.",
+        "The probate-first plus tax-overlay rule is stated plainly.",
+        "Human approval remains required before sending drafts in Phase 1.",
+        "The PRD remains the handoff artifact for overnight loop work."
+      ],
+      "verificationCommands": [
+        "git diff --check",
+        "git status --short"
+      ]
+    },
+    {
+      "id": "shared-agent-registry",
+      "title": "Build the versioned agent registry foundation",
+      "description": "Create the agent registry primitives so Ares can track versioned agents instead of one mutable blob.",
+      "priority": 7,
+      "status": "passed",
+      "passes": 1,
+      "acceptanceCriteria": [
+        "Each agent record has a name, purpose, revision, allowed tools, risk policy, output contract, and active revision.",
+        "The registry supports versioned agents rather than a single mutable configuration blob.",
+        "Registry tests prove the model and service round-trip cleanly."
+      ],
+      "verificationCommands": [
+        "uv run pytest tests/domains/ares/test_agent_registry_models.py tests/services/test_ares_agent_registry_service.py -q"
+      ]
+    },
+    {
+      "id": "shared-durable-memory",
+      "title": "Build the durable memory foundation",
+      "description": "Create state persistence that survives past a single run and captures the operator and lead history that later phases need.",
+      "priority": 8,
+      "status": "passed",
+      "passes": 1,
+      "acceptanceCriteria": [
+        "Durable memory can store market preferences and county defaults.",
+        "Durable memory can store lead history, outreach history, operator decisions, outcomes, and exceptions.",
+        "Memory tests prove the state survives across loads and saves."
+      ],
+      "verificationCommands": [
+        "uv run pytest tests/services/test_ares_memory_service.py -q"
+      ]
+    },
+    {
+      "id": "shared-tool-policy",
+      "title": "Build the deterministic tool policy foundation",
+      "description": "Create the deterministic, auditable tool policy layer with explicit allowlists and hard approvals for risky calls.",
+      "priority": 9,
+      "status": "passed",
+      "passes": 1,
+      "acceptanceCriteria": [
+        "Tool calls use explicit allowlists.",
+        "Inputs and outputs are typed.",
+        "The policy blocks magical side effects.",
+        "Risky calls require hard approval.",
+        "The policy service exposes an audit trail and kill-switch behavior."
+      ],
+      "verificationCommands": [
+        "uv run pytest tests/services/test_ares_policy_service.py -q"
+      ]
+    },
+    {
+      "id": "shared-evaluation-loop",
+      "title": "Build the evaluation-loop foundation",
+      "description": "Create the evaluation loop primitives so Ares can measure whether autonomy is actually improving anything.",
+      "priority": 10,
+      "status": "passed",
+      "passes": 1,
+      "acceptanceCriteria": [
+        "The evaluation loop measures lead quality, response quality, conversion quality, false positives, duplicate work, and operator corrections.",
+        "Evaluation results are durable and inspectable.",
+        "Evaluation tests prove the metrics contract is stable."
+      ],
+      "verificationCommands": [
+        "uv run pytest tests/services/test_ares_eval_loop_service.py -q"
+      ]
+    },
+    {
+      "id": "shared-mission-control-visibility",
+      "title": "Build Mission Control visibility for autonomy",
+      "description": "Expose the operator-visible read models needed to trust the system while the later phases come online.",
+      "priority": 11,
+      "status": "passed",
+      "passes": 1,
+      "acceptanceCriteria": [
+        "Mission Control shows the current phase, active run, pending approvals, and failed steps.",
+        "Mission Control surfaces lead quality, confidence, and the next action the agent is about to take.",
+        "Visibility tests cover the operator-facing read models."
+      ],
+      "verificationCommands": [
+        "uv run pytest tests/api/test_mission_control_phase3.py -q"
+      ]
+    },
+    {
+      "id": "phase2-planner-models",
+      "title": "Define planner models and contracts",
+      "description": "Create the planning models that let Ares turn a goal into an explicit, structured execution plan.",
+      "priority": 12,
+      "status": "passed",
+      "passes": 1,
+      "acceptanceCriteria": [
+        "The planner models accept a goal, source lanes, checks, and step-by-step plans.",
+        "The planner models can represent why a plan makes sense.",
+        "The planner models require approval before side-effecting action.",
+        "Planner model tests and package layout checks pass."
+      ],
+      "verificationCommands": [
+        "uv run pytest tests/domains/ares_planning/test_planner_models.py tests/test_package_layout.py -q"
+      ]
+    },
+    {
+      "id": "phase2-planner-service",
+      "title": "Implement planner service logic",
+      "description": "Teach Ares how to choose source lanes, decide which checks to run, produce a step-by-step plan, and explain the plan to the operator.",
+      "priority": 13,
+      "status": "passed",
+      "passes": 1,
+      "acceptanceCriteria": [
+        "The planner accepts goals like finding probate plus tax-delinquent leads in a county slice.",
+        "The planner chooses source lanes and checks that match the goal.",
+        "The planner produces a concrete step-by-step plan and explains why it makes sense.",
+        "The planner asks for approval before any side-effecting action."
+      ],
+      "verificationCommands": [
+        "uv run pytest tests/services/test_ares_planner_service.py -q"
+      ]
+    },
+    {
+      "id": "phase2-planner-api-mission-control",
+      "title": "Expose planner output through the API and Mission Control",
+      "description": "Add the planner API route and wire planner output into Mission Control so operators can approve or reject plans in one glance.",
+      "priority": 14,
+      "status": "passed",
+      "passes": 1,
+      "acceptanceCriteria": [
+        "The planner API route is registered and reachable.",
+        "Mission Control can surface planner output for review.",
+        "API tests cover the planner request and response shape.",
+        "The app still boots with the planner route wired in."
+      ],
+      "verificationCommands": [
+        "uv run pytest tests/api/test_ares_plans.py tests/test_package_layout.py -q"
+      ]
+    },
+    {
+      "id": "phase3-execution-contracts-and-guardrails",
+      "title": "Define execution contracts and guardrails",
+      "description": "Create the execution models and enforce the narrow limits that keep Ares bounded while it starts to act on its own.",
+      "priority": 15,
+      "status": "passed",
+      "passes": 1,
+      "acceptanceCriteria": [
+        "The execution models represent narrow, bounded lead-generation runs.",
+        "Action budgets, retry limits, county or market scope limits, approved tool allowlists, audit trail, and kill-switch behavior are defined.",
+        "Execution and policy tests cover the guardrail contract."
+      ],
+      "verificationCommands": [
+        "uv run pytest tests/services/test_ares_policy_service.py tests/services/test_ares_execution_service.py -q"
+      ]
+    },
+    {
+      "id": "phase3-bounded-execution-service",
+      "title": "Implement the bounded execution service",
+      "description": "Teach Ares how to fetch county data, normalize and dedupe records, enrich them, run overlay matching, produce ranked outputs, generate drafts and task suggestions, and queue follow-up work.",
+      "priority": 16,
+      "status": "passed",
+      "passes": 1,
+      "acceptanceCriteria": [
+        "The execution service can fetch county data and normalize it.",
+        "The execution service dedupes overlap records and enriches available data.",
+        "The execution service runs overlay matching and returns ranked lead outputs.",
+        "The execution service can generate drafts, task suggestions, and follow-up work.",
+        "Failures are visible, recoverable, and interruptible."
+      ],
+      "verificationCommands": [
+        "uv run pytest tests/services/test_ares_execution_service.py -q"
+      ]
+    },
+    {
+      "id": "phase3-execution-api-and-mission-control",
+      "title": "Expose bounded execution through the API and Mission Control",
+      "description": "Wire the bounded execution path into the Ares API and Mission Control so the operator surface can launch and inspect narrow runs.",
+      "priority": 17,
+      "status": "passed",
+      "passes": 1,
+      "acceptanceCriteria": [
+        "The Ares API route can trigger the bounded execution path.",
+        "Mission Control can show execution results and run state.",
+        "The app boots with the bounded-execution wiring in place."
+      ],
+      "verificationCommands": [
+        "uv run pytest tests/api/test_ares_runtime.py tests/api/test_mission_control_phase3.py tests/test_package_layout.py -q"
+      ]
+    },
+    {
+      "id": "phase4-workflow-models",
+      "title": "Define workflow and state models",
+      "description": "Create the workflow models that let Ares own a narrow playbook from intake to next-best-action.",
+      "priority": 18,
+      "status": "passed",
+      "passes": 1,
+      "acceptanceCriteria": [
+        "Workflow models can represent a county or market slice, state across steps, and the next-best-action.",
+        "Workflow models can record what already happened without losing history.",
+        "Workflow model tests cover the new contract."
+      ],
+      "verificationCommands": [
+        "uv run pytest tests/domains/ares_workflows/test_workflow_models.py tests/test_package_layout.py -q"
+      ]
+    },
+    {
+      "id": "phase4-playbook-state-eval-services",
+      "title": "Implement playbook, state, and evaluation services",
+      "description": "Build the playbook runner, state tracker, and workflow evaluation services that let Ares repeat a narrow workflow with low operator overhead.",
+      "priority": 19,
+      "status": "passed",
+      "passes": 1,
+      "acceptanceCriteria": [
+        "Ares can own a workflow from intake to next-best-action.",
+        "The playbook service can choose the county or market slice, pull probate and tax signals, enrich and score leads, generate outreach, create follow-up tasks, monitor responses, and suggest next actions.",
+        "The state service remembers what already happened and handles retries and fallbacks.",
+        "The eval service surfaces exceptions instead of silently dropping them."
+      ],
+      "verificationCommands": [
+        "uv run pytest tests/services/test_ares_playbook_service.py tests/services/test_ares_state_service.py tests/services/test_ares_eval_service.py -q"
+      ]
+    },
+    {
+      "id": "phase4-execution-and-mission-control-integration",
+      "title": "Integrate the workflow agent into execution and Mission Control",
+      "description": "Wire the workflow agent into the execution service and operator surface so the repeated county workflow becomes a visible, testable capability.",
+      "priority": 20,
+      "status": "passed",
+      "passes": 1,
+      "acceptanceCriteria": [
+        "Human approval is still required before send, contract, and disposition actions.",
+        "Policy checks run on every high-risk step.",
+        "Drift detection and evaluation after each run are in place.",
+        "Mission Control can explain the major decisions and failures."
+      ],
+      "verificationCommands": [
+        "uv run pytest tests/api/test_mission_control_phase3.py tests/test_package_layout.py -q"
+      ]
+    },
+    {
+      "id": "phase5-autonomous-operator-wiring",
+      "title": "Wire the guarded autonomous operator into Mission Control and app startup",
+      "description": "Hook the agent registry, durable memory, evaluation loop, and operator surface together so Ares can run approved objectives with minimal supervision inside explicit boundaries.",
+      "priority": 21,
+      "status": "passed",
+      "passes": 1,
+      "acceptanceCriteria": [
+        "Ares can pick up approved objectives, execute playbooks, monitor results, adapt within bounds, escalate only when needed, and keep a full record of what it did and why.",
+        "No free-form spending, unbounded outreach, contract signing without policy gates, silent escalations, or cross-market sprawl are allowed.",
+        "Mission Control and app startup expose the guarded operator surface.",
+        "Operators trust the logs, decisions, and exceptions."
+      ],
+      "verificationCommands": [
+        "uv run pytest tests/api/test_mission_control_phase3.py tests/test_package_layout.py -q"
+      ]
+    }
+  ]
+}

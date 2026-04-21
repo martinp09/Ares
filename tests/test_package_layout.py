@@ -119,3 +119,68 @@ def test_lead_machine_models_are_exported():
     assert ProviderWebhookReceiptRecord is provider_webhook_receipt_record_module
     assert SuppressionRecord is suppression_record_module
     assert TaskRecord is task_record_module
+
+
+def test_ares_domain_models_are_exported():
+    from app.domains.ares import (
+        AresCounty,
+        AresLeadRecord,
+        AresPlannerActionType,
+        AresPlannerCheck,
+        AresPlannerPlan,
+        AresPlannerStep,
+        AresRunRequest,
+        AresSourceLane,
+    )
+    from app.domains.ares.models import AresCounty as ares_county_module
+    from app.domains.ares.models import AresLeadRecord as ares_lead_record_module
+    from app.domains.ares.models import AresPlannerActionType as ares_planner_action_type_module
+    from app.domains.ares.models import AresPlannerCheck as ares_planner_check_module
+    from app.domains.ares.models import AresPlannerPlan as ares_planner_plan_module
+    from app.domains.ares.models import AresPlannerStep as ares_planner_step_module
+    from app.domains.ares.models import AresRunRequest as ares_run_request_module
+    from app.domains.ares.models import AresSourceLane as ares_source_lane_module
+
+    assert AresCounty is ares_county_module
+    assert AresSourceLane is ares_source_lane_module
+    assert AresLeadRecord is ares_lead_record_module
+    assert AresRunRequest is ares_run_request_module
+    assert AresPlannerActionType is ares_planner_action_type_module
+    assert AresPlannerCheck is ares_planner_check_module
+    assert AresPlannerStep is ares_planner_step_module
+    assert AresPlannerPlan is ares_planner_plan_module
+
+
+def test_ares_workflow_models_are_exported():
+    from app.domains.ares_workflows import (
+        AresWorkflowHistoryEntry,
+        AresWorkflowScope,
+        AresWorkflowState,
+        AresWorkflowStepState,
+        AresWorkflowStepStatus,
+    )
+    from app.domains.ares_workflows.models import AresWorkflowHistoryEntry as ares_workflow_history_entry_module
+    from app.domains.ares_workflows.models import AresWorkflowScope as ares_workflow_scope_module
+    from app.domains.ares_workflows.models import AresWorkflowState as ares_workflow_state_module
+    from app.domains.ares_workflows.models import AresWorkflowStepState as ares_workflow_step_state_module
+    from app.domains.ares_workflows.models import AresWorkflowStepStatus as ares_workflow_step_status_module
+
+    assert AresWorkflowStepStatus is ares_workflow_step_status_module
+    assert AresWorkflowScope is ares_workflow_scope_module
+    assert AresWorkflowStepState is ares_workflow_step_state_module
+    assert AresWorkflowHistoryEntry is ares_workflow_history_entry_module
+    assert AresWorkflowState is ares_workflow_state_module
+
+
+def test_ares_api_route_is_registered_in_app():
+    from app.api.ares import router as ares_router
+    from app.main import create_app
+
+    app = create_app()
+    route_paths = {route.path for route in app.routes}
+
+    assert ares_router is not None
+    assert "/ares/run" in route_paths
+    assert "/ares/plans" in route_paths
+    assert "/ares/execution/run" in route_paths
+    assert "/ares/operator/run" in route_paths

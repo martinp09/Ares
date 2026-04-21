@@ -33,6 +33,11 @@
 - Real estate is the first optimization target
 - Marketing control plane is the first execution domain
 - Ares North Star: self-hosted operating system for distressed real-estate lead management
+- Source-of-truth implementation plan for phased Ares scope: `docs/superpowers/plans/2026-04-18-ares-phased-implementation-plan.md`
+- Overnight loop handoff artifact: `docs/superpowers/plans/2026-04-21-ares-crm-master-scope-prd.json`
+- Phase 1 county baseline stays explicit: Harris, Tarrant, Montgomery, Dallas, Travis
+- Phase 1 lead rule stays explicit: probate-first with tax-delinquency overlay
+- Phase 1 outreach rule stays explicit: drafts require human approval before send
 - The runtime must cover data gathering, prospecting, acquisitions, transaction coordination, title, and dispo
 - Source lanes, strategy lanes, and operational stages must stay separate concepts
 - The current MVP path is a two-lane cut:
@@ -107,6 +112,7 @@
   - `POST /lead-machine/probate/intake`
   - `POST /lead-machine/outbound/enqueue`
   - `POST /lead-machine/webhooks/instantly`
+  - `POST /ares/run`
   - `POST /site-events`
   - `POST /trigger/callbacks/runs/{run_id}/started`
   - `POST /trigger/callbacks/runs/{run_id}/completed`
@@ -285,7 +291,200 @@
 - Kept the 2026-04-15 enterprise-agent-platform plan in the repo but marked it deprecated
 - Restored `TODO.md`, `CONTEXT.md`, and `memory.md` to the lead-machine / two-lane MVP scope
 
-### 2026-04-16 Agent API + Session Fixture Cleanup
+### 2026-04-21 Phase5 Guarded Autonomous Operator Wiring
+
+- Added `app/services/ares_autonomous_operator_service.py` to wire the guarded operator loop across:
+  - versioned Ares agent registry initialization (`ares_guarded_operator` revision `v1`)
+  - playbook execution for approved objectives
+  - deterministic high-risk policy gates (outreach/contract/spending/market-expansion require approval)
+  - durable memory journaling and evaluation-loop metric recording
+- Added `POST /ares/operator/run` in `app/api/ares.py` to execute approved objective runs and persist latest operator snapshot per `(business_id, environment)` in control-plane scope state.
+- Extended Mission Control autonomy visibility contracts and service wiring to surface `autonomous_operator` summary with decisions, exceptions, policy checks, audit log, adaptation summary, and escalation state.
+- Updated `app/main.py` startup wiring to initialize the guarded autonomous operator surface on app creation.
+- Extended tests:
+  - `tests/api/test_mission_control_phase3.py` with guarded operator visibility coverage
+  - `tests/test_package_layout.py` with `/ares/operator/run` route registration coverage
+- Verified with `uv run pytest tests/api/test_mission_control_phase3.py tests/test_package_layout.py -q`.
+
+### 2026-04-21 Phase4 Execution + Mission Control Workflow Integration
+
+- Updated `POST /ares/execution/run` in `app/api/ares.py` to integrate the workflow playbook runner on each bounded execution run.
+- Added explicit high-risk policy checks for send/contract/disposition actions on each run, with hard-approval-required outcomes surfaced in runtime output and execution snapshots.
+- Added per-scope drift detection against the previous execution snapshot and persisted drift status/reason into execution review data.
+- Added workflow evaluation output (`workflow_id`, exception count, surfaced exceptions, suggested next action) into execution review snapshots.
+- Extended Mission Control execution review contracts in `app/models/mission_control.py` to include:
+  - high-risk policy checks
+  - workflow eval summary
+  - drift detection summary
+  - major decisions and major failures
+- Extended `tests/api/test_mission_control_phase3.py` to cover:
+  - hard-approval-required high-risk checks in autonomy visibility
+  - workflow eval + major decision/failure surfacing
+  - drift detection visibility across consecutive execution runs in the same scope
+- Verified with `uv run pytest tests/api/test_mission_control_phase3.py tests/test_package_layout.py -q`.
+
+### 2026-04-21 Phase4 Playbook, State, and Eval Services
+
+- Added `app/services/ares_playbook_service.py` as a deterministic workflow runner that can:
+  - choose county/market slice
+  - pull probate/tax signals via county adapters
+  - enrich and score leads through existing matching logic
+  - generate outreach drafts and follow-up approval tasks
+  - monitor response events and set next-best-action
+- Added `app/services/ares_state_service.py` for workflow state memory with per-step status/history plus retry and fallback handling.
+- Added `app/services/ares_eval_service.py` to capture and surface workflow exceptions in explicit eval reports (no silent drops).
+- Added service coverage:
+  - `tests/services/test_ares_playbook_service.py`
+  - `tests/services/test_ares_state_service.py`
+  - `tests/services/test_ares_eval_service.py`
+- Verified with `uv run pytest tests/services/test_ares_playbook_service.py tests/services/test_ares_state_service.py tests/services/test_ares_eval_service.py -q`.
+
+### 2026-04-21 Phase4 Workflow Models and Contracts
+
+- Added `app/domains/ares_workflows/models.py` with workflow contract models for:
+  - county or market workflow scope (`AresWorkflowScope`)
+  - per-step workflow state (`AresWorkflowStepState` + `AresWorkflowStepStatus`)
+  - next-best-action and append-only workflow history (`AresWorkflowState` + `record_history`)
+- Added workflow domain exports in `app/domains/ares_workflows/__init__.py`.
+- Added workflow model contract tests in `tests/domains/ares_workflows/test_workflow_models.py`.
+- Extended package export checks in `tests/test_package_layout.py` for `app.domains.ares_workflows`.
+- Verified with `uv run pytest tests/domains/ares_workflows/test_workflow_models.py tests/test_package_layout.py -q`.
+
+### 2026-04-21 Phase3 Execution API + Mission Control Wiring
+
+- Added `POST /ares/execution/run` in `app/api/ares.py` to launch bounded execution runs through `AresExecutionService` with explicit run scope (`market`, up to two counties, budget/retry/allowlist) and deterministic county payload adapters.
+- Persisted the latest bounded execution snapshot per `(business_id, environment)` in the in-memory store as `ares_execution_runs_by_scope`.
+- Extended Mission Control autonomy visibility to surface `execution_review` with bounded run state (`completed|completed_with_failures|interrupted`) plus execution result summary (lead/failure counts and ranked lead tier output).
+- Updated phase-3 API tests in:
+  - `tests/api/test_ares_runtime.py`
+  - `tests/api/test_mission_control_phase3.py`
+  - `tests/test_package_layout.py` (route registration for `/ares/execution/run`)
+- Verified with `uv run pytest tests/api/test_ares_runtime.py tests/api/test_mission_control_phase3.py tests/test_package_layout.py -q`.
+
+### 2026-04-21 Phase3 Bounded Execution Service
+
+- Expanded `app/services/ares_execution_service.py` from guardrails-only authorization into a bounded execution pipeline that:
+  - fetches county probate/tax payloads via deterministic county fetch adapters
+  - normalizes record fields and dedupes overlap records per county/lane/address
+  - enriches probate records from matching tax records when data is available
+  - runs overlay matching with ranked lead outputs
+  - generates lead briefs, outreach drafts, task suggestions, and follow-up work queue items
+  - surfaces county fetch failures as explicit recoverable run output failures and supports run interruption via kill-switch
+- Reworked `tests/services/test_ares_execution_service.py` to validate the bounded pipeline behavior plus existing execution guardrail enforcement.
+- Verified with `uv run pytest tests/services/test_ares_execution_service.py -q`.
+
+### 2026-04-21 Phase3 Execution Contracts and Guardrails
+
+- Added bounded execution contract models in `app/domains/ares/models.py`:
+  - `AresExecutionRunSpec` (narrow county-scoped run, action budget, retry limit, approved tool allowlist)
+  - `AresExecutionActionSpec` (typed action authorization request contract)
+  - `AresExecutionDecision` and `AresExecutionGuardrailResult` (deterministic guardrail decisions)
+- Added `app/services/ares_execution_service.py` with guardrail enforcement for:
+  - tool allowlist
+  - retry-limit checks
+  - run-level action budget exhaustion checks
+  - policy-service delegated risky-call approvals
+  - audit trail and kill-switch deny behavior
+- Added `tests/services/test_ares_execution_service.py` for bounded-run model and guardrail contract coverage.
+- Verified phase-3 guardrails with:
+  - `uv run pytest tests/services/test_ares_policy_service.py tests/services/test_ares_execution_service.py -q`
+
+### 2026-04-21 Phase2 Planner API + Mission Control Review Surface
+
+- Added `POST /ares/plans` in `app/api/ares.py` to expose deterministic planner output and explanation for operator review.
+- Persisted latest planner snapshot per `(business_id, environment)` in the in-memory control-plane store (`ares_plans_by_scope`).
+- Extended Mission Control autonomy visibility with `planner_review` so the latest planner goal/explanation/plan is visible in one response.
+- Added `tests/api/test_ares_plans.py` for planner request/response contract and Mission Control planner surfacing.
+- Updated package-layout route assertions for `/ares/plans` and verified with:
+  - `uv run pytest tests/api/test_ares_plans.py tests/test_package_layout.py -q`
+
+### 2026-04-21 Phase2 Planner Service Logic
+
+- Added `app/services/ares_planner_service.py` with deterministic planning logic to:
+  - parse goal text into county slices and source lanes
+  - choose planner checks for county scope, overlay match quality, and approval gate enforcement
+  - generate concrete sequential planner steps with explicit side-effecting action approval requirements
+  - produce operator-facing plan explanation text (`explain_plan`)
+- Extended `AresPlannerPlan` in `app/domains/ares/models.py` with optional `counties` to capture county-slice planning scope
+- Added `tests/services/test_ares_planner_service.py` covering:
+  - probate+tax county-slice goal acceptance
+  - lane/check selection
+  - concrete steps plus side-effecting approval gate
+  - operator explanation output
+- Verified with `uv run pytest tests/services/test_ares_planner_service.py -q`
+
+### 2026-04-21 Phase2 Planner Models and Contracts
+
+- Added planner-domain contract models in `app/domains/ares/models.py`:
+  - `AresPlannerCheck` for explicit checks
+  - `AresPlannerStep` for step-by-step plans scoped to a source lane
+  - `AresPlannerPlan` for goal, source lanes, checks, steps, and rationale
+  - `AresPlannerActionType` with `read_only` and `side_effecting`
+- Enforced side-effect approval in model validation: side-effecting steps must set `requires_approval=True`
+- Exported planner models through `app/domains/ares/__init__.py` and package layout assertions
+- Added planner model coverage in `tests/domains/ares_planning/test_planner_models.py`
+- Verified with `uv run pytest tests/domains/ares_planning/test_planner_models.py tests/test_package_layout.py -q`
+
+### 2026-04-21 Shared Mission Control Autonomy Visibility
+
+- Added operator-facing autonomy visibility read model:
+  - `GET /mission-control/autonomy-visibility`
+  - `MissionControlAutonomyVisibilityResponse` with `current_phase`, `active_run`, pending approvals, failed steps, lead quality, confidence, and next action
+- Added Mission Control phase-3 API coverage in `tests/api/test_mission_control_phase3.py` for the new autonomy visibility surface
+- Verified with `uv run pytest tests/api/test_mission_control_phase3.py -q`
+
+### 2026-04-21 Shared Evaluation Loop Foundation
+
+- Added `app/services/ares_eval_loop_service.py` with durable JSON-backed evaluation-loop state and inspectable run entries
+- Added typed evaluation primitives:
+  - `AresEvalSample` for lead/response/conversion counts plus false positives, duplicate work, and operator corrections
+  - `AresEvalMetrics` for lead quality, response quality, conversion quality, false-positive rate, duplicate-work rate, and operator-correction rate
+  - `AresEvalResult` and `AresEvalLoopState` for stable persisted evaluation records
+- Added `tests/services/test_ares_eval_loop_service.py` covering required metrics calculation, durable save/reload behavior, and stable metrics contract keys/zero-denominator behavior
+- Verified with `uv run pytest tests/services/test_ares_eval_loop_service.py -q`
+
+### 2026-04-21 Ares Shared Agent Registry Foundation
+
+- Added versioned Ares agent registry primitives:
+  - `app/domains/ares/agent_registry.py` with `AresAgentRevisionSpec` and `AresVersionedAgentRecord`
+  - fields lock `name`, `purpose`, `revisions`, `allowed_tools`, `risk_policy`, `output_contract`, and `active_revision`
+- Added `app/services/ares_agent_registry_service.py` to register revisions, track active revision, and export/import model snapshots
+- Added round-trip coverage:
+  - `tests/domains/ares/test_agent_registry_models.py`
+  - `tests/services/test_ares_agent_registry_service.py`
+
+### 2026-04-21 Ares Master Scope Docs + Memory Handoff
+
+- Updated repo-facing handoff docs to point at the merged phased implementation plan as the execution source of truth:
+  - `docs/superpowers/plans/2026-04-18-ares-phased-implementation-plan.md`
+- Kept the master-scope PRD as the overnight loop handoff artifact:
+  - `docs/superpowers/plans/2026-04-21-ares-crm-master-scope-prd.json`
+- Restated Phase 1 hard guardrails in docs/memory surfaces:
+  - counties remain Harris, Tarrant, Montgomery, Dallas, Travis
+  - probate is primary and tax delinquency is overlay
+  - outreach drafts remain pending human approval before send
+
+### 2026-04-21 Ares Phase1 API Route
+
+- Added `app/api/ares.py` with `POST /ares/run` to execute the phase-1 Ares runtime path:
+  - county-filtered probate/tax intake
+  - probate-first ranking with tax overlay via `AresMatchingService`
+  - optional lead briefs and outreach drafts via `AresCopyService`
+- Wired the new route in `app/main.py` so it is mounted in the protected FastAPI app
+- Added `tests/api/test_ares_runtime.py` and updated package-layout coverage for route registration
+- Verified with `uv run pytest tests/api/test_ares_runtime.py tests/test_package_layout.py -q`
+
+### 2026-04-21 Ares Phase1 Matching Overlay Tiering
+
+- Added `app/services/ares_service.py` with `AresMatchingService` and deterministic tiering:
+  - probate lane is primary
+  - verified tax delinquency is applied as an overlay on probate records by county + normalized property address
+  - probate+verified-tax overlaps rank highest over probate-only
+  - tax-only output is allowed only for estate-of records and only when no probate records are present
+- Added `tests/services/test_ares_service.py` covering probate-first behavior, overlay matching, highest-rank overlap, county-aware matching, and estate-only tax-only constraints
+- Verified with `uv run pytest tests/services/test_ares_service.py -q`
+
+### 2026-04-16 Live Supabase Smoke + Adapter Hardening
 
 - Repaired remote Supabase migration history on project `awmsrjeawcxndfnggoxw` and applied:
   - `202604160001_lead_machine_runtime.sql`
@@ -448,3 +647,30 @@
 ### 2026-04-19 Ares North Star
 
 - Framed Ares in repo-facing docs as the self-hosted operating system for distressed real-estate lead management; the operator UI is a visibility layer, not the core product.
+
+### 2026-04-21 Ares Phase1 Models Contracts
+
+- Added a new `app.domains.ares` domain module with explicit exports for `AresCounty`, `AresSourceLane`, `AresRunRequest`, and `AresLeadRecord`
+- Locked county enum ordering to Harris, Tarrant, Montgomery, Dallas, Travis
+- Locked run-request defaults with `include_briefs=True` and `include_drafts=True`, and county-string coercion into `AresCounty`
+- Added explicit `estate_of` inference that marks records when owner names contain `estate of` or when the source lane is tax delinquency
+- Added domain tests and package layout coverage for the new Ares domain module and verified the story command passes
+
+### 2026-04-21 Ares Phase1 Briefs Drafts
+
+- Added `app/services/ares_copy_service.py` with deterministic generation for operator-facing lead briefs and outreach drafts from ranked Ares opportunities
+- Locked draft gating in code with `approval_status=\"pending_human_approval\"` and `auto_send=False` so drafts stay human-review-only
+- Preserved rationale, county, source lane, and rank in both brief and draft outputs
+- Added `tests/services/test_ares_copy_service.py` covering concise brief generation and pending-approval draft generation paths
+
+### 2026-04-21 Shared Durable Memory Foundation
+
+- Added `app/services/ares_memory_service.py` with JSON-backed durable memory state for market preferences, county defaults, lead history, outreach history, operator decisions, outcomes, and exceptions
+- Added `tests/services/test_ares_memory_service.py` covering empty-load defaults and save/reload persistence across service instances
+- Verified `uv run pytest tests/services/test_ares_memory_service.py -q` passes
+
+### 2026-04-21 Shared Deterministic Tool Policy Foundation
+
+- Added `app/services/ares_policy_service.py` with explicit tool allowlists, typed input/output contract validation, magical side-effect blocking, risky-call hard approval gating, audit entries, and kill-switch enforcement
+- Added `tests/services/test_ares_policy_service.py` covering allowlist denial, typed contracts, magical side-effect blocking, hard-approval requirements, and audit/kill-switch behavior
+- Verified `uv run pytest tests/services/test_ares_policy_service.py -q` passes

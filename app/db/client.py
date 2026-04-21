@@ -74,6 +74,9 @@ class InMemoryControlPlaneStore:
     host_adapter_dispatches: dict[str, object] = field(default_factory=dict)
     agent_assets: dict[str, object] = field(default_factory=dict)
     mission_control_threads: dict[str, object] = field(default_factory=dict)
+    ares_plans_by_scope: dict[tuple[str, str], object] = field(default_factory=dict)
+    ares_execution_runs_by_scope: dict[tuple[str, str], object] = field(default_factory=dict)
+    ares_operator_runs_by_scope: dict[tuple[str, str], object] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
         self.marketing_task_rows = self.tasks
@@ -144,6 +147,9 @@ def reset_control_plane_store(store: InMemoryControlPlaneStore | None = None) ->
     target.host_adapter_dispatches.clear()
     target.agent_assets.clear()
     target.mission_control_threads.clear()
+    target.ares_plans_by_scope.clear()
+    target.ares_execution_runs_by_scope.clear()
+    target.ares_operator_runs_by_scope.clear()
 
 
 class ControlPlaneClient(Protocol):

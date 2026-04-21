@@ -85,7 +85,15 @@ Current implementation notes:
 
 - `CONTEXT.md` for quick session routing
 - `memory.md` for indexed master memory
+- `docs/superpowers/plans/2026-04-18-ares-phased-implementation-plan.md` for the merged phased Ares implementation sequence
+- `docs/superpowers/plans/2026-04-21-ares-crm-master-scope-prd.json` as the overnight loop handoff artifact
 - future runtime database for canonical business state
+
+## Phase 1 Guardrails
+
+- Counties remain fixed: Harris, Tarrant, Montgomery, Dallas, Travis
+- Lead selection rule: probate first, tax delinquency as overlay
+- Outreach rule: drafts stay pending human approval before any send
 
 ## Trigger Setup
 

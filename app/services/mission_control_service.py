@@ -23,14 +23,18 @@ from app.models.marketing_leads import MarketingLeadRecord
 from app.models.tasks import TaskStatus, TaskType
 from app.models.suppression import SuppressionRecord, SuppressionScope, SuppressionSource
 from app.models.mission_control import (
+    MissionControlAutonomyVisibilityResponse,
     MissionControlAgentsResponse,
     MissionControlAgentSummary,
+    MissionControlAutonomousOperatorSummary,
     MissionControlApprovalsResponse,
     MissionControlApprovalSummary,
     MissionControlAssetsResponse,
     MissionControlAssetSummary,
     MissionControlDashboardResponse,
     MissionControlEmailTestRequest,
+    MissionControlExecutionReviewSummary,
+    MissionControlFailedStepSummary,
     MissionControlInboxResponse,
     MissionControlInboxSummary,
     MissionControlInboundLeaseOptionSummary,
@@ -50,6 +54,7 @@ from app.models.mission_control import (
     MissionControlOpportunityPipelineSummary,
     MissionControlOpportunityStageSummary,
     MissionControlOutboundProbateSummary,
+    MissionControlPlannerReviewSummary,
     MissionControlRunSummary,
     MissionControlRunsResponse,
     MissionControlTaskActionResponse,
@@ -128,6 +133,11 @@ class MissionControlService:
                 for approval in store.approvals.values()
                 if approval.status == ApprovalStatus.PENDING
                 and self._matches_scope(approval.business_id, approval.environment, business_id, environment)
+            ]
+            planner_snapshots = [
+                snapshot
+                for (scope_business_id, scope_environment), snapshot in store.ares_plans_by_scope.items()
+                if self._matches_scope(scope_business_id, scope_environment, business_id, environment)
             ]
             runs = [
                 run
@@ -913,6 +923,189 @@ class MissionControlService:
             ]
         )
 
+    def get_autonomy_visibility(
+        self,
+        *,
+        business_id: str | None = None,
+        environment: str | None = None,
+    ) -> MissionControlAutonomyVisibilityResponse:
+        with self.client.transaction() as store:
+            runs = [
+                run
+                for run in store.runs.values()
+                if self._matches_scope(run.business_id, run.environment, business_id, environment)
+            ]
+            approvals = [
+                approval
+                for approval in store.approvals.values()
+                if approval.status == ApprovalStatus.PENDING
+                and self._matches_scope(approval.business_id, approval.environment, business_id, environment)
+            ]
+            planner_snapshots = [
+                snapshot
+                for (scope_business_id, scope_environment), snapshot in store.ares_plans_by_scope.items()
+                if self._matches_scope(scope_business_id, scope_environment, business_id, environment)
+            ]
+            execution_snapshots = [
+                snapshot
+                for (scope_business_id, scope_environment), snapshot in store.ares_execution_runs_by_scope.items()
+                if self._matches_scope(scope_business_id, scope_environment, business_id, environment)
+            ]
+            operator_snapshots = [
+                snapshot
+                for (scope_business_id, scope_environment), snapshot in store.ares_operator_runs_by_scope.items()
+                if self._matches_scope(scope_business_id, scope_environment, business_id, environment)
+            ]
+
+        child_run_ids_by_parent: dict[str, list[str]] = {}
+        for run in runs:
+            if run.parent_run_id is None:
+                continue
+            child_run_ids_by_parent.setdefault(run.parent_run_id, []).append(run.id)
+
+        ordered_runs = sorted(runs, key=lambda run: (run.updated_at, run.created_at), reverse=True)
+        ordered_pending_approvals = sorted(approvals, key=lambda approval: approval.created_at, reverse=True)
+        planner_snapshot = max(
+            planner_snapshots,
+            key=lambda snapshot: snapshot.get("generated_at", ""),
+            default=None,
+        )
+        execution_snapshot = max(
+            execution_snapshots,
+            key=lambda snapshot: snapshot.get("generated_at", ""),
+            default=None,
+        )
+        operator_snapshot = max(
+            operator_snapshots,
+            key=lambda snapshot: snapshot.get("generated_at", ""),
+            default=None,
+        )
+        active_run = next((run for run in ordered_runs if run.status in ACTIVE_RUN_STATUSES), None)
+        failed_steps = [
+            MissionControlFailedStepSummary(
+                run_id=run.id,
+                step=run.command_type,
+                error_classification=run.error_classification,
+                error_message=run.error_message,
+                failed_at=run.updated_at,
+            )
+            for run in ordered_runs
+            if run.status == RunStatus.FAILED
+        ]
+
+        lead_quality = self._lead_quality_score(business_id=business_id, environment=environment)
+        confidence = max(0.0, min(1.0, lead_quality - (0.15 if failed_steps else 0.0)))
+
+        latest_snapshot_kind, _latest_snapshot = self._latest_autonomy_snapshot(
+            planner_snapshot=planner_snapshot,
+            execution_snapshot=execution_snapshot,
+            operator_snapshot=operator_snapshot,
+        )
+        if latest_snapshot_kind == "operator":
+            current_phase = "phase5_guarded_operator"
+            if bool(operator_snapshot.get("escalation_required")):
+                snapshot_next_action = "review_operator_escalation"
+            else:
+                snapshot_next_action = str(operator_snapshot.get("next_action", "continue_guarded_operator"))
+        elif latest_snapshot_kind == "execution":
+            current_phase = "phase3_bounded_executor"
+            snapshot_next_action = str(
+                execution_snapshot.get("workflow_eval", {}).get("suggested_next_action", "review_execution_summary")
+            )
+        elif latest_snapshot_kind == "planner":
+            current_phase = "phase2_planner"
+            snapshot_next_action = "review_planner_output"
+        else:
+            current_phase = self._current_phase_from_runs(ordered_runs)
+            snapshot_next_action = None
+
+        if ordered_pending_approvals:
+            next_action = "await_human_approval"
+        elif active_run is not None:
+            next_action = f"continue_run:{active_run.command_type}"
+        elif failed_steps:
+            next_action = "triage_failed_step"
+        elif snapshot_next_action is not None:
+            next_action = snapshot_next_action
+        else:
+            next_action = "scan_next_lead_batch"
+
+        if latest_snapshot_kind == "operator":
+            updated_at = str(operator_snapshot.get("generated_at"))
+        elif latest_snapshot_kind == "execution":
+            updated_at = str(execution_snapshot.get("generated_at"))
+        elif latest_snapshot_kind == "planner":
+            updated_at = str(planner_snapshot.get("generated_at"))
+        elif active_run is not None:
+            updated_at = active_run.updated_at.isoformat()
+        elif ordered_pending_approvals:
+            updated_at = ordered_pending_approvals[0].created_at.isoformat()
+        elif failed_steps:
+            updated_at = failed_steps[0].failed_at.isoformat()
+        else:
+            updated_at = utc_now().isoformat()
+
+        return MissionControlAutonomyVisibilityResponse(
+            current_phase=current_phase,
+            active_run=(
+                MissionControlRunSummary(
+                    id=active_run.id,
+                    command_id=active_run.command_id,
+                    business_id=active_run.business_id,
+                    environment=active_run.environment,
+                    command_type=active_run.command_type,
+                    status=active_run.status,
+                    parent_run_id=active_run.parent_run_id,
+                    child_run_ids=sorted(child_run_ids_by_parent.get(active_run.id, [])),
+                    trigger_run_id=active_run.trigger_run_id,
+                    created_at=active_run.created_at,
+                    updated_at=active_run.updated_at,
+                    started_at=active_run.started_at,
+                    completed_at=active_run.completed_at,
+                    error_classification=active_run.error_classification,
+                    error_message=active_run.error_message,
+                )
+                if active_run is not None
+                else None
+            ),
+            pending_approval_count=len(ordered_pending_approvals),
+            pending_approvals=[
+                MissionControlApprovalSummary(
+                    id=approval.id,
+                    command_id=approval.command_id,
+                    business_id=approval.business_id,
+                    environment=approval.environment,
+                    command_type=approval.command_type,
+                    status=approval.status,
+                    payload_snapshot=approval.payload_snapshot,
+                    created_at=approval.created_at,
+                    approved_at=approval.approved_at,
+                    actor_id=approval.actor_id,
+                )
+                for approval in ordered_pending_approvals
+            ],
+            failed_steps=failed_steps,
+            planner_review=(
+                MissionControlPlannerReviewSummary.model_validate(planner_snapshot)
+                if planner_snapshot is not None
+                else None
+            ),
+            execution_review=(
+                MissionControlExecutionReviewSummary.model_validate(execution_snapshot)
+                if execution_snapshot is not None
+                else None
+            ),
+            autonomous_operator=(
+                MissionControlAutonomousOperatorSummary.model_validate(operator_snapshot)
+                if operator_snapshot is not None
+                else None
+            ),
+            lead_quality=lead_quality,
+            confidence=confidence,
+            next_action=next_action,
+            updated_at=updated_at,
+        )
+
     def get_turns(
         self,
         *,
@@ -1242,6 +1435,62 @@ class MissionControlService:
             interested_lead_count=sum(1 for lead in leads if lead.lt_interest_status == LeadInterestStatus.INTERESTED),
             suppressed_lead_count=suppressed_count,
         )
+
+    def _lead_quality_score(self, *, business_id: str | None, environment: str | None) -> float:
+        leads = self._lead_machine_leads(business_id=business_id, environment=environment)
+        total = len(leads)
+        if total == 0:
+            return 0.0
+        qualified = sum(
+            1
+            for lead in leads
+            if lead.lifecycle_status in {LeadLifecycleStatus.READY, LeadLifecycleStatus.ACTIVE}
+            or lead.lt_interest_status == LeadInterestStatus.INTERESTED
+        )
+        return round(qualified / total, 4)
+
+    @classmethod
+    def _snapshot_generated_at(cls, snapshot: dict[str, Any] | None) -> datetime | None:
+        if snapshot is None:
+            return None
+        generated_at = snapshot.get("generated_at")
+        if not isinstance(generated_at, str) or not generated_at:
+            return None
+        return cls._parse_datetime(generated_at)
+
+    @classmethod
+    def _latest_autonomy_snapshot(
+        cls,
+        *,
+        planner_snapshot: dict[str, Any] | None,
+        execution_snapshot: dict[str, Any] | None,
+        operator_snapshot: dict[str, Any] | None,
+    ) -> tuple[str | None, dict[str, Any] | None]:
+        candidates: list[tuple[str, datetime, dict[str, Any]]] = []
+        for kind, snapshot in (
+            ("planner", planner_snapshot),
+            ("execution", execution_snapshot),
+            ("operator", operator_snapshot),
+        ):
+            generated_at = cls._snapshot_generated_at(snapshot)
+            if generated_at is None or snapshot is None:
+                continue
+            candidates.append((kind, generated_at, snapshot))
+        if not candidates:
+            return None, None
+        kind, _, snapshot = max(candidates, key=lambda item: item[1])
+        return kind, snapshot
+
+    @staticmethod
+    def _current_phase_from_runs(
+        runs: list[Any],
+    ) -> str:
+        command_types = {run.command_type for run in runs}
+        if any(command_type.startswith("execute_") for command_type in command_types):
+            return "phase3_bounded_executor"
+        if any(command_type.startswith("plan_") for command_type in command_types):
+            return "phase2_planner"
+        return "phase1_lead_wedge"
 
     def _lead_machine_leads(
         self,
