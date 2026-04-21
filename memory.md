@@ -34,7 +34,9 @@
 - Marketing control plane is the first execution domain
 - Ares North Star: self-hosted operating system for distressed real-estate lead management
 - Source-of-truth implementation plan for phased Ares scope: `docs/superpowers/plans/2026-04-18-ares-phased-implementation-plan.md`
-- Overnight loop handoff artifact: `docs/superpowers/plans/2026-04-21-ares-crm-master-scope-prd.json`
+- Combined Mission Control + enterprise backlog execution plan: `docs/superpowers/plans/2026-04-21-mission-control-enterprise-backlog-master-plan.md`
+- Mission Control orchestration plan remains a live source input: `docs/superpowers/plans/2026-04-13-hermes-mission-control-orchestration-plan.md`
+- Enterprise agent platform plan remains a live source input: `docs/superpowers/plans/2026-04-15-ares-enterprise-agent-platform-implementation-plan.md`
 - Phase 1 county baseline stays explicit: Harris, Tarrant, Montgomery, Dallas, Travis
 - Phase 1 lead rule stays explicit: probate-first with tax-delinquency overlay
 - Phase 1 outreach rule stays explicit: drafts require human approval before send
@@ -162,10 +164,17 @@
 4. run a live remote smoke against the new shared control-plane migration and fix any schema mismatches it exposes
 5. keep browser acquisition and ambiguous research in Hermes or other driver agents, not inside Ares
 6. add durable Trigger lead-machine jobs only where sync paths become operationally risky
-7. keep `docs/superpowers/specs/2026-04-16-ares-lead-machine-superfile.md` and `docs/superpowers/plans/2026-04-17-ares-scaffold-completion-plan.md` as live branch references
-8. keep `docs/superpowers/plans/2026-04-15-ares-enterprise-agent-platform-implementation-plan.md` archived, not live scope
+7. execute the combined Mission Control + enterprise backlog master plan for org tenancy, host adapters, enterprise controls, release lifecycle, and Mission Control productization
+8. keep `docs/superpowers/plans/2026-04-13-hermes-mission-control-orchestration-plan.md` and `docs/superpowers/plans/2026-04-15-ares-enterprise-agent-platform-implementation-plan.md` as live source inputs for that branch scope
 
 ## Change Log
+
+### 2026-04-21 Mission Control + Enterprise Backlog Branch Reset
+
+- Created `feature/mission-control-enterprise-backlog` from current `main` as the new combined-scope branch for Mission Control orchestration + enterprise platform backlog work.
+- Added `docs/superpowers/plans/2026-04-21-mission-control-enterprise-backlog-master-plan.md` as the canonical execution plan for that branch.
+- Corrected the mistaken deprecation on `docs/superpowers/plans/2026-04-15-ares-enterprise-agent-platform-implementation-plan.md`; it is now a live source plan again.
+- Repointed `TODO.md`, `CONTEXT.md`, and `memory.md` for the combined branch so the older loose-ends handoff no longer drives current scope there.
 
 ### 2026-04-20 Shared Control-Plane Runtime Supabase Pass
 

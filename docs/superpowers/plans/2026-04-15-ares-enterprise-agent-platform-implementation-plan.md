@@ -1,8 +1,8 @@
 # Ares Enterprise Agent Platform Implementation Plan
 
-> **Deprecated:** superseded by `docs/superpowers/plans/2026-04-20-ralph-loop-full-implementation-plan.md`.
+> **Active source plan:** this document remains a live source input and is merged into `docs/superpowers/plans/2026-04-21-mission-control-enterprise-backlog-master-plan.md` for the canonical branch execution sequence.
 >
-> Execution root: `/home/workspace/Hermes-Central-Command`
+> Execution root: `/root/.config/superpowers/worktrees/Hermes-Central-Command/mission-control-enterprise-backlog`
 >
 > This document is a plan only. It intentionally describes the next implementation stage in exact, executable steps without making code changes itself.
 

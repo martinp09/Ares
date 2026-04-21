@@ -1,6 +1,6 @@
 # Hermes Mission Control Blueprint and Implementation Plan
 
-> Execution root: `/home/workspace/Hermes-Central-Command`
+> Execution root: `/root/.config/superpowers/worktrees/Hermes-Central-Command/mission-control-enterprise-backlog`
 >
 > Use this blueprint exactly in order. Do not start a later phase early. Do not back-edit an earlier phase unless that earlier file is explicitly listed in the current phase. Every phase ends with an exit gate; do not continue until that gate passes.
 
