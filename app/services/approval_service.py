@@ -32,6 +32,7 @@ class ApprovalService:
             command_type=command.command_type,
             payload_snapshot=command.payload,
         )
+        self.commands_repository.attach_approval(command.id, approval_id=approval.id)
         command.approval_id = approval.id
         command.status = CommandStatus.AWAITING_APPROVAL
         return approval
@@ -70,6 +71,7 @@ class ApprovalService:
             command_type=command.command_type,
             command_policy=command.policy,
         )
+        self.commands_repository.attach_run(command.id, run_id=run.id)
         command.run_id = run.id
         command.status = CommandStatus.QUEUED
         return ApprovalDecisionResponse(approval=approval, run_id=run.id)

@@ -171,10 +171,13 @@ class SupabaseControlPlaneClient:
 
     @contextmanager
     def transaction(self) -> Iterator[InMemoryControlPlaneStore]:
-        raise NotImplementedError(
-            "Live Supabase wiring is deferred in this environment; use the in-memory control-plane adapter for now."
-        )
-        yield STORE
+        from app.db.control_plane_store_supabase import hydrate_control_plane_store, persist_control_plane_store
+
+        store = hydrate_control_plane_store(self.settings)
+        try:
+            yield store
+        finally:
+            persist_control_plane_store(store, self.settings)
 
 
 def get_control_plane_client(settings: Settings | None = None) -> ControlPlaneClient:

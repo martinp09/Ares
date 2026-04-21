@@ -48,12 +48,17 @@ class CommandService:
 
         if policy == CommandPolicy.SAFE_AUTONOMOUS:
             run = run_service.create_run(command)
-            command.run_id = run.id
-            command.status = CommandStatus.QUEUED
+            command = self.commands_repository.attach_run(command.id, run_id=run.id) or command.model_copy(
+                update={"run_id": run.id, "status": CommandStatus.QUEUED}
+            )
         else:
             approval = approval_service.create_approval(command)
-            command.approval_id = approval.id
-            command.status = CommandStatus.AWAITING_APPROVAL
+            command = self.commands_repository.attach_approval(
+                command.id,
+                approval_id=approval.id,
+            ) or command.model_copy(
+                update={"approval_id": approval.id, "status": CommandStatus.AWAITING_APPROVAL}
+            )
 
         return CommandIngestResponse(**command.model_dump()), 201
 

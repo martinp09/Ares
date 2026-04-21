@@ -35,6 +35,10 @@
    - `Lead Machine`
    - `Marketing`
    - `Pipeline`
+10. finish the remaining shared control-plane Supabase lift in slices:
+   - done: `commands`, `approvals`, `runs`, `events`, `artifacts`
+   - done: managed-agent/session/turn/governance runtime tables now have a shared Supabase-backed transaction path
+   - next: live remote smoke against the new shared control-plane migration and any follow-up schema cleanup it exposes
 
 ## Read These Sections In `memory.md`
 

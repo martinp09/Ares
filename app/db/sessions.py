@@ -100,3 +100,13 @@ class SessionsRepository:
             session.updated_at = event.created_at
             store.sessions[session_id] = session
             return session
+
+    def append_timeline_entry(self, session_id: str, entry: SessionTimelineEntry) -> SessionRecord | None:
+        with self.client.transaction() as store:
+            session = store.sessions.get(session_id)
+            if session is None:
+                return None
+            session.timeline.append(entry.model_copy(deep=True))
+            session.updated_at = entry.created_at
+            store.sessions[session_id] = session
+            return session

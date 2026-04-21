@@ -44,6 +44,7 @@ class RunLifecycleService:
         run.started_at = started_at
         run.trigger_run_id = request.trigger_run_id or run.trigger_run_id
         run.updated_at = started_at
+        self.runs_repository.save(run)
         self.events_repository.append(
             run_id,
             event_type=RunLifecycleEvent.RUN_STARTED.value,
@@ -69,6 +70,7 @@ class RunLifecycleService:
         run.completed_at = completed_at
         run.trigger_run_id = request.trigger_run_id or run.trigger_run_id
         run.updated_at = completed_at
+        self.runs_repository.save(run)
         self.events_repository.append(
             run_id,
             event_type=RunLifecycleEvent.RUN_COMPLETED.value,
@@ -94,6 +96,7 @@ class RunLifecycleService:
         run.error_classification = request.error_classification
         run.error_message = request.error_message
         run.updated_at = failed_at
+        self.runs_repository.save(run)
         self.events_repository.append(
             run_id,
             event_type=RunLifecycleEvent.RUN_FAILED.value,

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from app.db.client import STORE, reset_control_plane_store, utc_now
 from app.db.commands import CommandsRepository
+from app.db.events import EventsRepository
 from app.db.runs import RunsRepository
 from app.models.commands import CommandRecord, CommandStatus
 from app.models.runs import RunDetailResponse, RunRecord, RunStatus
@@ -16,9 +17,11 @@ class RunService:
         self,
         runs_repository: RunsRepository | None = None,
         commands_repository: CommandsRepository | None = None,
+        events_repository: EventsRepository | None = None,
     ) -> None:
         self.runs_repository = runs_repository or RunsRepository()
         self.commands_repository = commands_repository or CommandsRepository()
+        self.events_repository = events_repository or EventsRepository()
 
     def create_run(
         self,
@@ -39,7 +42,14 @@ class RunService:
             replay_reason=replay_reason,
             created_at=now,
         )
+        self.events_repository.append(
+            run.id,
+            event_type="run_created",
+            payload={"parent_run_id": parent_run_id},
+            created_at=now,
+        )
         run.events.append({"type": "run_created", "created_at": now.isoformat(), "parent_run_id": parent_run_id})
+        self.commands_repository.attach_run(command.id, run_id=run.id)
         command.run_id = run.id
         command.status = CommandStatus.QUEUED
         return run

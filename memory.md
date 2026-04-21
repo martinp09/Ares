@@ -108,7 +108,16 @@
   - `POST /trigger/callbacks/runs/{run_id}/failed`
   - `POST /trigger/callbacks/runs/{run_id}/artifacts`
 - Current storage mode:
-  - in-memory control-plane store for commands, approvals, runs, site events, agents, revisions, sessions, permissions, outcomes, operational assets, lead-machine state, marketing state, and opportunities
+  - hybrid mode:
+    - Supabase-backed adapters for marketing, lead-machine, opportunities, and shared command/run lifecycle records (`commands`, `approvals`, `runs`, `events`, `artifacts`) when enabled
+    - the remaining shared control-plane runtime now uses a Supabase-backed hydrated transaction store for:
+      - agents / revisions
+      - sessions / memory summaries
+      - turns / turn events
+      - permissions / RBAC / secrets
+      - audit / usage / outcomes
+      - agent assets / Mission Control threads / skills / host adapter dispatches
+    - in-memory fallback still remains for tests and local fixture-first work
 - Current workflow coverage:
   - marketing command classification
   - Hermes tool contract with permission-aware tool gating
@@ -139,10 +148,44 @@
    - operator-ready lease-option opportunities
    - later title / TC / dispo advancement
 3. model composite pain stacks such as `estate_of + tax_delinquent` more explicitly in scoring and Mission Control prioritization
-4. keep browser acquisition and ambiguous research in Hermes or other driver agents, not inside Ares
-5. add durable Trigger lead-machine jobs only where sync paths become operationally risky
+4. run a live remote smoke against the new shared control-plane migration and fix any schema mismatches it exposes
+5. keep browser acquisition and ambiguous research in Hermes or other driver agents, not inside Ares
+6. add durable Trigger lead-machine jobs only where sync paths become operationally risky
 
 ## Change Log
+
+### 2026-04-20 Shared Control-Plane Runtime Supabase Pass
+
+- Added `supabase/migrations/202604200001_shared_control_plane_runtime.sql` for the remaining text-id control-plane runtime entities:
+  - agents / revisions
+  - sessions / memory summaries
+  - turns / turn events
+  - permissions / RBAC / secrets
+  - audit / usage / outcomes
+  - agent assets / Mission Control threads / skills / host adapter dispatches
+- Added `app/db/control_plane_store_supabase.py` and upgraded `SupabaseControlPlaneClient.transaction()` to hydrate and flush the remaining control-plane store sections through Supabase instead of raising `NotImplementedError`
+- This preserves the existing repository/service contracts for the managed-agent and Mission Control surfaces while making `control_plane_backend=supabase` actually usable across the broader runtime
+- Added focused persistence coverage in `tests/db/test_supabase_control_plane_client.py`
+- Verified repo state after the pass with:
+  - `244 passed` backend tests via `./.venv/bin/python -m pytest -q`
+
+### 2026-04-20 Control-Plane Supabase Wiring Pass
+
+- Added a shared `app/db/control_plane_supabase.py` adapter layer for the core control-plane tables already present in `202604130001_hermes_control_plane_core.sql`
+- Wired explicit Supabase-backed repository paths for:
+  - `commands`
+  - `approvals`
+  - `runs`
+  - `events`
+  - `artifacts`
+- Fixed the persistence bug where memory-mode object mutation masked missing writes in Supabase mode:
+  - command ingestion now persists approval/run status transitions explicitly
+  - run lifecycle callbacks now persist run status updates before recording events
+  - run creation now records the initial `run_created` event through the repository seam instead of only mutating the in-memory object
+- Added focused adapter coverage in `tests/db/test_control_plane_supabase_adapters.py`
+- Verified repo state after the pass with:
+  - `242 passed` backend tests via `./.venv/bin/python -m pytest -q`
+  - Mission Control frontend `vitest` passing locally
 
 ### 2026-04-16 Live Supabase Smoke + Adapter Hardening
 

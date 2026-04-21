@@ -35,14 +35,14 @@ class TurnRunnerService:
             session.agent_revision_id, ProviderCapability.TOOL_CALLS
         ):
             raise ValueError("Agent revision does not support tool calls")
-        turn, _ = self.turn_events_repository.create_turn(
+        turn, events = self.turn_events_repository.create_turn(
             session_id=session_id,
             agent_id=session.agent_id,
             agent_revision_id=session.agent_revision_id,
             org_id=session.org_id,
             request=request,
-            on_event=lambda event: self._append_session_timeline_event(session_id, event),
         )
+        self._append_session_timeline_events(session_id, events)
         self.compaction_service.refresh_session_summary(session_id)
         return turn
 
@@ -59,11 +59,11 @@ class TurnRunnerService:
             session.agent_revision_id, ProviderCapability.TOOL_CALLS
         ):
             raise ValueError("Agent revision does not support tool calls")
-        resumed_turn, _ = self.turn_events_repository.resume_turn(
+        resumed_turn, events = self.turn_events_repository.resume_turn(
             turn_id,
             request,
-            on_event=lambda event: self._append_session_timeline_event(session_id, event),
         )
+        self._append_session_timeline_events(session_id, events)
         self.compaction_service.refresh_session_summary(session_id)
         return resumed_turn
 
@@ -82,21 +82,17 @@ class TurnRunnerService:
     def replay_turn(self, turn_id: str) -> TurnRecord | None:
         return self.turn_events_repository.replay_turn(turn_id)
 
-    def _append_session_timeline_event(self, session_id: str, event: TurnEventRecord) -> None:
-        with self.sessions_repository.client.transaction() as store:
-            session = store.sessions.get(session_id)
+    def _append_session_timeline_events(self, session_id: str, events: list[TurnEventRecord]) -> None:
+        for event in events:
+            entry = SessionTimelineEntry(
+                id=event.id,
+                event_type=event.event_type.value,
+                payload={"turn_id": event.turn_id, **event.payload},
+                created_at=event.created_at,
+            )
+            session = self.sessions_repository.append_timeline_entry(session_id, entry)
             if session is None:
                 raise ValueError("Session not found")
-            session.timeline.append(
-                SessionTimelineEntry(
-                    id=event.id,
-                    event_type=event.event_type.value,
-                    payload={"turn_id": event.turn_id, **event.payload},
-                    created_at=event.created_at,
-                )
-            )
-            session.updated_at = event.created_at
-            store.sessions[session_id] = session
 
 
 turn_runner_service = TurnRunnerService()
