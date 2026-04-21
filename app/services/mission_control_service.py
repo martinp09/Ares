@@ -10,6 +10,7 @@ from app.db.automation_runs import AutomationRunsRepository
 from app.db.campaign_memberships import CampaignMembershipsRepository
 from app.db.campaigns import CampaignsRepository
 from app.db.client import ControlPlaneClient, get_control_plane_client, utc_now
+from app.db.contacts import ContactsRepository
 from app.db.lead_events import LeadEventsRepository
 from app.db.leads import LeadsRepository
 from app.db.opportunities import OpportunitiesRepository
@@ -18,6 +19,9 @@ from app.db.tasks import TasksRepository
 from app.models.approvals import ApprovalStatus
 from app.models.campaigns import CampaignMembershipStatus, CampaignStatus
 from app.models.leads import LeadInterestStatus, LeadLifecycleStatus, LeadRecord, LeadSource
+from app.models.marketing_leads import MarketingLeadRecord
+from app.models.tasks import TaskStatus, TaskType
+from app.models.suppression import SuppressionRecord, SuppressionScope, SuppressionSource
 from app.models.mission_control import (
     MissionControlAgentsResponse,
     MissionControlAgentSummary,
@@ -29,6 +33,7 @@ from app.models.mission_control import (
     MissionControlEmailTestRequest,
     MissionControlInboxResponse,
     MissionControlInboxSummary,
+    MissionControlInboundLeaseOptionSummary,
     MissionControlLeadMachineCampaignSummary,
     MissionControlLeadMachineCampaignsSummary,
     MissionControlLeadMachineQueueSummary,
@@ -42,9 +47,12 @@ from app.models.mission_control import (
     MissionControlLeadMachineTasksSummary,
     MissionControlLeadMachineTimelineItem,
     MissionControlLeadMachineTimelineSummary,
+    MissionControlOpportunityPipelineSummary,
     MissionControlOpportunityStageSummary,
+    MissionControlOutboundProbateSummary,
     MissionControlRunSummary,
     MissionControlRunsResponse,
+    MissionControlTaskActionResponse,
     MissionControlTaskSummary,
     MissionControlTasksResponse,
     MissionControlThreadDetail,
@@ -52,16 +60,19 @@ from app.models.mission_control import (
     MissionControlThreadSummary,
     MissionControlTurnSummary,
     MissionControlTurnsResponse,
+    MissionControlLeadActionResponse,
 )
 from app.models.runs import RunStatus
 from app.models.provider_extras import InstantlyProviderExtrasSnapshot
 from app.models.audit import AuditListResponse
 from app.models.secrets import SecretBindingListResponse, SecretListResponse
+from app.models.opportunities import OpportunitySourceLane, OpportunityStage
 from app.models.usage import UsageEventKind, UsageResponse
 from app.services.agent_asset_service import AgentAssetService, agent_asset_service
 from app.services.agent_registry_service import AgentRegistryService, agent_registry_service
 from app.services.approval_service import ApprovalService, approval_service
 from app.services.audit_service import audit_service
+from app.services.opportunity_service import OpportunityService
 from app.services.provider_extras_service import provider_extras_service
 from app.services.providers.resend import get_resend_status, send_test_email
 from app.services.providers.textgrid import get_textgrid_status, send_test_sms
@@ -69,6 +80,8 @@ from app.services.secrets_service import secret_service
 from app.services.usage_service import usage_service
 
 ACTIVE_RUN_STATUSES = {RunStatus.QUEUED, RunStatus.IN_PROGRESS}
+_OPPORTUNITY_QUALIFIED_OUTCOMES = {"qualified", "ready", "ready_for_offer", "offer_path_selected"}
+_OPPORTUNITY_READY_OUTCOMES = {"ready", "ready_for_offer", "offer_path_selected"}
 
 
 class MissionControlService:
@@ -79,6 +92,7 @@ class MissionControlService:
         agent_registry_service_dependency: AgentRegistryService | None = None,
         agent_asset_service_dependency: AgentAssetService | None = None,
         opportunities_repository: OpportunitiesRepository | None = None,
+        opportunity_service_dependency: OpportunityService | None = None,
         campaigns_repository: CampaignsRepository | None = None,
         leads_repository: LeadsRepository | None = None,
         suppression_repository: SuppressionRepository | None = None,
@@ -92,6 +106,8 @@ class MissionControlService:
         self.agent_registry_service = agent_registry_service_dependency or agent_registry_service
         self.agent_asset_service = agent_asset_service_dependency or agent_asset_service
         self.opportunities_repository = opportunities_repository or OpportunitiesRepository(client=self.client)
+        self.opportunity_service = opportunity_service_dependency or OpportunityService(self.opportunities_repository)
+        self.contacts_repository = ContactsRepository(client=self.client)
         self.campaigns_repository = campaigns_repository or CampaignsRepository(client=self.client)
         self.leads_repository = leads_repository or LeadsRepository(client=self.client)
         self.suppression_repository = suppression_repository or SuppressionRepository(client=self.client)
@@ -128,7 +144,6 @@ class MissionControlService:
                 for thread in store.mission_control_threads.values()
                 if self._matches_scope(thread.business_id, thread.environment, business_id, environment)
             ]
-        opportunities = self.opportunities_repository.list(business_id=business_id, environment=environment)
         lead_machine_summary = self._build_lead_machine_summary(business_id=business_id, environment=environment)
 
         latest_timestamps: list[datetime] = [approval.created_at for approval in approvals]
@@ -160,19 +175,58 @@ class MissionControlService:
         replies_needing_review_count = sum(
             1 for thread in threads if bool(thread.context.get("reply_needs_review"))
         )
-        opportunity_stage_counts: dict[tuple[str, str], int] = {}
-        for opportunity in opportunities:
-            lane = str(opportunity.source_lane)
-            stage = str(opportunity.stage)
-            key = (lane, stage)
-            opportunity_stage_counts[key] = opportunity_stage_counts.get(key, 0) + 1
         opportunity_stage_summaries = [
-            MissionControlOpportunityStageSummary(source_lane=lane, stage=stage, count=count)
-            for (lane, stage), count in sorted(opportunity_stage_counts.items())
+            MissionControlOpportunityStageSummary(
+                source_lane=str(summary.source_lane),
+                stage=str(summary.stage),
+                count=summary.count,
+            )
+            for summary in self.opportunity_service.summarize_by_lane_and_stage(
+                business_id=business_id,
+                environment=environment,
+            )
         ]
+        lead_machine_leads = self._lead_machine_leads(business_id=business_id, environment=environment)
+        lead_machine_lead_ids = {lead.id for lead in lead_machine_leads if lead.id is not None}
+        open_probate_task_count = sum(
+            1
+            for task in self.tasks_repository.list(business_id=business_id, environment=environment)
+            if task.lead_id in lead_machine_lead_ids and task.status == TaskStatus.OPEN
+        )
         has_marketing_context = any(self._has_marketing_context(thread.context) for thread in threads)
         has_lead_machine_context = lead_machine_summary is not None
         has_opportunity_context = bool(opportunity_stage_summaries)
+        outbound_probate_summary = (
+            MissionControlOutboundProbateSummary(
+                active_campaign_count=lead_machine_summary.active_campaign_count,
+                ready_lead_count=lead_machine_summary.ready_lead_count,
+                active_lead_count=lead_machine_summary.active_lead_count,
+                interested_lead_count=lead_machine_summary.interested_lead_count,
+                suppressed_lead_count=lead_machine_summary.suppressed_lead_count,
+                open_task_count=open_probate_task_count,
+            )
+            if lead_machine_summary is not None
+            else None
+        )
+        inbound_lease_option_summary = (
+            MissionControlInboundLeaseOptionSummary(
+                pending_lead_count=pending_lead_count,
+                booked_lead_count=booked_lead_count,
+                active_non_booker_enrollment_count=active_non_booker_enrollment_count,
+                due_manual_call_count=due_manual_call_count,
+                replies_needing_review_count=replies_needing_review_count,
+            )
+            if has_marketing_context
+            else None
+        )
+        opportunity_pipeline_summary = (
+            MissionControlOpportunityPipelineSummary(
+                total_opportunity_count=sum(summary.count for summary in opportunity_stage_summaries),
+                lane_stage_summaries=opportunity_stage_summaries,
+            )
+            if has_opportunity_context
+            else None
+        )
         if failed_run_count > 0:
             system_status = "degraded"
         elif approvals or unread_conversation_count or active_run_count:
@@ -193,9 +247,12 @@ class MissionControlService:
             active_non_booker_enrollment_count=(active_non_booker_enrollment_count if has_marketing_context else None),
             due_manual_call_count=(due_manual_call_count if has_marketing_context else None),
             replies_needing_review_count=(replies_needing_review_count if has_marketing_context else None),
+            outbound_probate_summary=outbound_probate_summary,
+            inbound_lease_option_summary=inbound_lease_option_summary,
             lead_machine_summary=(lead_machine_summary if has_lead_machine_context else None),
-            opportunity_count=(sum(opportunity_stage_counts.values()) if has_opportunity_context else None),
+            opportunity_count=(sum(summary.count for summary in opportunity_stage_summaries) if has_opportunity_context else None),
             opportunity_stage_summaries=(opportunity_stage_summaries if has_opportunity_context else None),
+            opportunity_pipeline_summary=opportunity_pipeline_summary,
             system_status=system_status,
             updated_at=latest_updated_at.isoformat(),
         )
@@ -281,6 +338,424 @@ class MissionControlService:
 
         ordered_tasks = sorted(tasks, key=lambda task: task.manual_call_due_at)
         return MissionControlTasksResponse(due_count=len(ordered_tasks), tasks=ordered_tasks)
+
+    def complete_task_for_thread(
+        self,
+        *,
+        thread_id: str,
+        notes: str | None = None,
+        follow_up_outcome: str | None = None,
+    ) -> MissionControlTaskActionResponse:
+        thread = self._require_thread_projection(thread_id)
+        lead = self._resolve_lead_for_thread(thread)
+        now = utc_now()
+        completed_task_count = 0
+
+        if lead is not None and lead.id is not None:
+            completed_task_count = self._complete_open_tasks_for_lead(
+                lead_id=lead.id,
+                notes=notes,
+                follow_up_outcome=follow_up_outcome,
+                completed_at=now,
+            )
+
+        thread_context = deepcopy(thread.context)
+        thread_context.pop("manual_call_due_at", None)
+        thread_context["reply_needs_review"] = False
+        thread_context["task_completed_at"] = now.isoformat()
+        if notes is not None:
+            thread_context["task_completion_note"] = notes
+        if follow_up_outcome is not None:
+            thread_context["follow_up_outcome"] = follow_up_outcome
+        if lead is not None and lead.id is not None:
+            thread_context.setdefault("lead_id", lead.id)
+
+        self.upsert_thread_projection(
+            thread.model_copy(update={"context": thread_context, "updated_at": now})
+        )
+        self._sync_lease_option_opportunity_from_thread(
+            thread=thread,
+            thread_context=thread_context,
+            follow_up_outcome=follow_up_outcome,
+        )
+
+        return MissionControlTaskActionResponse(
+            thread_id=thread.id,
+            lead_name=thread.contact.display_name,
+            completed_task_count=completed_task_count,
+            notes=notes,
+            follow_up_outcome=follow_up_outcome,
+            updated_at=now,
+        )
+
+    def suppress_thread(
+        self,
+        *,
+        thread_id: str,
+        reason: str,
+        note: str | None = None,
+    ) -> MissionControlLeadActionResponse:
+        thread = self._require_thread_projection(thread_id)
+        target = self._resolve_lead_for_thread(thread)
+        if target is None or target.id is None:
+            raise KeyError(thread_id)
+
+        now = utc_now()
+        thread_context = deepcopy(thread.context)
+        thread_context["sequence_status"] = "suppressed"
+        thread_context["reply_needs_review"] = False
+        thread_context["manual_call_due_at"] = None
+        thread_context["suppression_reason"] = reason
+        thread_context["suppressed_at"] = now.isoformat()
+        thread_context["last_operator_note"] = note
+        thread_context["lead_id"] = target.id
+
+        if isinstance(target, LeadRecord):
+            self.suppression_repository.upsert(
+                SuppressionRecord(
+                    business_id=target.business_id,
+                    environment=target.environment,
+                    lead_id=target.id,
+                    email=target.email,
+                    phone=target.phone,
+                    scope=SuppressionScope.GLOBAL,
+                    reason=reason,
+                    source=SuppressionSource.MANUAL,
+                    idempotency_key=f"mission-control:suppress:{thread.id}",
+                    metadata={"thread_id": thread.id, "note": note, "operator_action": "suppress"},
+                )
+            )
+            self.leads_repository.upsert(
+                target.model_copy(
+                    update={
+                        "lifecycle_status": LeadLifecycleStatus.SUPPRESSED,
+                        "updated_at": now,
+                        "last_touched_at": now,
+                    }
+                )
+            )
+            self._set_campaign_memberships_status(lead_id=target.id, status=CampaignMembershipStatus.SUPPRESSED)
+            self._cancel_open_tasks_for_lead(lead_id=target.id, suppression_reason=reason, note=note)
+            lead_status = str(LeadLifecycleStatus.SUPPRESSED)
+        else:
+            previous_booking_status = str(target.booking_status)
+            self.suppression_repository.upsert(
+                SuppressionRecord(
+                    business_id=target.business_id,
+                    environment=target.environment,
+                    lead_id=target.id,
+                    email=target.email,
+                    phone=target.phone,
+                    scope=SuppressionScope.GLOBAL,
+                    reason=reason,
+                    source=SuppressionSource.MANUAL,
+                    idempotency_key=f"mission-control:suppress:{thread.id}",
+                    metadata={"thread_id": thread.id, "note": note, "operator_action": "suppress"},
+                )
+            )
+            updated_contact = self.contacts_repository.update_booking_status(target.id, "cancelled")
+            self._cancel_open_tasks_for_lead(lead_id=target.id, suppression_reason=reason, note=note)
+            thread_context["booking_status_before_suppression"] = previous_booking_status
+            thread_context["booking_status"] = "cancelled"
+            lead_status = str(updated_contact.booking_status if updated_contact is not None else "cancelled")
+
+        self.upsert_thread_projection(thread.model_copy(update={"context": thread_context, "updated_at": now}))
+
+        return MissionControlLeadActionResponse(
+            thread_id=thread.id,
+            lead_name=thread.contact.display_name,
+            action="suppressed",
+            suppression_count=len(
+                self.suppression_repository.list_active(business_id=target.business_id, environment=target.environment)
+            ),
+            lead_status=lead_status,
+            note=note,
+            reason=reason,
+            updated_at=now,
+        )
+
+    def unsuppress_thread(
+        self,
+        *,
+        thread_id: str,
+        note: str | None = None,
+    ) -> MissionControlLeadActionResponse:
+        thread = self._require_thread_projection(thread_id)
+        target = self._resolve_lead_for_thread(thread)
+        if target is None or target.id is None:
+            raise KeyError(thread_id)
+
+        now = utc_now()
+        thread_context = deepcopy(thread.context)
+        thread_context["sequence_status"] = "active"
+        thread_context["suppression_reason"] = None
+        thread_context["suppressed_at"] = None
+        thread_context["last_operator_note"] = note
+        thread_context["lead_id"] = target.id
+
+        if isinstance(target, LeadRecord):
+            archived_count = self._archive_lead_suppressions(lead_id=target.id, note=note)
+            restored_membership_count = self._set_campaign_memberships_status(lead_id=target.id, status=CampaignMembershipStatus.ACTIVE)
+            lead_after_restore = self.leads_repository.upsert(
+                target.model_copy(
+                    update={
+                        "lifecycle_status": LeadLifecycleStatus.ACTIVE if restored_membership_count > 0 else LeadLifecycleStatus.READY,
+                        "updated_at": now,
+                        "last_touched_at": now,
+                    }
+                )
+            )
+            lead_status = str(lead_after_restore.lifecycle_status)
+        else:
+            archived_count = self._archive_matching_suppressions(
+                business_id=target.business_id,
+                environment=target.environment,
+                target_id=target.id,
+                email=target.email,
+                phone=target.phone,
+                note=note,
+            )
+            restored_booking_status = str(
+                thread_context.get("booking_status_before_suppression") or target.booking_status or "pending"
+            )
+            lead_after_restore = self.contacts_repository.update_booking_status(target.id, restored_booking_status)
+            thread_context["booking_status"] = restored_booking_status
+            thread_context["booking_status_before_suppression"] = None
+            lead_status = str(lead_after_restore.booking_status if lead_after_restore is not None else restored_booking_status)
+
+        self.upsert_thread_projection(thread.model_copy(update={"context": thread_context, "updated_at": now}))
+
+        return MissionControlLeadActionResponse(
+            thread_id=thread.id,
+            lead_name=thread.contact.display_name,
+            action="unsuppressed",
+            suppression_count=archived_count,
+            lead_status=lead_status,
+            note=note,
+            reason=None,
+            updated_at=now,
+        )
+
+    def _require_thread_projection(self, thread_id: str) -> MissionControlThreadRecord:
+        with self.client.transaction() as store:
+            thread = store.mission_control_threads.get(thread_id)
+            if thread is None:
+                raise KeyError(thread_id)
+            if isinstance(thread, MissionControlThreadRecord):
+                return thread
+            return MissionControlThreadRecord.model_validate(thread)
+
+    def _resolve_lead_for_thread(self, thread: MissionControlThreadRecord) -> LeadRecord | MarketingLeadRecord | None:
+        lead_id = self._context_value(thread.context, "lead_id")
+        if lead_id is not None:
+            lead = self.leads_repository.get(lead_id)
+            if lead is not None:
+                return lead
+            contact = self.contacts_repository.get_lead(lead_id)
+            if contact is not None:
+                return contact
+        if thread.contact.email:
+            lead = self.leads_repository.find_by_email(
+                business_id=thread.business_id,
+                environment=thread.environment,
+                email=thread.contact.email,
+            )
+            if lead is not None:
+                return lead
+        if thread.contact.phone:
+            normalized_phone = "".join(thread.contact.phone.split())
+            for lead in self.leads_repository.list(business_id=thread.business_id, environment=thread.environment):
+                if lead.phone is not None and "".join(lead.phone.split()) == normalized_phone:
+                    return lead
+            contact = self.contacts_repository.find_by_phone(
+                phone=thread.contact.phone,
+                business_id=thread.business_id,
+                environment=thread.environment,
+            )
+            if contact is not None:
+                return contact
+        return None
+
+    def _complete_open_tasks_for_lead(
+        self,
+        *,
+        lead_id: str,
+        notes: str | None,
+        follow_up_outcome: str | None,
+        completed_at: datetime,
+    ) -> int:
+        completed_count = 0
+        for task in self.tasks_repository.list_for_lead(lead_id):
+            if task.status not in {TaskStatus.OPEN, TaskStatus.IN_PROGRESS, TaskStatus.BLOCKED}:
+                continue
+            if task.task_type not in {TaskType.MANUAL_CALL, TaskType.MANUAL_REVIEW, TaskType.FOLLOW_UP}:
+                continue
+            details = deepcopy(task.details)
+            details["completed_at"] = completed_at.isoformat()
+            if notes is not None:
+                details["operator_notes"] = notes
+            if follow_up_outcome is not None:
+                details["follow_up_outcome"] = follow_up_outcome
+            updated = self.tasks_repository.update(
+                task.id or "",
+                {
+                    "status": TaskStatus.COMPLETED,
+                    "details": details,
+                },
+            )
+            if updated is not None:
+                completed_count += 1
+        return completed_count
+
+    def _cancel_open_tasks_for_lead(
+        self,
+        *,
+        lead_id: str,
+        suppression_reason: str,
+        note: str | None,
+    ) -> int:
+        cancelled_count = 0
+        for task in self.tasks_repository.list_for_lead(lead_id):
+            if task.status not in {TaskStatus.OPEN, TaskStatus.IN_PROGRESS, TaskStatus.BLOCKED}:
+                continue
+            details = deepcopy(task.details)
+            details["suppression_reason"] = suppression_reason
+            if note is not None:
+                details["operator_note"] = note
+            updated = self.tasks_repository.update(
+                task.id or "",
+                {
+                    "status": TaskStatus.CANCELLED,
+                    "details": details,
+                },
+            )
+            if updated is not None:
+                cancelled_count += 1
+        return cancelled_count
+
+    def _set_campaign_memberships_status(
+        self,
+        *,
+        lead_id: str,
+        status: CampaignMembershipStatus,
+    ) -> int:
+        now = utc_now()
+        updated_count = 0
+        for membership in self.campaign_memberships_repository.list_for_lead(lead_id):
+            if membership.status == status:
+                continue
+            updates: dict[str, Any] = {
+                "status": status,
+                "last_synced_at": now,
+            }
+            if status == CampaignMembershipStatus.SUPPRESSED:
+                updates["unsubscribed_at"] = now
+            elif status == CampaignMembershipStatus.ACTIVE:
+                updates["unsubscribed_at"] = None
+            self.campaign_memberships_repository.upsert(membership.model_copy(update=updates))
+            updated_count += 1
+        return updated_count
+
+    def _archive_lead_suppressions(self, *, lead_id: str, note: str | None) -> int:
+        lead = self.leads_repository.get(lead_id)
+        if lead is None:
+            return 0
+        return self._archive_matching_suppressions(
+            business_id=lead.business_id,
+            environment=lead.environment,
+            target_id=lead.id,
+            email=lead.email,
+            phone=lead.phone,
+            note=note,
+        )
+
+    def _archive_matching_suppressions(
+        self,
+        *,
+        business_id: str,
+        environment: str,
+        target_id: str,
+        email: str | None,
+        phone: str | None,
+        note: str | None,
+    ) -> int:
+        now = utc_now()
+        archived_count = 0
+        for suppression in self.suppression_repository.list_active(business_id=business_id, environment=environment):
+            if suppression.lead_id != target_id and suppression.email != email and suppression.phone != phone:
+                continue
+            metadata = deepcopy(suppression.metadata)
+            metadata["archived_by"] = "mission_control"
+            if note is not None:
+                metadata["note"] = note
+            self.suppression_repository.upsert(
+                suppression.model_copy(
+                    update={
+                        "active": False,
+                        "archived_at": now,
+                        "metadata": metadata,
+                    }
+                )
+            )
+            archived_count += 1
+        return archived_count
+
+    @staticmethod
+    def _merge_thread_context(context: dict[str, Any], updates: dict[str, Any]) -> dict[str, Any]:
+        merged = deepcopy(context)
+        for key, value in updates.items():
+            if value is None:
+                merged.pop(key, None)
+            else:
+                merged[key] = value
+        return merged
+
+    def _sync_lease_option_opportunity_from_thread(
+        self,
+        *,
+        thread: MissionControlThreadRecord,
+        thread_context: dict[str, Any],
+        follow_up_outcome: str | None,
+    ) -> None:
+        normalized_outcome = (follow_up_outcome or "").strip().lower()
+        booking_status = str(thread_context.get("booking_status") or "").strip().lower()
+        should_open_opportunity = booking_status in {"booked", "rescheduled"} or normalized_outcome in _OPPORTUNITY_QUALIFIED_OUTCOMES
+        if not should_open_opportunity:
+            return
+
+        contact = None
+        contact_id = self._context_value(thread_context, "lead_id")
+        if contact_id is not None:
+            contact = self.contacts_repository.get_lead(contact_id)
+        if contact is None and thread.contact.phone:
+            contact = self.contacts_repository.find_by_phone(
+                phone=thread.contact.phone,
+                business_id=thread.business_id,
+                environment=thread.environment,
+            )
+        if contact is None:
+            return
+
+        opportunity = self.opportunity_service.create_for_contact(
+            business_id=contact.business_id,
+            environment=contact.environment,
+            contact_id=contact.id,
+            source_lane=OpportunitySourceLane.LEASE_OPTION_INBOUND,
+            metadata={
+                "booking_status": booking_status or None,
+                "follow_up_outcome": normalized_outcome or None,
+            },
+        )
+        target_stage = (
+            OpportunityStage.OFFER_PATH_SELECTED
+            if normalized_outcome in _OPPORTUNITY_READY_OUTCOMES
+            else OpportunityStage.QUALIFIED_OPPORTUNITY
+        )
+        if opportunity.id is not None and opportunity.stage != target_stage:
+            try:
+                self.opportunity_service.advance_stage(opportunity.id, target_stage)
+            except ValueError:
+                return
 
     def get_lead_machine(
         self,

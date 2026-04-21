@@ -1,5 +1,7 @@
 # Ares Enterprise Agent Platform Implementation Plan
 
+> **Deprecated:** superseded by `docs/superpowers/plans/2026-04-20-ralph-loop-full-implementation-plan.md`.
+>
 > Execution root: `/home/workspace/Hermes-Central-Command`
 >
 > This document is a plan only. It intentionally describes the next implementation stage in exact, executable steps without making code changes itself.

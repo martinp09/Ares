@@ -18,7 +18,7 @@ from app.models.suppression import SuppressionRecord
 class SuppressionRepository:
     def __init__(self, client: ControlPlaneClient | None = None, settings: Settings | None = None):
         self.client = client or get_control_plane_client()
-        self._force_memory = client is not None
+        self._force_memory = False
         self.settings = settings or get_settings()
 
     def upsert(self, record: SuppressionRecord, *, dedupe_key: str | None = None) -> SuppressionRecord:

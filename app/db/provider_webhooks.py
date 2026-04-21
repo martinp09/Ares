@@ -16,9 +16,14 @@ from app.models.lead_events import ProviderWebhookReceiptRecord
 
 
 class ProviderWebhooksRepository:
-    def __init__(self, client: ControlPlaneClient | None = None, settings: Settings | None = None):
+    def __init__(
+        self,
+        client: ControlPlaneClient | None = None,
+        settings: Settings | None = None,
+        force_memory: bool | None = None,
+    ):
         self.client = client or get_control_plane_client()
-        self._force_memory = client is not None
+        self._force_memory = False if force_memory is None else force_memory
         self.settings = settings or get_settings()
 
     def record(self, receipt: ProviderWebhookReceiptRecord, *, replay_key: str | None = None) -> ProviderWebhookReceiptRecord:

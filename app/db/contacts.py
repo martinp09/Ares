@@ -15,7 +15,7 @@ from app.models.marketing_leads import LeadUpsertRequest, MarketingLeadRecord
 class ContactsRepository:
     def __init__(self, client: ControlPlaneClient | None = None, settings: Settings | None = None):
         self.client = client or get_control_plane_client()
-        self._force_memory = client is not None
+        self._force_memory = False
         self.settings = settings or get_settings()
 
     def upsert_lead(self, request: LeadUpsertRequest) -> MarketingLeadRecord:
@@ -75,8 +75,22 @@ class ContactsRepository:
         business_id: str | None = None,
         environment: str | None = None,
     ) -> MarketingLeadRecord | None:
+        matches = self.find_all_by_phone(
+            phone=phone,
+            business_id=business_id,
+            environment=environment,
+        )
+        return matches[0] if matches else None
+
+    def find_all_by_phone(
+        self,
+        *,
+        phone: str,
+        business_id: str | None = None,
+        environment: str | None = None,
+    ) -> list[MarketingLeadRecord]:
         if marketing_backend_enabled(self.settings) and not self._force_memory:
-            return self._find_by_phone_in_supabase(
+            return self._find_all_by_phone_in_supabase(
                 phone=phone,
                 business_id=business_id,
                 environment=environment,
@@ -85,14 +99,15 @@ class ContactsRepository:
             contact_rows: dict[str, MarketingLeadRecord] = getattr(
                 store, "marketing_contact_rows", {}
             )
+            matches: list[MarketingLeadRecord] = []
             for record in contact_rows.values():
                 if record.phone == phone:
                     if business_id is not None and record.business_id != business_id:
                         continue
                     if environment is not None and record.environment != environment:
                         continue
-                    return record
-            return None
+                    matches.append(record)
+            return matches
 
     def update_booking_status(self, lead_id: str, booking_status: str) -> MarketingLeadRecord | None:
         if marketing_backend_enabled(self.settings) and not self._force_memory:
@@ -194,17 +209,16 @@ class ContactsRepository:
         row = rows[0]
         return self._record_from_supabase(row, str(row["business_id"]), str(row["environment"]))
 
-    def _find_by_phone_in_supabase(
+    def _find_all_by_phone_in_supabase(
         self,
         *,
         phone: str,
         business_id: str | None = None,
         environment: str | None = None,
-    ) -> MarketingLeadRecord | None:
+    ) -> list[MarketingLeadRecord]:
         params = {
             "select": "id,external_contact_id,name,email,phone,metadata,business_id,environment,created_at,updated_at",
             "phone": f"eq.{phone}",
-            "limit": "1",
         }
         if business_id is not None and environment is not None:
             tenant = resolve_tenant(business_id, environment, settings=self.settings)
@@ -215,10 +229,10 @@ class ContactsRepository:
             params=params,
             settings=self.settings,
         )
-        if not rows:
-            return None
-        row = rows[0]
-        return self._record_from_supabase(row, str(row["business_id"]), str(row["environment"]))
+        return [
+            self._record_from_supabase(row, str(row["business_id"]), str(row["environment"]))
+            for row in rows
+        ]
 
     def _update_booking_status_in_supabase(self, lead_id: str, booking_status: str) -> MarketingLeadRecord | None:
         lead = self._get_lead_in_supabase(lead_id)

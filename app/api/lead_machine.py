@@ -1,11 +1,19 @@
 from __future__ import annotations
 
-from typing import Any
+from datetime import datetime
+from typing import Any, Literal
 
 from fastapi import APIRouter, Header, HTTPException, Request, status
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from app.core.config import get_settings
+from app.db.tasks import TasksRepository
+from app.models.commands import utc_now
+from app.models.lead_events import LeadEventRecord
+from app.models.tasks import TaskPriority, TaskRecord, TaskStatus, TaskType
+from app.services.inbound_sms_service import LeaseOptionSequenceStepRequest, inbound_sms_service
+from app.services.lead_sequence_runner import LeadSequenceRunner, lead_sequence_runner
+from app.services.lead_suppression_service import LeadSuppressionService, lead_suppression_service
 from app.services.probate_write_path_service import ProbateWritePathService, probate_write_path_service
 
 router = APIRouter(prefix="/lead-machine", tags=["lead-machine"])
@@ -99,6 +107,73 @@ class InstantlyWebhookRequest(BaseModel):
     trust_reason: str | None = None
 
 
+class FollowupStepRunnerRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    business_id: str = Field(min_length=1)
+    environment: str = Field(min_length=1)
+    lead_id: str = Field(min_length=1)
+    day: int = Field(ge=0)
+    channel: Literal["sms", "email"]
+    template_id: str = Field(min_length=1)
+    manual_call_checkpoint: bool = False
+    campaign_id: str | None = None
+
+
+class FollowupStepRunnerResponse(BaseModel):
+    message_id: str
+    channel: Literal["sms", "email"]
+    status: str
+    suppressed: bool
+
+
+class SuppressionSyncRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    business_id: str = Field(min_length=1)
+    environment: str = Field(min_length=1)
+    lead_id: str = Field(min_length=1)
+    campaign_id: str | None = None
+    lead_email: str | None = None
+    event_type: str = Field(min_length=1)
+    provider_name: str | None = None
+    provider_event_id: str | None = None
+    event_timestamp: datetime | None = None
+    idempotency_key: str | None = None
+
+
+class SuppressionSyncResponse(BaseModel):
+    status: str
+    suppression_id: str | None = None
+    reason: str | None = None
+    active: bool
+    event_type: str
+
+
+class TaskReminderOrOverdueRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    business_id: str = Field(min_length=1)
+    environment: str = Field(min_length=1)
+    task_id: str = Field(min_length=1)
+    task_title: str = Field(min_length=1)
+    due_at: datetime
+    status: str = Field(min_length=1)
+    lead_id: str | None = None
+    assigned_to: str | None = None
+    priority: Literal["low", "normal", "high", "urgent"] | None = None
+
+
+class TaskReminderOrOverdueResponse(BaseModel):
+    status: str
+    reminder_task_id: str | None = None
+    overdue: bool
+    reminder_created: bool
+
+
+tasks_repository = TasksRepository()
+
+
 def _build_write_path_service() -> ProbateWritePathService:
     return probate_write_path_service
 
@@ -181,3 +256,124 @@ async def ingest_instantly_webhook(
         trust_reason=str(trust_reason),
     )
     return InstantlyWebhookResponse(**result)
+
+
+@router.post("/internal/followup-step-runner", response_model=FollowupStepRunnerResponse)
+def run_followup_step_runner(request: FollowupStepRunnerRequest) -> FollowupStepRunnerResponse:
+    suppressed = lead_suppression_service.is_suppressed(
+        business_id=request.business_id,
+        environment=request.environment,
+        lead_id=request.lead_id,
+        email=None,
+        campaign_id=request.campaign_id,
+    )
+    if suppressed:
+        return FollowupStepRunnerResponse(
+            message_id=f"msg_{request.lead_id}_{request.day}_{request.channel}",
+            channel=request.channel,
+            status="stopped",
+            suppressed=True,
+        )
+
+    result = inbound_sms_service.dispatch_lease_option_sequence_step(
+        LeaseOptionSequenceStepRequest(
+            lead_id=request.lead_id,
+            business_id=request.business_id,
+            environment=request.environment,
+            day=request.day,
+            channel=request.channel,
+            template_id=request.template_id,
+            manual_call_checkpoint=request.manual_call_checkpoint,
+        )
+    )
+    return FollowupStepRunnerResponse(
+        message_id=str(result["message_id"]),
+        channel=str(result["channel"]),
+        status=str(result["status"]),
+        suppressed=False,
+    )
+
+
+@router.post("/internal/suppression-sync", response_model=SuppressionSyncResponse)
+def sync_suppression(request: SuppressionSyncRequest) -> SuppressionSyncResponse:
+    event = LeadEventRecord(
+        business_id=request.business_id,
+        environment=request.environment,
+        lead_id=request.lead_id,
+        campaign_id=request.campaign_id,
+        provider_name=request.provider_name or "lead-machine",
+        provider_event_id=request.provider_event_id,
+        event_type=request.event_type,
+        event_timestamp=request.event_timestamp or utc_now(),
+        received_at=utc_now(),
+        idempotency_key=request.idempotency_key or f"lead-machine-suppression:{request.event_type}:{request.lead_id}",
+        payload={
+            "lead_email": request.lead_email,
+            "provider_name": request.provider_name,
+            "provider_event_id": request.provider_event_id,
+        },
+        metadata={
+            "source": "lead-machine",
+        },
+    )
+    suppression = lead_suppression_service.apply_event(
+        business_id=request.business_id,
+        environment=request.environment,
+        lead_id=request.lead_id,
+        lead_email=request.lead_email,
+        campaign_id=request.campaign_id,
+        event=event,
+    )
+    lead_sequence_runner.handle_event(
+        business_id=request.business_id,
+        environment=request.environment,
+        lead_id=request.lead_id,
+        campaign_id=request.campaign_id,
+        event=event,
+    )
+    return SuppressionSyncResponse(
+        status="processed" if suppression is not None else "noop",
+        suppression_id=suppression.id if suppression is not None else None,
+        reason=suppression.reason if suppression is not None else None,
+        active=suppression.active if suppression is not None else False,
+        event_type=request.event_type,
+    )
+
+
+@router.post("/internal/task-reminder-or-overdue", response_model=TaskReminderOrOverdueResponse)
+def remind_or_escalate_task(request: TaskReminderOrOverdueRequest) -> TaskReminderOrOverdueResponse:
+    now = utc_now()
+    overdue = request.status.lower() == "open" and request.due_at <= now
+    if not overdue:
+        return TaskReminderOrOverdueResponse(
+            status="not_due",
+            reminder_task_id=None,
+            overdue=False,
+            reminder_created=False,
+        )
+
+    reminder = TaskRecord(
+        business_id=request.business_id,
+        environment=request.environment,
+        lead_id=request.lead_id,
+        title=f"Reminder: {request.task_title}",
+        status=TaskStatus.OPEN,
+        task_type=TaskType.FOLLOW_UP,
+        priority=TaskPriority(request.priority or ("urgent" if overdue else "normal")),
+        due_at=now,
+        assigned_to=request.assigned_to,
+        idempotency_key=f"task-reminder:{request.task_id}",
+        details={
+            "source_task_id": request.task_id,
+            "source_status": request.status,
+            "source_due_at": request.due_at.isoformat(),
+            "overdue": overdue,
+        },
+    )
+    created = tasks_repository.create(reminder, dedupe_key=reminder.idempotency_key)
+    return TaskReminderOrOverdueResponse(
+        status="reminded" if not created.deduped else "deduped",
+        reminder_task_id=created.id,
+        overdue=True,
+        reminder_created=True,
+    )

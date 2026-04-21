@@ -14,6 +14,7 @@ This repo is the deterministic runtime, policy layer, orchestration surface, and
 - `memory.md` is the master memory file.
 - `CONTEXT.md` is the short router and TODO file. Keep it under 50 lines and point to exact sections in `memory.md`.
 - `WAT_Architecture.md` defines the operating model for workflows, agents, and tools.
+- Hermes <-> Ares setup/runbook: `docs/hermes-ares-integration-runbook.md`
 
 ## Initial Direction
 
@@ -68,9 +69,15 @@ Current implementation notes:
 ## Verification
 
 - Python: `uv run pytest -q`
+- Lead machine smoke: `uv run python scripts/smoke/lead_machine_smoke.py`
 - Trigger.dev: `npx tsc -p trigger/tsconfig.json --noEmit`
 
-## Source Of Truth
+## Bootstrap
+
+- `make dev` prints the local Ares / Mission Control / Trigger bootstrap commands.
+- `make smoke` runs the lead machine smoke harness.
+
+## Source of Truth
 
 - `CONTEXT.md` for quick session routing
 - `memory.md` for indexed master memory

@@ -1,7 +1,7 @@
 ---
 title: "Probate Outbound + Lease-Option Inbound MVP Implementation Plan"
 status: active
-updated_at: "2026-04-16T22:04:50-05:00"
+updated_at: "2026-04-20T14:12:28Z"
 source_notes:
   - "2026-04-16 Ares Real Estate Runtime Thesis"
   - "2026-04-14 Lease-Option Marketing MVP Design"
@@ -19,11 +19,11 @@ source_notes:
 - outbound probate -> cold email -> reply/suppression/task loop
 - inbound lease-option -> submit/book/reply/task loop
 
-Both lanes must run through Ares as the deterministic runtime, keep Hermes as the browser/research driver, and persist live state in Supabase. The broader business OS stays out of scope for this pass, but the MVP must leave a thin contract-to-close seam so acquisitions, title, TC, and dispo can attach later.
+Both lanes must run through Ares as the deterministic runtime, keep Hermes as the browser/research driver, and keep live Supabase backend wiring delayed until a later pass. This blueprint covers everything else: domain logic, repository contracts, webhook semantics, Mission Control, and tests.
 
-**Architecture:** Keep the lanes separate in domain state and operator surfaces. Reuse the existing lease-option marketing slice already in this branch. Bring the newer probate / lead-machine slice forward from `origin/main` instead of rebuilding it. Share only the runtime primitives that should truly be shared: tenant resolution, provider webhook receipts, tasks, Mission Control read models, and a minimal downstream opportunity skeleton.
+**Architecture:** Keep the lanes separate in domain state and operator surfaces. Reuse the existing lease-option marketing slice already in this branch. Bring the newer probate / lead-machine slice forward from `origin/main` instead of rebuilding it. Share only the runtime primitives that should truly be shared: tenant resolution, provider webhook receipts, tasks, Mission Control read models, and a minimal downstream opportunity skeleton. Keep the storage boundary explicit so memory / fixture-backed execution remains the default in this pass and live Supabase persistence can be switched on later without rewriting the domain layer.
 
-**Tech Stack:** FastAPI, Pydantic, pytest, Trigger.dev, Supabase REST wiring, existing Mission Control app, existing lease-option provider adapters, Instantly API v2, and Hermes as the upstream browser-capable driver.
+**Tech Stack:** FastAPI, Pydantic, pytest, Trigger.dev, existing Mission Control app, existing lease-option provider adapters, Instantly API v2, and Hermes as the upstream browser-capable driver. Supabase schema / REST wiring is intentionally deferred to a later pass.
 
 ---
 
@@ -43,7 +43,7 @@ Both lanes must run through Ares as the deterministic runtime, keep Hermes as th
 ### Lane 2: Lease-option inbound
 
 - Landing page submits into Ares
-- Ares persists contact, conversation, messages, booking state, and sequence state in Supabase
+- Ares persists contact, conversation, messages, booking state, and sequence state through the repository abstraction in memory / fixtures for this pass; live Supabase wiring is deferred
 - Ares handles `Cal.com` booking webhooks and `TextGrid` inbound webhooks idempotently
 - Ares schedules and runs the non-booker follow-up sequence through Trigger.dev
 - Ares creates operator tasks for manual-call checkpoints and hot/ambiguous replies
@@ -132,7 +132,7 @@ Prefer porting or cherry-picking these instead of rewriting:
 - Hermes or another driver sends structured probate payloads into Ares
 - Inbound lease options and outbound probate stay separate in state and routing
 - Providers are transport only
-- Supabase becomes the canonical store for both live MVP lanes
+- Supabase backend wiring is deliberately delayed for this pass; the current blueprint keeps both live MVP lanes memory / fixture-backed until the later backend cutover
 - Memory fallback remains available for tests and fixture-first development
 - Do not replace the lease-option lane; harden it
 - Do not invent a full business OS here
@@ -155,7 +155,7 @@ Use shared tables and services only where the concepts are truly shared:
 
 ### Lease-option inbound lane
 
-Keep using the existing marketing slice and persist it in Supabase through:
+Keep using the existing marketing slice and persist it through the repository layer in memory / fixtures for this pass:
 
 - `contacts`
 - `conversations`
@@ -210,6 +210,14 @@ What not to do now:
 
 ## Task 1: Bring the probate lead-machine slice into the current branch
 
+**Subtasks:**
+
+1. Compare the branch against `origin/main` and identify the exact lead-machine files that already exist upstream.
+2. Port the models first, then repositories, then services, then API wiring, so the branch stays runnable at each step.
+3. Keep every imported path behind the repository abstraction; do not turn on the deferred Supabase backend path.
+4. Port the tests next to the code they cover so each batch has a verification target.
+5. Run the imported lead-machine tests in memory mode before moving to Task 4.
+
 **Files to port or create:**
 
 - `app/models/probate_leads.py`
@@ -240,13 +248,15 @@ What not to do now:
 - [ ] Prefer cherry-picking or file-porting over rewriting logic that already exists
 - [ ] Preserve the deterministic scoring and webhook/event semantics already present on `origin/main`
 - [ ] Add package exports and package-layout coverage where needed
-- [ ] Run the imported probate / lead-machine tests and confirm they pass before touching Supabase wiring
+- [ ] Run the imported probate / lead-machine tests and confirm they pass before touching the deferred Supabase wiring
 
 **Acceptance gate:** The current branch has the newer Ares probate and lead-machine services locally, still runnable in memory mode.
 
 ---
 
-## Task 2: Add Supabase schema for the probate outbound lane and the shared downstream seam
+## Deferred backend wiring pass: Add Supabase schema for the probate outbound lane and the shared downstream seam
+
+> Deferred for this branch pass. Keep this section as the later backend cutover blueprint. Do not apply these migrations, and do not treat this as current work until the user explicitly re-enables backend wiring.
 
 **Files:**
 
@@ -279,16 +289,18 @@ What not to do now:
 - `opportunities` links to either `lead_id` or `contact_id` plus a lane marker
 - use RLS and tenant policies that match the existing marketing migration style
 
-- [ ] Write migration tests or validation queries for the new tables and uniqueness constraints
-- [ ] Implement the lead-machine migration with indexes on identity keys, provider ids, and timeline reads
-- [ ] Implement the opportunities migration with stage, strategy, title, TC, and dispo status fields kept intentionally thin
-- [ ] Apply migrations to the local Supabase project and verify schema creation
+- [ ] Write migration tests or validation queries for the new tables and uniqueness constraints, but keep them in the doc until backend wiring is re-enabled
+- [ ] Keep the lead-machine migration with indexes on identity keys, provider ids, and timeline reads as the future backend blueprint
+- [ ] Keep the opportunities migration with stage, strategy, title, TC, and dispo status fields intentionally thin for the later cutover
+- [ ] Do not apply migrations to the local Supabase project in this pass
 
-**Acceptance gate:** Supabase contains the outbound lead-machine tables plus the minimal downstream opportunity seam, without disturbing the existing lease-option marketing schema.
+**Acceptance gate:** The schema blueprint is fully specified, but live Supabase changes remain untouched in this pass.
 
 ---
 
-## Task 3: Add a dedicated Supabase adapter for the lead-machine lane
+## Deferred backend wiring pass: Add a dedicated Supabase adapter for the lead-machine lane
+
+> Deferred for this branch pass. Keep the adapter dormant and memory-default. Do not activate or rely on live Supabase in this pass.
 
 **Files:**
 
@@ -308,16 +320,25 @@ Add:
 
 Do not overload `marketing_backend`. Keep lease-option and probate toggles separate.
 
-- [ ] Add the new config fields and env aliases
-- [ ] Create `app/db/lead_machine_supabase.py` mirroring the small helper style used by `app/db/marketing_supabase.py`
-- [ ] Wire the new lead-machine repositories so they support in-memory tests and live Supabase mode
-- [ ] Keep `provider_webhooks` repository usable by both the outbound lane and the lease-option lane
+- [ ] Add the new config fields and env aliases as future backend wiring, but keep the default execution mode memory-backed
+- [ ] Create `app/db/lead_machine_supabase.py` mirroring the small helper style used by `app/db/marketing_supabase.py`, but leave it dormant in this pass
+- [ ] Keep the new lead-machine repositories running in-memory for tests and fixture work in this pass
+- [ ] Keep `provider_webhooks` repository usable by both the outbound lane and the lease-option lane without switching backend modes
 
-**Acceptance gate:** Probate outbound services can run against Supabase without changing the lease-option marketing backend switch.
+**Acceptance gate:** Probate outbound services can run in-memory and fixture-backed without changing the lease-option marketing backend switch.
 
 ---
 
 ## Task 4: Build the probate outbound write path
+
+**Subtasks:**
+
+1. Add the new API router and mount it in `app/main.py` without disturbing the existing marketing routes.
+2. Build the probate intake endpoint first, with tests for accepted payloads, tenant resolution, scoring, and bridge creation.
+3. Build the Instantly enqueue endpoint second, with tests for campaign membership creation and outbound run records.
+4. Build the Instantly webhook endpoint third, with tests for receipt-first persistence, lead events, suppressions, and task creation.
+5. Add Trigger-only async fan-out where durable follow-up work is actually needed; do not add backend persistence here.
+6. Run the targeted API/service tests and one end-to-end fixture pass before leaving this task.
 
 **Files:**
 
@@ -354,6 +375,15 @@ Do not overload `marketing_backend`. Keep lease-option and probate toggles separ
 ---
 
 ## Task 5: Harden the lease-option inbound lane
+
+**Subtasks:**
+
+1. Keep the existing submit -> booking -> non-booker flow intact while adding receipt-first webhook persistence.
+2. Make duplicate `Cal.com` and `TextGrid` events idempotent before any side effects run.
+3. Make outbound confirmations and sequence sends append to `messages` consistently so the timeline is replayable.
+4. Tighten the sequence guard logic so booked or manually-paused leads never keep receiving non-booker messages.
+5. Improve inbound SMS resolution in order: provider thread metadata, tenant phone match, ambiguity task.
+6. Run the existing lease-option tests plus the new idempotency coverage before leaving this task.
 
 **Files:**
 
@@ -394,6 +424,14 @@ Do not overload `marketing_backend`. Keep lease-option and probate toggles separ
 
 ## Task 6: Add Mission Control surfaces for both lanes without collapsing them together
 
+**Subtasks:**
+
+1. Extend the Mission Control service layer first so it can return lane-separated read models.
+2. Update the API contract next, keeping the outbound probate queue, inbound lease-option queue, and opportunity summary separate.
+3. Update the Mission Control frontend last, after the API payloads are stable.
+4. Make the UI show lane boundaries clearly instead of merging both workflows into one undifferentiated list.
+5. Run typecheck, tests, and build after the UI and API changes land.
+
 **Files:**
 
 - Modify: `app/services/mission_control_service.py`
@@ -432,13 +470,21 @@ Do not overload `marketing_backend`. Keep lease-option and probate toggles separ
 
 ## Task 7: Add the minimal contract-to-close skeleton
 
+**Subtasks:**
+
+1. Define the thin opportunity model and repository first, with no title/TC/dispo automation beyond the fields in the plan.
+2. Wire the creation points from probate and lease-option into the new service so both lanes can open an opportunity without merging their state.
+3. Add Mission Control summaries for opportunity counts and stage transitions only after the service is stable.
+4. Keep the opportunity seam memory / fixture-backed in this pass and leave the Supabase cutover for the deferred backend section.
+5. Run the opportunity model, repository, and service tests before leaving this task.
+
 **Files:**
 
 - Create: `app/models/opportunities.py`
 - Create: `app/db/opportunities.py`
 - Create: `app/services/opportunity_service.py`
 - Modify: Mission Control read models and tests
-- Wire to Supabase through `opportunities`
+- Wire through the repository abstraction and keep the opportunity seam memory / fixture-backed in this pass
 
 ### Required fields
 
@@ -460,11 +506,21 @@ Do not overload `marketing_backend`. Keep lease-option and probate toggles separ
 - [ ] Implement the model, repository, and service with minimal stage transitions
 - [ ] Surface opportunity counts and stage summaries in Mission Control
 
-**Acceptance gate:** The MVP can hand a live prospect into a persisted downstream pipeline without pretending title, TC, and dispo are finished.
+**Acceptance gate:** The MVP can hand a live prospect into a persisted downstream pipeline abstraction without pretending title, TC, and dispo are finished.
 
 ---
 
 ## Task 8: Verification and rollout gates
+
+**Subtasks:**
+
+1. Run the backend tests first so you know whether the branch is still sane before touching the frontend checks.
+2. Run Mission Control typecheck, tests, and build next.
+3. Run Trigger checks for any new lead-machine tasks after the code they depend on exists.
+4. Run one fixture smoke test per lane, not a live Supabase smoke test, because backend wiring is deferred in this pass.
+5. Confirm the repo starts in memory mode with no live Supabase env required for this slice.
+
+**Checks:**
 
 - [ ] Run backend tests:
   - `uv run pytest -q`
@@ -473,21 +529,21 @@ Do not overload `marketing_backend`. Keep lease-option and probate toggles separ
   - `npm --prefix apps/mission-control run test -- --run`
   - `npm --prefix apps/mission-control run build`
 - [ ] Run Trigger checks for any new lead-machine tasks
-- [ ] Run one Supabase smoke test for each lane:
+- [ ] Run one fixture smoke test for each lane:
   - lease-option submit -> booking webhook -> non-booker guard
   - probate intake -> enqueue -> webhook ingest
-- [ ] Verify the repo can start with the required backend toggles and provider env vars set
+- [ ] Verify the repo can start with the required backend toggles left in memory mode and without any live Supabase env required for this pass
 
 ---
 
 ## Recommended execution order
 
 1. Port the lead-machine slice from `origin/main`
-2. Add Supabase schema and the lead-machine backend adapter
+2. Keep the Supabase schema and lead-machine backend adapter as deferred blueprint material only
 3. Wire probate outbound write paths
 4. Harden the lease-option inbound lane
 5. Add Mission Control dual-lane views
 6. Add the thin opportunity seam
 7. Run full verification
 
-This order keeps us from overbuilding UI or downstream pipeline state before the two live lead loops are actually real.
+This order keeps us from overbuilding UI or downstream pipeline state before the two live lead loops are actually real, while preserving a later backend cutover plan for Supabase.

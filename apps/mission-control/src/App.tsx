@@ -18,6 +18,7 @@ import { DashboardPage } from "./pages/DashboardPage";
 import { InboxPage } from "./pages/InboxPage";
 import { PipelinePage } from "./pages/PipelinePage";
 import { RunsPage } from "./pages/RunsPage";
+import { SuppressionPage } from "./pages/SuppressionPage";
 import { TasksPage } from "./pages/TasksPage";
 
 const api = createMissionControlApi();
@@ -117,6 +118,7 @@ export default function App() {
             ["runs", runs.source],
             ["agents", agents.source],
             ["settings", assets.source],
+            ["suppression", dashboard.source],
           ] as const
         )
           .filter(([, source]) => source === "fixture")
@@ -202,10 +204,17 @@ export default function App() {
 
   const filteredOpportunityStages = useMemo(
     () =>
-      (snapshot.dashboard.opportunityStageSummaries ?? []).filter((stage) =>
-        includesSearch([stage.stage, stage.count], normalizedSearchValue),
+      (snapshot.dashboard.opportunityPipelineSummary?.laneStageSummaries ??
+        snapshot.dashboard.opportunityStageSummaries ??
+        []
+      ).filter((stage) =>
+        includesSearch([stage.sourceLane, stage.stage, stage.count], normalizedSearchValue),
       ),
-    [normalizedSearchValue, snapshot.dashboard.opportunityStageSummaries],
+    [
+      normalizedSearchValue,
+      snapshot.dashboard.opportunityPipelineSummary?.laneStageSummaries,
+      snapshot.dashboard.opportunityStageSummaries,
+    ],
   );
 
   const workspaces: ShellWorkspace[] = [
@@ -222,10 +231,19 @@ export default function App() {
         {
           title: "Lead Machine",
           items: [
-            { id: "dashboard", label: "Queue", badge: snapshot.dashboard.pendingLeadCount ?? 0 },
+            {
+              id: "dashboard",
+              label: "Queue",
+              badge: snapshot.dashboard.outboundProbateSummary?.readyLeadCount ?? snapshot.dashboard.pendingLeadCount ?? 0,
+            },
             { id: "inbox", label: "Replies", badge: snapshot.dashboard.unreadConversationCount },
+            { id: "suppression", label: "Suppression", badge: snapshot.dashboard.repliesNeedingReviewCount ?? 0 },
             { id: "runs", label: "Campaign State", badge: snapshot.dashboard.activeRunCount },
-            { id: "tasks", label: "Tasks", badge: snapshot.dashboard.dueManualCallCount ?? 0 },
+            {
+              id: "tasks",
+              label: "Tasks",
+              badge: snapshot.dashboard.outboundProbateSummary?.openTaskCount ?? snapshot.dashboard.dueManualCallCount ?? 0,
+            },
           ],
         },
       ],
@@ -239,9 +257,9 @@ export default function App() {
               eyebrow="Probate lane"
               title="Outbound machine posture"
               items={[
-                `${snapshot.dashboard.pendingLeadCount ?? 0} probate leads ready for operator review`,
-                `${snapshot.dashboard.activeRunCount} active campaign flows`,
-                `${snapshot.dashboard.dueManualCallCount ?? 0} follow-ups waiting on a human`,
+                `${snapshot.dashboard.outboundProbateSummary?.readyLeadCount ?? snapshot.dashboard.pendingLeadCount ?? 0} probate leads ready for operator review`,
+                `${snapshot.dashboard.outboundProbateSummary?.activeCampaignCount ?? snapshot.dashboard.activeRunCount} active campaign flows`,
+                `${snapshot.dashboard.outboundProbateSummary?.openTaskCount ?? snapshot.dashboard.dueManualCallCount ?? 0} follow-ups waiting on a human`,
               ]}
             />
           ),
@@ -266,6 +284,29 @@ export default function App() {
                 `Stage: ${contextThread.stage}`,
                 `Tags: ${contextThread.tags.join(", ") || "none"}`,
                 ...contextThread.notes,
+              ]}
+            />
+          ),
+        },
+        suppression: {
+          title: "Lead Machine / Suppression",
+          subtitle: "Track review queues, blocked leads, and the exceptions that stop the lane cold.",
+          mainContent: (
+            <SuppressionPage
+              dashboard={snapshot.dashboard}
+              inbox={snapshot.inbox}
+              runs={filteredRuns}
+              tasks={{ dueCount: filteredTasks.length, tasks: filteredTasks }}
+            />
+          ),
+          contextContent: (
+            <ContextPanel
+              eyebrow="Suppression posture"
+              title="Exceptions stay explicit"
+              items={[
+                `${snapshot.dashboard.repliesNeedingReviewCount ?? 0} replies need review`,
+                `${snapshot.dashboard.failedRunCount} failed runs`,
+                `${filteredTasks.length} tasks waiting on human action`,
               ]}
             />
           ),
@@ -309,9 +350,21 @@ export default function App() {
         {
           title: "Marketing",
           items: [
-            { id: "dashboard", label: "Overview", badge: snapshot.dashboard.pendingLeadCount ?? 0 },
+            {
+              id: "dashboard",
+              label: "Overview",
+              badge:
+                snapshot.dashboard.inboundLeaseOptionSummary?.pendingLeadCount ?? snapshot.dashboard.pendingLeadCount ?? 0,
+            },
             { id: "inbox", label: "Submissions", badge: snapshot.dashboard.unreadConversationCount },
-            { id: "tasks", label: "Tasks", badge: snapshot.dashboard.dueManualCallCount ?? 0 },
+            {
+              id: "tasks",
+              label: "Tasks",
+              badge:
+                snapshot.dashboard.inboundLeaseOptionSummary?.dueManualCallCount ??
+                snapshot.dashboard.dueManualCallCount ??
+                0,
+            },
           ],
         },
       ],
@@ -325,9 +378,9 @@ export default function App() {
               eyebrow="Lease-option lane"
               title="Inbound marketing posture"
               items={[
-                `${snapshot.dashboard.pendingLeadCount ?? 0} pending lease-option leads`,
-                `${snapshot.dashboard.bookedLeadCount ?? 0} booked consultations`,
-                `${snapshot.dashboard.activeNonBookerEnrollmentCount ?? 0} active non-booker sequences`,
+                `${snapshot.dashboard.inboundLeaseOptionSummary?.pendingLeadCount ?? snapshot.dashboard.pendingLeadCount ?? 0} pending lease-option leads`,
+                `${snapshot.dashboard.inboundLeaseOptionSummary?.bookedLeadCount ?? snapshot.dashboard.bookedLeadCount ?? 0} booked consultations`,
+                `${snapshot.dashboard.inboundLeaseOptionSummary?.activeNonBookerEnrollmentCount ?? snapshot.dashboard.activeNonBookerEnrollmentCount ?? 0} active non-booker sequences`,
               ]}
             />
           ),
@@ -365,8 +418,8 @@ export default function App() {
               eyebrow="Sequence posture"
               title="Non-booker follow-up stays visible"
               items={[
-                `${snapshot.dashboard.repliesNeedingReviewCount ?? 0} replies need review`,
-                `${filteredTasks.length} manual call checkpoints remain active`,
+                `${snapshot.dashboard.inboundLeaseOptionSummary?.repliesNeedingReviewCount ?? snapshot.dashboard.repliesNeedingReviewCount ?? 0} replies need review`,
+                `${snapshot.dashboard.inboundLeaseOptionSummary?.dueManualCallCount ?? filteredTasks.length} manual call checkpoints remain active`,
               ]}
             />
           ),
@@ -379,7 +432,16 @@ export default function App() {
       navSections: [
         {
           title: "Pipeline",
-          items: [{ id: "pipeline", label: "Board", badge: snapshot.dashboard.opportunityCount ?? 0 }],
+          items: [
+            {
+              id: "pipeline",
+              label: "Board",
+              badge:
+                snapshot.dashboard.opportunityPipelineSummary?.totalOpportunityCount ??
+                snapshot.dashboard.opportunityCount ??
+                0,
+            },
+          ],
         },
       ],
       pages: {
@@ -389,7 +451,11 @@ export default function App() {
           mainContent: (
             <PipelinePage
               stages={filteredOpportunityStages}
-              totalCount={snapshot.dashboard.opportunityCount ?? filteredOpportunityStages.length}
+              totalCount={
+                snapshot.dashboard.opportunityPipelineSummary?.totalOpportunityCount ??
+                snapshot.dashboard.opportunityCount ??
+                filteredOpportunityStages.length
+              }
             />
           ),
           contextContent: (

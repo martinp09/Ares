@@ -6,7 +6,8 @@ export type MissionControlView =
   | "agents"
   | "settings"
   | "tasks"
-  | "pipeline";
+  | "pipeline"
+  | "suppression";
 export type MissionControlDataSource = "api" | "fixture";
 export type SystemStatus = "healthy" | "watch" | "degraded";
 export type ApprovalRisk = "low" | "medium" | "high";
@@ -29,13 +30,39 @@ export interface DashboardSummaryData {
   repliesNeedingReviewCount?: number;
   opportunityCount?: number;
   opportunityStageSummaries?: OpportunityStageSummary[];
+  outboundProbateSummary?: OutboundProbateSummary;
+  inboundLeaseOptionSummary?: InboundLeaseOptionSummary;
+  opportunityPipelineSummary?: OpportunityPipelineSummary;
   systemStatus: SystemStatus;
   updatedAt: string;
 }
 
 export interface OpportunityStageSummary {
+  sourceLane: string;
   stage: string;
   count: number;
+}
+
+export interface OutboundProbateSummary {
+  activeCampaignCount: number;
+  readyLeadCount: number;
+  activeLeadCount: number;
+  interestedLeadCount: number;
+  suppressedLeadCount: number;
+  openTaskCount: number;
+}
+
+export interface InboundLeaseOptionSummary {
+  pendingLeadCount: number;
+  bookedLeadCount: number;
+  activeNonBookerEnrollmentCount: number;
+  dueManualCallCount: number;
+  repliesNeedingReviewCount: number;
+}
+
+export interface OpportunityPipelineSummary {
+  totalOpportunityCount: number;
+  laneStageSummaries: OpportunityStageSummary[];
 }
 
 export interface ConversationSummary {
@@ -195,9 +222,33 @@ interface DashboardPayload {
   replies_needing_review_count?: number;
   opportunity_count?: number;
   opportunity_stage_summaries?: Array<{
+    source_lane?: string;
     stage?: string;
     count?: number;
   }>;
+  outbound_probate_summary?: {
+    active_campaign_count?: number;
+    ready_lead_count?: number;
+    active_lead_count?: number;
+    interested_lead_count?: number;
+    suppressed_lead_count?: number;
+    open_task_count?: number;
+  };
+  inbound_lease_option_summary?: {
+    pending_lead_count?: number;
+    booked_lead_count?: number;
+    active_non_booker_enrollment_count?: number;
+    due_manual_call_count?: number;
+    replies_needing_review_count?: number;
+  };
+  opportunity_pipeline_summary?: {
+    total_opportunity_count?: number;
+    lane_stage_summaries?: Array<{
+      source_lane?: string;
+      stage?: string;
+      count?: number;
+    }>;
+  };
   system_status?: string;
   updated_at?: string;
 }
@@ -492,6 +543,15 @@ function deriveRunSummary(payload: RunPayload): string {
 }
 
 function mapDashboard(payload: DashboardPayload): DashboardSummaryData {
+  const stageSummaries = asArray<{ source_lane?: string; stage?: string; count?: number }>(
+    payload.opportunity_stage_summaries,
+  ).map((summary) => ({
+    sourceLane: asString(summary.source_lane),
+    stage: asString(summary.stage),
+    count: asNumber(summary.count),
+  }));
+  const pipelineSummary = payload.opportunity_pipeline_summary;
+
   return {
     approvalCount: asNumber(payload.approval_count),
     activeRunCount: asNumber(payload.active_run_count),
@@ -506,12 +566,40 @@ function mapDashboard(payload: DashboardPayload): DashboardSummaryData {
     dueManualCallCount: asNumber(payload.due_manual_call_count),
     repliesNeedingReviewCount: asNumber(payload.replies_needing_review_count),
     opportunityCount: asNumber(payload.opportunity_count),
-    opportunityStageSummaries: asArray<{ stage?: string; count?: number }>(payload.opportunity_stage_summaries).map(
-      (summary) => ({
-        stage: asString(summary.stage),
-        count: asNumber(summary.count),
-      }),
-    ),
+    opportunityStageSummaries: stageSummaries,
+    outboundProbateSummary: payload.outbound_probate_summary
+      ? {
+          activeCampaignCount: asNumber(payload.outbound_probate_summary.active_campaign_count),
+          readyLeadCount: asNumber(payload.outbound_probate_summary.ready_lead_count),
+          activeLeadCount: asNumber(payload.outbound_probate_summary.active_lead_count),
+          interestedLeadCount: asNumber(payload.outbound_probate_summary.interested_lead_count),
+          suppressedLeadCount: asNumber(payload.outbound_probate_summary.suppressed_lead_count),
+          openTaskCount: asNumber(payload.outbound_probate_summary.open_task_count),
+        }
+      : undefined,
+    inboundLeaseOptionSummary: payload.inbound_lease_option_summary
+      ? {
+          pendingLeadCount: asNumber(payload.inbound_lease_option_summary.pending_lead_count),
+          bookedLeadCount: asNumber(payload.inbound_lease_option_summary.booked_lead_count),
+          activeNonBookerEnrollmentCount: asNumber(
+            payload.inbound_lease_option_summary.active_non_booker_enrollment_count,
+          ),
+          dueManualCallCount: asNumber(payload.inbound_lease_option_summary.due_manual_call_count),
+          repliesNeedingReviewCount: asNumber(payload.inbound_lease_option_summary.replies_needing_review_count),
+        }
+      : undefined,
+    opportunityPipelineSummary: pipelineSummary
+      ? {
+          totalOpportunityCount: asNumber(pipelineSummary.total_opportunity_count),
+          laneStageSummaries: asArray<{ source_lane?: string; stage?: string; count?: number }>(
+            pipelineSummary.lane_stage_summaries,
+          ).map((summary) => ({
+            sourceLane: asString(summary.source_lane),
+            stage: asString(summary.stage),
+            count: asNumber(summary.count),
+          })),
+        }
+      : undefined,
     systemStatus: normalizeSystemStatus(payload.system_status),
     updatedAt: asString(payload.updated_at, "Updated just now"),
   };

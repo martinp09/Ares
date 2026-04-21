@@ -10,10 +10,15 @@ from app.models.mission_control import (
     MissionControlEmailTestRequest,
     MissionControlInboxResponse,
     MissionControlLeadMachineResponse,
+    MissionControlLeadSuppressionRequest,
+    MissionControlLeadUnsuppressionRequest,
     MissionControlOutboundSendResponse,
     MissionControlProvidersStatusResponse,
     MissionControlRunsResponse,
     MissionControlSmsTestRequest,
+    MissionControlTaskCompletionRequest,
+    MissionControlTaskActionResponse,
+    MissionControlLeadActionResponse,
     MissionControlTasksResponse,
     MissionControlTurnsResponse,
 )
@@ -68,6 +73,50 @@ def get_tasks(
     environment: str | None = Query(default=None),
 ) -> MissionControlTasksResponse:
     return mission_control_service.get_tasks(business_id=business_id, environment=environment)
+
+
+@router.post("/tasks/{thread_id}/complete", response_model=MissionControlTaskActionResponse)
+def complete_task_for_thread(
+    thread_id: str,
+    payload: MissionControlTaskCompletionRequest,
+) -> MissionControlTaskActionResponse:
+    try:
+        return mission_control_service.complete_task_for_thread(
+            thread_id=thread_id,
+            notes=payload.notes,
+            follow_up_outcome=payload.follow_up_outcome,
+        )
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail="Mission Control thread not found") from exc
+
+
+@router.post("/leads/{thread_id}/suppress", response_model=MissionControlLeadActionResponse)
+def suppress_thread(
+    thread_id: str,
+    payload: MissionControlLeadSuppressionRequest,
+) -> MissionControlLeadActionResponse:
+    try:
+        return mission_control_service.suppress_thread(
+            thread_id=thread_id,
+            reason=payload.reason,
+            note=payload.note,
+        )
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail="Mission Control thread not found") from exc
+
+
+@router.post("/leads/{thread_id}/unsuppress", response_model=MissionControlLeadActionResponse)
+def unsuppress_thread(
+    thread_id: str,
+    payload: MissionControlLeadUnsuppressionRequest,
+) -> MissionControlLeadActionResponse:
+    try:
+        return mission_control_service.unsuppress_thread(
+            thread_id=thread_id,
+            note=payload.note,
+        )
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail="Mission Control thread not found") from exc
 
 
 @router.get("/lead-machine", response_model=MissionControlLeadMachineResponse)

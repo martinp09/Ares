@@ -1,7 +1,8 @@
 import { task } from "@trigger.dev/sdk";
+
 import { invokeRuntimeApi } from "../shared/runtimeApi";
 
-export type CreateManualCallTaskPayload = {
+export type MarketingCreateManualCallTaskPayload = {
   leadId: string;
   businessId: string;
   environment: string;
@@ -16,11 +17,11 @@ type ManualCallTaskResponse = {
 
 export const createManualCallTask = task({
   id: "marketing-create-manual-call-task",
-  run: async (payload: CreateManualCallTaskPayload) => {
-    const result = await invokeRuntimeApi<ManualCallTaskResponse, CreateManualCallTaskPayload>(
-      "/marketing/internal/manual-call-task",
-      payload
-    );
+  run: async (payload: MarketingCreateManualCallTaskPayload) => {
+    const result = await invokeRuntimeApi<
+      ManualCallTaskResponse,
+      MarketingCreateManualCallTaskPayload
+    >("/marketing/internal/manual-call-task", payload);
 
     return {
       leadId: payload.leadId,
