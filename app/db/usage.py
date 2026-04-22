@@ -16,6 +16,8 @@ class UsageRepository:
         org_id: str,
         agent_id: str | None = None,
         agent_revision_id: str | None = None,
+        session_id: str | None = None,
+        run_id: str | None = None,
         source_kind: str | None = None,
         count: int = 1,
         metadata: dict[str, object] | None = None,
@@ -27,6 +29,8 @@ class UsageRepository:
             org_id=org_id,
             agent_id=agent_id,
             agent_revision_id=agent_revision_id,
+            session_id=session_id,
+            run_id=run_id,
             source_kind=source_kind,
             count=count,
             metadata=dict(metadata or {}),
@@ -42,6 +46,8 @@ class UsageRepository:
         org_id: str | None = None,
         agent_id: str | None = None,
         agent_revision_id: str | None = None,
+        session_id: str | None = None,
+        run_id: str | None = None,
         kind: UsageEventKind | None = None,
         source_kind: str | None = None,
         limit: int | None = None,
@@ -54,6 +60,10 @@ class UsageRepository:
             events = [event for event in events if event.agent_id == agent_id]
         if agent_revision_id is not None:
             events = [event for event in events if event.agent_revision_id == agent_revision_id]
+        if session_id is not None:
+            events = [event for event in events if event.session_id == session_id]
+        if run_id is not None:
+            events = [event for event in events if event.run_id == run_id]
         if kind is not None:
             events = [event for event in events if event.kind == kind]
         if source_kind is not None:

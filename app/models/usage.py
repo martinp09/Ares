@@ -24,6 +24,8 @@ class UsageCreateRequest(BaseModel):
     org_id: str = Field(default=DEFAULT_INTERNAL_ORG_ID, min_length=1)
     agent_id: str | None = None
     agent_revision_id: str | None = None
+    session_id: str | None = None
+    run_id: str | None = None
     source_kind: str | None = None
     count: int = Field(default=1, ge=1)
     metadata: dict[str, Any] = Field(default_factory=dict)
@@ -37,6 +39,8 @@ class UsageRecord(BaseModel):
     org_id: str = Field(default=DEFAULT_INTERNAL_ORG_ID, min_length=1)
     agent_id: str | None = None
     agent_revision_id: str | None = None
+    session_id: str | None = None
+    run_id: str | None = None
     source_kind: str | None = None
     count: int = Field(default=1, ge=1)
     metadata: dict[str, Any] = Field(default_factory=dict)

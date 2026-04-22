@@ -3,39 +3,129 @@ from __future__ import annotations
 from collections import Counter, defaultdict
 from datetime import UTC, datetime
 
+from app.core.config import DEFAULT_INTERNAL_ORG_ID
+from app.db.agents import AgentsRepository
+from app.db.sessions import SessionsRepository
 from app.db.usage import UsageRepository
+from app.models.actors import ActorContext
 from app.models.usage import UsageBucketRecord, UsageCreateRequest, UsageEventKind, UsageRecord, UsageResponse, UsageSummaryRecord
 
 
 class UsageService:
-    def __init__(self, usage_repository: UsageRepository | None = None) -> None:
+    def __init__(
+        self,
+        usage_repository: UsageRepository | None = None,
+        agents_repository: AgentsRepository | None = None,
+        sessions_repository: SessionsRepository | None = None,
+    ) -> None:
         self.usage_repository = usage_repository or UsageRepository()
+        self.agents_repository = agents_repository or AgentsRepository()
+        self.sessions_repository = sessions_repository or SessionsRepository()
 
-    def record_usage(self, request: UsageCreateRequest) -> UsageRecord:
-        return self.usage_repository.record(
+    @staticmethod
+    def _resolve_request_org_id(request_org_id: str | None, *, actor_org_id: str | None = None) -> str:
+        if actor_org_id is None:
+            return request_org_id or DEFAULT_INTERNAL_ORG_ID
+        if request_org_id in (None, DEFAULT_INTERNAL_ORG_ID):
+            return actor_org_id
+        if request_org_id != actor_org_id:
+            raise ValueError("Org id must match actor context")
+        return actor_org_id
+
+    @staticmethod
+    def _resolve_list_org_id(request_org_id: str | None, *, actor_org_id: str | None = None) -> str | None:
+        if actor_org_id is not None and request_org_id is not None and request_org_id != actor_org_id:
+            raise ValueError("Org id must match actor context")
+        return actor_org_id or request_org_id
+
+    def _normalize_record_request(
+        self,
+        request: UsageCreateRequest,
+        *,
+        actor_context: ActorContext | None = None,
+    ) -> UsageCreateRequest:
+        org_id = self._resolve_request_org_id(
+            request.org_id,
+            actor_org_id=actor_context.org_id if actor_context is not None else None,
+        )
+        agent_id = request.agent_id
+        agent_revision_id = request.agent_revision_id
+
+        if agent_revision_id is not None:
+            revision = self.agents_repository.get_revision(agent_revision_id)
+            if revision is None:
+                raise ValueError("Agent revision not found")
+            agent = self.agents_repository.get_agent(revision.agent_id)
+            if agent is None:
+                raise ValueError("Owning agent not found")
+            if agent_id is not None and agent_id != agent.id:
+                raise ValueError("Agent id must match agent revision")
+            if org_id != agent.org_id:
+                raise ValueError("Org id must match agent revision org")
+            agent_id = agent.id
+
+        if request.session_id is not None:
+            session = self.sessions_repository.get(request.session_id)
+            if session is None:
+                raise ValueError("Session not found")
+            if org_id != session.org_id:
+                raise ValueError("Org id must match session")
+            if agent_revision_id is not None and agent_revision_id != session.agent_revision_id:
+                raise ValueError("Agent revision id must match session")
+            if agent_id is not None and agent_id != session.agent_id:
+                raise ValueError("Agent id must match session")
+            org_id = session.org_id
+            agent_id = session.agent_id
+            agent_revision_id = session.agent_revision_id
+
+        return request.model_copy(
+            update={
+                "org_id": org_id,
+                "agent_id": agent_id,
+                "agent_revision_id": agent_revision_id,
+                "metadata": self._scrub_sensitive_data(request.metadata),
+            }
+        )
+
+    @staticmethod
+    def _scrub_record(record: UsageRecord) -> UsageRecord:
+        return record.model_copy(update={"metadata": UsageService._scrub_sensitive_data(record.metadata)})
+
+    def record_usage(self, request: UsageCreateRequest, *, actor_context: ActorContext | None = None) -> UsageRecord:
+        request = self._normalize_record_request(request, actor_context=actor_context)
+        record = self.usage_repository.record(
             kind=request.kind,
             org_id=request.org_id,
             agent_id=request.agent_id,
             agent_revision_id=request.agent_revision_id,
+            session_id=request.session_id,
+            run_id=request.run_id,
             source_kind=request.source_kind,
             count=request.count,
             metadata=request.metadata,
         )
+        return self._scrub_record(record)
 
     def list_usage(
         self,
         *,
         org_id: str | None = None,
+        actor_org_id: str | None = None,
         agent_id: str | None = None,
         agent_revision_id: str | None = None,
+        session_id: str | None = None,
+        run_id: str | None = None,
         kind: UsageEventKind | None = None,
         source_kind: str | None = None,
         limit: int | None = None,
     ) -> UsageResponse:
+        effective_org_id = self._resolve_list_org_id(org_id, actor_org_id=actor_org_id)
         all_events = self.usage_repository.list(
-            org_id=org_id,
+            org_id=effective_org_id,
             agent_id=agent_id,
             agent_revision_id=agent_revision_id,
+            session_id=session_id,
+            run_id=run_id,
             kind=kind,
             source_kind=source_kind,
             limit=None,
@@ -58,7 +148,7 @@ class UsageService:
                 agent_last[event.agent_id] = max(agent_last.get(event.agent_id, event.created_at), event.created_at)
 
         return UsageResponse(
-            org_id=org_id or "org_internal",
+            org_id=effective_org_id or DEFAULT_INTERNAL_ORG_ID,
             agent_id=agent_id,
             summary=UsageSummaryRecord(
                 total_count=total,
@@ -73,7 +163,7 @@ class UsageService:
                 ],
                 updated_at=datetime.now(UTC),
             ),
-            events=[event.model_copy(update={"metadata": self._scrub_sensitive_data(event.metadata)}) for event in events],
+            events=[self._scrub_record(event) for event in events],
         )
 
     @staticmethod

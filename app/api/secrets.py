@@ -13,6 +13,10 @@ from app.services.secrets_service import secret_service
 router = APIRouter(prefix="/secrets", tags=["secrets"])
 
 
+def _status_code_for_secret_error(message: str) -> int:
+    return 404 if "not found" in message.lower() else 422
+
+
 @router.post("", response_model=SecretSummaryRecord)
 def create_secret(request: SecretCreateRequest) -> SecretSummaryRecord:
     return secret_service.create_secret(request)
@@ -28,9 +32,12 @@ def bind_secret(secret_id: str, request: SecretBindingCreateRequest) -> SecretBi
     try:
         return secret_service.bind_secret(secret_id, request)
     except ValueError as exc:
-        raise HTTPException(status_code=404, detail=str(exc)) from exc
+        raise HTTPException(status_code=_status_code_for_secret_error(str(exc)), detail=str(exc)) from exc
 
 
 @router.get("/revisions/{revision_id}", response_model=SecretBindingListResponse)
 def list_bindings_for_revision(revision_id: str) -> SecretBindingListResponse:
-    return SecretBindingListResponse(bindings=secret_service.list_bindings_for_revision(revision_id))
+    try:
+        return SecretBindingListResponse(bindings=secret_service.list_bindings_for_revision(revision_id))
+    except ValueError as exc:
+        raise HTTPException(status_code=_status_code_for_secret_error(str(exc)), detail=str(exc)) from exc

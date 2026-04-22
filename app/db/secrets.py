@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from collections.abc import Iterable
+
 from app.db.client import ControlPlaneClient, get_control_plane_client, utc_now
 from app.models.commands import generate_id
 from app.models.secrets import SecretBindingRecord, SecretRecord
@@ -58,6 +60,15 @@ class SecretsRepository:
             secret = store.secrets.get(secret_id)
             if secret is None:
                 raise ValueError("Secret not found")
+            revision = store.agent_revisions.get(agent_revision_id)
+            if revision is None:
+                raise ValueError("Agent revision not found")
+            agent = store.agents.get(revision.agent_id)
+            if agent is None or agent.org_id != secret.org_id:
+                raise ValueError("Agent revision not found")
+            declared_secret_names = self._declared_secret_names(getattr(revision, "compatibility_metadata", {}))
+            if binding_name not in declared_secret_names:
+                raise ValueError(f"Secret binding '{binding_name}' is not declared by agent revision")
             lookup_key = (agent_revision_id, binding_name)
             existing_id = store.secret_binding_keys.get(lookup_key)
             if existing_id is not None:
@@ -90,3 +101,12 @@ class SecretsRepository:
             bindings = [binding for binding in store.secret_bindings.values() if binding.secret_id == secret_id]
         bindings.sort(key=lambda binding: (binding.binding_name, binding.created_at))
         return bindings
+
+    @staticmethod
+    def _declared_secret_names(compatibility_metadata: object) -> set[str]:
+        if not isinstance(compatibility_metadata, dict):
+            return set()
+        raw_declared = compatibility_metadata.get("requires_secrets")
+        if not isinstance(raw_declared, Iterable) or isinstance(raw_declared, str | bytes):
+            return set()
+        return {value for value in raw_declared if isinstance(value, str) and value}

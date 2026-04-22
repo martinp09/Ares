@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+from app.core.config import DEFAULT_INTERNAL_ORG_ID, get_settings
 from app.db.audit import AuditRepository
+from app.models.actors import ActorContext
 from app.models.audit import AuditAppendRequest, AuditRecord
 
 
@@ -8,12 +10,82 @@ class AuditService:
     def __init__(self, audit_repository: AuditRepository | None = None) -> None:
         self.audit_repository = audit_repository or AuditRepository()
 
-    def append_event(self, request: AuditAppendRequest | None = None, **kwargs: object) -> AuditRecord:
+    @staticmethod
+    def _resolve_request_org_id(request_org_id: str | None, *, actor_org_id: str | None = None) -> str | None:
+        if actor_org_id is None:
+            return request_org_id
+        if request_org_id in (None, DEFAULT_INTERNAL_ORG_ID):
+            return actor_org_id
+        if request_org_id != actor_org_id:
+            raise ValueError("Org id must match actor context")
+        return actor_org_id
+
+    @staticmethod
+    def _resolve_list_org_id(request_org_id: str | None, *, actor_org_id: str | None = None) -> str | None:
+        if actor_org_id is not None and request_org_id is not None and request_org_id != actor_org_id:
+            raise ValueError("Org id must match actor context")
+        return actor_org_id or request_org_id
+
+    @staticmethod
+    def _resolve_actor_field(request_value: str | None, *, actor_value: str | None, field_name: str) -> str | None:
+        if actor_value is None:
+            return request_value
+        if request_value is None:
+            return actor_value
+        if request_value != actor_value:
+            raise ValueError(f"{field_name} must match actor context")
+        return actor_value
+
+    def _normalize_append_request(
+        self,
+        request: AuditAppendRequest,
+        *,
+        actor_context: ActorContext | None = None,
+    ) -> AuditAppendRequest:
+        if actor_context is not None:
+            normalized = request.model_copy(
+                update={
+                    "org_id": self._resolve_request_org_id(request.org_id, actor_org_id=actor_context.org_id),
+                    "actor_id": self._resolve_actor_field(
+                        request.actor_id,
+                        actor_value=actor_context.actor_id,
+                        field_name="Actor id",
+                    ),
+                    "actor_type": self._resolve_actor_field(
+                        request.actor_type,
+                        actor_value=str(actor_context.actor_type),
+                        field_name="Actor type",
+                    ),
+                }
+            )
+        else:
+            settings = get_settings()
+            normalized = request.model_copy(
+                update={
+                    "org_id": request.org_id or settings.default_org_id,
+                    "actor_id": request.actor_id or settings.default_actor_id,
+                    "actor_type": request.actor_type or settings.default_actor_type,
+                }
+            )
+        return normalized.model_copy(update={"metadata": self._scrub_sensitive_data(normalized.metadata)})
+
+    @staticmethod
+    def _scrub_record(record: AuditRecord) -> AuditRecord:
+        return record.model_copy(update={"metadata": AuditService._scrub_sensitive_data(record.metadata)})
+
+    def append_event(
+        self,
+        request: AuditAppendRequest | None = None,
+        *,
+        actor_context: ActorContext | None = None,
+        **kwargs: object,
+    ) -> AuditRecord:
         if request is None:
             request = AuditAppendRequest.model_validate(kwargs)
         elif kwargs:
             raise TypeError("append_event accepts either an AuditAppendRequest or keyword fields, not both")
-        return self.audit_repository.append(
+        request = self._normalize_append_request(request, actor_context=actor_context)
+        record = self.audit_repository.append(
             event_type=request.event_type,
             summary=request.summary,
             org_id=request.org_id,
@@ -27,11 +99,13 @@ class AuditService:
             actor_type=request.actor_type,
             metadata=request.metadata,
         )
+        return self._scrub_record(record)
 
     def list_events(
         self,
         *,
         org_id: str | None = None,
+        actor_org_id: str | None = None,
         agent_id: str | None = None,
         agent_revision_id: str | None = None,
         session_id: str | None = None,
@@ -41,8 +115,9 @@ class AuditService:
         event_type: str | None = None,
         limit: int | None = None,
     ) -> list[AuditRecord]:
+        effective_org_id = self._resolve_list_org_id(org_id, actor_org_id=actor_org_id)
         events = self.audit_repository.list(
-            org_id=org_id,
+            org_id=effective_org_id,
             agent_id=agent_id,
             agent_revision_id=agent_revision_id,
             session_id=session_id,
@@ -52,7 +127,7 @@ class AuditService:
             event_type=event_type,
             limit=limit,
         )
-        return [event.model_copy(update={"metadata": self._scrub_sensitive_data(event.metadata)}) for event in events]
+        return [self._scrub_record(event) for event in events]
 
     @staticmethod
     def _scrub_sensitive_data(value: object) -> object:

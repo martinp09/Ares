@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from datetime import datetime, timedelta
+
 from app.db.client import ControlPlaneClient, get_control_plane_client, utc_now
 from app.models.audit import AuditRecord
 from app.models.commands import generate_id
@@ -26,23 +28,26 @@ class AuditRepository:
         metadata: dict[str, object] | None = None,
         created_at=None,
     ) -> AuditRecord:
-        record = AuditRecord(
-            id=generate_id("audit"),
-            event_type=event_type,
-            summary=summary,
-            org_id=org_id,
-            resource_type=resource_type,
-            resource_id=resource_id,
-            agent_id=agent_id,
-            agent_revision_id=agent_revision_id,
-            session_id=session_id,
-            run_id=run_id,
-            actor_id=actor_id,
-            actor_type=actor_type,
-            metadata=dict(metadata or {}),
-            created_at=created_at or utc_now(),
-        )
+        created_at = created_at or utc_now()
         with self.client.transaction() as store:
+            updated_at = self._next_updated_at(store.audit_events.values(), created_at)
+            record = AuditRecord(
+                id=generate_id("audit"),
+                event_type=event_type,
+                summary=summary,
+                org_id=org_id,
+                resource_type=resource_type,
+                resource_id=resource_id,
+                agent_id=agent_id,
+                agent_revision_id=agent_revision_id,
+                session_id=session_id,
+                run_id=run_id,
+                actor_id=actor_id,
+                actor_type=actor_type,
+                metadata=dict(metadata or {}),
+                created_at=created_at,
+                updated_at=updated_at,
+            )
             store.audit_events[record.id] = record
         return record
 
@@ -60,7 +65,7 @@ class AuditRepository:
         limit: int | None = None,
     ) -> list[AuditRecord]:
         with self.client.transaction() as store:
-            events = list(store.audit_events.values())
+            events = list(store.audit_events.values())[::-1]
         if org_id is not None:
             events = [event for event in events if event.org_id == org_id]
         if agent_id is not None:
@@ -77,7 +82,17 @@ class AuditRepository:
             events = [event for event in events if event.resource_id == resource_id]
         if event_type is not None:
             events = [event for event in events if event.event_type == event_type]
-        events.sort(key=lambda event: (event.created_at, event.id), reverse=True)
+        events.sort(key=lambda event: (event.created_at, event.updated_at), reverse=True)
         if limit is not None:
             events = events[:limit]
         return events
+
+    @staticmethod
+    def _next_updated_at(existing_events, created_at: datetime) -> datetime:
+        latest_updated_at = max((event.updated_at for event in existing_events), default=None)
+        if latest_updated_at is None:
+            return created_at
+        next_updated_at = latest_updated_at + timedelta(microseconds=1)
+        if next_updated_at > created_at:
+            return next_updated_at
+        return created_at

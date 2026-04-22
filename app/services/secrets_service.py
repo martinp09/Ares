@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from app.db.agents import AgentsRepository
 from app.db.secrets import SecretsRepository
 from app.models.secrets import (
     SecretBindingCreateRequest,
@@ -12,8 +13,13 @@ from app.services.audit_service import audit_service
 
 
 class SecretService:
-    def __init__(self, secrets_repository: SecretsRepository | None = None) -> None:
+    def __init__(
+        self,
+        secrets_repository: SecretsRepository | None = None,
+        agents_repository: AgentsRepository | None = None,
+    ) -> None:
         self.secrets_repository = secrets_repository or SecretsRepository()
+        self.agents_repository = agents_repository or AgentsRepository()
 
     def create_secret(self, request: SecretCreateRequest) -> SecretSummaryRecord:
         existing_secret = self.secrets_repository.get_secret_by_name(org_id=request.org_id, name=request.name)
@@ -36,7 +42,21 @@ class SecretService:
 
     def list_secrets(self, org_id: str | None = None) -> list[SecretSummaryRecord]:
         secrets = self.secrets_repository.list_secrets(org_id=org_id)
-        return [self._summarize(secret) for secret in secrets]
+        summaries = [self._summarize(secret) for secret in secrets]
+        for secret, summary in zip(secrets, summaries, strict=False):
+            audit_service.append_event(
+                event_type="secret_accessed",
+                summary=f"Accessed secret metadata {secret.name}",
+                org_id=secret.org_id,
+                resource_type="secret",
+                resource_id=secret.id,
+                metadata={
+                    "name": secret.name,
+                    "binding_count": summary.binding_count,
+                    "access_path": "list_secrets",
+                },
+            )
+        return summaries
 
     def bind_secret(self, secret_id: str, request: SecretBindingCreateRequest) -> SecretBindingRecord:
         binding = self.secrets_repository.bind_secret(
@@ -56,7 +76,23 @@ class SecretService:
         return binding
 
     def list_bindings_for_revision(self, agent_revision_id: str):
-        return self.secrets_repository.list_bindings(agent_revision_id=agent_revision_id)
+        revision, agent = self._require_revision(agent_revision_id)
+        bindings = self.secrets_repository.list_bindings(agent_revision_id=agent_revision_id)
+        for binding in bindings:
+            audit_service.append_event(
+                event_type="secret_accessed",
+                summary=f"Accessed secret binding {binding.binding_name}",
+                org_id=agent.org_id,
+                resource_type="secret",
+                resource_id=binding.secret_id,
+                agent_id=agent.id,
+                agent_revision_id=revision.id,
+                metadata={
+                    "binding_name": binding.binding_name,
+                    "access_path": "list_revision_bindings",
+                },
+            )
+        return bindings
 
     def list_bindings_for_secret(self, secret_id: str):
         return self.secrets_repository.list_bindings_for_secret(secret_id)
@@ -73,6 +109,15 @@ class SecretService:
             created_at=secret.created_at,
             updated_at=secret.updated_at,
         )
+
+    def _require_revision(self, agent_revision_id: str):
+        revision = self.agents_repository.get_revision(agent_revision_id)
+        if revision is None:
+            raise ValueError("Agent revision not found")
+        agent = self.agents_repository.get_agent(revision.agent_id)
+        if agent is None:
+            raise ValueError("Agent revision not found")
+        return revision, agent
 
 
 secret_service = SecretService()

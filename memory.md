@@ -179,6 +179,40 @@
 
 ## Change Log
 
+### 2026-04-22 Phase 4 Slice P4.5 Mission Control Governance Surface
+
+- Added `MissionControlGovernanceResponse` plus active-revision secrets-health summaries in `app/models/mission_control.py`, keeping the slice read-only and focused on approvals, secrets health, audit, and usage.
+- Updated `app/services/mission_control_service.py` with `get_governance()` and an internal secrets-health projection that derives org-scoped status directly from active revision metadata, secret bindings, and stored secrets instead of calling secret read paths that append `secret_accessed` audit events.
+- Updated `app/api/mission_control.py` to expose `GET /mission-control/settings/governance` as the single org-scoped governance bundle endpoint.
+- Expanded `tests/api/test_mission_control.py` with failing-first coverage proving the new endpoint scopes approvals/audit/usage to the caller org, ignores draft-only secret declarations, and does not introduce governance-read `secret_accessed` audit noise.
+- Updated the native Mission Control shell (`apps/mission-control/src/lib/api.ts`, `apps/mission-control/src/App.tsx`, `apps/mission-control/src/pages/SettingsPage.tsx`, `apps/mission-control/src/lib/fixtures.ts`, `apps/mission-control/src/App.test.tsx`) so Settings now reads and renders the governance snapshot with a thin read-only surface while preserving existing asset status.
+- Verified with:
+  - `./.venv/bin/python -m pytest tests/api/test_mission_control.py -q` (`19 passed`; failing-first repro was `1 failed, 18 deselected` for the new governance test)
+  - `npm --prefix apps/mission-control run test -- --run src/App.test.tsx` (`4 passed`)
+  - `npm --prefix apps/mission-control run typecheck` (`passed`)
+
+### 2026-04-22 Phase 4 Slice P4.3 Audit Trust, Ordering, and Scrubbing
+
+- Updated `app/api/audit.py` so raw `/audit` now uses trusted actor context on both write and read paths: POST derives `org_id`, `actor_id`, and `actor_type` from actor headers/default context and fails with `422` on conflicting body values, while GET defaults to the caller org and rejects mismatched `org_id` queries with `422`.
+- Updated `app/services/audit_service.py` to centralize actor-scoped org resolution, populate server-side default actor metadata when append callers omit it, scrub sensitive audit metadata before persistence/response, and keep read-path scrubbing in place for defense in depth.
+- Updated `app/models/audit.py` and `app/db/audit.py` so audit records now own a persisted monotonic `updated_at` field, backfill legacy hydrated rows to `created_at` when the field is absent, and sort newest-first by `(created_at, updated_at)` so equal-timestamp append order survives generic text-table persistence/hydration.
+- Expanded `tests/db/test_audit_repository.py` with a failing-first regression that round-trips identical-timestamp audit payloads through persisted `updated_at` ordering and proves the latest append still wins after hydration.
+- Expanded `tests/api/test_audit.py` with failing-first coverage for trusted actor/org derivation, org-scoped audit reads, append/read metadata redaction, and `422` rejection for conflicting `org_id`/`actor_id`/`actor_type` body values.
+- Verified with:
+  - `./.venv/bin/python -m pytest tests/db/test_audit_repository.py tests/api/test_audit.py -q` (`7 passed`; failing-first repro was `1 failed, 6 passed`)
+
+### 2026-04-22 Phase 4 Slice P4.2 Secret Binding Integrity + Read Audit
+
+- Updated `app/db/secrets.py` so `bind_secret()` now fails closed unless the target secret exists, the target agent revision exists, the revision's owning agent belongs to the same org as the secret, and the requested `binding_name` is declared in `revision.compatibility_metadata["requires_secrets"]`; existing `(revision_id, binding_name)` dedupe/rebind behavior remains intact.
+- Updated `app/services/secrets_service.py` to keep returning `SecretSummaryRecord` public read models, validate revision existence before listing revision bindings, and emit `secret_accessed` audit events through the existing `audit_service.append_event()` seam for secret-list and revision-binding read paths without logging plaintext values.
+- Updated `app/api/secrets.py` to map secret endpoint validation errors consistently: not-found failures return `404`, while fail-closed declared-ref validation returns `422`.
+- Expanded `tests/db/test_secrets_repository.py` with failing-first coverage for missing revision, foreign-org revision, undeclared binding-name rejection, and preserved dedupe/rebind behavior.
+- Expanded `tests/api/test_secrets.py` with failing-first coverage for redacted public responses, secret read-path audit emission, missing/undeclared/foreign binding rejection, and missing revision validation on `/secrets/revisions/{revision_id}`.
+- Updated the affected Mission Control secret-surface regression in `tests/api/test_mission_control.py` so published test agents explicitly declare the secret refs they bind.
+- Verified with:
+  - `./.venv/bin/python -m pytest tests/db/test_secrets_repository.py tests/api/test_secrets.py -q` (`7 passed`; failing-first repro was `6 failed, 1 passed`)
+  - `./.venv/bin/python -m pytest tests/api/test_mission_control.py -q -k secret_audit_and_usage_endpoints_scope_to_actor_org` (`1 passed, 17 deselected`)
+
 ### 2026-04-22 Phase 4 Slice P4.1d RBAC Runtime Duplicate-Role Source Collapse
 
 - Updated `app/db/rbac.py` so `resolve_tool_mode()` no longer emits one source per assigned role row for canonical-ish legacy duplicates; it now groups assigned role grants by logical canonical name before source emission.

@@ -178,6 +178,72 @@ export interface AssetSummary {
   updatedAt: string;
 }
 
+export interface GovernanceSecretsRevision {
+  agentId: string;
+  agentName: string;
+  agentRevisionId: string;
+  businessId: string;
+  environment: string;
+  status: "healthy" | "attention";
+  requiredSecretCount: number;
+  configuredSecretCount: number;
+  missingSecretCount: number;
+  requiredSecrets: string[];
+  configuredSecrets: string[];
+  missingSecrets: string[];
+}
+
+export interface GovernanceSecretsHealth {
+  activeRevisionCount: number;
+  healthyRevisionCount: number;
+  attentionRevisionCount: number;
+  requiredSecretCount: number;
+  configuredSecretCount: number;
+  missingSecretCount: number;
+  revisions: GovernanceSecretsRevision[];
+}
+
+export interface GovernanceAuditEvent {
+  id: string;
+  eventType: string;
+  summary: string;
+  resourceType: string | null;
+  resourceId: string | null;
+  createdAt: string;
+}
+
+export interface GovernanceUsageBucket {
+  key: string;
+  label: string;
+  count: number;
+  lastUsedAt: string | null;
+}
+
+export interface GovernanceUsageSummary {
+  totalCount: number;
+  byKind: Record<string, number>;
+  bySourceKind: GovernanceUsageBucket[];
+  byAgent: GovernanceUsageBucket[];
+  updatedAt: string;
+}
+
+export interface GovernanceUsageEvent {
+  id: string;
+  kind: string;
+  count: number;
+  sourceKind: string | null;
+  createdAt: string;
+}
+
+export interface GovernanceData {
+  orgId: string;
+  pendingApprovals: ApprovalItem[];
+  secretsHealth: GovernanceSecretsHealth;
+  recentAudit: GovernanceAuditEvent[];
+  usageSummary: GovernanceUsageSummary;
+  recentUsage: GovernanceUsageEvent[];
+}
+
 export interface MissionControlSnapshot {
   dashboard: DashboardSummaryData;
   inbox: InboxData;
@@ -187,6 +253,7 @@ export interface MissionControlSnapshot {
   turns: TurnSummary[];
   agents: AgentSummary[];
   assets: AssetSummary[];
+  governance: GovernanceData;
 }
 
 export interface MissionControlApi {
@@ -197,6 +264,7 @@ export interface MissionControlApi {
   getRuns(): Promise<RunSummary[]>;
   getAgents(): Promise<AgentSummary[]>;
   getAssets(): Promise<AssetSummary[]>;
+  getGovernance(): Promise<GovernanceData>;
 }
 
 export interface MissionControlApiOptions {
@@ -423,6 +491,67 @@ interface AssetPayload {
 
 interface MissionControlAssetsPayload {
   assets?: AssetPayload[];
+}
+
+interface GovernanceSecretsRevisionPayload {
+  agent_id?: string;
+  agent_name?: string;
+  agent_revision_id?: string;
+  business_id?: string;
+  environment?: string;
+  status?: string;
+  required_secret_count?: number;
+  configured_secret_count?: number;
+  missing_secret_count?: number;
+  required_secrets?: string[];
+  configured_secrets?: string[];
+  missing_secrets?: string[];
+}
+
+interface GovernancePayload {
+  org_id?: string;
+  pending_approvals?: ApprovalPayload[];
+  secrets_health?: {
+    active_revision_count?: number;
+    healthy_revision_count?: number;
+    attention_revision_count?: number;
+    required_secret_count?: number;
+    configured_secret_count?: number;
+    missing_secret_count?: number;
+    revisions?: GovernanceSecretsRevisionPayload[];
+  };
+  recent_audit?: Array<{
+    id?: string;
+    event_type?: string;
+    summary?: string;
+    resource_type?: string | null;
+    resource_id?: string | null;
+    created_at?: string;
+  }>;
+  usage_summary?: {
+    total_count?: number;
+    by_kind?: Record<string, number>;
+    by_source_kind?: Array<{
+      key?: string;
+      label?: string;
+      count?: number;
+      last_used_at?: string | null;
+    }>;
+    by_agent?: Array<{
+      key?: string;
+      label?: string;
+      count?: number;
+      last_used_at?: string | null;
+    }>;
+    updated_at?: string;
+  };
+  recent_usage?: Array<{
+    id?: string;
+    kind?: string;
+    count?: number;
+    source_kind?: string | null;
+    created_at?: string;
+  }>;
 }
 
 const defaultBaseUrl = import.meta.env.VITE_RUNTIME_API_BASE_URL ?? "";
@@ -863,6 +992,74 @@ function mapAssets(payload: MissionControlAssetsPayload | AssetPayload[]): Asset
   });
 }
 
+function mapGovernance(payload: GovernancePayload): GovernanceData {
+  const secretsHealth = isRecord(payload.secrets_health) ? payload.secrets_health : {};
+  const usageSummary = isRecord(payload.usage_summary) ? payload.usage_summary : {};
+
+  return {
+    orgId: asString(payload.org_id, "default"),
+    pendingApprovals: mapApprovals({ approvals: asArray<ApprovalPayload>(payload.pending_approvals) }),
+    secretsHealth: {
+      activeRevisionCount: asNumber(secretsHealth.active_revision_count),
+      healthyRevisionCount: asNumber(secretsHealth.healthy_revision_count),
+      attentionRevisionCount: asNumber(secretsHealth.attention_revision_count),
+      requiredSecretCount: asNumber(secretsHealth.required_secret_count),
+      configuredSecretCount: asNumber(secretsHealth.configured_secret_count),
+      missingSecretCount: asNumber(secretsHealth.missing_secret_count),
+      revisions: asArray<GovernanceSecretsRevisionPayload>(secretsHealth.revisions).map((revision, index) => ({
+        agentId: asString(revision.agent_id, `agent-${index}`),
+        agentName: asString(revision.agent_name, "Unknown agent"),
+        agentRevisionId: asString(revision.agent_revision_id, `revision-${index}`),
+        businessId: asString(revision.business_id, "default"),
+        environment: asString(revision.environment, "dev"),
+        status: revision.status === "attention" ? "attention" : "healthy",
+        requiredSecretCount: asNumber(revision.required_secret_count),
+        configuredSecretCount: asNumber(revision.configured_secret_count),
+        missingSecretCount: asNumber(revision.missing_secret_count),
+        requiredSecrets: asArray<string>(revision.required_secrets).map((value) => asString(value)).filter(Boolean),
+        configuredSecrets: asArray<string>(revision.configured_secrets).map((value) => asString(value)).filter(Boolean),
+        missingSecrets: asArray<string>(revision.missing_secrets).map((value) => asString(value)).filter(Boolean),
+      })),
+    },
+    recentAudit: asArray<Record<string, unknown>>(payload.recent_audit).map((event, index) => ({
+      id: asString(event.id, `audit-${index}`),
+      eventType: asString(event.event_type, "event"),
+      summary: asString(event.summary, "Audit event"),
+      resourceType: asNullableString(event.resource_type),
+      resourceId: asNullableString(event.resource_id),
+      createdAt: asString(event.created_at, "Unknown"),
+    })),
+    usageSummary: {
+      totalCount: asNumber(usageSummary.total_count),
+      byKind: isRecord(usageSummary.by_kind)
+        ? Object.fromEntries(
+            Object.entries(usageSummary.by_kind).map(([key, value]) => [key, asNumber(value)]),
+          )
+        : {},
+      bySourceKind: asArray<Record<string, unknown>>(usageSummary.by_source_kind).map((bucket, index) => ({
+        key: asString(bucket.key, `source-${index}`),
+        label: asString(bucket.label, asString(bucket.key, `source-${index}`)),
+        count: asNumber(bucket.count),
+        lastUsedAt: asNullableString(bucket.last_used_at),
+      })),
+      byAgent: asArray<Record<string, unknown>>(usageSummary.by_agent).map((bucket, index) => ({
+        key: asString(bucket.key, `agent-${index}`),
+        label: asString(bucket.label, asString(bucket.key, `agent-${index}`)),
+        count: asNumber(bucket.count),
+        lastUsedAt: asNullableString(bucket.last_used_at),
+      })),
+      updatedAt: asString(usageSummary.updated_at, "Unknown"),
+    },
+    recentUsage: asArray<Record<string, unknown>>(payload.recent_usage).map((event, index) => ({
+      id: asString(event.id, `usage-${index}`),
+      kind: asString(event.kind, "usage"),
+      count: asNumber(event.count),
+      sourceKind: asNullableString(event.source_kind),
+      createdAt: asString(event.created_at, "Unknown"),
+    })),
+  };
+}
+
 async function requestJson<T>(
   path: string,
   options: MissionControlApiOptions,
@@ -924,6 +1121,13 @@ export function createMissionControlApi(
       mapAssets(
         await requestJson<MissionControlAssetsPayload | AssetPayload[]>(
           "/mission-control/settings/assets",
+          resolvedOptions,
+        ),
+      ),
+    getGovernance: async () =>
+      mapGovernance(
+        await requestJson<GovernancePayload>(
+          "/mission-control/settings/governance",
           resolvedOptions,
         ),
       ),

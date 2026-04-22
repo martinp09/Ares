@@ -134,6 +134,31 @@ describe("App", () => {
         return jsonResponse({ agents: [] });
       }
 
+      if (url.includes("/mission-control/settings/governance")) {
+        return jsonResponse({
+          org_id: "org_alpha",
+          pending_approvals: [],
+          secrets_health: {
+            active_revision_count: 0,
+            healthy_revision_count: 0,
+            attention_revision_count: 0,
+            required_secret_count: 0,
+            configured_secret_count: 0,
+            missing_secret_count: 0,
+            revisions: [],
+          },
+          recent_audit: [],
+          usage_summary: {
+            total_count: 0,
+            by_kind: {},
+            by_source_kind: [],
+            by_agent: [],
+            updated_at: "2026-04-13T20:00:00+00:00",
+          },
+          recent_usage: [],
+        });
+      }
+
       if (url.includes("/mission-control/settings/assets")) {
         return jsonResponse({ assets: [] });
       }
@@ -256,6 +281,31 @@ describe("App", () => {
         return jsonResponse({ agents: [] });
       }
 
+      if (url.includes("/mission-control/settings/governance")) {
+        return jsonResponse({
+          org_id: "org_alpha",
+          pending_approvals: [],
+          secrets_health: {
+            active_revision_count: 0,
+            healthy_revision_count: 0,
+            attention_revision_count: 0,
+            required_secret_count: 0,
+            configured_secret_count: 0,
+            missing_secret_count: 0,
+            revisions: [],
+          },
+          recent_audit: [],
+          usage_summary: {
+            total_count: 0,
+            by_kind: {},
+            by_source_kind: [],
+            by_agent: [],
+            updated_at: "2026-04-13T20:00:00+00:00",
+          },
+          recent_usage: [],
+        });
+      }
+
       if (url.includes("/mission-control/settings/assets")) {
         return jsonResponse({ assets: [] });
       }
@@ -319,7 +369,7 @@ describe("App", () => {
               requires_approval: false,
               related_run_id: null,
               related_approval_id: null,
-              contact: { display_name: "Jordan Patel", phone: "+15551230001" },
+              contact: { display_name: "Jordan Patel", phone: "+155****0001" },
             },
           ],
           selected_thread_id: "thread-1",
@@ -331,7 +381,7 @@ describe("App", () => {
             requires_approval: false,
             related_run_id: null,
             related_approval_id: null,
-            contact: { display_name: "Jordan Patel", phone: "+15551230001" },
+            contact: { display_name: "Jordan Patel", phone: "+155****0001" },
             messages: [],
             context: { stage: "Qualified", next_best_action: "Review the thread." },
           },
@@ -369,6 +419,31 @@ describe("App", () => {
         return jsonResponse({ agents: [] });
       }
 
+      if (url.includes("/mission-control/settings/governance")) {
+        return jsonResponse({
+          org_id: "org_alpha",
+          pending_approvals: [],
+          secrets_health: {
+            active_revision_count: 0,
+            healthy_revision_count: 0,
+            attention_revision_count: 0,
+            required_secret_count: 0,
+            configured_secret_count: 0,
+            missing_secret_count: 0,
+            revisions: [],
+          },
+          recent_audit: [],
+          usage_summary: {
+            total_count: 0,
+            by_kind: {},
+            by_source_kind: [],
+            by_agent: [],
+            updated_at: "2026-04-13T20:00:00+00:00",
+          },
+          recent_usage: [],
+        });
+      }
+
       if (url.includes("/mission-control/settings/assets")) {
         return jsonResponse({ assets: [] });
       }
@@ -392,4 +467,157 @@ describe("App", () => {
     expect(screen.getByText("Qualified Opportunity")).toBeInTheDocument();
     expect(screen.getByText("Under Negotiation")).toBeInTheDocument();
   });
+
+  it("renders governance data in the settings surface", async () => {
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+      const url = typeof input === "string" ? input : input instanceof URL ? input.toString() : input.url;
+
+      if (url.includes("/mission-control/dashboard")) {
+        return jsonResponse({
+          approval_count: 1,
+          active_run_count: 1,
+          failed_run_count: 0,
+          active_agent_count: 1,
+          unread_conversation_count: 1,
+          busy_channel_count: 1,
+          recent_completed_count: 1,
+          system_status: "watch",
+          updated_at: "2026-04-16T22:00:00+00:00",
+        });
+      }
+
+      if (url.includes("/mission-control/inbox")) {
+        return jsonResponse({
+          summary: { thread_count: 0, unread_count: 0, approval_required_count: 0 },
+          threads: [],
+          selected_thread_id: null,
+          selected_thread: null,
+        });
+      }
+
+      if (url.includes("/mission-control/tasks")) {
+        return jsonResponse({ due_count: 0, tasks: [] });
+      }
+
+      if (url.includes("/mission-control/approvals")) {
+        return jsonResponse({ approvals: [] });
+      }
+
+      if (url.includes("/mission-control/runs")) {
+        return jsonResponse({ runs: [] });
+      }
+
+      if (url.includes("/mission-control/agents")) {
+        return jsonResponse({ agents: [] });
+      }
+
+      if (url.includes("/mission-control/settings/governance")) {
+        return jsonResponse({
+          org_id: "org_alpha",
+          pending_approvals: [
+            {
+              id: "apr-1",
+              command_type: "publish_campaign",
+              status: "pending",
+              created_at: "2026-04-16T22:00:00+00:00",
+              payload_snapshot: { campaign_id: "camp-1" },
+            },
+          ],
+          secrets_health: {
+            active_revision_count: 2,
+            healthy_revision_count: 1,
+            attention_revision_count: 1,
+            required_secret_count: 2,
+            configured_secret_count: 1,
+            missing_secret_count: 1,
+            revisions: [
+              {
+                agent_id: "agt-1",
+                agent_name: "Sierra Inbox Agent",
+                agent_revision_id: "rev-1",
+                business_id: "limitless",
+                environment: "dev",
+                status: "healthy",
+                required_secret_count: 1,
+                configured_secret_count: 1,
+                missing_secret_count: 0,
+                required_secrets: ["textgrid_auth_token"],
+                configured_secrets: ["textgrid_auth_token"],
+                missing_secrets: [],
+              },
+              {
+                agent_id: "agt-2",
+                agent_name: "Atlas Research Agent",
+                agent_revision_id: "rev-2",
+                business_id: "limitless",
+                environment: "dev",
+                status: "attention",
+                required_secret_count: 1,
+                configured_secret_count: 0,
+                missing_secret_count: 1,
+                required_secrets: ["provider_api_key"],
+                configured_secrets: [],
+                missing_secrets: ["provider_api_key"],
+              },
+            ],
+          },
+          recent_audit: [
+            {
+              id: "audit-1",
+              event_type: "secret_accessed",
+              summary: "Operator viewed secret posture.",
+              created_at: "2026-04-16T22:05:00+00:00",
+            },
+          ],
+          usage_summary: {
+            total_count: 3,
+            by_kind: { tool_call: 3 },
+            by_source_kind: [],
+            by_agent: [],
+            updated_at: "2026-04-16T22:06:00+00:00",
+          },
+          recent_usage: [
+            {
+              id: "usage-1",
+              kind: "tool_call",
+              count: 3,
+              source_kind: "hermes",
+              created_at: "2026-04-16T22:06:00+00:00",
+            },
+          ],
+        });
+      }
+
+      if (url.includes("/mission-control/settings/assets")) {
+        return jsonResponse({
+          assets: [
+            {
+              id: "asset-1",
+              label: "SMTP relay",
+              asset_type: "email",
+              status: "attention",
+              binding_reference: "staging",
+              updated_at: "2026-04-16T22:01:00+00:00",
+            },
+          ],
+        });
+      }
+
+      throw new Error(`Unexpected fetch URL: ${url}`);
+    });
+
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<App />);
+
+    fireEvent.click(await screen.findByRole("button", { name: /settings/i }));
+
+    expect(await screen.findByRole("heading", { name: /governance overview/i, level: 3 })).toBeInTheDocument();
+    expect(screen.getByText(/1\/2 configured/i)).toBeInTheDocument();
+    expect(screen.getByText("Atlas Research Agent")).toBeInTheDocument();
+    expect(screen.getByText(/Missing: provider_api_key/i)).toBeInTheDocument();
+    expect(screen.getByText("Operator viewed secret posture.")).toBeInTheDocument();
+    expect(screen.getByText(/tool_call: 3/i)).toBeInTheDocument();
+  });
 });
+

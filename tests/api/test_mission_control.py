@@ -31,15 +31,19 @@ def create_published_agent(
     name: str,
     business_id: str = "limitless",
     environment: str = "dev",
+    compatibility_metadata: dict | None = None,
 ) -> tuple[str, str]:
+    payload = {
+        "business_id": business_id,
+        "environment": environment,
+        "name": name,
+        "config": {"prompt": f"{name} prompt"},
+    }
+    if compatibility_metadata is not None:
+        payload["compatibility_metadata"] = compatibility_metadata
     created = client.post(
         "/agents",
-        json={
-            "business_id": business_id,
-            "environment": environment,
-            "name": name,
-            "config": {"prompt": f"{name} prompt"},
-        },
+        json=payload,
         headers=headers,
     )
     assert created.status_code == 200
@@ -1119,17 +1123,27 @@ def test_secret_audit_and_usage_endpoints_scope_to_actor_org(client) -> None:
     alpha_headers = org_actor_headers(org_id="org_alpha", actor_id="actor_alpha")
     beta_headers = org_actor_headers(org_id="org_beta", actor_id="actor_beta")
 
-    alpha_agent_id, alpha_revision_id = create_published_agent(client, headers=alpha_headers, name="Alpha Secret Agent")
-    _, beta_revision_id = create_published_agent(client, headers=beta_headers, name="Beta Secret Agent")
+    alpha_agent_id, alpha_revision_id = create_published_agent(
+        client,
+        headers=alpha_headers,
+        name="Alpha Secret Agent",
+        compatibility_metadata={"requires_secrets": ["alpha_token"]},
+    )
+    _, beta_revision_id = create_published_agent(
+        client,
+        headers=beta_headers,
+        name="Beta Secret Agent",
+        compatibility_metadata={"requires_secrets": ["beta_token"]},
+    )
 
     alpha_secret = client.post(
         "/secrets",
-        json={"org_id": "org_alpha", "name": "alpha_token", "secret_value": "alpha-secret"},
+        json={"org_id": "org_alpha", "name": "alpha_token", "secret_value": "***"},
         headers=AUTH_HEADERS,
     )
     beta_secret = client.post(
         "/secrets",
-        json={"org_id": "org_beta", "name": "beta_token", "secret_value": "beta-secret"},
+        json={"org_id": "org_beta", "name": "beta_token", "secret_value": "***"},
         headers=AUTH_HEADERS,
     )
     assert alpha_secret.status_code == 200
@@ -1159,7 +1173,7 @@ def test_secret_audit_and_usage_endpoints_scope_to_actor_org(client) -> None:
             "agent_id": alpha_agent_id,
             "agent_revision_id": alpha_revision_id,
         },
-        headers=AUTH_HEADERS,
+        headers=alpha_headers,
     )
     beta_audit = client.post(
         "/audit",
@@ -1171,7 +1185,7 @@ def test_secret_audit_and_usage_endpoints_scope_to_actor_org(client) -> None:
             "resource_id": beta_secret.json()["id"],
             "agent_revision_id": beta_revision_id,
         },
-        headers=AUTH_HEADERS,
+        headers=beta_headers,
     )
     alpha_usage = client.post(
         "/usage",
@@ -1182,7 +1196,7 @@ def test_secret_audit_and_usage_endpoints_scope_to_actor_org(client) -> None:
             "agent_revision_id": alpha_revision_id,
             "count": 3,
         },
-        headers=AUTH_HEADERS,
+        headers=alpha_headers,
     )
     beta_usage = client.post(
         "/usage",
@@ -1192,7 +1206,7 @@ def test_secret_audit_and_usage_endpoints_scope_to_actor_org(client) -> None:
             "agent_revision_id": beta_revision_id,
             "count": 7,
         },
-        headers=AUTH_HEADERS,
+        headers=beta_headers,
     )
     assert alpha_audit.status_code == 200
     assert beta_audit.status_code == 200
@@ -1228,6 +1242,205 @@ def test_secret_audit_and_usage_endpoints_scope_to_actor_org(client) -> None:
     assert mismatched_secrets.status_code == 422
     assert mismatched_audit.status_code == 422
     assert mismatched_usage.status_code == 422
+
+
+def test_governance_endpoint_bundles_org_scoped_governance_without_secret_read_noise(client) -> None:
+    reset_control_plane_state()
+    alpha_headers = org_actor_headers(org_id="org_alpha", actor_id="actor_alpha")
+    beta_headers = org_actor_headers(org_id="org_beta", actor_id="actor_beta")
+
+    alpha_agent_id, alpha_revision_id = create_published_agent(
+        client,
+        headers=alpha_headers,
+        name="Alpha Governance Healthy Agent",
+        compatibility_metadata={"requires_secrets": ["alpha_token"]},
+    )
+    _, missing_revision_id = create_published_agent(
+        client,
+        headers=alpha_headers,
+        name="Alpha Governance Missing Agent",
+        compatibility_metadata={"requires_secrets": ["alpha_missing"]},
+    )
+    _, beta_revision_id = create_published_agent(
+        client,
+        headers=beta_headers,
+        name="Beta Governance Agent",
+        compatibility_metadata={"requires_secrets": ["beta_token"]},
+    )
+    draft_agent = client.post(
+        "/agents",
+        json={
+            "business_id": "limitless",
+            "environment": "dev",
+            "name": "Alpha Draft Governance Agent",
+            "config": {"prompt": "draft governance prompt"},
+            "compatibility_metadata": {"requires_secrets": ["draft_only_secret"]},
+        },
+        headers=alpha_headers,
+    )
+    assert draft_agent.status_code == 200
+
+    alpha_secret = client.post(
+        "/secrets",
+        json={"org_id": "org_alpha", "name": "alpha_token", "secret_value": "***"},
+        headers=AUTH_HEADERS,
+    )
+    beta_secret = client.post(
+        "/secrets",
+        json={"org_id": "org_beta", "name": "beta_token", "secret_value": "***"},
+        headers=AUTH_HEADERS,
+    )
+    assert alpha_secret.status_code == 200
+    assert beta_secret.status_code == 200
+
+    alpha_binding = client.post(
+        f"/secrets/{alpha_secret.json()['id']}/bindings",
+        json={"agent_revision_id": alpha_revision_id, "binding_name": "alpha_token"},
+        headers=AUTH_HEADERS,
+    )
+    beta_binding = client.post(
+        f"/secrets/{beta_secret.json()['id']}/bindings",
+        json={"agent_revision_id": beta_revision_id, "binding_name": "beta_token"},
+        headers=AUTH_HEADERS,
+    )
+    assert alpha_binding.status_code == 200
+    assert beta_binding.status_code == 200
+
+    alpha_approval = client.post(
+        "/commands",
+        json={
+            "business_id": "limitless",
+            "environment": "dev",
+            "command_type": "publish_campaign",
+            "idempotency_key": "mc-governance-alpha-approval",
+            "payload": {"campaign_id": "camp_governance_alpha", "org_id": "org_alpha"},
+        },
+        headers=AUTH_HEADERS,
+    )
+    beta_approval = client.post(
+        "/commands",
+        json={
+            "business_id": "limitless",
+            "environment": "dev",
+            "command_type": "publish_campaign",
+            "idempotency_key": "mc-governance-beta-approval",
+            "payload": {"campaign_id": "camp_governance_beta", "org_id": "org_beta"},
+        },
+        headers=AUTH_HEADERS,
+    )
+    assert alpha_approval.status_code == 201
+    assert beta_approval.status_code == 201
+
+    alpha_audit = client.post(
+        "/audit",
+        json={
+            "event_type": "secret_accessed",
+            "summary": "Alpha governance secret accessed",
+            "org_id": "org_alpha",
+            "resource_type": "secret",
+            "resource_id": alpha_secret.json()["id"],
+            "agent_id": alpha_agent_id,
+            "agent_revision_id": alpha_revision_id,
+        },
+        headers=alpha_headers,
+    )
+    beta_audit = client.post(
+        "/audit",
+        json={
+            "event_type": "secret_accessed",
+            "summary": "Beta governance secret accessed",
+            "org_id": "org_beta",
+            "resource_type": "secret",
+            "resource_id": beta_secret.json()["id"],
+            "agent_revision_id": beta_revision_id,
+        },
+        headers=beta_headers,
+    )
+    alpha_usage = client.post(
+        "/usage",
+        json={
+            "kind": "tool_call",
+            "org_id": "org_alpha",
+            "agent_id": alpha_agent_id,
+            "agent_revision_id": alpha_revision_id,
+            "count": 3,
+        },
+        headers=alpha_headers,
+    )
+    beta_usage = client.post(
+        "/usage",
+        json={
+            "kind": "tool_call",
+            "org_id": "org_beta",
+            "agent_revision_id": beta_revision_id,
+            "count": 7,
+        },
+        headers=beta_headers,
+    )
+    assert alpha_audit.status_code == 200
+    assert beta_audit.status_code == 200
+    assert alpha_usage.status_code == 200
+    assert beta_usage.status_code == 200
+
+    response = client.get("/mission-control/settings/governance", headers=alpha_headers)
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["org_id"] == "org_alpha"
+    assert [approval["id"] for approval in body["pending_approvals"]] == [alpha_approval.json()["approval_id"]]
+    assert body["secrets_health"] == {
+        "active_revision_count": 2,
+        "healthy_revision_count": 1,
+        "attention_revision_count": 1,
+        "required_secret_count": 2,
+        "configured_secret_count": 1,
+        "missing_secret_count": 1,
+        "revisions": [
+            {
+                "agent_id": alpha_agent_id,
+                "agent_name": "Alpha Governance Healthy Agent",
+                "agent_revision_id": alpha_revision_id,
+                "business_id": "limitless",
+                "environment": "dev",
+                "status": "healthy",
+                "required_secret_count": 1,
+                "configured_secret_count": 1,
+                "missing_secret_count": 0,
+                "required_secrets": ["alpha_token"],
+                "configured_secrets": ["alpha_token"],
+                "missing_secrets": [],
+            },
+            {
+                "agent_id": body["secrets_health"]["revisions"][1]["agent_id"],
+                "agent_name": "Alpha Governance Missing Agent",
+                "agent_revision_id": missing_revision_id,
+                "business_id": "limitless",
+                "environment": "dev",
+                "status": "attention",
+                "required_secret_count": 1,
+                "configured_secret_count": 0,
+                "missing_secret_count": 1,
+                "required_secrets": ["alpha_missing"],
+                "configured_secrets": [],
+                "missing_secrets": ["alpha_missing"],
+            },
+        ],
+    }
+    assert all(event["org_id"] == "org_alpha" for event in body["recent_audit"])
+    assert any(event["summary"] == "Alpha governance secret accessed" for event in body["recent_audit"])
+    assert body["usage_summary"]["total_count"] == 3
+    assert body["usage_summary"]["by_kind"] == {"tool_call": 3}
+    assert [event["org_id"] for event in body["recent_usage"]] == ["org_alpha"]
+    assert [event["count"] for event in body["recent_usage"]] == [3]
+
+    secret_accessed_events = client.get(
+        "/mission-control/audit?event_type=secret_accessed",
+        headers=alpha_headers,
+    )
+    assert secret_accessed_events.status_code == 200
+    assert [event["summary"] for event in secret_accessed_events.json()["events"]] == [
+        "Alpha governance secret accessed"
+    ]
 
 
 def test_provider_status_endpoint_reflects_configured_sms_and_email(client, monkeypatch) -> None:

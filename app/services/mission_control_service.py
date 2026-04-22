@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections.abc import Iterable
 from copy import deepcopy
 from datetime import UTC
 from datetime import datetime
@@ -35,6 +36,7 @@ from app.models.mission_control import (
     MissionControlEmailTestRequest,
     MissionControlExecutionReviewSummary,
     MissionControlFailedStepSummary,
+    MissionControlGovernanceResponse,
     MissionControlInboxResponse,
     MissionControlInboxSummary,
     MissionControlInboundLeaseOptionSummary,
@@ -46,7 +48,9 @@ from app.models.mission_control import (
     MissionControlOutboundSendResponse,
     MissionControlProviderStatus,
     MissionControlProvidersStatusResponse,
+    MissionControlRevisionSecretsHealthSummary,
     MissionControlSmsTestRequest,
+    MissionControlSecretsHealthSnapshot,
     MissionControlLeadMachineTaskSummary,
     MissionControlLeadMachineTasksSummary,
     MissionControlLeadMachineTimelineItem,
@@ -1544,6 +1548,18 @@ class MissionControlService:
             limit=limit,
         )
 
+    def get_governance(self, *, org_id: str | None = None) -> MissionControlGovernanceResponse:
+        effective_org_id = org_id or self._default_org_id()
+        usage = self.get_usage(actor_org_id=effective_org_id, limit=10)
+        return MissionControlGovernanceResponse(
+            org_id=effective_org_id,
+            pending_approvals=self.get_approvals(org_id=effective_org_id).approvals,
+            secrets_health=self._build_secrets_health_snapshot(org_id=effective_org_id),
+            recent_audit=self.get_audit(actor_org_id=effective_org_id, limit=10).events,
+            usage_summary=usage.summary,
+            recent_usage=usage.events,
+        )
+
     def send_test_sms(self, request: MissionControlSmsTestRequest) -> MissionControlOutboundSendResponse:
         settings = get_settings()
         result = send_test_sms(settings, to=request.to, body=request.body)
@@ -1576,6 +1592,68 @@ class MissionControlService:
                 break
             resumed_from_turn_id = getattr(resumed_turn, "resumed_from_turn_id", None)
         return retry_count
+
+    def _build_secrets_health_snapshot(self, *, org_id: str | None = None) -> MissionControlSecretsHealthSnapshot:
+        with self.client.transaction() as store:
+            agents = [
+                agent
+                for agent in store.agents.values()
+                if self._matches_actor_org(self._record_org_id(agent), org_id)
+                and getattr(agent, "active_revision_id", None) is not None
+            ]
+            revisions_by_id = dict(store.agent_revisions)
+            secrets_by_id = dict(store.secrets)
+            bindings_by_key = {
+                (binding.agent_revision_id, binding.binding_name): binding for binding in store.secret_bindings.values()
+            }
+
+        revision_summaries: list[MissionControlRevisionSecretsHealthSummary] = []
+        for agent in agents:
+            revision_id = getattr(agent, "active_revision_id", None)
+            if not isinstance(revision_id, str) or not revision_id:
+                continue
+            revision = revisions_by_id.get(revision_id)
+            if revision is None:
+                continue
+
+            required_secrets = sorted(self._declared_secret_names(getattr(revision, "compatibility_metadata", {})))
+            configured_secrets: list[str] = []
+            missing_secrets: list[str] = []
+            for binding_name in required_secrets:
+                binding = bindings_by_key.get((revision.id, binding_name))
+                secret = secrets_by_id.get(binding.secret_id) if binding is not None else None
+                if binding is not None and secret is not None and getattr(secret, "org_id", None) == getattr(agent, "org_id", None):
+                    configured_secrets.append(binding_name)
+                else:
+                    missing_secrets.append(binding_name)
+
+            revision_summaries.append(
+                MissionControlRevisionSecretsHealthSummary(
+                    agent_id=agent.id,
+                    agent_name=agent.name,
+                    agent_revision_id=revision.id,
+                    business_id=agent.business_id,
+                    environment=agent.environment,
+                    status=("healthy" if not missing_secrets else "attention"),
+                    required_secret_count=len(required_secrets),
+                    configured_secret_count=len(configured_secrets),
+                    missing_secret_count=len(missing_secrets),
+                    required_secrets=required_secrets,
+                    configured_secrets=configured_secrets,
+                    missing_secrets=missing_secrets,
+                )
+            )
+
+        ordered_revisions = sorted(revision_summaries, key=lambda revision: (revision.agent_name, revision.agent_revision_id))
+        return MissionControlSecretsHealthSnapshot(
+            active_revision_count=len(ordered_revisions),
+            healthy_revision_count=sum(1 for revision in ordered_revisions if revision.status == "healthy"),
+            attention_revision_count=sum(1 for revision in ordered_revisions if revision.status == "attention"),
+            required_secret_count=sum(revision.required_secret_count for revision in ordered_revisions),
+            configured_secret_count=sum(revision.configured_secret_count for revision in ordered_revisions),
+            missing_secret_count=sum(revision.missing_secret_count for revision in ordered_revisions),
+            revisions=ordered_revisions,
+        )
 
     def _build_thread_summary(
         self,
@@ -1935,6 +2013,15 @@ class MissionControlService:
     @staticmethod
     def _default_org_id() -> str:
         return get_settings().default_org_id
+
+    @staticmethod
+    def _declared_secret_names(compatibility_metadata: object) -> set[str]:
+        if not isinstance(compatibility_metadata, dict):
+            return set()
+        raw_declared = compatibility_metadata.get("requires_secrets")
+        if not isinstance(raw_declared, Iterable) or isinstance(raw_declared, str | bytes):
+            return set()
+        return {value for value in raw_declared if isinstance(value, str) and value}
 
     @classmethod
     def _command_org_id(cls, command: Any | None) -> str:

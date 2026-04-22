@@ -8,10 +8,12 @@ from pydantic import BaseModel, ConfigDict, Field
 from app.domains.ares import AresPlannerPlan
 from app.models.agent_assets import AgentAssetStatus, AgentAssetType
 from app.models.approvals import ApprovalStatus
+from app.models.audit import AuditRecord
 from app.models.commands import generate_id
 from app.models.runs import RunStatus
 from app.models.tasks import TaskPriority, TaskStatus, TaskType
 from app.models.turns import TurnStatus
+from app.models.usage import UsageRecord, UsageSummaryRecord
 
 MissionControlThreadStatus = Literal["open", "waiting", "closed"]
 MissionControlMessageDirection = Literal["inbound", "outbound", "internal"]
@@ -618,3 +620,43 @@ class MissionControlAssetsResponse(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     assets: list[MissionControlAssetSummary] = Field(default_factory=list)
+
+
+class MissionControlRevisionSecretsHealthSummary(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    agent_id: str
+    agent_name: str = Field(min_length=1)
+    agent_revision_id: str
+    business_id: str = Field(min_length=1)
+    environment: str = Field(min_length=1)
+    status: Literal["healthy", "attention"]
+    required_secret_count: int = Field(default=0, ge=0)
+    configured_secret_count: int = Field(default=0, ge=0)
+    missing_secret_count: int = Field(default=0, ge=0)
+    required_secrets: list[str] = Field(default_factory=list)
+    configured_secrets: list[str] = Field(default_factory=list)
+    missing_secrets: list[str] = Field(default_factory=list)
+
+
+class MissionControlSecretsHealthSnapshot(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    active_revision_count: int = Field(default=0, ge=0)
+    healthy_revision_count: int = Field(default=0, ge=0)
+    attention_revision_count: int = Field(default=0, ge=0)
+    required_secret_count: int = Field(default=0, ge=0)
+    configured_secret_count: int = Field(default=0, ge=0)
+    missing_secret_count: int = Field(default=0, ge=0)
+    revisions: list[MissionControlRevisionSecretsHealthSummary] = Field(default_factory=list)
+
+
+class MissionControlGovernanceResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    org_id: str = Field(min_length=1)
+    pending_approvals: list[MissionControlApprovalSummary] = Field(default_factory=list)
+    secrets_health: MissionControlSecretsHealthSnapshot
+    recent_audit: list[AuditRecord] = Field(default_factory=list)
+    usage_summary: UsageSummaryRecord
+    recent_usage: list[UsageRecord] = Field(default_factory=list)

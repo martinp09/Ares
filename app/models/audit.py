@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from app.core.config import DEFAULT_INTERNAL_ORG_ID
 
@@ -41,6 +41,18 @@ class AuditRecord(BaseModel):
     actor_type: str | None = None
     metadata: dict[str, object] = Field(default_factory=dict)
     created_at: datetime
+    updated_at: datetime
+
+    @model_validator(mode="before")
+    @classmethod
+    def _default_updated_at(cls, data: object) -> object:
+        if not isinstance(data, dict):
+            return data
+        if data.get("updated_at") is not None or data.get("created_at") is None:
+            return data
+        hydrated = dict(data)
+        hydrated["updated_at"] = hydrated["created_at"]
+        return hydrated
 
 
 class AuditListResponse(BaseModel):

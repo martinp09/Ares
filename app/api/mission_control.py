@@ -9,6 +9,7 @@ from app.models.mission_control import (
     MissionControlAssetsResponse,
     MissionControlDashboardResponse,
     MissionControlEmailTestRequest,
+    MissionControlGovernanceResponse,
     MissionControlInboxResponse,
     MissionControlLeadMachineResponse,
     MissionControlLeadSuppressionRequest,
@@ -216,6 +217,13 @@ def get_settings_assets(
         business_id=business_id,
         environment=environment,
     )
+
+
+@router.get("/settings/governance", response_model=MissionControlGovernanceResponse)
+def get_settings_governance(
+    actor_context: ActorContext = Depends(actor_context_dependency),
+) -> MissionControlGovernanceResponse:
+    return mission_control_service.get_governance(org_id=actor_context.org_id)
 
 
 @router.get("/settings/secrets", response_model=SecretListResponse)

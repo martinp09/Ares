@@ -18,6 +18,7 @@ import { DashboardPage } from "./pages/DashboardPage";
 import { InboxPage } from "./pages/InboxPage";
 import { PipelinePage } from "./pages/PipelinePage";
 import { RunsPage } from "./pages/RunsPage";
+import { SettingsPage } from "./pages/SettingsPage";
 import { SuppressionPage } from "./pages/SuppressionPage";
 import { TasksPage } from "./pages/TasksPage";
 
@@ -75,7 +76,7 @@ export default function App() {
     async function load() {
       setIsLoading(true);
 
-      const [dashboard, inbox, tasks, approvals, runs, agents, assets] = await Promise.all([
+      const [dashboard, inbox, tasks, approvals, runs, agents, assets, governance] = await Promise.all([
         queryClient.fetch("dashboard", api.getDashboard, missionControlFixtures.dashboard),
         queryClient.fetch(
           `inbox:${selectedConversationId || "default"}`,
@@ -87,6 +88,7 @@ export default function App() {
         queryClient.fetch("runs", api.getRuns, missionControlFixtures.runs),
         queryClient.fetch("agents", api.getAgents, missionControlFixtures.agents),
         queryClient.fetch("assets", api.getAssets, missionControlFixtures.assets),
+        queryClient.fetch("governance", api.getGovernance, missionControlFixtures.governance),
       ]);
 
       if (!isMounted) {
@@ -102,9 +104,10 @@ export default function App() {
         turns: missionControlFixtures.turns,
         agents: agents.data,
         assets: assets.data,
+        governance: governance.data,
       });
       setDataSource(
-        [dashboard, inbox, tasks, approvals, runs, agents, assets].some((result) => result.source === "fixture")
+        [dashboard, inbox, tasks, approvals, runs, agents, assets, governance].some((result) => result.source === "fixture")
           ? "fixture"
           : "api",
       );
@@ -117,7 +120,7 @@ export default function App() {
             ["approvals", approvals.source],
             ["runs", runs.source],
             ["agents", agents.source],
-            ["settings", assets.source],
+            ["settings", governance.source === "fixture" || assets.source === "fixture" ? "fixture" : "api"],
             ["suppression", dashboard.source],
           ] as const
         )
@@ -217,6 +220,23 @@ export default function App() {
     ],
   );
 
+  const settingsPage: WorkspacePage = {
+    title: "Settings / Governance",
+    subtitle: "Read-only governance posture for approvals, secrets, audit, and usage.",
+    mainContent: <SettingsPage governance={snapshot.governance} assets={snapshot.assets} />,
+    contextContent: (
+      <ContextPanel
+        eyebrow="Governance posture"
+        title="Operator trust surface"
+        items={[
+          `${snapshot.governance.pendingApprovals.length} pending approvals are visible`,
+          `${snapshot.governance.secretsHealth.attentionRevisionCount} active revisions need secret attention`,
+          `${snapshot.governance.recentAudit.length} recent audit events are surfaced read-only`,
+        ]}
+      />
+    ),
+  };
+
   const workspaces: ShellWorkspace[] = [
     { id: "lead-machine", label: "Lead Machine" },
     { id: "marketing", label: "Marketing" },
@@ -243,6 +263,11 @@ export default function App() {
               id: "tasks",
               label: "Tasks",
               badge: snapshot.dashboard.outboundProbateSummary?.openTaskCount ?? snapshot.dashboard.dueManualCallCount ?? 0,
+            },
+            {
+              id: "settings",
+              label: "Settings",
+              badge: snapshot.governance.pendingApprovals.length,
             },
           ],
         },
@@ -341,6 +366,7 @@ export default function App() {
             />
           ),
         },
+        settings: settingsPage,
       },
     },
     marketing: {
@@ -364,6 +390,11 @@ export default function App() {
                 snapshot.dashboard.inboundLeaseOptionSummary?.dueManualCallCount ??
                 snapshot.dashboard.dueManualCallCount ??
                 0,
+            },
+            {
+              id: "settings",
+              label: "Settings",
+              badge: snapshot.governance.pendingApprovals.length,
             },
           ],
         },
@@ -424,6 +455,7 @@ export default function App() {
             />
           ),
         },
+        settings: settingsPage,
       },
     },
     pipeline: {
@@ -440,6 +472,11 @@ export default function App() {
                 snapshot.dashboard.opportunityPipelineSummary?.totalOpportunityCount ??
                 snapshot.dashboard.opportunityCount ??
                 0,
+            },
+            {
+              id: "settings",
+              label: "Settings",
+              badge: snapshot.governance.pendingApprovals.length,
             },
           ],
         },
@@ -469,6 +506,7 @@ export default function App() {
             />
           ),
         },
+        settings: settingsPage,
       },
     },
   };

@@ -8,7 +8,11 @@ def test_mission_control_surfaces_secret_health_audit_and_usage(client) -> None:
 
     agent_response = client.post(
         "/agents",
-        json={"name": "Mission Control Agent", "config": {"prompt": "Observe governance"}},
+        json={
+            "name": "Mission Control Agent",
+            "config": {"prompt": "Observe governance"},
+            "compatibility_metadata": {"requires_secrets": ["textgrid_auth_token"]},
+        },
         headers=AUTH_HEADERS,
     )
     assert agent_response.status_code == 200
