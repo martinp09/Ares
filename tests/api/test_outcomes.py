@@ -1,5 +1,6 @@
 from copy import deepcopy
 
+from app.db.client import STORE
 from app.services.run_service import reset_control_plane_state
 
 AUTH_HEADERS = {"Authorization": "Bearer dev-runtime-key"}
@@ -76,3 +77,42 @@ def test_passed_rubric_marks_outcome_as_satisfied(client) -> None:
     body = response.json()
     assert body["status"] == "satisfied"
     assert body["satisfied"] is True
+
+
+def test_outcome_can_capture_release_decision_context_for_rollback_reasoning(client) -> None:
+    reset_control_plane_state()
+
+    response = client.post(
+        "/outcomes",
+        json={
+            "outcome_name": "release_eval",
+            "artifact_type": "agent_revision",
+            "artifact_payload": {"candidate": "rev_123"},
+            "rubric_criteria": ["runtime stable", "known good fallback"],
+            "evaluator_result": "rollback recommended due to regression",
+            "passed": False,
+            "failure_details": ["Regression detected in dogfood traffic"],
+            "release_decision": {
+                "agent_id": "agt_123",
+                "revision_id": "rev_123",
+                "action": "rollback",
+                "notes": "Revert to last known good revision",
+                "rollback_reason": "dogfood regression exceeded acceptable error rate",
+            },
+        },
+        headers=AUTH_HEADERS,
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["release_decision"] == {
+        "agent_id": "agt_123",
+        "revision_id": "rev_123",
+        "action": "rollback",
+        "notes": "Revert to last known good revision",
+        "require_passing_evaluation": False,
+        "rollback_reason": "dogfood regression exceeded acceptable error rate",
+    }
+    stored = STORE.outcomes[body["id"]]
+    assert stored.release_decision is not None
+    assert stored.release_decision.rollback_reason == "dogfood regression exceeded acceptable error rate"

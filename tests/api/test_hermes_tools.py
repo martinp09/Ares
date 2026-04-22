@@ -242,7 +242,7 @@ def test_invoke_hermes_tool_with_published_agent_revision_dispatches_through_ada
     assert dispatch.host_adapter_config == {"queue": "priority"}
 
 
-def test_invoke_hermes_tool_retry_dedupes_after_revision_is_archived(client) -> None:
+def test_invoke_hermes_tool_retry_dedupes_after_archiving_non_active_historical_revision(client) -> None:
     reset_control_plane_state()
     agent_id, revision_id = create_published_agent(client)
     payload = {
@@ -258,6 +258,18 @@ def test_invoke_hermes_tool_retry_dedupes_after_revision_is_archived(client) -> 
         json=payload,
         headers=AUTH_HEADERS,
     )
+    clone_response = client.post(
+        f"/agents/{agent_id}/revisions/{revision_id}/clone",
+        headers=AUTH_HEADERS,
+    )
+    second_revision_id = max(
+        clone_response.json()["revisions"],
+        key=lambda revision: revision["revision_number"],
+    )["id"]
+    publish_response = client.post(
+        f"/agents/{agent_id}/revisions/{second_revision_id}/publish",
+        headers=AUTH_HEADERS,
+    )
     archive_response = client.post(
         f"/agents/{agent_id}/revisions/{revision_id}/archive",
         headers=AUTH_HEADERS,
@@ -269,6 +281,8 @@ def test_invoke_hermes_tool_retry_dedupes_after_revision_is_archived(client) -> 
     )
 
     assert first.status_code == 201
+    assert clone_response.status_code == 200
+    assert publish_response.status_code == 200
     assert archive_response.status_code == 200
     assert second.status_code == 200
     first_body = first.json()

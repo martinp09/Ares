@@ -31,14 +31,17 @@
 
 ## Current TODO
 
-1. execute Phase 0 and Phase 1 of the 2026-04-21 master plan
-2. re-activate the enterprise platform plan as a live source plan
-3. keep Mission Control and enterprise backlog scope merged in this branch only
-4. do not disturb the separate Supabase persistence branch unless a later phase explicitly requires it
-5. continue the remaining org-tenancy follow-up after the landed in-memory organizations + memberships slice
+1. continue Phase 6 bounded Mission Control productization slices on `feature/mission-control-enterprise-backlog`
+2. keep replay lineage, release management, and Mission Control productization separated by slice
+3. avoid Supabase/migration work unless a later slice explicitly requires it
 
 ## Recent Change
 
+- 2026-04-22: Phase 6 slice P6.1 makes agents the first-class Mission Control navigation/work surface in the fixture-backed UI only: lead-machine and marketing now default to agent-centered pages, approvals are promoted into the nav beside dashboard/inbox/runs, and the shell/agent page copy explicitly frames the rest of Mission Control as operator views around agents without starting detail pages or adding Phase 6 control surfaces.
+- 2026-04-22: P5.3 replay-lineage blocker repair keeps replay execution on replay-owned command records instead of reusing the original command identity, preserves the original command/run binding, persists approval-path replay metadata through the approval snapshot, and binds replay child lineage only when a replay approval is later approved so child runs retain truthful parent/reason/actor lineage without Supabase schema work.
+- 2026-04-22: Phase 5 slice P5.3 upgrades replay lineage in the runtime only: replay responses now carry triggering actor plus source/replay revision context, replay events are appended through `run_lifecycle_service` onto parent/child runs instead of mutating worker-owned state, and release context is derived from immutable release-management events so historical replays stay pinned to the original revision while still exposing the current release context after supersede/rollback; eval gating and Mission Control UI/read-model work stay deferred.
+- 2026-04-22: Phase 5 slice P5.2 adds a bounded runtime-owned release-management domain with immutable release-event records, dedicated publish/rollback routes, legacy `/agents` publish now funneled through release-event emission, active-archive fail-closed on the legacy path, and rollback now clones the historical target into a new published revision so deprecated history stays immutable while replay remains pinned to original revision ids; replay lineage, evaluation gates, and Mission Control UI wiring stay deferred.
+- 2026-04-22: Phase 5 slice P5.1 expands agent revision semantics with additive `candidate` and `deprecated` states, keeps rollback/rolled_back deferred to later release-event work, adds per-revision `release_channel` metadata that round-trips through create/publish/clone, preserves org/business/environment scoping, and now deprecates superseded published revisions instead of auto-archiving them.
 - 2026-04-22: Phase 4 slice P4.5 adds a read-only org-scoped `GET /mission-control/settings/governance` bundle for pending approvals, internally-derived active-revision secrets health, recent audit, and usage summary/recent usage without hitting secret read paths that emit audit noise, and wires the native Mission Control Settings shell to render that governance snapshot with thin frontend coverage.
 - 2026-04-22: Phase 4 slice P4.3 hardens raw `/audit` behind trusted actor-context org/actor derivation with 422-on-conflict behavior, scopes audit reads to the caller org by default, scrubs sensitive metadata on append and read, and now persists deterministic equal-timestamp append order through the audit model's own monotonic `updated_at` field without touching Supabase wiring.
 - 2026-04-22: Phase 4 slice P4.2 hardens secret binding integrity against real revision/org/declared-secret refs, keeps public secret responses metadata-only/redacted, validates revision existence on the revision-bindings read path, and emits `secret_accessed` audit events from the existing secrets service seam for secret list/binding reads without touching Supabase wiring or widening the audit design.

@@ -73,6 +73,114 @@ describe("Mission Control API client", () => {
     ]);
   });
 
+  it("maps release and replay read-model fields for agents and runs", async () => {
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+      const url = input.toString();
+      if (url.endsWith("/mission-control/runs")) {
+        return jsonResponse({
+          runs: [
+            {
+              id: "run-1",
+              command_type: "run_market_research",
+              status: "completed",
+              business_id: "limitless",
+              environment: "dev",
+              updated_at: "2026-04-16T22:10:00+00:00",
+              trigger_run_id: "trg-1",
+              replay: {
+                role: "parent",
+                requested_at: "2026-04-16T22:00:00+00:00",
+                resolved_at: "2026-04-16T22:00:00+00:00",
+                replay_reason: "rerun after rollback",
+                requires_approval: false,
+                child_run_id: "run-2",
+                triggering_actor: {
+                  org_id: "org_internal",
+                  actor_id: "ops-42",
+                  actor_type: "user",
+                },
+                source: {
+                  agent_id: "agt-1",
+                  agent_revision_id: "rev-1",
+                  active_revision_id: "rev-1",
+                  revision_state: "published",
+                  release_channel: "dogfood",
+                  release_event_id: "rle-1",
+                  release_event_type: "publish",
+                },
+                replay: {
+                  agent_id: "agt-1",
+                  agent_revision_id: "rev-1",
+                  active_revision_id: "rev-3",
+                  revision_state: "published",
+                  release_channel: "dogfood",
+                  release_event_id: "rle-3",
+                  release_event_type: "rollback",
+                },
+              },
+            },
+          ],
+        });
+      }
+      if (url.endsWith("/mission-control/agents")) {
+        return jsonResponse({
+          agents: [
+            {
+              id: "agt-1",
+              name: "Release Agent",
+              environment: "dev",
+              active_revision_id: "rev-3",
+              active_revision_state: "published",
+              release: {
+                event_id: "rle-3",
+                event_type: "rollback",
+                release_channel: "dogfood",
+                created_at: "2026-04-16T22:00:00+00:00",
+                previous_active_revision_id: "rev-2",
+                target_revision_id: "rev-1",
+                resulting_active_revision_id: "rev-3",
+                rollback_source_revision_id: "rev-1",
+                evaluation: {
+                  outcome_id: "out-1",
+                  outcome_name: "rollback_assessment",
+                  status: "failed",
+                  satisfied: false,
+                  evaluator_result: "Regression reproduced.",
+                  failure_details: ["voice workflow regressed"],
+                  rubric_criteria: ["known good revision exists"],
+                  require_passing_evaluation: false,
+                  blocked_promotion: false,
+                  rollback_reason: "Operator reported a production regression",
+                },
+              },
+            },
+          ],
+        });
+      }
+      throw new Error(`Unexpected URL ${url}`);
+    });
+
+    const api = createMissionControlApi({ fetchImpl: fetchMock as typeof fetch });
+    const [runs, agents] = await Promise.all([api.getRuns(), api.getAgents()]);
+
+    expect(runs[0].replay).toMatchObject({
+      role: "parent",
+      replayReason: "rerun after rollback",
+      childRunId: "run-2",
+      source: { releaseEventType: "publish", releaseChannel: "dogfood" },
+      replay: { releaseEventType: "rollback", activeRevisionId: "rev-3" },
+    });
+    expect(runs[0].summary).toContain("Replay launched child run run-2");
+    expect(agents[0].release).toMatchObject({
+      eventType: "rollback",
+      rollbackSourceRevisionId: "rev-1",
+      evaluation: {
+        status: "failed",
+        rollbackReason: "Operator reported a production regression",
+      },
+    });
+  });
+
   it("exposes compact fixture data for the marketing manual-call lane", () => {
     expect(missionControlFixtures.dashboard.opportunityCount).toBeGreaterThan(0);
     expect(missionControlFixtures.dashboard.opportunityStageSummaries).toEqual(
@@ -85,5 +193,7 @@ describe("Mission Control API client", () => {
       bookingStatus: expect.any(String),
       sequenceStatus: expect.any(String),
     });
+    expect(missionControlFixtures.agents[0].release?.eventType).toBe("rollback");
+    expect(missionControlFixtures.runs[0].replay?.replay?.releaseEventType).toBe("rollback");
   });
 });

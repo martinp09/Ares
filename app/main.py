@@ -14,6 +14,7 @@ from app.api.organizations import router as organizations_router
 from app.api.outcomes import router as outcomes_router
 from app.api.permissions import router as permissions_router
 from app.api.rbac import router as rbac_router
+from app.api.release_management import router as release_management_router
 from app.api.replays import router as replays_router
 from app.api.runs import router as runs_router
 from app.api.secrets import router as secrets_router
@@ -46,6 +47,7 @@ def create_app() -> FastAPI:
     app.include_router(skills_router, dependencies=protected_dependencies)
     app.include_router(permissions_router, dependencies=protected_dependencies)
     app.include_router(rbac_router, dependencies=protected_dependencies)
+    app.include_router(release_management_router, dependencies=protected_dependencies)
     app.include_router(secrets_router, dependencies=protected_dependencies)
     app.include_router(audit_router, dependencies=protected_dependencies)
     app.include_router(usage_router, dependencies=protected_dependencies)

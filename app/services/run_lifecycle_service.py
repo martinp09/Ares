@@ -6,6 +6,7 @@ from app.db.artifacts import ArtifactsRepository
 from app.db.commands import CommandsRepository
 from app.db.events import EventsRepository
 from app.db.runs import RunsRepository
+from app.models.actors import ActorContext
 from app.models.run_events import (
     ArtifactProducedCallbackRequest,
     RunCompletedCallbackRequest,
@@ -14,7 +15,7 @@ from app.models.run_events import (
     RunLifecycleResponse,
     RunStartedCallbackRequest,
 )
-from app.models.runs import RunStatus
+from app.models.runs import ReplayLineageContext, RunStatus
 
 
 def utc_now() -> datetime:
@@ -111,6 +112,108 @@ class RunLifecycleService:
             error_classification=run.error_classification,
             error_message=run.error_message,
         )
+
+    def record_replay_lineage(
+        self,
+        parent_run_id: str,
+        *,
+        replay_reason: str | None,
+        triggering_actor: ActorContext,
+        lineage: ReplayLineageContext,
+        child_run_id: str | None = None,
+        approval_id: str | None = None,
+        occurred_at: datetime | None = None,
+    ) -> dict[str, object] | None:
+        parent_run = self.runs_repository.get(parent_run_id)
+        if parent_run is None:
+            return None
+
+        event_created_at = occurred_at or utc_now()
+        parent_payload = {
+            "replay_reason": replay_reason,
+            "requires_approval": approval_id is not None,
+            "child_run_id": child_run_id,
+            "approval_id": approval_id,
+            "triggering_actor": lineage.triggering_actor.model_dump(mode="json"),
+            "source": lineage.source.model_dump(mode="json") if lineage.source is not None else None,
+            "replay": lineage.replay.model_dump(mode="json") if lineage.replay is not None else None,
+        }
+        self.events_repository.append(
+            parent_run_id,
+            event_type="replay_requested",
+            payload=parent_payload,
+            created_at=event_created_at,
+        )
+        if child_run_id is not None:
+            self.record_replay_child_lineage(
+                child_run_id,
+                parent_run_id=parent_run_id,
+                replay_reason=replay_reason,
+                triggering_actor=triggering_actor,
+                lineage=lineage,
+                occurred_at=event_created_at,
+            )
+        return parent_payload
+
+    def record_replay_child_lineage(
+        self,
+        child_run_id: str,
+        *,
+        parent_run_id: str,
+        replay_reason: str | None,
+        triggering_actor: ActorContext,
+        lineage: ReplayLineageContext,
+        occurred_at: datetime | None = None,
+    ) -> dict[str, object] | None:
+        child_run = self.runs_repository.get(child_run_id)
+        if child_run is None:
+            return None
+
+        payload = {
+            "parent_run_id": parent_run_id,
+            "replay_reason": replay_reason,
+            "triggering_actor": triggering_actor.model_dump(mode="json"),
+            "source": lineage.source.model_dump(mode="json") if lineage.source is not None else None,
+            "replay": lineage.replay.model_dump(mode="json") if lineage.replay is not None else None,
+        }
+        self.events_repository.append(
+            child_run_id,
+            event_type="replay_lineage_bound",
+            payload=payload,
+            created_at=occurred_at or utc_now(),
+        )
+        return payload
+
+    def record_replay_parent_resolution(
+        self,
+        parent_run_id: str,
+        *,
+        child_run_id: str,
+        approval_id: str | None,
+        replay_reason: str | None,
+        triggering_actor: ActorContext,
+        lineage: ReplayLineageContext,
+        occurred_at: datetime | None = None,
+    ) -> dict[str, object] | None:
+        parent_run = self.runs_repository.get(parent_run_id)
+        if parent_run is None:
+            return None
+
+        payload = {
+            "child_run_id": child_run_id,
+            "approval_id": approval_id,
+            "replay_reason": replay_reason,
+            "triggering_actor": triggering_actor.model_dump(mode="json"),
+            "source": lineage.source.model_dump(mode="json") if lineage.source is not None else None,
+            "replay": lineage.replay.model_dump(mode="json") if lineage.replay is not None else None,
+        }
+        self.events_repository.append(
+            parent_run_id,
+            event_type="replay_child_bound",
+            payload=payload,
+            created_at=occurred_at or utc_now(),
+        )
+        return payload
 
     def record_artifact(
         self, run_id: str, request: ArtifactProducedCallbackRequest

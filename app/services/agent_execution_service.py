@@ -10,6 +10,9 @@ from app.models.host_adapters import HostAdapterDispatchRequest, HostAdapterDisp
 from app.services.skill_registry_service import SkillRegistryService, skill_registry_service
 
 
+_DISPATCHABLE_REVISION_STATES = frozenset({AgentRevisionState.PUBLISHED, AgentRevisionState.DEPRECATED})
+
+
 class AgentExecutionService:
     def __init__(
         self,
@@ -55,7 +58,7 @@ class AgentExecutionService:
             raise ValueError("Agent revision not found")
         if revision.state == AgentRevisionState.ARCHIVED:
             raise ValueError("Archived revisions cannot be dispatched")
-        if revision.state != AgentRevisionState.PUBLISHED:
+        if revision.state not in _DISPATCHABLE_REVISION_STATES:
             raise ValueError("Only published revisions can be dispatched")
 
         agent = self.agents_repository.get_agent(revision.agent_id)

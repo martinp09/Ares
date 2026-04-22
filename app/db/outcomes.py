@@ -4,7 +4,7 @@ from copy import deepcopy
 
 from app.db.client import ControlPlaneClient, get_control_plane_client, utc_now
 from app.models.commands import generate_id
-from app.models.outcomes import OutcomeRecord, OutcomeStatus
+from app.models.outcomes import OutcomeRecord, OutcomeStatus, ReleaseDecisionContext
 
 
 class OutcomesRepository:
@@ -22,6 +22,7 @@ class OutcomesRepository:
         passed: bool,
         failure_details: list[str],
         run_id: str | None,
+        release_decision: ReleaseDecisionContext | None = None,
     ) -> OutcomeRecord:
         outcome = OutcomeRecord(
             id=generate_id("out"),
@@ -34,6 +35,7 @@ class OutcomesRepository:
             satisfied=passed,
             failure_details=list(failure_details),
             run_id=run_id,
+            release_decision=release_decision.model_copy(deep=True) if release_decision is not None else None,
             created_at=utc_now(),
         )
         with self.client.transaction() as store:

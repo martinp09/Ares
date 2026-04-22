@@ -22,6 +22,8 @@ from app.models.campaigns import CampaignMembershipStatus, CampaignStatus
 from app.models.leads import LeadInterestStatus, LeadLifecycleStatus, LeadRecord, LeadSource
 from app.models.marketing_leads import MarketingLeadRecord
 from app.models.tasks import TaskStatus, TaskType
+from app.models.agents import AgentRevisionState
+from app.models.release_management import ReleaseEventType
 from app.models.suppression import SuppressionRecord, SuppressionScope, SuppressionSource
 from app.models.mission_control import (
     MissionControlAutonomyVisibilityResponse,
@@ -48,7 +50,11 @@ from app.models.mission_control import (
     MissionControlOutboundSendResponse,
     MissionControlProviderStatus,
     MissionControlProvidersStatusResponse,
+    MissionControlReleaseEvaluationSummary,
     MissionControlRevisionSecretsHealthSummary,
+    MissionControlRunReplaySummary,
+    MissionControlRunSummary,
+    MissionControlRunsResponse,
     MissionControlSmsTestRequest,
     MissionControlSecretsHealthSnapshot,
     MissionControlLeadMachineTaskSummary,
@@ -59,8 +65,8 @@ from app.models.mission_control import (
     MissionControlOpportunityStageSummary,
     MissionControlOutboundProbateSummary,
     MissionControlPlannerReviewSummary,
-    MissionControlRunSummary,
-    MissionControlRunsResponse,
+    MissionControlReplayActorSummary,
+    MissionControlReplayRevisionSummary,
     MissionControlTaskActionResponse,
     MissionControlTaskSummary,
     MissionControlTasksResponse,
@@ -70,6 +76,7 @@ from app.models.mission_control import (
     MissionControlTurnSummary,
     MissionControlTurnsResponse,
     MissionControlLeadActionResponse,
+    MissionControlAgentReleaseSummary,
 )
 from app.models.runs import RunStatus
 from app.models.provider_extras import InstantlyProviderExtrasSnapshot, ProviderExtraFamilyStatus, ProviderExtrasSummary
@@ -1115,6 +1122,7 @@ class MissionControlService:
                     completed_at=run.completed_at,
                     error_classification=run.error_classification,
                     error_message=run.error_message,
+                    replay=self._build_run_replay_summary(run),
                 )
                 for run in ordered_runs
             ]
@@ -1395,6 +1403,13 @@ class MissionControlService:
             business_id=business_id,
             environment=environment,
         )
+        with self.client.transaction() as store:
+            revisions_by_id = dict(store.agent_revisions)
+            release_events_by_id = dict(store.release_events)
+            release_event_ids_by_agent = {
+                agent_id: list(event_ids)
+                for agent_id, event_ids in store.release_event_ids_by_agent.items()
+            }
         ordered_agents = sorted(agents, key=lambda agent: (agent.updated_at, agent.created_at), reverse=True)
         return MissionControlAgentsResponse(
             agents=[
@@ -1407,6 +1422,12 @@ class MissionControlService:
                     active_revision_id=agent.active_revision_id,
                     active_revision_state=(
                         state.value if (state := self.agent_registry_service.get_agent_revision_state(agent)) is not None else None
+                    ),
+                    release=self._build_agent_release_summary(
+                        agent,
+                        revisions_by_id=revisions_by_id,
+                        release_events_by_id=release_events_by_id,
+                        release_event_ids_by_agent=release_event_ids_by_agent,
                     ),
                     created_at=agent.created_at,
                     updated_at=agent.updated_at,
@@ -1805,6 +1826,142 @@ class MissionControlService:
         if any(command_type.startswith("plan_") for command_type in command_types):
             return "phase2_planner"
         return "phase1_lead_wedge"
+
+    def _build_agent_release_summary(
+        self,
+        agent: Any,
+        *,
+        revisions_by_id: dict[str, Any],
+        release_events_by_id: dict[str, Any],
+        release_event_ids_by_agent: dict[str, list[str]],
+    ) -> MissionControlAgentReleaseSummary | None:
+        event_ids = release_event_ids_by_agent.get(agent.id, [])
+        release_events = [release_events_by_id[event_id] for event_id in event_ids if event_id in release_events_by_id]
+        if not release_events:
+            return None
+        release_events.sort(key=lambda event: (event.created_at, event.updated_at, event.id))
+        latest_event = release_events[-1]
+        resulting_revision = revisions_by_id.get(latest_event.resulting_active_revision_id)
+        rollback_source_revision_id = None
+        if latest_event.event_type == ReleaseEventType.ROLLBACK and resulting_revision is not None:
+            rollback_source_revision_id = getattr(resulting_revision, "cloned_from_revision_id", None)
+        return MissionControlAgentReleaseSummary(
+            event_id=latest_event.id,
+            event_type=latest_event.event_type,
+            release_channel=latest_event.release_channel,
+            created_at=latest_event.created_at,
+            previous_active_revision_id=latest_event.previous_active_revision_id,
+            target_revision_id=latest_event.target_revision_id,
+            resulting_active_revision_id=latest_event.resulting_active_revision_id,
+            rollback_source_revision_id=rollback_source_revision_id,
+            evaluation=self._build_release_evaluation_summary(latest_event.evaluation_summary),
+        )
+
+    def _build_release_evaluation_summary(self, evaluation: Any | None) -> MissionControlReleaseEvaluationSummary | None:
+        if evaluation is None:
+            return None
+        payload = evaluation.model_dump(mode="json") if hasattr(evaluation, "model_dump") else evaluation
+        if not isinstance(payload, dict):
+            return None
+        try:
+            return MissionControlReleaseEvaluationSummary.model_validate(payload)
+        except Exception:
+            return None
+
+    def _build_run_replay_summary(self, run: Any) -> MissionControlRunReplaySummary | None:
+        events = [event for event in getattr(run, "events", []) if isinstance(event, dict)]
+        latest_requested = self._latest_run_event(events, event_type="replay_requested")
+        latest_parent_resolution = self._latest_run_event(events, event_type="replay_child_bound")
+        latest_child_lineage = self._latest_run_event(events, event_type="replay_lineage_bound")
+
+        if latest_requested is not None:
+            payload = self._event_payload(latest_requested)
+            resolution_payload = self._event_payload(latest_parent_resolution)
+            requested_at = self._event_created_at(latest_requested) or run.created_at
+            resolved_at = self._event_created_at(latest_parent_resolution)
+            child_run_id = self._payload_string(resolution_payload, "child_run_id") or self._payload_string(payload, "child_run_id")
+            if resolved_at is None and child_run_id is not None:
+                resolved_at = requested_at
+            requires_approval = (
+                bool(payload.get("requires_approval")) if "requires_approval" in payload else None
+            )
+            if child_run_id is not None:
+                requires_approval = False
+            approval_id = self._payload_string(resolution_payload, "approval_id") or self._payload_string(payload, "approval_id")
+            return MissionControlRunReplaySummary(
+                role="parent",
+                requested_at=requested_at,
+                resolved_at=resolved_at,
+                replay_reason=self._payload_string(payload, "replay_reason") or getattr(run, "replay_reason", None),
+                requires_approval=requires_approval,
+                approval_id=approval_id,
+                child_run_id=child_run_id,
+                parent_run_id=getattr(run, "parent_run_id", None),
+                triggering_actor=self._build_replay_actor_summary(payload.get("triggering_actor")),
+                source=self._build_replay_revision_summary(payload.get("source")),
+                replay=self._build_replay_revision_summary(payload.get("replay")),
+            )
+
+        if latest_child_lineage is not None or getattr(run, "parent_run_id", None) is not None or getattr(run, "replay_reason", None):
+            payload = self._event_payload(latest_child_lineage)
+            requested_at = self._event_created_at(latest_child_lineage) or run.created_at
+            return MissionControlRunReplaySummary(
+                role="child",
+                requested_at=requested_at,
+                resolved_at=requested_at,
+                replay_reason=self._payload_string(payload, "replay_reason") or getattr(run, "replay_reason", None),
+                child_run_id=getattr(run, "id", None),
+                parent_run_id=self._payload_string(payload, "parent_run_id") or getattr(run, "parent_run_id", None),
+                triggering_actor=self._build_replay_actor_summary(payload.get("triggering_actor")),
+                source=self._build_replay_revision_summary(payload.get("source")),
+                replay=self._build_replay_revision_summary(payload.get("replay")),
+            )
+        return None
+
+    @staticmethod
+    def _latest_run_event(events: list[dict[str, Any]], *, event_type: str) -> dict[str, Any] | None:
+        matching = [event for event in events if event.get("event_type") == event_type]
+        if not matching:
+            return None
+        matching.sort(key=lambda event: str(event.get("created_at", "")))
+        return matching[-1]
+
+    @classmethod
+    def _event_created_at(cls, event: dict[str, Any] | None) -> datetime | None:
+        if not isinstance(event, dict):
+            return None
+        raw = event.get("created_at")
+        return cls._parse_datetime(raw) if isinstance(raw, str) else None
+
+    @staticmethod
+    def _event_payload(event: dict[str, Any] | None) -> dict[str, Any]:
+        if not isinstance(event, dict):
+            return {}
+        payload = event.get("payload")
+        return payload if isinstance(payload, dict) else {}
+
+    @staticmethod
+    def _payload_string(payload: dict[str, Any], key: str) -> str | None:
+        raw = payload.get(key)
+        return raw if isinstance(raw, str) and raw else None
+
+    def _build_replay_actor_summary(self, payload: Any) -> MissionControlReplayActorSummary | None:
+        if not isinstance(payload, dict):
+            return None
+        org_id = self._payload_string(payload, "org_id")
+        actor_id = self._payload_string(payload, "actor_id")
+        actor_type = self._payload_string(payload, "actor_type")
+        if org_id is None or actor_id is None or actor_type is None:
+            return None
+        return MissionControlReplayActorSummary(org_id=org_id, actor_id=actor_id, actor_type=actor_type)
+
+    def _build_replay_revision_summary(self, payload: Any) -> MissionControlReplayRevisionSummary | None:
+        if not isinstance(payload, dict):
+            return None
+        try:
+            return MissionControlReplayRevisionSummary.model_validate(payload)
+        except Exception:
+            return None
 
     def _lead_machine_leads(
         self,

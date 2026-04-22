@@ -37,10 +37,12 @@ class RunService:
         agent_revision_id: str | None = None,
         parent_run_id: str | None = None,
         replay_reason: str | None = None,
+        skip_dispatch_validation: bool = False,
     ) -> RunRecord:
-        if agent_revision_id is not None:
+        if agent_revision_id is not None and not skip_dispatch_validation:
             self.agent_execution_service.validate_dispatchable(agent_revision_id)
         now = utc_now()
+        prior_command = self.commands_repository.get(command.id)
         run = self.runs_repository.create(
             command_id=command.id,
             business_id=command.business_id,
@@ -63,12 +65,22 @@ class RunService:
         command.run_id = run.id
         command.status = CommandStatus.QUEUED
         if agent_revision_id is not None:
-            self.agent_execution_service.dispatch_revision(
-                agent_revision_id,
-                payload=command.payload,
-                run_id=run.id,
-            )
+            try:
+                self.agent_execution_service.dispatch_revision(
+                    agent_revision_id,
+                    payload=command.payload,
+                    run_id=run.id,
+                )
+            except Exception:
+                self._rollback_failed_run_creation(run.id, previous_command=prior_command)
+                raise
         return run
+
+    def _rollback_failed_run_creation(self, run_id: str, *, previous_command: CommandRecord | None) -> None:
+        with self.runs_repository.client.transaction() as store:
+            store.runs.pop(run_id, None)
+            if previous_command is not None:
+                store.commands[previous_command.id] = previous_command
 
     def get_run(self, run_id: str) -> RunRecord | None:
         return self.runs_repository.get(run_id)

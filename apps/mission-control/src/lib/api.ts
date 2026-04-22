@@ -14,6 +14,9 @@ export type ApprovalRisk = "low" | "medium" | "high";
 export type ApprovalStatus = "pending" | "approved" | "rejected";
 export type RunStatus = "queued" | "in_progress" | "completed" | "failed";
 export type AssetStatus = "connected" | "attention" | "unbound";
+export type ReleaseEventType = "publish" | "rollback";
+export type OutcomeStatus = "satisfied" | "failed";
+export type ReplayRole = "parent" | "child";
 
 export interface DashboardSummaryData {
   approvalCount: number;
@@ -127,6 +130,61 @@ export interface ApprovalItem {
   payloadPreview: string;
 }
 
+export interface ReleaseEvaluationState {
+  outcomeId: string;
+  outcomeName: string;
+  status: OutcomeStatus;
+  satisfied: boolean;
+  evaluatorResult: string;
+  failureDetails: string[];
+  rubricCriteria: string[];
+  requirePassingEvaluation: boolean;
+  blockedPromotion: boolean;
+  rollbackReason?: string | null;
+}
+
+export interface AgentReleaseState {
+  eventId: string;
+  eventType: ReleaseEventType;
+  releaseChannel?: string | null;
+  createdAt: string;
+  previousActiveRevisionId?: string | null;
+  targetRevisionId: string;
+  resultingActiveRevisionId: string;
+  rollbackSourceRevisionId?: string | null;
+  evaluation?: ReleaseEvaluationState;
+}
+
+export interface ReplayActorState {
+  orgId: string;
+  actorId: string;
+  actorType: string;
+}
+
+export interface ReplayRevisionState {
+  agentId?: string | null;
+  agentRevisionId?: string | null;
+  activeRevisionId?: string | null;
+  revisionState?: string | null;
+  releaseChannel?: string | null;
+  releaseEventId?: string | null;
+  releaseEventType?: ReleaseEventType | null;
+}
+
+export interface RunReplayState {
+  role: ReplayRole;
+  requestedAt: string;
+  resolvedAt?: string | null;
+  replayReason?: string | null;
+  requiresApproval?: boolean | null;
+  approvalId?: string | null;
+  childRunId?: string | null;
+  parentRunId?: string | null;
+  triggeringActor?: ReplayActorState;
+  source?: ReplayRevisionState;
+  replay?: ReplayRevisionState;
+}
+
 export interface RunSummary {
   id: string;
   commandType: string;
@@ -137,6 +195,7 @@ export interface RunSummary {
   parentRunId: string | null;
   triggerRunId: string | null;
   summary: string;
+  replay?: RunReplayState;
 }
 
 export interface TurnSummary {
@@ -167,6 +226,7 @@ export interface AgentSummary {
   environment: string;
   liveSessionCount: number;
   delegatedWorkCount: number;
+  release?: AgentReleaseState;
 }
 
 export interface AssetSummary {
@@ -432,6 +492,61 @@ interface MissionControlApprovalsPayload {
   approvals?: ApprovalPayload[];
 }
 
+interface ReleaseEvaluationPayload {
+  outcome_id?: string;
+  outcome_name?: string;
+  status?: string;
+  satisfied?: boolean;
+  evaluator_result?: string;
+  failure_details?: string[];
+  rubric_criteria?: string[];
+  require_passing_evaluation?: boolean;
+  blocked_promotion?: boolean;
+  rollback_reason?: string | null;
+}
+
+interface AgentReleasePayload {
+  event_id?: string;
+  event_type?: string;
+  release_channel?: string | null;
+  created_at?: string;
+  previous_active_revision_id?: string | null;
+  target_revision_id?: string;
+  resulting_active_revision_id?: string;
+  rollback_source_revision_id?: string | null;
+  evaluation?: ReleaseEvaluationPayload | null;
+}
+
+interface ReplayActorPayload {
+  org_id?: string;
+  actor_id?: string;
+  actor_type?: string;
+}
+
+interface ReplayRevisionPayload {
+  agent_id?: string | null;
+  agent_revision_id?: string | null;
+  active_revision_id?: string | null;
+  revision_state?: string | null;
+  release_channel?: string | null;
+  release_event_id?: string | null;
+  release_event_type?: string | null;
+}
+
+interface RunReplayPayload {
+  role?: string;
+  requested_at?: string;
+  resolved_at?: string | null;
+  replay_reason?: string | null;
+  requires_approval?: boolean | null;
+  approval_id?: string | null;
+  child_run_id?: string | null;
+  parent_run_id?: string | null;
+  triggering_actor?: ReplayActorPayload | null;
+  source?: ReplayRevisionPayload | null;
+  replay?: ReplayRevisionPayload | null;
+}
+
 interface RunPayload {
   id: string;
   command_type: string;
@@ -443,6 +558,7 @@ interface RunPayload {
   trigger_run_id?: string | null;
   error_classification?: string | null;
   error_message?: string | null;
+  replay?: RunReplayPayload | null;
 }
 
 interface RunsPayload {
@@ -458,6 +574,7 @@ interface AgentPayload {
   active_revision_state?: string;
   live_session_count?: number;
   delegated_work_count?: number;
+  release?: AgentReleasePayload | null;
 }
 
 interface AgentRevisionPayload {
@@ -644,18 +761,118 @@ function normalizeAssetStatus(value: unknown, connectLater: boolean): AssetStatu
     return "connected";
   }
 
-  if (value === "unbound") {
-    return connectLater ? "unbound" : "attention";
-  }
-
   return connectLater ? "unbound" : "attention";
 }
 
-function deriveRunSummary(payload: RunPayload): string {
+function normalizeReleaseEventType(value: unknown): ReleaseEventType {
+  return value === "rollback" ? "rollback" : "publish";
+}
+
+function normalizeOutcomeStatus(value: unknown): OutcomeStatus {
+  return value === "failed" ? "failed" : "satisfied";
+}
+
+function normalizeReplayRole(value: unknown): ReplayRole {
+  return value === "child" ? "child" : "parent";
+}
+
+function mapReleaseEvaluation(payload?: ReleaseEvaluationPayload | null): ReleaseEvaluationState | undefined {
+  if (!payload) {
+    return undefined;
+  }
+  return {
+    outcomeId: asString(payload.outcome_id),
+    outcomeName: asString(payload.outcome_name),
+    status: normalizeOutcomeStatus(payload.status),
+    satisfied: asBoolean(payload.satisfied, false),
+    evaluatorResult: asString(payload.evaluator_result),
+    failureDetails: asArray<string>(payload.failure_details).map((value) => asString(value)).filter(Boolean),
+    rubricCriteria: asArray<string>(payload.rubric_criteria).map((value) => asString(value)).filter(Boolean),
+    requirePassingEvaluation: asBoolean(payload.require_passing_evaluation, false),
+    blockedPromotion: asBoolean(payload.blocked_promotion, false),
+    rollbackReason: asNullableString(payload.rollback_reason),
+  };
+}
+
+function mapReplayActor(payload?: ReplayActorPayload | null): ReplayActorState | undefined {
+  if (!payload) {
+    return undefined;
+  }
+  const orgId = asString(payload.org_id);
+  const actorId = asString(payload.actor_id);
+  const actorType = asString(payload.actor_type);
+  if (!orgId || !actorId || !actorType) {
+    return undefined;
+  }
+  return { orgId, actorId, actorType };
+}
+
+function mapReplayRevision(payload?: ReplayRevisionPayload | null): ReplayRevisionState | undefined {
+  if (!payload) {
+    return undefined;
+  }
+  return {
+    agentId: asNullableString(payload.agent_id),
+    agentRevisionId: asNullableString(payload.agent_revision_id),
+    activeRevisionId: asNullableString(payload.active_revision_id),
+    revisionState: asNullableString(payload.revision_state),
+    releaseChannel: asNullableString(payload.release_channel),
+    releaseEventId: asNullableString(payload.release_event_id),
+    releaseEventType: payload.release_event_type ? normalizeReleaseEventType(payload.release_event_type) : null,
+  };
+}
+
+function mapRunReplay(payload?: RunReplayPayload | null): RunReplayState | undefined {
+  if (!payload) {
+    return undefined;
+  }
+  return {
+    role: normalizeReplayRole(payload.role),
+    requestedAt: asString(payload.requested_at),
+    resolvedAt: asNullableString(payload.resolved_at),
+    replayReason: asNullableString(payload.replay_reason),
+    requiresApproval: typeof payload.requires_approval === "boolean" ? payload.requires_approval : null,
+    approvalId: asNullableString(payload.approval_id),
+    childRunId: asNullableString(payload.child_run_id),
+    parentRunId: asNullableString(payload.parent_run_id),
+    triggeringActor: mapReplayActor(payload.triggering_actor),
+    source: mapReplayRevision(payload.source),
+    replay: mapReplayRevision(payload.replay),
+  };
+}
+
+function mapAgentRelease(payload?: AgentReleasePayload | null): AgentReleaseState | undefined {
+  if (!payload) {
+    return undefined;
+  }
+  return {
+    eventId: asString(payload.event_id),
+    eventType: normalizeReleaseEventType(payload.event_type),
+    releaseChannel: asNullableString(payload.release_channel),
+    createdAt: asString(payload.created_at),
+    previousActiveRevisionId: asNullableString(payload.previous_active_revision_id),
+    targetRevisionId: asString(payload.target_revision_id),
+    resultingActiveRevisionId: asString(payload.resulting_active_revision_id),
+    rollbackSourceRevisionId: asNullableString(payload.rollback_source_revision_id),
+    evaluation: mapReleaseEvaluation(payload.evaluation),
+  };
+}
+
+function deriveRunSummary(payload: RunPayload, replay?: RunReplayState): string {
   if (payload.error_message) {
     return payload.error_classification
       ? `${payload.error_classification}: ${payload.error_message}`
       : payload.error_message;
+  }
+
+  if (replay?.role === "child" && replay.parentRunId) {
+    return `Replay child bound to ${replay.parentRunId}.`;
+  }
+  if (replay?.role === "parent" && replay.requiresApproval) {
+    return replay.approvalId ? `Replay awaiting approval ${replay.approvalId}.` : "Replay awaiting approval.";
+  }
+  if (replay?.role === "parent" && replay.childRunId) {
+    return `Replay launched child run ${replay.childRunId}.`;
   }
 
   const status = normalizeRunStatus(payload.status);
@@ -921,17 +1138,21 @@ function mapApprovals(payload: MissionControlApprovalsPayload | ApprovalPayload[
 }
 
 function mapRuns(payload: RunsPayload): RunSummary[] {
-  return asArray<RunPayload>(payload.runs).map((run) => ({
-    id: asString(run.id),
-    commandType: asString(run.command_type),
-    status: normalizeRunStatus(run.status),
-    businessId: asString(run.business_id),
-    environment: asString(run.environment),
-    updatedAt: asString(run.updated_at),
-    parentRunId: asNullableString(run.parent_run_id),
-    triggerRunId: asNullableString(run.trigger_run_id),
-    summary: deriveRunSummary(run),
-  }));
+  return asArray<RunPayload>(payload.runs).map((run) => {
+    const replay = mapRunReplay(run.replay);
+    return {
+      id: asString(run.id),
+      commandType: asString(run.command_type),
+      status: normalizeRunStatus(run.status),
+      businessId: asString(run.business_id),
+      environment: asString(run.environment),
+      updatedAt: asString(run.updated_at),
+      parentRunId: asNullableString(run.parent_run_id),
+      triggerRunId: asNullableString(run.trigger_run_id),
+      summary: deriveRunSummary(run, replay),
+      replay,
+    };
+  });
 }
 
 function mapAgents(payload: MissionControlAgentsPayload | AgentPayload[] | AgentResponsePayload[]): AgentSummary[] {
@@ -963,6 +1184,7 @@ function mapAgents(payload: MissionControlAgentsPayload | AgentPayload[] | Agent
       environment: asString(agent.environment, "unknown"),
       liveSessionCount: asNumber(agent.live_session_count),
       delegatedWorkCount: asNumber(agent.delegated_work_count),
+      release: mapAgentRelease(agent.release),
     };
   });
 }

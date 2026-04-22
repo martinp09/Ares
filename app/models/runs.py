@@ -6,7 +6,10 @@ from typing import Any
 
 from pydantic import BaseModel, ConfigDict
 
+from app.models.agents import AgentRevisionState
+from app.models.actors import ActorType
 from app.models.commands import CommandPolicy
+from app.models.release_management import ReleaseEventType
 
 
 class RunStatus(StrEnum):
@@ -62,6 +65,34 @@ class RunDetailResponse(BaseModel):
     updated_at: datetime
 
 
+class ReplayActorRecord(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    org_id: str
+    actor_id: str
+    actor_type: ActorType
+
+
+class ReplayRevisionContext(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    agent_id: str | None = None
+    agent_revision_id: str | None = None
+    active_revision_id: str | None = None
+    revision_state: AgentRevisionState | None = None
+    release_channel: str | None = None
+    release_event_id: str | None = None
+    release_event_type: ReleaseEventType | None = None
+
+
+class ReplayLineageContext(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    triggering_actor: ReplayActorRecord
+    source: ReplayRevisionContext | None = None
+    replay: ReplayRevisionContext | None = None
+
+
 class ReplayRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -76,3 +107,4 @@ class ReplayResponse(BaseModel):
     requires_approval: bool
     approval_id: str | None = None
     replay_reason: str | None = None
+    lineage: ReplayLineageContext | None = None

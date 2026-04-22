@@ -129,6 +129,57 @@ def test_agent_execution_rejects_draft_revisions() -> None:
         raise AssertionError("Expected draft revision dispatch to fail")
 
 
+def test_agent_execution_rejects_candidate_revisions() -> None:
+    agents, _, execution = build_services()
+    _, revision = agents.create_agent(
+        business_id="limitless",
+        environment="dev",
+        name="Candidate Agent",
+        description=None,
+        config={"prompt": "wait for publish"},
+        host_adapter_kind=HostAdapterKind.TRIGGER_DEV,
+        skill_ids=[],
+        host_adapter_config={},
+    )
+    agents.promote_revision_to_candidate(revision.agent_id, revision.id)
+
+    try:
+        execution.dispatch_revision(revision.id)
+    except ValueError as exc:
+        assert str(exc) == "Only published revisions can be dispatched"
+    else:
+        raise AssertionError("Expected candidate revision dispatch to fail")
+
+
+def test_agent_execution_allows_deprecated_revisions_for_historical_dispatches() -> None:
+    agents, dispatches, execution = build_services()
+    _, first_revision = agents.create_agent(
+        business_id="limitless",
+        environment="dev",
+        name="Replayable Agent",
+        description=None,
+        config={"prompt": "replay old release"},
+        host_adapter_kind=HostAdapterKind.TRIGGER_DEV,
+        skill_ids=[],
+        host_adapter_config={"queue": "priority"},
+    )
+    agents.publish_revision(first_revision.agent_id, first_revision.id)
+    _, second_revision = agents.clone_revision(first_revision.agent_id, first_revision.id)
+    agents.publish_revision(first_revision.agent_id, second_revision.id)
+
+    deprecated_revision = agents.get_revision(first_revision.id)
+    assert deprecated_revision is not None
+    assert deprecated_revision.state == AgentRevisionState.DEPRECATED
+
+    result = execution.dispatch_revision(first_revision.id, run_id="run_deprecated")
+    stored = dispatches.get(result.dispatch_id)
+
+    assert result.status == HostAdapterDispatchStatus.ACCEPTED
+    assert stored is not None
+    assert stored.agent_revision_id == first_revision.id
+    assert stored.run_id == "run_deprecated"
+
+
 def test_agent_execution_rejects_disabled_adapters_without_breaking_registry_boot() -> None:
     client = InMemoryControlPlaneClient(InMemoryControlPlaneStore())
     agents = AgentsRepository(client)

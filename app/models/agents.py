@@ -14,7 +14,9 @@ from app.models.providers import ProviderCapability, ProviderKind
 
 class AgentRevisionState(StrEnum):
     DRAFT = "draft"
+    CANDIDATE = "candidate"
     PUBLISHED = "published"
+    DEPRECATED = "deprecated"
     ARCHIVED = "archived"
 
 
@@ -60,6 +62,7 @@ class AgentCreateRequest(BaseModel):
     output_schema: dict[str, Any] = Field(default_factory=dict)
     release_notes: str | None = None
     compatibility_metadata: dict[str, Any] = Field(default_factory=dict)
+    release_channel: str = Field(default="internal", min_length=1)
 
     @model_validator(mode="after")
     def validate_initial_lifecycle_status(self) -> "AgentCreateRequest":
@@ -111,6 +114,7 @@ class AgentRevisionRecord(BaseModel):
     output_schema: dict[str, Any] = Field(default_factory=dict)
     release_notes: str | None = None
     compatibility_metadata: dict[str, Any] = Field(default_factory=dict)
+    release_channel: str = Field(default="internal", min_length=1)
     created_at: datetime
     updated_at: datetime
     published_at: datetime | None = None

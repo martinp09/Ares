@@ -1,5 +1,7 @@
-from fastapi import APIRouter, HTTPException, Response, status
+from fastapi import APIRouter, Depends, HTTPException, Response, status
 
+from app.core.dependencies import actor_context_dependency
+from app.models.actors import ActorContext
 from app.models.runs import ReplayRequest, ReplayResponse
 from app.services.replay_service import replay_service
 
@@ -7,9 +9,14 @@ router = APIRouter(tags=["replays"])
 
 
 @router.post("/replays/{run_id}", response_model=ReplayResponse)
-def replay(run_id: str, request: ReplayRequest, response: Response) -> ReplayResponse:
+def replay(
+    run_id: str,
+    request: ReplayRequest,
+    response: Response,
+    actor_context: ActorContext = Depends(actor_context_dependency),
+) -> ReplayResponse:
     try:
-        replay_result = replay_service.replay_run(run_id, request)
+        replay_result = replay_service.replay_run(run_id, request, actor_context=actor_context)
     except ValueError as exc:
         raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(exc)) from exc
     if replay_result is None:

@@ -56,7 +56,7 @@ export function MissionControlShell({
         <div className="brand-block">
           <span className="brand-block__eyebrow">Ares</span>
           <h1 className="brand-block__title">Mission Control</h1>
-          <p className="brand-block__copy">Native operator cockpit for agents, inbox, approvals, and runs.</p>
+          <p className="brand-block__copy">Agents are the product unit.</p>
         </div>
 
         <label className="search-field">

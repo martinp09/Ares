@@ -14,6 +14,8 @@ import {
 } from "./lib/api";
 import { missionControlFixtures } from "./lib/fixtures";
 import { queryClient } from "./lib/queryClient";
+import { AgentsPage, type AgentsPageOperatorView } from "./pages/AgentsPage";
+import { ApprovalsPage } from "./pages/ApprovalsPage";
 import { DashboardPage } from "./pages/DashboardPage";
 import { InboxPage } from "./pages/InboxPage";
 import { PipelinePage } from "./pages/PipelinePage";
@@ -62,7 +64,7 @@ function includesSearch(haystack: Array<string | number | null | undefined>, sea
 
 export default function App() {
   const [activeWorkspace, setActiveWorkspace] = useState<WorkspaceId>("lead-machine");
-  const [activeView, setActiveView] = useState<MissionControlView>("dashboard");
+  const [activeView, setActiveView] = useState<MissionControlView>("agents");
   const [searchValue, setSearchValue] = useState("");
   const [snapshot, setSnapshot] = useState<MissionControlSnapshot>(missionControlFixtures);
   const [selectedConversationId, setSelectedConversationId] = useState("");
@@ -205,14 +207,42 @@ export default function App() {
     [normalizedSearchValue, snapshot.runs],
   );
 
+  const filteredAgents = useMemo(
+    () =>
+      snapshot.agents.filter((agent) =>
+        includesSearch(
+          [
+            agent.name,
+            agent.id,
+            agent.activeRevisionId,
+            agent.activeRevisionState,
+            agent.environment,
+            agent.release?.eventType,
+            agent.release?.releaseChannel,
+          ],
+          normalizedSearchValue,
+        ),
+      ),
+    [normalizedSearchValue, snapshot.agents],
+  );
+
+  const filteredApprovals = useMemo(
+    () =>
+      snapshot.approvals.filter((approval) =>
+        includesSearch(
+          [approval.title, approval.reason, approval.commandType, approval.payloadPreview, approval.riskLevel, approval.status],
+          normalizedSearchValue,
+        ),
+      ),
+    [normalizedSearchValue, snapshot.approvals],
+  );
+
   const filteredOpportunityStages = useMemo(
     () =>
       (snapshot.dashboard.opportunityPipelineSummary?.laneStageSummaries ??
         snapshot.dashboard.opportunityStageSummaries ??
         []
-      ).filter((stage) =>
-        includesSearch([stage.sourceLane, stage.stage, stage.count], normalizedSearchValue),
-      ),
+      ).filter((stage) => includesSearch([stage.sourceLane, stage.stage, stage.count], normalizedSearchValue)),
     [
       normalizedSearchValue,
       snapshot.dashboard.opportunityPipelineSummary?.laneStageSummaries,
@@ -243,13 +273,79 @@ export default function App() {
     { id: "pipeline", label: "Pipeline" },
   ];
 
+  const leadMachineOperatorViews: AgentsPageOperatorView[] = [
+    {
+      id: "dashboard",
+      label: "Queue",
+      metricLabel: "ready leads",
+      metricValue: snapshot.dashboard.outboundProbateSummary?.readyLeadCount ?? snapshot.dashboard.pendingLeadCount ?? 0,
+      description: "Review the outbound probate queue alongside the active agents.",
+    },
+    {
+      id: "inbox",
+      label: "Replies",
+      metricLabel: "open threads",
+      metricValue: filteredConversations.length,
+      description: "Keep human reply review adjacent to the agents in the current workspace.",
+    },
+    {
+      id: "approvals",
+      label: "Approvals",
+      metricLabel: "pending decisions",
+      metricValue: filteredApprovals.length,
+      description: "Operator approvals stay visible beside release posture and runtime state.",
+    },
+    {
+      id: "runs",
+      label: "Campaign State",
+      metricLabel: "tracked runs",
+      metricValue: filteredRuns.length,
+      description: "Root and child automation runs remain attached to the agents that triggered them.",
+    },
+  ];
+
+  const marketingOperatorViews: AgentsPageOperatorView[] = [
+    {
+      id: "dashboard",
+      label: "Overview",
+      metricLabel: "pending leads",
+      metricValue: snapshot.dashboard.inboundLeaseOptionSummary?.pendingLeadCount ?? snapshot.dashboard.pendingLeadCount ?? 0,
+      description: "See the current operator workspace from the agents outward.",
+    },
+    {
+      id: "inbox",
+      label: "Submissions",
+      metricLabel: "visible threads",
+      metricValue: filteredConversations.length,
+      description: "New submissions and replies stay adjacent to the agents handling follow-up.",
+    },
+    {
+      id: "approvals",
+      label: "Approvals",
+      metricLabel: "pending decisions",
+      metricValue: filteredApprovals.length,
+      description: "Human checkpoints remain explicit before marketing agents advance.",
+    },
+    {
+      id: "runs",
+      label: "Runs",
+      metricLabel: "tracked runs",
+      metricValue: filteredRuns.length,
+      description: "Inspect runtime execution without leaving the agent-centered workspace.",
+    },
+  ];
+
   const workspaceDefinitions: Record<WorkspaceId, WorkspaceDefinition> = {
     "lead-machine": {
       label: "Lead Machine",
-      defaultView: "dashboard",
+      defaultView: "agents",
       navSections: [
         {
-          title: "Lead Machine",
+          title: "Agents",
+          items: [{ id: "agents", label: "Agents", badge: filteredAgents.length }],
+        },
+        {
+          title: "Operator views",
           items: [
             {
               id: "dashboard",
@@ -257,8 +353,9 @@ export default function App() {
               badge: snapshot.dashboard.outboundProbateSummary?.readyLeadCount ?? snapshot.dashboard.pendingLeadCount ?? 0,
             },
             { id: "inbox", label: "Replies", badge: snapshot.dashboard.unreadConversationCount },
+            { id: "approvals", label: "Approvals", badge: filteredApprovals.length },
+            { id: "runs", label: "Campaign State", badge: filteredRuns.length },
             { id: "suppression", label: "Suppression", badge: snapshot.dashboard.repliesNeedingReviewCount ?? 0 },
-            { id: "runs", label: "Campaign State", badge: snapshot.dashboard.activeRunCount },
             {
               id: "tasks",
               label: "Tasks",
@@ -273,6 +370,28 @@ export default function App() {
         },
       ],
       pages: {
+        agents: {
+          title: "Lead Machine / Agents",
+          subtitle: "Agents are the first stop in this workspace; queue, replies, approvals, and runs stay adjacent operator views.",
+          mainContent: (
+            <AgentsPage
+              agents={filteredAgents}
+              workspaceLabel="Lead Machine"
+              operatorViews={leadMachineOperatorViews}
+            />
+          ),
+          contextContent: (
+            <ContextPanel
+              eyebrow="Agent posture"
+              title="Agent-centered operator cockpit"
+              items={[
+                `${filteredAgents.length} agents are visible in this workspace`,
+                `${filteredApprovals.length} approvals remain pending next to the active agents`,
+                `${filteredRuns.length} runtime runs stay attached to operator context`,
+              ]}
+            />
+          ),
+        },
         dashboard: {
           title: "Lead Machine / Queue",
           subtitle: "Outbound probate queue, campaign posture, and operator attention in one lane.",
@@ -291,7 +410,7 @@ export default function App() {
         },
         inbox: {
           title: "Lead Machine / Replies",
-          subtitle: "Review probate reply context, suppression signals, and next actions without leaving the lane.",
+          subtitle: "Review reply context, suppression signals, and next actions without leaving the agent-centered workspace.",
           mainContent: (
             <InboxPage
               data={{ ...snapshot.inbox, conversations: filteredConversations }}
@@ -309,6 +428,21 @@ export default function App() {
                 `Stage: ${contextThread.stage}`,
                 `Tags: ${contextThread.tags.join(", ") || "none"}`,
                 ...contextThread.notes,
+              ]}
+            />
+          ),
+        },
+        approvals: {
+          title: "Lead Machine / Approvals",
+          subtitle: "Human approval decisions remain adjacent to the agents and runs that triggered them.",
+          mainContent: <ApprovalsPage approvals={filteredApprovals} />,
+          contextContent: (
+            <ContextPanel
+              eyebrow="Approval posture"
+              title="Human checkpoints stay explicit"
+              items={[
+                `${filteredApprovals.length} approvals are visible in the current workspace`,
+                "Approvals remain attached to the agents and runtime state that requested them.",
               ]}
             />
           ),
@@ -338,7 +472,7 @@ export default function App() {
         },
         runs: {
           title: "Lead Machine / Campaign State",
-          subtitle: "Inspect outbound automation runs and keep campaign lineage visible.",
+          subtitle: "Inspect outbound automation runs and keep campaign lineage visible beside the active agents.",
           mainContent: <RunsPage runs={filteredRuns} />,
           contextContent: (
             <ContextPanel
@@ -371,10 +505,14 @@ export default function App() {
     },
     marketing: {
       label: "Marketing",
-      defaultView: "dashboard",
+      defaultView: "agents",
       navSections: [
         {
-          title: "Marketing",
+          title: "Agents",
+          items: [{ id: "agents", label: "Agents", badge: filteredAgents.length }],
+        },
+        {
+          title: "Operator views",
           items: [
             {
               id: "dashboard",
@@ -383,6 +521,8 @@ export default function App() {
                 snapshot.dashboard.inboundLeaseOptionSummary?.pendingLeadCount ?? snapshot.dashboard.pendingLeadCount ?? 0,
             },
             { id: "inbox", label: "Submissions", badge: snapshot.dashboard.unreadConversationCount },
+            { id: "approvals", label: "Approvals", badge: filteredApprovals.length },
+            { id: "runs", label: "Runs", badge: filteredRuns.length },
             {
               id: "tasks",
               label: "Tasks",
@@ -400,6 +540,24 @@ export default function App() {
         },
       ],
       pages: {
+        agents: {
+          title: "Marketing / Agents",
+          subtitle: "Agents are the first stop in this workspace while submissions, approvals, and runs stay visible around them.",
+          mainContent: (
+            <AgentsPage agents={filteredAgents} workspaceLabel="Marketing" operatorViews={marketingOperatorViews} />
+          ),
+          contextContent: (
+            <ContextPanel
+              eyebrow="Agent posture"
+              title="Agent-centered marketing workspace"
+              items={[
+                `${filteredAgents.length} agents are visible in this workspace`,
+                `${filteredApprovals.length} approvals are waiting on operator review`,
+                `${filteredRuns.length} runs remain visible beside the current agents`,
+              ]}
+            />
+          ),
+        },
         dashboard: {
           title: "Marketing / Overview",
           subtitle: "Lease-option submissions, booked vs pending, and non-booker follow-up health.",
@@ -436,6 +594,36 @@ export default function App() {
                 `Stage: ${contextThread.stage}`,
                 `Tags: ${contextThread.tags.join(", ") || "none"}`,
                 ...contextThread.notes,
+              ]}
+            />
+          ),
+        },
+        approvals: {
+          title: "Marketing / Approvals",
+          subtitle: "Keep human review adjacent to the marketing agents and outbound actions that requested approval.",
+          mainContent: <ApprovalsPage approvals={filteredApprovals} />,
+          contextContent: (
+            <ContextPanel
+              eyebrow="Approval posture"
+              title="Operator checkpoints remain explicit"
+              items={[
+                `${filteredApprovals.length} approvals are visible in the current marketing lane`,
+                "Approvals stay attached to the agents and live runtime posture, not hidden behind a separate shell.",
+              ]}
+            />
+          ),
+        },
+        runs: {
+          title: "Marketing / Runs",
+          subtitle: "Inspect marketing automation runs without leaving the agent-first workspace.",
+          mainContent: <RunsPage runs={filteredRuns} />,
+          contextContent: (
+            <ContextPanel
+              eyebrow="Runtime posture"
+              title="Marketing execution remains visible"
+              items={[
+                `${filteredRuns.length} runs match the current search scope`,
+                "Agent operations and runtime lineage stay in the same cockpit.",
               ]}
             />
           ),

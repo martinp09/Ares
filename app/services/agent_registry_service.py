@@ -59,6 +59,7 @@ class AgentRegistryService:
             output_schema=request.output_schema,
             release_notes=request.release_notes,
             compatibility_metadata=request.compatibility_metadata,
+            release_channel=request.release_channel,
         )
         audit_service.append_event(
             event_type="agent_created",
@@ -96,8 +97,38 @@ class AgentRegistryService:
         revisions = self.agents_repository.list_revisions(agent.id)
         if not revisions:
             return None
-        latest = max(revisions, key=lambda revision: revision.revision_number)
+        latest_visible_revision = max(
+            (revision for revision in revisions if revision.state != AgentRevisionState.ARCHIVED),
+            key=lambda revision: revision.revision_number,
+            default=None,
+        )
+        latest = latest_visible_revision or max(revisions, key=lambda revision: revision.revision_number)
         return latest.state
+
+    def promote_revision_to_candidate(
+        self,
+        agent_id: str,
+        revision_id: str,
+        *,
+        org_id: str | None = None,
+    ) -> AgentResponse | None:
+        agent = self.agents_repository.get_agent(agent_id)
+        if agent is None or (org_id is not None and agent.org_id != org_id):
+            return None
+        result = self.agents_repository.promote_revision_to_candidate(agent_id, revision_id)
+        if result is None:
+            return None
+        agent, revision = result
+        audit_service.append_event(
+            event_type="agent_candidate_promoted",
+            summary=f"Promoted revision {revision.id} to candidate",
+            org_id=agent.org_id,
+            resource_type="agent_revision",
+            resource_id=revision.id,
+            agent_id=agent.id,
+            agent_revision_id=revision.id,
+        )
+        return AgentResponse(agent=agent, revisions=self.agents_repository.list_revisions(agent_id))
 
     def publish_revision(self, agent_id: str, revision_id: str, *, org_id: str | None = None) -> AgentResponse | None:
         agent = self.agents_repository.get_agent(agent_id)

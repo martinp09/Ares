@@ -1,20 +1,47 @@
 import { AgentRegistryTable } from "../components/AgentRegistryTable";
-import type { AgentSummary } from "../lib/api";
+import type { AgentSummary, MissionControlView } from "../lib/api";
+
+export interface AgentsPageOperatorView {
+  id: Extract<MissionControlView, "dashboard" | "inbox" | "approvals" | "runs">;
+  label: string;
+  metricLabel: string;
+  metricValue: number;
+  description: string;
+}
 
 interface AgentsPageProps {
   agents: AgentSummary[];
+  workspaceLabel: string;
+  operatorViews: AgentsPageOperatorView[];
 }
 
 function getPublishedCount(agents: AgentSummary[]): number {
   return agents.filter((agent) => agent.activeRevisionState === "published").length;
 }
 
-export function AgentsPage({ agents }: AgentsPageProps) {
+function summarizeRelease(agent: AgentSummary): string {
+  const release = agent.release;
+  if (!release) {
+    return `${agent.activeRevisionState} / no release events yet`;
+  }
+  const evaluation = release.evaluation;
+  const evaluationLabel = evaluation
+    ? evaluation.satisfied
+      ? `eval ${evaluation.status}`
+      : `eval ${evaluation.status} (${evaluation.failureDetails.length} issues)`
+    : "eval pending";
+  return `${release.eventType} · ${release.releaseChannel ?? "internal"} · ${evaluationLabel}`;
+}
+
+export function AgentsPage({ agents, workspaceLabel, operatorViews }: AgentsPageProps) {
   const publishedCount = getPublishedCount(agents);
   const environmentCount = new Set(agents.map((agent) => agent.environment)).size;
   const liveSessionCount = agents.reduce((total, agent) => total + agent.liveSessionCount, 0);
   const delegatedWorkCount = agents.reduce((total, agent) => total + agent.delegatedWorkCount, 0);
+  const rollbackCount = agents.filter((agent) => agent.release?.eventType === "rollback").length;
+  const failingEvalCount = agents.filter((agent) => agent.release?.evaluation && !agent.release.evaluation.satisfied).length;
   const featuredAgent = agents[0];
+  const releaseAgents = agents.filter((agent) => agent.release);
 
   return (
     <div className="page-stack">
@@ -40,15 +67,86 @@ export function AgentsPage({ agents }: AgentsPageProps) {
             <p className="summary-card__label">Delegated work</p>
             <strong className="summary-card__value">{delegatedWorkCount}</strong>
           </article>
+          <article className="summary-card summary-card--compact">
+            <p className="summary-card__label">Rollback-active agents</p>
+            <strong className="summary-card__value">{rollbackCount}</strong>
+          </article>
+          <article className="summary-card summary-card--compact">
+            <p className="summary-card__label">Failing release evals</p>
+            <strong className="summary-card__value">{failingEvalCount}</strong>
+          </article>
         </div>
         <p className="panel-copy">
           Agents are the product unit here. The rest is just scaffolding until live runtime wiring is turned on later.
         </p>
         {featuredAgent ? (
           <p className="panel-copy">
-            Featured agent: {featuredAgent.name} — {featuredAgent.activeRevisionState} in {featuredAgent.environment}.
+            Featured agent: {featuredAgent.name} — {summarizeRelease(featuredAgent)} in {featuredAgent.environment}.
           </p>
         ) : null}
+      </section>
+
+      <section className="panel-stack">
+        <div className="section-heading">
+          <h3>Operator views around agents</h3>
+          <span>{workspaceLabel} operator workspace</span>
+        </div>
+        <div className="summary-grid summary-grid--secondary">
+          {operatorViews.map((view) => (
+            <article className="summary-card summary-card--compact" key={view.id}>
+              <p className="summary-card__label">{view.label}</p>
+              <strong className="summary-card__value">{`${view.metricValue} ${view.metricLabel}`}</strong>
+              <p className="panel-copy">{view.description}</p>
+            </article>
+          ))}
+        </div>
+      </section>
+
+      <section className="panel-stack">
+        <div className="section-heading">
+          <h3>Release read model</h3>
+          <span>{releaseAgents.length} agents with runtime release state</span>
+        </div>
+        {releaseAgents.length > 0 ? (
+          <div className="list-stack">
+            {releaseAgents.map((agent) => {
+              const release = agent.release!;
+              return (
+                <article className="list-card" key={`${agent.id}-release`}>
+                  <div className="list-card__row">
+                    <strong>{agent.name}</strong>
+                    <span>{release.eventType}</span>
+                  </div>
+                  <p className="list-card__body">
+                    {release.releaseChannel ?? "internal"} · target {release.targetRevisionId} · active {release.resultingActiveRevisionId}
+                  </p>
+                  <div className="list-card__row list-card__row--muted">
+                    <span>
+                      {release.rollbackSourceRevisionId
+                        ? `rollback source ${release.rollbackSourceRevisionId}`
+                        : release.previousActiveRevisionId
+                          ? `superseded ${release.previousActiveRevisionId}`
+                          : "first release"}
+                    </span>
+                    <span>{release.createdAt}</span>
+                  </div>
+                  {release.evaluation ? (
+                    <div className="list-card__row list-card__row--muted">
+                      <span>{release.evaluation.evaluatorResult}</span>
+                      <span>
+                        {release.evaluation.rollbackReason
+                          ? `reason: ${release.evaluation.rollbackReason}`
+                          : `evaluation ${release.evaluation.status}`}
+                      </span>
+                    </div>
+                  ) : null}
+                </article>
+              );
+            })}
+          </div>
+        ) : (
+          <p className="panel-copy">No release events are available for the current agent scope yet.</p>
+        )}
       </section>
 
       <AgentRegistryTable agents={agents} />

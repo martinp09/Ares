@@ -327,7 +327,7 @@ describe("App", () => {
     expect(screen.getByText("Using fixture fallback for: inbox.")).toBeInTheDocument();
   });
 
-  it("switches between lead machine, marketing, and pipeline workspaces", async () => {
+  it("defaults to agents-first navigation and keeps operator views around each workspace", async () => {
     const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
       const url = typeof input === "string" ? input : input instanceof URL ? input.toString() : input.url;
 
@@ -350,6 +350,18 @@ describe("App", () => {
             { stage: "qualified_opportunity", count: 2 },
             { stage: "under_negotiation", count: 1 },
           ],
+          outbound_probate_summary: {
+            ready_lead_count: 6,
+            active_campaign_count: 3,
+            open_task_count: 2,
+          },
+          inbound_lease_option_summary: {
+            pending_lead_count: 4,
+            booked_lead_count: 2,
+            active_non_booker_enrollment_count: 3,
+            due_manual_call_count: 1,
+            replies_needing_review_count: 1,
+          },
           system_status: "healthy",
           updated_at: "2026-04-16T22:00:00+00:00",
         });
@@ -456,11 +468,23 @@ describe("App", () => {
     render(<App />);
 
     expect(await screen.findByRole("tab", { name: "Lead Machine" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /agents/i })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /lead machine \/ agents/i, level: 2 })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /queue/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /approvals/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /campaign state/i })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /approvals/i }));
+    expect(screen.getByRole("heading", { name: /approvals queue/i, level: 3 })).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("tab", { name: "Marketing" }));
+    expect(screen.getByRole("heading", { name: /marketing \/ agents/i, level: 2 })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /submissions/i })).toBeInTheDocument();
-    expect(screen.getByText(/Lease-option submissions, booked vs pending/i)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /approvals/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /runs/i })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /submissions/i }));
+    expect(screen.getByText(/Work new lease-option submissions/i)).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("tab", { name: "Pipeline" }));
     expect(screen.getByRole("heading", { name: /pipeline board/i, level: 2 })).toBeInTheDocument();

@@ -35,6 +35,7 @@ def test_create_agent_creates_stable_id_and_initial_draft_revision(client) -> No
     assert body["agent"]["packaging_metadata"] == {}
     assert len(body["revisions"]) == 1
     assert body["revisions"][0]["state"] == "draft"
+    assert body["revisions"][0]["release_channel"] == "internal"
     assert body["revisions"][0]["revision_number"] == 1
 
 
@@ -159,6 +160,7 @@ def test_agent_product_metadata_round_trips_through_create_get_publish_and_clone
                 "required": ["summary"],
             },
             "release_notes": "Initial seller-ops packaging.",
+            "release_channel": "dogfood",
             "compatibility_metadata": {
                 "host_adapters": ["trigger_dev"],
                 "requires_secrets": ["resend_api_key"],
@@ -201,6 +203,7 @@ def test_agent_product_metadata_round_trips_through_create_get_publish_and_clone
         "required": ["summary"],
     }
     assert created["revisions"][0]["release_notes"] == "Initial seller-ops packaging."
+    assert created["revisions"][0]["release_channel"] == "dogfood"
     assert created["revisions"][0]["compatibility_metadata"] == {
         "host_adapters": ["trigger_dev"],
         "requires_secrets": ["resend_api_key"],
@@ -219,6 +222,7 @@ def test_agent_product_metadata_round_trips_through_create_get_publish_and_clone
     assert fetched["revisions"][0]["input_schema"] == created["revisions"][0]["input_schema"]
     assert fetched["revisions"][0]["output_schema"] == created["revisions"][0]["output_schema"]
     assert fetched["revisions"][0]["release_notes"] == "Initial seller-ops packaging."
+    assert fetched["revisions"][0]["release_channel"] == "dogfood"
     assert fetched["revisions"][0]["compatibility_metadata"] == {
         "host_adapters": ["trigger_dev"],
         "requires_secrets": ["resend_api_key"],
@@ -237,6 +241,7 @@ def test_agent_product_metadata_round_trips_through_create_get_publish_and_clone
     assert published_revision["input_schema"] == created["revisions"][0]["input_schema"]
     assert published_revision["output_schema"] == created["revisions"][0]["output_schema"]
     assert published_revision["release_notes"] == "Initial seller-ops packaging."
+    assert published_revision["release_channel"] == "dogfood"
     assert published_revision["compatibility_metadata"] == {
         "host_adapters": ["trigger_dev"],
         "requires_secrets": ["resend_api_key"],
@@ -253,6 +258,7 @@ def test_agent_product_metadata_round_trips_through_create_get_publish_and_clone
     assert cloned_revision["input_schema"] == created["revisions"][0]["input_schema"]
     assert cloned_revision["output_schema"] == created["revisions"][0]["output_schema"]
     assert cloned_revision["release_notes"] == "Initial seller-ops packaging."
+    assert cloned_revision["release_channel"] == "dogfood"
     assert cloned_revision["compatibility_metadata"] == {
         "host_adapters": ["trigger_dev"],
         "requires_secrets": ["resend_api_key"],
@@ -283,6 +289,67 @@ def test_publish_draft_revision_marks_it_active_production_revision(client) -> N
     revisions = {revision["id"]: revision for revision in body["revisions"]}
     assert revisions[revision_id]["state"] == "published"
     assert revisions[revision_id]["published_at"] is not None
+
+
+def test_publishing_new_revision_deprecates_previous_release_and_blocks_republish(client) -> None:
+    reset_control_plane_state()
+
+    created = client.post(
+        "/agents",
+        json={
+            "name": "Release Lifecycle Agent",
+            "config": {"prompt": "Manage staged launches"},
+            "release_channel": "canary",
+        },
+        headers=AUTH_HEADERS,
+    ).json()
+    agent_id = created["agent"]["id"]
+    first_revision_id = created["revisions"][0]["id"]
+
+    first_publish = client.post(
+        f"/agents/{agent_id}/revisions/{first_revision_id}/publish",
+        headers=AUTH_HEADERS,
+    )
+    assert first_publish.status_code == 200
+
+    clone_response = client.post(
+        f"/agents/{agent_id}/revisions/{first_revision_id}/clone",
+        headers=AUTH_HEADERS,
+    )
+    assert clone_response.status_code == 200
+    second_revision = max(clone_response.json()["revisions"], key=lambda revision: revision["revision_number"])
+    assert second_revision["state"] == "draft"
+    assert second_revision["release_channel"] == "canary"
+
+    second_publish = client.post(
+        f"/agents/{agent_id}/revisions/{second_revision['id']}/publish",
+        headers=AUTH_HEADERS,
+    )
+
+    assert second_publish.status_code == 200
+    body = second_publish.json()
+    revisions = {revision["id"]: revision for revision in body["revisions"]}
+    assert body["agent"]["active_revision_id"] == second_revision["id"]
+    assert body["agent"]["lifecycle_status"] == "active"
+    assert revisions[first_revision_id]["state"] == "deprecated"
+    assert revisions[first_revision_id]["release_channel"] == "canary"
+    assert revisions[second_revision["id"]]["state"] == "published"
+    assert revisions[second_revision["id"]]["release_channel"] == "canary"
+
+    release_events_response = client.get(
+        f"/release-management/agents/{agent_id}/events",
+        headers=AUTH_HEADERS,
+    )
+    assert release_events_response.status_code == 200
+    release_events = release_events_response.json()["events"]
+    assert [event["event_type"] for event in release_events] == ["publish", "publish"]
+    assert [event["target_revision_id"] for event in release_events] == [first_revision_id, second_revision["id"]]
+
+    republish_response = client.post(
+        f"/agents/{agent_id}/revisions/{first_revision_id}/publish",
+        headers=AUTH_HEADERS,
+    )
+    assert republish_response.status_code == 409
 
 
 def test_cloning_published_revision_creates_new_draft_with_copied_config(client) -> None:
@@ -366,7 +433,7 @@ def test_cloning_archived_revision_reopens_agent_in_draft_state(client) -> None:
     assert cloned_revision["cloned_from_revision_id"] == revision_id
 
 
-def test_archiving_active_revision_with_remaining_draft_keeps_agent_in_draft_state(client) -> None:
+def test_archiving_active_revision_via_legacy_agents_path_is_fail_closed_until_release_event_support_exists(client) -> None:
     reset_control_plane_state()
 
     created = client.post(
@@ -389,16 +456,20 @@ def test_archiving_active_revision_with_remaining_draft_keeps_agent_in_draft_sta
         headers=AUTH_HEADERS,
     )
 
-    assert archive_response.status_code == 200
-    body = archive_response.json()
+    assert archive_response.status_code == 409
+    assert "release event" in archive_response.json()["detail"]
+
+    get_response = client.get(f"/agents/{agent_id}", headers=AUTH_HEADERS)
+    assert get_response.status_code == 200
+    body = get_response.json()
     revisions = {revision["id"]: revision for revision in body["revisions"]}
-    assert body["agent"]["active_revision_id"] is None
-    assert body["agent"]["lifecycle_status"] == "draft"
-    assert revisions[revision_id]["state"] == "archived"
+    assert body["agent"]["active_revision_id"] == revision_id
+    assert body["agent"]["lifecycle_status"] == "active"
+    assert revisions[revision_id]["state"] == "published"
     assert revisions[cloned_revision["id"]]["state"] == "draft"
 
 
-def test_archived_revisions_remain_queryable_but_cannot_be_published_again(client) -> None:
+def test_archived_non_active_revisions_remain_queryable_but_cannot_be_published_again(client) -> None:
     reset_control_plane_state()
 
     created = client.post(
@@ -410,6 +481,13 @@ def test_archived_revisions_remain_queryable_but_cannot_be_published_again(clien
     revision_id = created["revisions"][0]["id"]
 
     client.post(f"/agents/{agent_id}/revisions/{revision_id}/publish", headers=AUTH_HEADERS)
+    clone_response = client.post(f"/agents/{agent_id}/revisions/{revision_id}/clone", headers=AUTH_HEADERS)
+    next_revision_id = max(clone_response.json()["revisions"], key=lambda revision: revision["revision_number"])["id"]
+    publish_clone_response = client.post(
+        f"/agents/{agent_id}/revisions/{next_revision_id}/publish",
+        headers=AUTH_HEADERS,
+    )
+    assert publish_clone_response.status_code == 200
     archive_response = client.post(f"/agents/{agent_id}/revisions/{revision_id}/archive", headers=AUTH_HEADERS)
     assert archive_response.status_code == 200
 
@@ -417,8 +495,10 @@ def test_archived_revisions_remain_queryable_but_cannot_be_published_again(clien
     assert get_response.status_code == 200
     body = get_response.json()
     revisions = {revision["id"]: revision for revision in body["revisions"]}
-    assert body["agent"]["lifecycle_status"] == "archived"
+    assert body["agent"]["active_revision_id"] == next_revision_id
+    assert body["agent"]["lifecycle_status"] == "active"
     assert revisions[revision_id]["state"] == "archived"
+    assert revisions[next_revision_id]["state"] == "published"
 
     republish_response = client.post(
         f"/agents/{agent_id}/revisions/{revision_id}/publish",

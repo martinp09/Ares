@@ -179,6 +179,49 @@
 
 ## Change Log
 
+### 2026-04-22 Phase 6 Slice P6.1 Agents-First Mission Control Navigation
+
+- Updated `apps/mission-control/src/App.tsx`, `apps/mission-control/src/components/MissionControlShell.tsx`, and `apps/mission-control/src/pages/AgentsPage.tsx` so lead-machine and marketing now default to agent-centered pages, the shell copy explicitly frames agents as the product unit, and approvals/runs sit beside dashboard/inbox as operator views around agents without introducing P6.2 detail pages or new control surfaces.
+- Added bounded UI-only glue for agent/operator-view cards plus approvals navigation, keeping the no-Supabase path intact and preserving the existing fixture/live read-model wiring.
+- Expanded `apps/mission-control/src/App.test.tsx`, `apps/mission-control/src/components/MissionControlShell.test.tsx`, and `apps/mission-control/src/pages/AgentsPage.test.tsx` with failing-first coverage for the agents-first IA, adjacent operator-view summaries, and approvals visibility.
+- Verified with `npm --prefix apps/mission-control run test -- --run`, `npm --prefix apps/mission-control run typecheck`, and `npm --prefix apps/mission-control run build`.
+
+### 2026-04-22 Phase 5 Slice P5.3 Replay Lineage Blocker Repair
+
+- Added `app/services/replay_lineage_service.py` and refactored replay lineage derivation there so both immediate replays and later-approved replay approvals reuse the same actor/revision/release-context logic while keeping replay/source revision ids pinned to the historical parent run.
+- Updated `app/services/replay_service.py` to create replay-owned command records with fresh idempotency keys before dispatch or approval creation, eliminating reuse of the original command identity and preserving the original command's `run_id`.
+- Updated `app/services/approval_service.py` and `app/services/run_lifecycle_service.py` so replay approvals persist lineage metadata inside the existing approval payload snapshot, approved replay children are created with `parent_run_id`/`replay_reason`, and child-only `replay_lineage_bound` events are appended at approval time without duplicating the parent replay-request event.
+- Expanded `tests/api/test_replays.py` and `tests/api/test_approvals.py` with failing-first regressions proving replay no longer overwrites the original command/run binding and approval-required replay later creates a distinct child run with preserved replay lineage bound on approval.
+- Verified with `./.venv/bin/python -m pytest tests/api/test_replays.py tests/api/test_approvals.py -q` (`9 passed`; failing-first repro was `2 failed, 7 passed`).
+
+### 2026-04-22 Phase 5 Slice P5.3 Replay Lineage Upgrade
+
+- Updated `app/models/runs.py`, `app/services/replay_service.py`, `app/services/run_lifecycle_service.py`, and `app/api/replays.py` so replay responses now carry runtime-owned lineage models with triggering actor metadata plus separate source/replay revision context.
+- Reused the bounded release-management domain instead of adding new persistence: replay lineage derives source release context from the latest immutable release event affecting the parent revision at the parent run timestamp, and derives replay release context from the latest immutable agent release event at replay time.
+- Replaced direct parent-run event mutation in replay handling with append-only runtime events written through `run_lifecycle_service`, emitting `replay_requested` on the parent run and `replay_lineage_bound` on the child run when a replay is dispatched.
+- Expanded `tests/api/test_replays.py` with failing-first assertions for triggering actor capture, release-channel/event lineage, and preserving original-vs-current release context after clone-based rollback while keeping child dispatch pinned to the original revision id.
+- Verified with `./.venv/bin/python -m pytest tests/api/test_replays.py -q` (`6 passed`; failing-first repro was `2 failed, 4 passed`).
+
+### 2026-04-22 Phase 5 Slice P5.2 Release Management Domain
+
+- Added `app/models/release_management.py`, `app/db/release_management.py`, `app/services/release_management_service.py`, and `app/api/release_management.py` to introduce a bounded release-management surface with immutable `publish`/`rollback` event records plus dedicated org-scoped list/publish/rollback routes.
+- Extended `app/db/client.py` and `app/main.py` additively so the in-memory control-plane store now tracks release events per agent and the new router is mounted behind the existing runtime API-key guard.
+- Repaired the rollout blockers by making rollback clone the requested historical revision into a fresh published revision instead of reactivating a deprecated row in place, keeping the rollback target recorded on the event while old revision ids remain stable for replay/session pinning.
+- Routed legacy `/agents/{agent_id}/revisions/{revision_id}/publish` through the release-management service so publish history is no longer bypassable, and made legacy active-archive fail closed until a matching release-event transition exists.
+- Expanded `tests/db/test_release_management_repository.py`, `tests/api/test_release_management.py`, `tests/api/test_agents.py`, and `tests/api/test_replays.py` with failing-first coverage for clone-based rollback semantics, legacy publish event emission, fail-closed active archive, and replay staying pinned to the original revision id across supersede + rollback transitions.
+- Verified with `./.venv/bin/python -m pytest tests/db/test_release_management_repository.py tests/api/test_release_management.py tests/api/test_agents.py tests/api/test_replays.py -q` (`24 passed`; failing-first repro was `5 failed, 19 passed`).
+
+### 2026-04-22 Phase 5 Slice P5.1 Revision Lifecycle + Release Channel Metadata
+
+- Updated `app/models/agents.py` so revision state now supports `draft`, `candidate`, `published`, `deprecated`, and `archived`, while keeping rollback/rolled_back semantics intentionally deferred to a later release-event slice.
+- Updated `app/db/agents.py` so new revisions persist a `release_channel`, draft revisions can move into `candidate`, publishing a newer revision deprecates the previously active published revision instead of auto-archiving it, deprecated revisions fail closed on republish, archive/clone now recompute lifecycle status from the remaining non-archived revisions, and clone preserves the source release channel.
+- Updated `app/services/agent_registry_service.py` to pass through `release_channel`, expose an internal candidate-promotion service seam, and prefer the latest non-archived revision when deriving revision state for read models.
+- Expanded `tests/api/test_agents.py` with failing-first coverage for default/custom `release_channel` round-tripping and the richer publish transition where superseded revisions become `deprecated` and cannot be republished.
+- Expanded `tests/db/test_agents_repository.py` with failing-first coverage for draft→candidate promotion, deprecated republish rejection, and the lifecycle fallback to `deprecated` when the latest published revision is archived but an older deprecated revision remains.
+- Verified with:
+  - `./.venv/bin/python -m pytest tests/db/test_agents_repository.py tests/api/test_agents.py -q` (`17 passed`; failing-first repro was `5 failed, 12 passed`)
+  - `./.venv/bin/python -m pytest tests/api/test_agents.py -q` (`14 passed`)
+
 ### 2026-04-22 Phase 4 Slice P4.5 Mission Control Governance Surface
 
 - Added `MissionControlGovernanceResponse` plus active-revision secrets-health summaries in `app/models/mission_control.py`, keeping the slice read-only and focused on approvals, secrets health, audit, and usage.

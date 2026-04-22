@@ -32,6 +32,7 @@ def create_published_agent(
     business_id: str = "limitless",
     environment: str = "dev",
     compatibility_metadata: dict | None = None,
+    release_channel: str | None = None,
 ) -> tuple[str, str]:
     payload = {
         "business_id": business_id,
@@ -41,6 +42,8 @@ def create_published_agent(
     }
     if compatibility_metadata is not None:
         payload["compatibility_metadata"] = compatibility_metadata
+    if release_channel is not None:
+        payload["release_channel"] = release_channel
     created = client.post(
         "/agents",
         json=payload,
@@ -318,6 +321,83 @@ def test_agents_endpoint_filters_to_requested_scope(client) -> None:
     body = response.json()
     assert len(body["agents"]) == 1
     assert body["agents"][0]["id"] == alpha_agent_id
+
+
+def test_agents_endpoint_exposes_release_rollback_and_eval_state(client) -> None:
+    reset_control_plane_state()
+
+    agent_id, first_revision_id = create_published_agent(
+        client,
+        headers=AUTH_HEADERS,
+        name="Release Read Model Agent",
+        release_channel="dogfood",
+    )
+
+    clone_response = client.post(
+        f"/agents/{agent_id}/revisions/{first_revision_id}/clone",
+        headers=AUTH_HEADERS,
+    )
+    assert clone_response.status_code == 200
+    second_revision_id = clone_response.json()["revisions"][-1]["id"]
+
+    publish_response = client.post(
+        f"/agents/{agent_id}/revisions/{second_revision_id}/publish",
+        headers=AUTH_HEADERS,
+    )
+    assert publish_response.status_code == 200
+
+    rollback_response = client.post(
+        f"/release-management/agents/{agent_id}/revisions/{first_revision_id}/rollback",
+        json={
+            "notes": "Rollback to known-good revision",
+            "rollback_reason": "Operator reported a production regression after promotion",
+            "evaluation_summary": {
+                "outcome_name": "rollback_assessment",
+                "artifact_type": "agent_revision",
+                "artifact_payload": {"target_revision_id": first_revision_id},
+                "rubric_criteria": ["known good revision exists", "regression isolated"],
+                "evaluator_result": "Rollback is required to restore the stable release.",
+                "passed": False,
+                "failure_details": ["Promoted revision regressed production behavior"],
+            },
+        },
+        headers=AUTH_HEADERS,
+    )
+    assert rollback_response.status_code == 200
+    rollback_body = rollback_response.json()
+    rollback_active_revision_id = rollback_body["agent"]["active_revision_id"]
+
+    response = client.get(
+        "/mission-control/agents?business_id=limitless&environment=dev",
+        headers=AUTH_HEADERS,
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert len(body["agents"]) == 1
+    release = body["agents"][0]["release"]
+    assert release == {
+        "event_id": rollback_body["event"]["id"],
+        "event_type": "rollback",
+        "release_channel": "dogfood",
+        "created_at": rollback_body["event"]["created_at"],
+        "previous_active_revision_id": second_revision_id,
+        "target_revision_id": first_revision_id,
+        "resulting_active_revision_id": rollback_active_revision_id,
+        "rollback_source_revision_id": first_revision_id,
+        "evaluation": {
+            "outcome_id": rollback_body["event"]["evaluation_summary"]["outcome_id"],
+            "outcome_name": "rollback_assessment",
+            "status": "failed",
+            "satisfied": False,
+            "evaluator_result": "Rollback is required to restore the stable release.",
+            "failure_details": ["Promoted revision regressed production behavior"],
+            "rubric_criteria": ["known good revision exists", "regression isolated"],
+            "require_passing_evaluation": False,
+            "blocked_promotion": False,
+            "rollback_reason": "Operator reported a production regression after promotion",
+        },
+    }
 
 
 def test_inbox_endpoint_returns_thread_summaries_and_selected_thread_payload(client) -> None:
@@ -851,8 +931,48 @@ def test_mission_control_task_actions_fail_closed_for_tenant_actor_when_target_l
     assert mission_control_service.campaign_memberships_repository.get(beta_membership.id).status == CampaignMembershipStatus.SUPPRESSED
 
 
-def test_runs_endpoint_returns_lineage_with_parent_run_id(client) -> None:
+def test_agents_endpoint_projects_release_event_without_false_rollback_source(client) -> None:
     reset_control_plane_state()
+    agent_id, revision_id = create_published_agent(
+        client,
+        headers=AUTH_HEADERS,
+        name="Mission Control Publish Agent",
+        release_channel="dogfood",
+    )
+
+    clone_response = client.post(
+        f"/agents/{agent_id}/revisions/{revision_id}/clone",
+        headers=AUTH_HEADERS,
+    )
+    assert clone_response.status_code == 200
+    second_revision_id = clone_response.json()["revisions"][-1]["id"]
+
+    publish_response = client.post(
+        f"/agents/{agent_id}/revisions/{second_revision_id}/publish",
+        headers=AUTH_HEADERS,
+    )
+    assert publish_response.status_code == 200
+
+    response = client.get(
+        "/mission-control/agents?business_id=limitless&environment=dev",
+        headers=AUTH_HEADERS,
+    )
+
+    assert response.status_code == 200
+    agents_by_id = {agent["id"]: agent for agent in response.json()["agents"]}
+    assert agents_by_id[agent_id]["release"]["event_type"] == "publish"
+    assert agents_by_id[agent_id]["release"]["rollback_source_revision_id"] is None
+
+
+def test_runs_endpoint_returns_replay_release_state(client) -> None:
+    reset_control_plane_state()
+
+    agent_id, revision_id = create_published_agent(
+        client,
+        headers=AUTH_HEADERS,
+        name="Replay Read Model Agent",
+        release_channel="dogfood",
+    )
 
     command_response = client.post(
         "/commands",
@@ -862,10 +982,32 @@ def test_runs_endpoint_returns_lineage_with_parent_run_id(client) -> None:
             "command_type": "run_market_research",
             "idempotency_key": "mc-runs-parent",
             "payload": {"topic": "atlanta probate leads"},
+            "agent_revision_id": revision_id,
         },
         headers=AUTH_HEADERS,
     )
     parent_run_id = command_response.json()["run_id"]
+
+    clone_response = client.post(
+        f"/agents/{agent_id}/revisions/{revision_id}/clone",
+        headers=AUTH_HEADERS,
+    )
+    assert clone_response.status_code == 200
+    second_revision_id = clone_response.json()["revisions"][-1]["id"]
+
+    publish_response = client.post(
+        f"/agents/{agent_id}/revisions/{second_revision_id}/publish",
+        headers=AUTH_HEADERS,
+    )
+    assert publish_response.status_code == 200
+
+    rollback_response = client.post(
+        f"/release-management/agents/{agent_id}/revisions/{revision_id}/rollback",
+        json={"notes": "return to known-good baseline"},
+        headers=AUTH_HEADERS,
+    )
+    assert rollback_response.status_code == 200
+    rollback_active_revision_id = rollback_response.json()["agent"]["active_revision_id"]
 
     replay_response = client.post(
         f"/replays/{parent_run_id}",
@@ -887,6 +1029,123 @@ def test_runs_endpoint_returns_lineage_with_parent_run_id(client) -> None:
     assert runs_by_id[parent_run_id]["parent_run_id"] is None
     assert child_run_id in runs_by_id[parent_run_id]["child_run_ids"]
     assert runs_by_id[child_run_id]["parent_run_id"] == parent_run_id
+    parent_replay = runs_by_id[parent_run_id]["replay"]
+    assert parent_replay["role"] == "parent"
+    assert parent_replay["requested_at"]
+    assert parent_replay["resolved_at"]
+    assert parent_replay["replay_reason"] == "refresh market snapshot"
+    assert parent_replay["requires_approval"] is False
+    assert parent_replay["approval_id"] is None
+    assert parent_replay["child_run_id"] == child_run_id
+    assert parent_replay["parent_run_id"] is None
+    assert parent_replay["triggering_actor"] == {
+        "org_id": "org_internal",
+        "actor_id": get_settings().default_actor_id,
+        "actor_type": get_settings().default_actor_type,
+    }
+    assert parent_replay["source"] == {
+        "agent_id": agent_id,
+        "agent_revision_id": revision_id,
+        "active_revision_id": revision_id,
+        "revision_state": "deprecated",
+        "release_channel": "dogfood",
+        "release_event_id": parent_replay["source"]["release_event_id"],
+        "release_event_type": "publish",
+    }
+    assert parent_replay["replay"]["agent_id"] == agent_id
+    assert parent_replay["replay"]["agent_revision_id"] == revision_id
+    assert parent_replay["replay"]["active_revision_id"] == rollback_active_revision_id
+    assert parent_replay["replay"]["revision_state"] in {"published", "deprecated"}
+    assert parent_replay["replay"]["release_channel"] == "dogfood"
+    assert parent_replay["replay"]["release_event_id"]
+    assert parent_replay["replay"]["release_event_type"] == "rollback"
+    assert parent_replay["source"]["release_event_id"] != parent_replay["replay"]["release_event_id"]
+
+    child_replay = runs_by_id[child_run_id]["replay"]
+    assert child_replay["role"] == "child"
+    assert child_replay["requested_at"]
+    assert child_replay["resolved_at"]
+    assert child_replay["replay_reason"] == "refresh market snapshot"
+    assert child_replay["requires_approval"] is None
+    assert child_replay["approval_id"] is None
+    assert child_replay["child_run_id"] == child_run_id
+    assert child_replay["parent_run_id"] == parent_run_id
+    assert child_replay["triggering_actor"] == {
+        "org_id": "org_internal",
+        "actor_id": get_settings().default_actor_id,
+        "actor_type": get_settings().default_actor_type,
+    }
+    assert child_replay["source"] == {
+        "agent_id": agent_id,
+        "agent_revision_id": revision_id,
+        "active_revision_id": revision_id,
+        "revision_state": "deprecated",
+        "release_channel": "dogfood",
+        "release_event_id": child_replay["source"]["release_event_id"],
+        "release_event_type": "publish",
+    }
+    assert child_replay["replay"]["agent_id"] == agent_id
+    assert child_replay["replay"]["agent_revision_id"] == revision_id
+    assert child_replay["replay"]["active_revision_id"] == rollback_active_revision_id
+    assert child_replay["replay"]["revision_state"] in {"published", "deprecated"}
+    assert child_replay["replay"]["release_channel"] == "dogfood"
+    assert child_replay["replay"]["release_event_id"]
+    assert child_replay["replay"]["release_event_type"] == "rollback"
+
+
+def test_runs_endpoint_projects_parent_replay_as_resolved_after_approval(client) -> None:
+    reset_control_plane_state()
+
+    command_response = client.post(
+        "/commands",
+        json={
+            "business_id": "limitless",
+            "environment": "dev",
+            "command_type": "publish_campaign",
+            "idempotency_key": "mc-runs-approval-parent",
+            "payload": {"campaign_id": "camp_runs_parent"},
+        },
+        headers=AUTH_HEADERS,
+    )
+    assert command_response.status_code == 201
+    approval_id = command_response.json()["approval_id"]
+
+    approval_response = client.post(
+        f"/approvals/{approval_id}/approve",
+        json={"actor_id": "ops-1"},
+        headers=AUTH_HEADERS,
+    )
+    assert approval_response.status_code == 200
+    parent_run_id = approval_response.json()["run_id"]
+
+    replay_response = client.post(
+        f"/replays/{parent_run_id}",
+        json={"reason": "rerun delivery"},
+        headers=AUTH_HEADERS,
+    )
+    assert replay_response.status_code == 409
+    replay_approval_id = replay_response.json()["approval_id"]
+
+    approved_replay_response = client.post(
+        f"/approvals/{replay_approval_id}/approve",
+        json={"actor_id": "ops-approver"},
+        headers=AUTH_HEADERS,
+    )
+    assert approved_replay_response.status_code == 200
+    child_run_id = approved_replay_response.json()["run_id"]
+
+    response = client.get(
+        "/mission-control/runs?business_id=limitless&environment=dev",
+        headers=AUTH_HEADERS,
+    )
+    assert response.status_code == 200
+    runs_by_id = {run["id"]: run for run in response.json()["runs"]}
+    parent_replay = runs_by_id[parent_run_id]["replay"]
+    assert parent_replay["role"] == "parent"
+    assert parent_replay["requires_approval"] is False
+    assert parent_replay["approval_id"] == replay_approval_id
+    assert parent_replay["child_run_id"] == child_run_id
+    assert parent_replay["resolved_at"]
 
 
 def test_runs_endpoint_hides_other_org_runs_with_same_scope(client) -> None:

@@ -12,7 +12,23 @@ class OutcomeStatus(StrEnum):
     FAILED = "failed"
 
 
-class OutcomeEvaluateRequest(BaseModel):
+class ReleaseDecisionAction(StrEnum):
+    PROMOTION = "promotion"
+    ROLLBACK = "rollback"
+
+
+class ReleaseDecisionContext(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    agent_id: str = Field(min_length=1)
+    revision_id: str = Field(min_length=1)
+    action: ReleaseDecisionAction
+    notes: str | None = None
+    require_passing_evaluation: bool = False
+    rollback_reason: str | None = None
+
+
+class OutcomeEvaluationPayload(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     outcome_name: str = Field(min_length=1)
@@ -22,7 +38,26 @@ class OutcomeEvaluateRequest(BaseModel):
     evaluator_result: str = Field(min_length=1)
     passed: bool
     failure_details: list[str] = Field(default_factory=list)
+
+
+class ReleaseDecisionEvaluationSummary(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    outcome_id: str = Field(min_length=1)
+    outcome_name: str = Field(min_length=1)
+    status: OutcomeStatus
+    satisfied: bool
+    evaluator_result: str
+    failure_details: list[str] = Field(default_factory=list)
+    rubric_criteria: list[str] = Field(default_factory=list)
+    require_passing_evaluation: bool = False
+    blocked_promotion: bool = False
+    rollback_reason: str | None = None
+
+
+class OutcomeEvaluateRequest(OutcomeEvaluationPayload):
     run_id: str | None = None
+    release_decision: ReleaseDecisionContext | None = None
 
 
 class OutcomeRecord(BaseModel):
@@ -38,4 +73,5 @@ class OutcomeRecord(BaseModel):
     satisfied: bool
     failure_details: list[str] = Field(default_factory=list)
     run_id: str | None = None
+    release_decision: ReleaseDecisionContext | None = None
     created_at: datetime

@@ -7,9 +7,12 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from app.domains.ares import AresPlannerPlan
 from app.models.agent_assets import AgentAssetStatus, AgentAssetType
+from app.models.agents import AgentRevisionState
 from app.models.approvals import ApprovalStatus
 from app.models.audit import AuditRecord
 from app.models.commands import generate_id
+from app.models.outcomes import OutcomeStatus
+from app.models.release_management import ReleaseEventType
 from app.models.runs import RunStatus
 from app.models.tasks import TaskPriority, TaskStatus, TaskType
 from app.models.turns import TurnStatus
@@ -383,6 +386,71 @@ class MissionControlTasksResponse(BaseModel):
     tasks: list[MissionControlTaskSummary] = Field(default_factory=list)
 
 
+class MissionControlReleaseEvaluationSummary(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    outcome_id: str
+    outcome_name: str
+    status: OutcomeStatus
+    satisfied: bool
+    evaluator_result: str
+    failure_details: list[str] = Field(default_factory=list)
+    rubric_criteria: list[str] = Field(default_factory=list)
+    require_passing_evaluation: bool = False
+    blocked_promotion: bool = False
+    rollback_reason: str | None = None
+
+
+class MissionControlAgentReleaseSummary(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    event_id: str
+    event_type: ReleaseEventType
+    release_channel: str | None = None
+    created_at: datetime
+    previous_active_revision_id: str | None = None
+    target_revision_id: str
+    resulting_active_revision_id: str
+    rollback_source_revision_id: str | None = None
+    evaluation: MissionControlReleaseEvaluationSummary | None = None
+
+
+class MissionControlReplayActorSummary(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    org_id: str
+    actor_id: str
+    actor_type: str
+
+
+class MissionControlReplayRevisionSummary(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    agent_id: str | None = None
+    agent_revision_id: str | None = None
+    active_revision_id: str | None = None
+    revision_state: AgentRevisionState | None = None
+    release_channel: str | None = None
+    release_event_id: str | None = None
+    release_event_type: ReleaseEventType | None = None
+
+
+class MissionControlRunReplaySummary(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    role: Literal["parent", "child"]
+    requested_at: datetime
+    resolved_at: datetime | None = None
+    replay_reason: str | None = None
+    requires_approval: bool | None = None
+    approval_id: str | None = None
+    child_run_id: str | None = None
+    parent_run_id: str | None = None
+    triggering_actor: MissionControlReplayActorSummary | None = None
+    source: MissionControlReplayRevisionSummary | None = None
+    replay: MissionControlReplayRevisionSummary | None = None
+
+
 class MissionControlRunSummary(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -401,6 +469,7 @@ class MissionControlRunSummary(BaseModel):
     completed_at: datetime | None = None
     error_classification: str | None = None
     error_message: str | None = None
+    replay: MissionControlRunReplaySummary | None = None
 
 
 class MissionControlRunsResponse(BaseModel):
@@ -591,6 +660,7 @@ class MissionControlAgentSummary(BaseModel):
     description: str | None = None
     active_revision_id: str | None = None
     active_revision_state: str | None = None
+    release: MissionControlAgentReleaseSummary | None = None
     created_at: datetime
     updated_at: datetime
 
