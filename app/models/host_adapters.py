@@ -20,12 +20,46 @@ class HostAdapterDispatchStatus(StrEnum):
     DISABLED = "disabled"
 
 
+class HostAdapterCapabilityRecord(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    dispatch: bool = False
+    status_correlation: bool = False
+    artifact_reporting: bool = False
+    cancellation: bool = False
+
+
+class HostAdapterCorrelationRecord(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    dispatch_id: str | None = None
+    run_id: str | None = None
+    session_id: str | None = None
+    external_reference: str | None = None
+    adapter_reference: str | None = None
+    adapter_details: dict[str, Any] = Field(default_factory=dict)
+
+
+class HostAdapterArtifactRecord(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    artifact_type: str = Field(min_length=1)
+    uri: str | None = None
+    payload: dict[str, Any] = Field(default_factory=dict)
+    adapter_artifact_id: str | None = None
+    adapter_details: dict[str, Any] = Field(default_factory=dict)
+
+
 class HostAdapterRecord(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     kind: HostAdapterKind
     enabled: bool
+    display_name: str
     description: str | None = None
+    adapter_details_label: str = "Adapter details"
+    capabilities: HostAdapterCapabilityRecord = Field(default_factory=HostAdapterCapabilityRecord)
+    disabled_reason: str | None = None
 
 
 class HostAdapterDispatchRequest(BaseModel):
@@ -70,4 +104,68 @@ class HostAdapterDispatchResult(BaseModel):
     status: HostAdapterDispatchStatus
     dispatch_id: str | None = None
     external_reference: str | None = None
+    correlation: HostAdapterCorrelationRecord | None = None
+    adapter_details: dict[str, Any] = Field(default_factory=dict)
+    disabled_reason: str | None = None
+    message: str | None = None
+
+
+class HostAdapterStatusCorrelationRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    dispatch_id: str | None = None
+    run_id: str | None = None
+    session_id: str | None = None
+    external_reference: str | None = None
+    adapter_reference: str | None = None
+    adapter_details: dict[str, Any] = Field(default_factory=dict)
+
+
+class HostAdapterStatusCorrelationResult(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    adapter_kind: HostAdapterKind
+    enabled: bool
+    supported: bool
+    correlation: HostAdapterCorrelationRecord | None = None
+    disabled_reason: str | None = None
+    message: str | None = None
+
+
+class HostAdapterArtifactReportRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    correlation: HostAdapterCorrelationRecord
+    artifact: HostAdapterArtifactRecord
+
+
+class HostAdapterArtifactReportResult(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    adapter_kind: HostAdapterKind
+    enabled: bool
+    supported: bool
+    accepted: bool
+    correlation: HostAdapterCorrelationRecord | None = None
+    artifact: HostAdapterArtifactRecord | None = None
+    disabled_reason: str | None = None
+    message: str | None = None
+
+
+class HostAdapterCancellationRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    correlation: HostAdapterCorrelationRecord
+    reason: str | None = None
+
+
+class HostAdapterCancellationResult(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    adapter_kind: HostAdapterKind
+    enabled: bool
+    supported: bool
+    cancelled: bool
+    correlation: HostAdapterCorrelationRecord | None = None
+    disabled_reason: str | None = None
     message: str | None = None

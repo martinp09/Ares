@@ -69,6 +69,28 @@ class CommandsRepository:
         with self.client.transaction() as store:
             return store.commands.get(command_id)
 
+    def get_by_idempotency_key(
+        self,
+        *,
+        business_id: str,
+        environment: str,
+        command_type: str,
+        idempotency_key: str,
+    ) -> CommandRecord | None:
+        if control_plane_backend_enabled(self.settings) and not self._force_memory:
+            return self._get_by_idempotency_key_in_supabase(
+                business_id=business_id,
+                environment=environment,
+                command_type=command_type,
+                idempotency_key=idempotency_key,
+            )
+        dedupe_key = (business_id, environment, command_type, idempotency_key)
+        with self.client.transaction() as store:
+            existing_id = store.command_keys.get(dedupe_key)
+            if existing_id is None:
+                return None
+            return store.commands.get(existing_id)
+
     def attach_run(self, command_id: str, *, run_id: str) -> CommandRecord | None:
         if control_plane_backend_enabled(self.settings) and not self._force_memory:
             return self._patch_in_supabase(command_id, status=CommandStatus.QUEUED)
@@ -146,6 +168,29 @@ class CommandsRepository:
         rows = fetch_rows(
             "commands",
             params={"select": "*", "id": f"eq.{row_id}", "limit": "1"},
+            settings=self.settings,
+        )
+        return self._record_from_supabase(rows[0]) if rows else None
+
+    def _get_by_idempotency_key_in_supabase(
+        self,
+        *,
+        business_id: str,
+        environment: str,
+        command_type: str,
+        idempotency_key: str,
+    ) -> CommandRecord | None:
+        tenant = resolve_tenant(business_id, environment, settings=self.settings)
+        rows = fetch_rows(
+            "commands",
+            params={
+                "select": "*",
+                "business_id": f"eq.{tenant.business_pk}",
+                "environment": f"eq.{tenant.environment}",
+                "command_type": f"eq.{command_type}",
+                "idempotency_key": f"eq.{idempotency_key}",
+                "limit": "1",
+            },
             settings=self.settings,
         )
         return self._record_from_supabase(rows[0]) if rows else None

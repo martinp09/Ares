@@ -8,7 +8,9 @@ from app.api.commands import router as commands_router
 from app.api.hermes_tools import router as hermes_tools_router
 from app.api.lead_machine import router as lead_machine_router
 from app.api.marketing import router as marketing_router
+from app.api.memberships import router as memberships_router
 from app.api.mission_control import router as mission_control_router
+from app.api.organizations import router as organizations_router
 from app.api.outcomes import router as outcomes_router
 from app.api.permissions import router as permissions_router
 from app.api.rbac import router as rbac_router
@@ -38,6 +40,8 @@ def create_app() -> FastAPI:
     app.include_router(replays_router, dependencies=protected_dependencies)
     app.include_router(hermes_tools_router, dependencies=protected_dependencies)
     app.include_router(agents_router, dependencies=protected_dependencies)
+    app.include_router(organizations_router, dependencies=protected_dependencies)
+    app.include_router(memberships_router, dependencies=protected_dependencies)
     app.include_router(sessions_router, dependencies=protected_dependencies)
     app.include_router(skills_router, dependencies=protected_dependencies)
     app.include_router(permissions_router, dependencies=protected_dependencies)

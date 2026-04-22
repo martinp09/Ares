@@ -19,7 +19,9 @@ def create_session(
     try:
         return session_service.create_session(request, org_id=actor_context.org_id)
     except ValueError as exc:
-        raise HTTPException(status_code=422, detail=str(exc)) from exc
+        message = str(exc)
+        status_code = 404 if "not found" in message.lower() else 422
+        raise HTTPException(status_code=status_code, detail=message) from exc
 
 
 @router.get("/{session_id}", response_model=SessionRecord)

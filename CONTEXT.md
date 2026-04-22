@@ -35,6 +35,17 @@
 2. re-activate the enterprise platform plan as a live source plan
 3. keep Mission Control and enterprise backlog scope merged in this branch only
 4. do not disturb the separate Supabase persistence branch unless a later phase explicitly requires it
+5. continue the remaining org-tenancy follow-up after the landed in-memory organizations + memberships slice
+
+## Recent Change
+
+- 2026-04-22: Phase 4 slice P4.1d closes the final RBAC runtime blocker by collapsing semantically duplicate canonical-ish legacy assigned roles into one logical effective-permission source, conservatively combining duplicate grants under a stable canonical source label while leaving unknown legacy roles read-safe and untouched.
+- 2026-04-22: Phase 4 slice P4.1c closes the final RBAC backward-compat blocker by collapsing semantically duplicate canonical-ish legacy stored roles into one logical role for list/get/create behavior, deterministically selecting the surviving record, and keeping strict canonical validation for new input without touching Supabase wiring.
+- 2026-04-22: Phase 3 slice P3.5 makes Hermes tools revision-aware from bound skill data by deriving the visible command surface from bound skills' `required_tools`, falling back open when skills contribute no supported Hermes commands, and rejecting out-of-surface command invocations with `403` while preserving existing permission/RBAC/capability enforcement and runtime dispatch behavior.
+- 2026-04-22: Phase 3 slice P3.4c closes the agent-backed replay gap by deriving replay `agent_revision_id` from the parent run's host-adapter dispatch correlation, routing child safe-autonomous replays back through the adapter seam, and failing replay cleanly with `422` when the original revision is no longer dispatchable.
+- 2026-04-22: Phase 3 slice P3.4b restores idempotent dedupe for agent-backed safe-autonomous commands by checking existing command records before dispatchability validation, so archived/disabled revision retries return the original command/run while brand-new invalid requests still fail closed without queued orphans.
+- 2026-04-22: Phase 3 slice P3.4a now preserves `agent_revision_id` through Hermes tool invocation, pre-validates safe-autonomous agent-backed dispatchability through `agent_execution_service` before command/run persistence, fails closed for missing/draft/archived/disabled revisions, and keeps host-adapter dispatch correlation anchored to `run.id` without touching approval-path or Supabase wiring.
+- 2026-04-22: Phase 3 slice P3.3 hardened the in-memory host-adapter contract with explicit dispatch/status-correlation/artifact/cancellation interfaces, richer adapter read-model metadata, duplicate-registry guards, and focused host-adapter coverage without touching Supabase wiring.
 
 ## Read These Sections In `memory.md`
 

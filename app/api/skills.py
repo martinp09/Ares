@@ -8,13 +8,17 @@ router = APIRouter(prefix="/skills", tags=["skills"])
 
 @router.post("", response_model=SkillRecord)
 def create_skill(request: SkillCreateRequest) -> SkillRecord:
-    return skill_registry_service.register_skill(
-        name=request.name,
-        description=request.description,
-        input_schema=request.input_schema,
-        output_schema=request.output_schema,
-        required_tools=request.required_tools,
-    )
+    try:
+        return skill_registry_service.register_skill(
+            name=request.name,
+            description=request.description,
+            input_schema=request.input_schema,
+            output_schema=request.output_schema,
+            required_tools=request.required_tools,
+            permission_requirements=request.permission_requirements,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
 
 
 @router.get("", response_model=list[SkillRecord])

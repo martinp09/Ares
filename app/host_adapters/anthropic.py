@@ -1,23 +1,18 @@
 from __future__ import annotations
 
 from app.host_adapters.base import HostAdapter
-from app.models.host_adapters import (
-    HostAdapterDispatchRequest,
-    HostAdapterDispatchResult,
-    HostAdapterDispatchStatus,
-    HostAdapterKind,
-)
+from app.models.host_adapters import HostAdapterCapabilityRecord, HostAdapterDispatchRequest, HostAdapterDispatchResult, HostAdapterKind
 
 
 class AnthropicHostAdapter(HostAdapter):
     kind = HostAdapterKind.ANTHROPIC
     enabled = False
-    description = "Reserved adapter seam for a future Anthropic runtime"
+    display_name = "Anthropic"
+    description = "Reserved host adapter seam for a future Anthropic runtime"
+
+    @property
+    def capabilities(self) -> HostAdapterCapabilityRecord:
+        return HostAdapterCapabilityRecord()
 
     def dispatch(self, request: HostAdapterDispatchRequest) -> HostAdapterDispatchResult:
-        return HostAdapterDispatchResult(
-            adapter_kind=self.kind,
-            enabled=self.enabled,
-            status=HostAdapterDispatchStatus.DISABLED,
-            message="anthropic adapter is disabled in this environment",
-        )
+        return self.disabled_dispatch(request)

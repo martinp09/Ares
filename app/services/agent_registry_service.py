@@ -43,7 +43,11 @@ class AgentRegistryService:
             business_id=request.business_id,
             environment=request.environment,
             name=request.name,
+            slug=request.slug,
             description=request.description,
+            visibility=request.visibility,
+            lifecycle_status=request.lifecycle_status,
+            packaging_metadata=request.packaging_metadata,
             config=request.config,
             host_adapter_kind=request.host_adapter_kind,
             skill_ids=request.skill_ids,
@@ -51,6 +55,10 @@ class AgentRegistryService:
             provider_kind=request.provider_kind,
             provider_config=request.provider_config,
             provider_capabilities=[ProviderCapability(capability) for capability in resolved_capabilities],
+            input_schema=request.input_schema,
+            output_schema=request.output_schema,
+            release_notes=request.release_notes,
+            compatibility_metadata=request.compatibility_metadata,
         )
         audit_service.append_event(
             event_type="agent_created",

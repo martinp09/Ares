@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from pydantic import BaseModel, Field
 
+from app.db.agents import AgentsRepository
 from app.models.commands import CommandCreateRequest, CommandIngestResponse, CommandPolicy
 from app.models.permissions import ToolPermissionMode
 from app.models.providers import ProviderCapability
@@ -9,6 +10,7 @@ from app.models.tool_hooks import ToolHookContext
 from app.policies.classifier import apply_policy_precedence
 from app.services.command_service import POLICY_BY_COMMAND, command_service as default_command_service
 from app.services.permission_service import permission_service as default_permission_service
+from app.services.skill_registry_service import SkillRegistryService, skill_registry_service as default_skill_registry_service
 from app.services.tool_hook_service import ToolHookService, tool_hook_service as default_tool_hook_service
 
 
@@ -51,13 +53,18 @@ class HermesToolsService:
         permission_service=default_permission_service,
         command_service=default_command_service,
         tool_hook_service: ToolHookService = default_tool_hook_service,
+        agents_repository: AgentsRepository | None = None,
+        skill_registry_service: SkillRegistryService = default_skill_registry_service,
     ) -> None:
         self.permission_service = permission_service
         self.command_service = command_service
         self.tool_hook_service = tool_hook_service
+        self.agents_repository = agents_repository or AgentsRepository()
+        self.skill_registry_service = skill_registry_service
 
     def list_tools(self, *, agent_revision_id: str | None = None) -> HermesToolListResponse:
         capability_allowed = self._tool_calls_allowed(agent_revision_id)
+        allowed_command_surface = self._resolve_command_surface(agent_revision_id)
         tools = [
             HermesToolDefinition(
                 name=command_type,
@@ -67,7 +74,7 @@ class HermesToolsService:
                 payload_schema={"type": "object"},
                 idempotency_scope="business_id + environment + command_type + idempotency_key",
             )
-            for command_type in POLICY_BY_COMMAND
+            for command_type in (allowed_command_surface or POLICY_BY_COMMAND)
         ]
         tools.sort(key=lambda tool: tool.name)
         return HermesToolListResponse(tools=tools)
@@ -75,11 +82,19 @@ class HermesToolsService:
     def invoke_tool(
         self, tool_name: str, request: HermesToolInvokeRequest
     ) -> tuple[CommandIngestResponse, int]:
-        permission_mode = self._resolve_permission_mode(tool_name, request.agent_revision_id)
         capability_allowed = self._tool_calls_allowed(request.agent_revision_id)
         if not capability_allowed:
             raise ToolPermissionError(f"Tool '{tool_name}' is not allowed for this agent capability set")
 
+        allowed_command_surface = self._resolve_command_surface(request.agent_revision_id)
+        if (
+            allowed_command_surface is not None
+            and tool_name in POLICY_BY_COMMAND
+            and tool_name not in allowed_command_surface
+        ):
+            raise ToolPermissionError(f"Tool '{tool_name}' is not allowed for this agent skill surface")
+
+        permission_mode = self._resolve_permission_mode(tool_name, request.agent_revision_id)
         effective_policy = apply_policy_precedence(
             self.command_service.classify(tool_name),
             PERMISSION_TO_POLICY[permission_mode],
@@ -107,6 +122,7 @@ class HermesToolsService:
             command_type=tool_name,
             idempotency_key=request.idempotency_key,
             payload=request.payload,
+            agent_revision_id=request.agent_revision_id,
         )
         try:
             command_response, status_code = self.command_service.create_command(command_request, policy_override=effective_policy)
@@ -141,6 +157,22 @@ class HermesToolsService:
 
     def _resolve_permission_mode(self, tool_name: str, agent_revision_id: str | None) -> ToolPermissionMode:
         return self.permission_service.resolve_tool_permission(tool_name, agent_revision_id)
+
+    def _resolve_command_surface(self, agent_revision_id: str | None) -> set[str] | None:
+        if agent_revision_id is None:
+            return None
+        revision = self.agents_repository.get_revision(agent_revision_id)
+        if revision is None or not revision.skill_ids:
+            return None
+
+        skills = self.skill_registry_service.resolve_skills(revision.skill_ids)
+        allowed_command_surface = {
+            required_tool
+            for skill in skills
+            for required_tool in skill.required_tools
+            if required_tool in POLICY_BY_COMMAND
+        }
+        return allowed_command_surface or None
 
     def _tool_calls_allowed(self, agent_revision_id: str | None) -> bool:
         if agent_revision_id is None:

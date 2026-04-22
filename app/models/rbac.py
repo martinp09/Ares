@@ -1,11 +1,41 @@
 from __future__ import annotations
 
 from datetime import datetime
+from enum import StrEnum
 
 from pydantic import BaseModel, ConfigDict, Field
 
 from app.core.config import DEFAULT_INTERNAL_ORG_ID
 from app.models.permissions import ToolPermissionMode
+
+
+class CanonicalOrgRoleName(StrEnum):
+    PLATFORM_ADMIN = "platform_admin"
+    ORG_ADMIN = "org_admin"
+    AGENT_BUILDER = "agent_builder"
+    OPERATOR = "operator"
+    REVIEWER = "reviewer"
+    AUDITOR = "auditor"
+
+
+CANONICAL_ORG_ROLE_NAMES: tuple[str, ...] = tuple(role.value for role in CanonicalOrgRoleName)
+_CANONICAL_ORG_ROLE_INDEX = {name: index for index, name in enumerate(CANONICAL_ORG_ROLE_NAMES)}
+
+
+def normalize_stored_org_role_name(name: str) -> str:
+    return name.strip().lower()
+
+
+def normalize_org_role_name(name: str) -> str:
+    normalized = normalize_stored_org_role_name(name)
+    if normalized not in _CANONICAL_ORG_ROLE_INDEX:
+        raise ValueError(f"Unsupported role name: {name.strip() or name}")
+    return normalized
+
+
+def org_role_sort_key(name: str) -> tuple[int, str]:
+    normalized = normalize_stored_org_role_name(name)
+    return _CANONICAL_ORG_ROLE_INDEX.get(normalized, 10_000), normalized
 
 
 class OrgRoleCreateRequest(BaseModel):

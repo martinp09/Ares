@@ -3,20 +3,36 @@ from app.services.run_service import reset_control_plane_state
 AUTH_HEADERS = {"Authorization": "Bearer dev-runtime-key"}
 
 
-def create_published_agent(client) -> tuple[str, str]:
+def org_actor_headers(*, org_id: str, actor_id: str, actor_type: str = "user") -> dict[str, str]:
+    return {
+        **AUTH_HEADERS,
+        "X-Ares-Org-Id": org_id,
+        "X-Ares-Actor-Id": actor_id,
+        "X-Ares-Actor-Type": actor_type,
+    }
+
+
+def create_published_agent(
+    client,
+    *,
+    headers: dict[str, str] = AUTH_HEADERS,
+    name: str = "Session Agent",
+    business_id: str = "limitless",
+    environment: str = "dev",
+) -> tuple[str, str]:
     created = client.post(
         "/agents",
         json={
-            "business_id": "limitless",
-            "environment": "dev",
-            "name": "Session Agent",
+            "business_id": business_id,
+            "environment": environment,
+            "name": name,
             "config": {"prompt": "Coordinate outreach"},
         },
-        headers=AUTH_HEADERS,
+        headers=headers,
     ).json()
     agent_id = created["agent"]["id"]
     revision_id = created["revisions"][0]["id"]
-    client.post(f"/agents/{agent_id}/revisions/{revision_id}/publish", headers=AUTH_HEADERS)
+    client.post(f"/agents/{agent_id}/revisions/{revision_id}/publish", headers=headers)
     return agent_id, revision_id
 
 
@@ -139,6 +155,66 @@ def test_session_scope_must_match_the_agent_scope(client) -> None:
 
     assert response.status_code == 422
     assert "owning agent scope" in response.json()["detail"]
+
+
+def test_sessions_with_same_business_environment_do_not_leak_across_orgs(client) -> None:
+    reset_control_plane_state()
+
+    alpha_headers = org_actor_headers(org_id="org_alpha", actor_id="actor_alpha")
+    beta_headers = org_actor_headers(org_id="org_beta", actor_id="actor_beta")
+
+    _, alpha_revision_id = create_published_agent(client, headers=alpha_headers, name="Alpha Session Agent")
+    _, beta_revision_id = create_published_agent(client, headers=beta_headers, name="Beta Session Agent")
+
+    alpha_session_response = client.post(
+        "/sessions",
+        json={
+            "agent_revision_id": alpha_revision_id,
+            "business_id": "limitless",
+            "environment": "dev",
+            "initial_message": "Alpha keeps this thread",
+        },
+        headers=alpha_headers,
+    )
+    beta_session_response = client.post(
+        "/sessions",
+        json={
+            "agent_revision_id": beta_revision_id,
+            "business_id": "limitless",
+            "environment": "dev",
+            "initial_message": "Beta keeps this thread",
+        },
+        headers=beta_headers,
+    )
+
+    assert alpha_session_response.status_code == 200
+    assert beta_session_response.status_code == 200
+
+    alpha_session_id = alpha_session_response.json()["id"]
+    beta_session_id = beta_session_response.json()["id"]
+
+    leaked_create = client.post(
+        "/sessions",
+        json={
+            "agent_revision_id": alpha_revision_id,
+            "business_id": "limitless",
+            "environment": "dev",
+        },
+        headers=beta_headers,
+    )
+    leaked_detail = client.get(f"/sessions/{alpha_session_id}", headers=beta_headers)
+    leaked_append = client.post(
+        f"/sessions/{alpha_session_id}/events",
+        json={"event_type": "assistant_note", "payload": {"message": "steal alpha"}},
+        headers=beta_headers,
+    )
+
+    assert leaked_create.status_code == 404
+    assert leaked_detail.status_code == 404
+    assert leaked_append.status_code == 404
+    assert client.get(f"/sessions/{alpha_session_id}", headers=alpha_headers).status_code == 200
+    assert client.get(f"/sessions/{beta_session_id}", headers=beta_headers).status_code == 200
+    assert client.get(f"/sessions/{beta_session_id}", headers=alpha_headers).status_code == 404
 
 
 def test_session_stays_pinned_to_original_revision_after_new_publish(client) -> None:

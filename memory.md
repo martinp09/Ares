@@ -89,11 +89,20 @@
   - `POST /replays/{run_id}`
   - `GET /hermes/tools`
   - `POST /hermes/tools/{tool_name}/invoke`
+  - `POST /skills`
+  - `GET /skills`
+  - `GET /skills/{skill_id}`
   - `POST /agents`
   - `GET /agents/{agent_id}`
   - `POST /agents/{agent_id}/revisions/{revision_id}/publish`
   - `POST /agents/{agent_id}/revisions/{revision_id}/archive`
   - `POST /agents/{agent_id}/revisions/{revision_id}/clone`
+  - `POST /organizations`
+  - `GET /organizations`
+  - `GET /organizations/{org_id}`
+  - `POST /memberships`
+  - `GET /memberships`
+  - `GET /memberships/{membership_id}`
   - `POST /sessions`
   - `GET /sessions/{session_id}`
   - `POST /sessions/{session_id}/events`
@@ -138,6 +147,7 @@
   - Trigger marketing worker chain scaffold
   - landing-page site-event forwarding contract
   - managed-agent revision/session/outcome/asset scaffolding without live Supabase wiring
+  - in-memory organization directory + org membership scaffolding for dogfood tenancy
   - probate intake -> scoring -> bridge -> enqueue -> webhook -> suppression/task loop
   - lease-option submit -> booking webhook -> SMS/manual-call loop
   - additive Mission Control workspaces for `Lead Machine`, `Marketing`, and `Pipeline`
@@ -168,6 +178,117 @@
 8. keep `docs/superpowers/plans/2026-04-13-hermes-mission-control-orchestration-plan.md` and `docs/superpowers/plans/2026-04-15-ares-enterprise-agent-platform-implementation-plan.md` as live source inputs for that branch scope
 
 ## Change Log
+
+### 2026-04-22 Phase 4 Slice P4.1d RBAC Runtime Duplicate-Role Source Collapse
+
+- Updated `app/db/rbac.py` so `resolve_tool_mode()` no longer emits one source per assigned role row for canonical-ish legacy duplicates; it now groups assigned role grants by logical canonical name before source emission.
+- Kept the collapse bounded to canonical-ish names only: duplicate grants for the same logical canonical role are conservatively combined with the existing mode ordering, while unknown noncanonical legacy roles still retain per-row behavior and safe ordering.
+- Emitted a stable canonical runtime source label like `role:org_admin` for grouped canonical-ish duplicates so effective-permission traces no longer leak raw legacy names such as `role: Org_Admin `.
+- Added a failing-first regression in `tests/db/test_rbac_repository.py` that seeds two semantically duplicate legacy `org_admin` rows, assigns both, grants conflicting modes, and proves effective resolution returns one conservatively combined logical source.
+- Verified with:
+  - `./.venv/bin/python -m pytest tests/db/test_rbac_repository.py -q` (`6 passed` after fix; failing-first repro was `1 failed, 5 passed`)
+  - `./.venv/bin/python -m pytest tests/db/test_rbac_repository.py tests/api/test_rbac.py -q` (`10 passed`)
+
+### 2026-04-22 Phase 4 Slice P4.1c RBAC Canonical-Ish Legacy Duplicate Collapse
+
+- Updated `app/db/rbac.py` so canonical-name lookup now scans all semantically matching stored rows before trusting `role_keys`, deterministically chooses the oldest `(created_at, id)` survivor, and repairs the canonical key to that survivor.
+- Added read-path presentation/collapse helpers so `list_roles()` returns at most one logical role per canonical normalized name while still leaving unknown legacy role names untouched; canonical-ish survivors are presented as canonical names like `org_admin` even if the stored row is `" Org_Admin "`.
+- Kept strict canonical validation for new input and the existing lazy canonicalization-on-touch behavior in `create_role()`, so a canonical create now updates the deterministic survivor instead of whichever duplicate `role_keys` happened to reference.
+- Expanded `tests/db/test_rbac_repository.py` with a failing-first regression that seeds two semantically duplicate legacy rows directly into the store, including a stale canonical key pointing at the newer duplicate, and proves lookup/list/create collapse them to one logical `org_admin` role.
+- Verified with:
+  - `./.venv/bin/python -m pytest tests/db/test_rbac_repository.py -q` (`5 passed` after fix; failing-first repro was `1 failed, 4 passed`)
+  - `./.venv/bin/python -m pytest tests/db/test_rbac_repository.py tests/api/test_rbac.py -q` (`9 passed`)
+
+### 2026-04-22 Phase 4 Slice P4.1b RBAC Legacy Role Backward-Compat Hardening
+
+- Added `normalize_stored_org_role_name()` in `app/models/rbac.py` so stored/read-path normalization trims and lowercases without strict enum rejection, while `normalize_org_role_name()` still enforces canonical-only validation for new requested role names.
+- Updated `org_role_sort_key()` to order canonical names first but fall back safely for unknown legacy stored names instead of raising during role listing, assignment listing, or effective-permission resolution.
+- Updated `app/db/rbac.py` to scan existing stored roles by loose normalized name when canonical lookup misses, repair the canonical role-key index on match, and lazily canonicalize a matched legacy role name when `create_role()` touches it so canonical input dedupes instead of creating a semantic duplicate.
+- Added focused regression coverage in `tests/db/test_rbac_repository.py` proving legacy unknown stored names no longer crash read/effective paths and canonical input dedupes against legacy canonical-ish stored names like `" Org_Admin "`.
+- Verified with:
+  - `./.venv/bin/python -m pytest tests/db/test_rbac_repository.py -q` (`5 passed` after fix; failing-first repro was `2 failed, 3 passed`)
+  - `./.venv/bin/python -m pytest tests/db/test_rbac_repository.py tests/api/test_rbac.py -q` (`9 passed`)
+
+### 2026-04-22 Phase 3 Slice P3.5 Hermes Tool Skill-Surface Gating
+
+- Updated `app/services/hermes_tools_service.py` so `list_tools(agent_revision_id=...)` resolves the revision's bound skills, intersects their `required_tools` with `POLICY_BY_COMMAND`, and only narrows the exposed Hermes command surface when that intersection is non-empty.
+- Kept backward compatibility open by falling back to the full Hermes command surface when a revision has no skills or its resolved skills only declare empty/non-command `required_tools` such as legacy metadata like `lookup_title`.
+- Added invoke-time gating in `HermesToolsService.invoke_tool()` so command-backed tools outside the resolved skill surface raise `ToolPermissionError` and therefore stay API-level `403`s without replacing existing permission/RBAC/capability checks for still-visible tools.
+- Added focused API regressions in `tests/api/test_hermes_tools.py` covering surface intersection, non-command fallback, and out-of-surface invocation rejection.
+- Verified with:
+  - `./.venv/bin/python -m pytest tests/api/test_hermes_tools.py -q` (`12 passed`)
+  - `./.venv/bin/python -m pytest tests/api/test_hermes_tools.py tests/api/test_permissions.py tests/api/test_rbac.py tests/services/test_hermes_tools_service.py -q` (`19 passed`)
+
+### 2026-04-22 Phase 3 Slice P3.4c Agent-Backed Replay Dispatch Continuity
+
+- Added `HostAdapterDispatchesRepository.get_by_run_id()` so replay resolution can reuse the existing in-memory/hydrated host-adapter dispatch seam to recover the parent run's `agent_revision_id` without adding new persistence wiring.
+- Updated `app/services/replay_service.py` so safe-autonomous replays derive `agent_revision_id` from the parent run's adapter dispatch, create child runs through `run_service.create_run(..., agent_revision_id=...)`, and only append replay events after successful child-run or approval creation to avoid partial replay state on failure.
+- Updated `app/api/replays.py` to translate replay-time dispatchability failures into clean `422` responses instead of surfacing a `500`.
+- Added API regression coverage in `tests/api/test_replays.py` proving agent-backed replays create a second adapter dispatch correlated to the child run id, non-agent replay behavior stays intact, and archived revisions fail cleanly without bogus child runs or dispatches.
+- Verified with:
+  - `./.venv/bin/python -m pytest tests/api/test_replays.py -q` (`4 passed`)
+  - `./.venv/bin/python -m pytest tests/api/test_replays.py tests/api/test_hermes_tools.py tests/api/test_commands.py -q` (`19 passed`)
+
+### 2026-04-22 Phase 3 Slice P3.4b Agent-Backed Command Idempotency Restore
+
+- Added `CommandsRepository.get_by_idempotency_key()` for both in-memory and existing Supabase-backed command lookups without changing persistence ownership or schema wiring.
+- Updated `CommandService.create_command()` so agent-backed safe-autonomous retries short-circuit to the original persisted command/run before dispatchability validation, while brand-new invalid/draft/archived/disabled requests still fail closed before any queue records are created.
+- Added QC regression coverage in `tests/api/test_hermes_tools.py` and `tests/api/test_commands.py` proving archived-revision retries with the same idempotency key return the original deduped command/run and do not create a second adapter dispatch.
+- Verified with:
+  - `./.venv/bin/python -m pytest tests/api/test_hermes_tools.py tests/api/test_commands.py tests/services/test_agent_execution_service.py tests/services/test_hermes_tools_service.py -q` (`23 passed`)
+  - `./.venv/bin/python -m pytest tests/db/test_commands_repository.py tests/db/test_control_plane_supabase_adapters.py -q` (`8 passed`)
+
+### 2026-04-22 Phase 3 Slice P3.4a Hermes Tool Agent-Dispatch Runtime Path
+
+- Extended `app/models/commands.py`, `app/services/hermes_tools_service.py`, `app/services/command_service.py`, and `app/services/run_service.py` so Hermes tool invocations now carry optional `agent_revision_id` into the safe-autonomous runtime path.
+- Safe-autonomous agent-backed execution now pre-validates dispatchability through `agent_execution_service` before command/run persistence, rejecting missing, draft, archived, and disabled-adapter revisions without leaving queued command/run leftovers; non-agent safe-autonomous behavior and approval-required behavior remain unchanged.
+- `agent_execution_service` still dispatches published revisions through the host-adapter seam, keeps `run.id` as the adapter correlation/external reference, and now treats disabled adapters as non-dispatchable instead of returning a queued-looking no-op.
+- Added focused API/service coverage in `tests/api/test_hermes_tools.py`, `tests/api/test_commands.py`, and `tests/services/test_agent_execution_service.py` for the fail-closed QC repros while preserving the existing happy-path adapter dispatch and non-agent no-dispatch behavior.
+- Verified with:
+  - `./.venv/bin/python -m pytest tests/api/test_hermes_tools.py tests/api/test_commands.py tests/services/test_agent_execution_service.py -q` (`18 passed`)
+  - `./.venv/bin/python -m pytest tests/api/test_hermes_tools.py tests/api/test_commands.py tests/services/test_agent_execution_service.py tests/api/test_agents.py -q` (`31 passed`)
+
+### 2026-04-22 Phase 3 Slice P3.3 Host-Adapter Contract Hardening
+
+- Hardened `app/models/host_adapters.py`, `app/host_adapters/base.py`, `app/host_adapters/registry.py`, `app/host_adapters/trigger_dev.py`, `app/host_adapters/codex.py`, and `app/host_adapters/anthropic.py` so the adapter seam now explicitly models dispatch, status correlation, artifact reporting, cancellation, and disabled behavior.
+- Added adapter read-model metadata for later runtime/UI work, including `display_name`, `adapter_details_label`, `capabilities`, and `disabled_reason`, while keeping Trigger-specific information framed as adapter details rather than product identity.
+- Kept Codex and Anthropic registered but disabled, unified their disabled/no-op behavior through the shared base contract, and added duplicate-kind protection in the host registry.
+- Expanded focused coverage in `tests/host_adapters/test_host_registry.py`, `tests/host_adapters/test_trigger_dev_adapter.py`, and `tests/host_adapters/test_disabled_host_adapters.py` for adapter descriptions, correlation records, artifact reporting, cancellation handling, and disabled-adapter contract behavior.
+- Verified with:
+  - `./.venv/bin/python -m pytest tests/host_adapters/test_host_registry.py tests/host_adapters/test_trigger_dev_adapter.py tests/host_adapters/test_disabled_host_adapters.py -q` (`8 passed`)
+  - `./.venv/bin/python -m pytest -q` (`392 passed`)
+
+### 2026-04-22 Phase 3 Slice P3.2 Skill Registry Contract Hardening
+
+- Hardened `app/models/skills.py`, `app/db/skills.py`, `app/services/skill_registry_service.py`, and `app/api/skills.py` so skills now carry explicit `permission_requirements` alongside normalized `name`, `description`, `required_tools`, and input/output contract metadata.
+- Added defensive-copy behavior in the skills repository so nested contract metadata and tool/permission lists cannot be mutated through returned records.
+- Kept agent revisions bound to `skill_ids` only and tightened missing-skill error reporting to return a clean deduplicated `Unknown skill ids: ...` failure.
+- Added focused repository/API coverage in `tests/db/test_skills_repository.py` and `tests/api/test_skills.py`, then verified `tests/api/test_agents.py` still passes for skill-id binding behavior.
+- Verified with:
+  - `./.venv/bin/python -m pytest tests/db/test_skills_repository.py tests/api/test_skills.py -q` (`6 passed`)
+  - `./.venv/bin/python -m pytest tests/api/test_agents.py -q` (`13 passed`)
+  - `./.venv/bin/python -m pytest -q` (`388 passed`)
+
+### 2026-04-22 Phase 2 Lane C Org Directory Tenant Isolation
+
+- Hardened `app/api/organizations.py`, `app/api/memberships.py`, `app/services/organization_service.py`, and `app/services/access_service.py` so org directory reads/writes now resolve against the header-derived actor org instead of global memory state.
+- `GET /organizations` now only returns the caller's org record, foreign org detail reads return `404`, and mismatched org writes fail with `422`.
+- `GET /memberships` now scopes to the caller org by default, rejects cross-org `org_id` query overrides with `422`, and blocks cross-org membership detail/write access cleanly.
+- Added focused API coverage in `tests/api/test_organizations.py` and `tests/api/test_memberships.py`, including `X-Ares-Org-Id` actor-header regressions for the QC repros.
+- Verified with targeted coverage only: `uv run pytest tests/api/test_organizations.py tests/api/test_memberships.py -q` (`5 passed`).
+
+### 2026-04-22 Phase 2 Lane B Org-Scoped API Hardening
+
+- Hardened `app/api/permissions.py`, `app/api/rbac.py`, `app/services/permission_service.py`, and `app/services/rbac_service.py` so the existing header-based actor org now gates permission/RBAC reads and writes.
+- Tightened cross-org failure behavior for permission/RBAC paths and `POST /sessions` without touching Supabase wiring, migrations, or Mission Control surfaces.
+- Added tenant-isolation API coverage for agents, sessions, permissions, and RBAC proving the same `business_id` / `environment` can exist in multiple orgs without leakage.
+- Verified the lane with targeted pytest coverage only: `tests/api/test_permissions.py tests/api/test_rbac.py tests/api/test_agents.py tests/api/test_sessions.py`.
+
+### 2026-04-22 In-Memory Org Directory Slice
+
+- Added first-class in-memory `organizations` and `memberships` models, repositories, and services without touching Supabase wiring.
+- Seeded the default internal org plus an internal runtime membership inside the in-memory control-plane store so existing `org_internal` defaults resolve cleanly.
+- Mounted authenticated `organizations` and `memberships` API routes and added focused repository/API coverage for the new slice.
 
 ### 2026-04-21 Mission Control + Enterprise Backlog Branch Reset
 

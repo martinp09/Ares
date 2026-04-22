@@ -5,9 +5,16 @@ from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from typing import Iterator, Literal, Protocol
 
-from app.core.config import Settings, get_settings
+from app.core.config import (
+    DEFAULT_INTERNAL_ACTOR_ID,
+    DEFAULT_INTERNAL_ACTOR_TYPE,
+    DEFAULT_INTERNAL_ORG_ID,
+    Settings,
+    get_settings,
+)
 from app.models.approvals import ApprovalRecord
 from app.models.commands import CommandRecord
+from app.models.organizations import MembershipRecord, OrganizationRecord
 from app.models.runs import RunRecord
 
 
@@ -33,6 +40,12 @@ class InMemoryControlPlaneStore:
     permission_keys: dict[tuple[str, str], str] = field(default_factory=dict)
     roles: dict[str, object] = field(default_factory=dict)
     role_keys: dict[tuple[str, str], str] = field(default_factory=dict)
+    organizations: dict[str, object] = field(default_factory=dict)
+    organization_keys: dict[str, str] = field(default_factory=dict)
+    memberships: dict[str, object] = field(default_factory=dict)
+    membership_keys: dict[tuple[str, str], str] = field(default_factory=dict)
+    membership_ids_by_org: dict[str, list[str]] = field(default_factory=dict)
+    membership_ids_by_actor: dict[str, list[str]] = field(default_factory=dict)
     role_grants: dict[str, object] = field(default_factory=dict)
     role_grant_keys: dict[tuple[str, str], str] = field(default_factory=dict)
     role_assignments: dict[str, object] = field(default_factory=dict)
@@ -81,6 +94,39 @@ class InMemoryControlPlaneStore:
     def __post_init__(self) -> None:
         self.marketing_task_rows = self.tasks
         self.marketing_task_scope = self.task_keys
+        seed_control_plane_defaults(self)
+
+
+def seed_control_plane_defaults(store: InMemoryControlPlaneStore) -> None:
+    now = utc_now()
+    internal_org = OrganizationRecord(
+        id=DEFAULT_INTERNAL_ORG_ID,
+        name="Internal",
+        slug="internal",
+        metadata={"seeded": True},
+        is_internal=True,
+        created_at=now,
+        updated_at=now,
+    )
+    store.organizations[internal_org.id] = internal_org
+    store.organization_keys["internal"] = internal_org.id
+
+    internal_membership = MembershipRecord(
+        id="mbr_internal_runtime",
+        org_id=DEFAULT_INTERNAL_ORG_ID,
+        actor_id=DEFAULT_INTERNAL_ACTOR_ID,
+        actor_type=DEFAULT_INTERNAL_ACTOR_TYPE,
+        member_id=DEFAULT_INTERNAL_ACTOR_ID,
+        name="Ares Runtime",
+        role_name="owner",
+        metadata={"seeded": True},
+        created_at=now,
+        updated_at=now,
+    )
+    store.memberships[internal_membership.id] = internal_membership
+    store.membership_keys[(internal_membership.org_id, internal_membership.actor_id)] = internal_membership.id
+    store.membership_ids_by_org[internal_membership.org_id] = [internal_membership.id]
+    store.membership_ids_by_actor[internal_membership.actor_id] = [internal_membership.id]
 
 
 STORE = InMemoryControlPlaneStore()
@@ -104,6 +150,12 @@ def reset_control_plane_store(store: InMemoryControlPlaneStore | None = None) ->
     target.permission_keys.clear()
     target.roles.clear()
     target.role_keys.clear()
+    target.organizations.clear()
+    target.organization_keys.clear()
+    target.memberships.clear()
+    target.membership_keys.clear()
+    target.membership_ids_by_org.clear()
+    target.membership_ids_by_actor.clear()
     target.role_grants.clear()
     target.role_grant_keys.clear()
     target.role_assignments.clear()
@@ -150,6 +202,7 @@ def reset_control_plane_store(store: InMemoryControlPlaneStore | None = None) ->
     target.ares_plans_by_scope.clear()
     target.ares_execution_runs_by_scope.clear()
     target.ares_operator_runs_by_scope.clear()
+    seed_control_plane_defaults(target)
 
 
 class ControlPlaneClient(Protocol):

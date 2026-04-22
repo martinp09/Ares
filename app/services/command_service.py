@@ -3,6 +3,7 @@ from __future__ import annotations
 from app.db.commands import CommandsRepository
 from app.models.commands import CommandCreateRequest, CommandIngestResponse, CommandPolicy, CommandStatus
 from app.policies.classifier import apply_policy_precedence
+from app.services.agent_execution_service import agent_execution_service as default_agent_execution_service
 from app.services.approval_service import approval_service
 from app.services.run_service import run_service
 
@@ -17,8 +18,13 @@ POLICY_BY_COMMAND: dict[str, CommandPolicy] = {
 
 
 class CommandService:
-    def __init__(self, commands_repository: CommandsRepository | None = None) -> None:
+    def __init__(
+        self,
+        commands_repository: CommandsRepository | None = None,
+        agent_execution_service=default_agent_execution_service,
+    ) -> None:
         self.commands_repository = commands_repository or CommandsRepository()
+        self.agent_execution_service = agent_execution_service
 
     def classify(self, command_type: str) -> CommandPolicy:
         return POLICY_BY_COMMAND.get(command_type, CommandPolicy.FORBIDDEN)
@@ -33,6 +39,17 @@ class CommandService:
         policy = apply_policy_precedence(base_policy, policy_override) if policy_override is not None else base_policy
         if policy == CommandPolicy.FORBIDDEN:
             raise ValueError(f"Unsupported or forbidden command_type '{request.command_type}'")
+        if policy == CommandPolicy.SAFE_AUTONOMOUS and request.agent_revision_id is not None:
+            existing = self.commands_repository.get_by_idempotency_key(
+                business_id=request.business_id,
+                environment=request.environment,
+                command_type=request.command_type,
+                idempotency_key=request.idempotency_key,
+            )
+            if existing is not None:
+                deduped = existing.model_copy(update={"deduped": True})
+                return CommandIngestResponse(**deduped.model_dump()), 200
+            self.agent_execution_service.validate_dispatchable(request.agent_revision_id)
 
         command = self.commands_repository.create(
             business_id=request.business_id,
@@ -47,7 +64,7 @@ class CommandService:
             return CommandIngestResponse(**command.model_dump()), 200
 
         if policy == CommandPolicy.SAFE_AUTONOMOUS:
-            run = run_service.create_run(command)
+            run = run_service.create_run(command, agent_revision_id=request.agent_revision_id)
             command = self.commands_repository.attach_run(command.id, run_id=run.id) or command.model_copy(
                 update={"run_id": run.id, "status": CommandStatus.QUEUED}
             )

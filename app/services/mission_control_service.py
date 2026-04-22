@@ -68,7 +68,7 @@ from app.models.mission_control import (
     MissionControlLeadActionResponse,
 )
 from app.models.runs import RunStatus
-from app.models.provider_extras import InstantlyProviderExtrasSnapshot
+from app.models.provider_extras import InstantlyProviderExtrasSnapshot, ProviderExtraFamilyStatus, ProviderExtrasSummary
 from app.models.audit import AuditListResponse
 from app.models.secrets import SecretBindingListResponse, SecretListResponse
 from app.models.opportunities import OpportunitySourceLane, OpportunityStage
@@ -126,12 +126,22 @@ class MissionControlService:
             store.mission_control_threads[thread.id] = thread.model_copy(deep=True)
             return store.mission_control_threads[thread.id]
 
-    def get_dashboard(self, *, business_id: str | None = None, environment: str | None = None) -> MissionControlDashboardResponse:
+    def get_dashboard(
+        self,
+        *,
+        org_id: str | None = None,
+        business_id: str | None = None,
+        environment: str | None = None,
+    ) -> MissionControlDashboardResponse:
         with self.client.transaction() as store:
+            commands_by_id = dict(store.commands)
+            approvals_by_id = dict(store.approvals)
+            runs_by_id = dict(store.runs)
             approvals = [
                 approval
                 for approval in store.approvals.values()
                 if approval.status == ApprovalStatus.PENDING
+                and self._matches_actor_org(self._approval_org_id(approval, commands_by_id=commands_by_id), org_id)
                 and self._matches_scope(approval.business_id, approval.environment, business_id, environment)
             ]
             planner_snapshots = [
@@ -142,19 +152,35 @@ class MissionControlService:
             runs = [
                 run
                 for run in store.runs.values()
+                if self._matches_actor_org(self._run_org_id(run, commands_by_id=commands_by_id), org_id)
                 if self._matches_scope(run.business_id, run.environment, business_id, environment)
             ]
             agents = [
                 agent
                 for agent in store.agents.values()
+                if self._matches_actor_org(self._record_org_id(agent), org_id)
                 if self._matches_scope(agent.business_id, agent.environment, business_id, environment)
             ]
             threads = [
                 thread if isinstance(thread, MissionControlThreadRecord) else MissionControlThreadRecord.model_validate(thread)
                 for thread in store.mission_control_threads.values()
+                if self._matches_actor_org(
+                    self._thread_org_id(
+                        thread,
+                        approvals_by_id=approvals_by_id,
+                        runs_by_id=runs_by_id,
+                        commands_by_id=commands_by_id,
+                    ),
+                    org_id,
+                )
                 if self._matches_scope(thread.business_id, thread.environment, business_id, environment)
             ]
-        lead_machine_summary = self._build_lead_machine_summary(business_id=business_id, environment=environment)
+        can_expose_unscoped_context = self._can_expose_unscoped_context(org_id)
+        lead_machine_summary = (
+            self._build_lead_machine_summary(business_id=business_id, environment=environment)
+            if can_expose_unscoped_context
+            else None
+        )
 
         latest_timestamps: list[datetime] = [approval.created_at for approval in approvals]
         latest_timestamps.extend(run.updated_at for run in runs)
@@ -185,18 +211,26 @@ class MissionControlService:
         replies_needing_review_count = sum(
             1 for thread in threads if bool(thread.context.get("reply_needs_review"))
         )
-        opportunity_stage_summaries = [
-            MissionControlOpportunityStageSummary(
-                source_lane=str(summary.source_lane),
-                stage=str(summary.stage),
-                count=summary.count,
-            )
-            for summary in self.opportunity_service.summarize_by_lane_and_stage(
-                business_id=business_id,
-                environment=environment,
-            )
-        ]
-        lead_machine_leads = self._lead_machine_leads(business_id=business_id, environment=environment)
+        opportunity_stage_summaries = (
+            [
+                MissionControlOpportunityStageSummary(
+                    source_lane=str(summary.source_lane),
+                    stage=str(summary.stage),
+                    count=summary.count,
+                )
+                for summary in self.opportunity_service.summarize_by_lane_and_stage(
+                    business_id=business_id,
+                    environment=environment,
+                )
+            ]
+            if can_expose_unscoped_context
+            else []
+        )
+        lead_machine_leads = (
+            self._lead_machine_leads(business_id=business_id, environment=environment)
+            if can_expose_unscoped_context
+            else []
+        )
         lead_machine_lead_ids = {lead.id for lead in lead_machine_leads if lead.id is not None}
         open_probate_task_count = sum(
             1
@@ -271,17 +305,28 @@ class MissionControlService:
         self,
         *,
         selected_thread_id: str | None = None,
+        org_id: str | None = None,
         business_id: str | None = None,
         environment: str | None = None,
     ) -> MissionControlInboxResponse:
         with self.client.transaction() as store:
+            commands_by_id = dict(store.commands)
+            approvals_by_id = dict(store.approvals)
+            runs_by_id = dict(store.runs)
             threads = [
                 thread if isinstance(thread, MissionControlThreadRecord) else MissionControlThreadRecord.model_validate(thread)
                 for thread in store.mission_control_threads.values()
+                if self._matches_actor_org(
+                    self._thread_org_id(
+                        thread,
+                        approvals_by_id=approvals_by_id,
+                        runs_by_id=runs_by_id,
+                        commands_by_id=commands_by_id,
+                    ),
+                    org_id,
+                )
                 if self._matches_scope(thread.business_id, thread.environment, business_id, environment)
             ]
-            runs_by_id = dict(store.runs)
-            approvals_by_id = dict(store.approvals)
 
         ordered_threads = sorted(threads, key=lambda thread: (thread.updated_at, thread.created_at), reverse=True)
         thread_summaries = [
@@ -316,13 +361,26 @@ class MissionControlService:
     def get_tasks(
         self,
         *,
+        org_id: str | None = None,
         business_id: str | None = None,
         environment: str | None = None,
     ) -> MissionControlTasksResponse:
         with self.client.transaction() as store:
+            commands_by_id = dict(store.commands)
+            approvals_by_id = dict(store.approvals)
+            runs_by_id = dict(store.runs)
             threads = [
                 thread if isinstance(thread, MissionControlThreadRecord) else MissionControlThreadRecord.model_validate(thread)
                 for thread in store.mission_control_threads.values()
+                if self._matches_actor_org(
+                    self._thread_org_id(
+                        thread,
+                        approvals_by_id=approvals_by_id,
+                        runs_by_id=runs_by_id,
+                        commands_by_id=commands_by_id,
+                    ),
+                    org_id,
+                )
                 if self._matches_scope(thread.business_id, thread.environment, business_id, environment)
             ]
 
@@ -353,10 +411,12 @@ class MissionControlService:
         self,
         *,
         thread_id: str,
+        org_id: str | None = None,
         notes: str | None = None,
         follow_up_outcome: str | None = None,
     ) -> MissionControlTaskActionResponse:
-        thread = self._require_thread_projection(thread_id)
+        thread = self._require_thread_projection(thread_id, org_id=org_id)
+        self._require_safe_thread_mutation_access(thread, actor_org_id=org_id)
         lead = self._resolve_lead_for_thread(thread)
         now = utc_now()
         completed_task_count = 0
@@ -402,10 +462,12 @@ class MissionControlService:
         self,
         *,
         thread_id: str,
+        org_id: str | None = None,
         reason: str,
         note: str | None = None,
     ) -> MissionControlLeadActionResponse:
-        thread = self._require_thread_projection(thread_id)
+        thread = self._require_thread_projection(thread_id, org_id=org_id)
+        self._require_safe_thread_mutation_access(thread, actor_org_id=org_id)
         target = self._resolve_lead_for_thread(thread)
         if target is None or target.id is None:
             raise KeyError(thread_id)
@@ -488,9 +550,11 @@ class MissionControlService:
         self,
         *,
         thread_id: str,
+        org_id: str | None = None,
         note: str | None = None,
     ) -> MissionControlLeadActionResponse:
-        thread = self._require_thread_projection(thread_id)
+        thread = self._require_thread_projection(thread_id, org_id=org_id)
+        self._require_safe_thread_mutation_access(thread, actor_org_id=org_id)
         target = self._resolve_lead_for_thread(thread)
         if target is None or target.id is None:
             raise KeyError(thread_id)
@@ -546,14 +610,105 @@ class MissionControlService:
             updated_at=now,
         )
 
-    def _require_thread_projection(self, thread_id: str) -> MissionControlThreadRecord:
+    def _require_thread_projection(
+        self,
+        thread_id: str,
+        *,
+        org_id: str | None = None,
+    ) -> MissionControlThreadRecord:
         with self.client.transaction() as store:
-            thread = store.mission_control_threads.get(thread_id)
-            if thread is None:
-                raise KeyError(thread_id)
-            if isinstance(thread, MissionControlThreadRecord):
+            commands_by_id = dict(store.commands)
+            approvals_by_id = dict(store.approvals)
+            runs_by_id = dict(store.runs)
+            for raw_thread in store.mission_control_threads.values():
+                thread = (
+                    raw_thread
+                    if isinstance(raw_thread, MissionControlThreadRecord)
+                    else MissionControlThreadRecord.model_validate(raw_thread)
+                )
+                if thread.id != thread_id:
+                    continue
+                if not self._matches_actor_org(
+                    self._thread_org_id(
+                        thread,
+                        approvals_by_id=approvals_by_id,
+                        runs_by_id=runs_by_id,
+                        commands_by_id=commands_by_id,
+                    ),
+                    org_id,
+                ):
+                    break
                 return thread
-            return MissionControlThreadRecord.model_validate(thread)
+        raise KeyError(thread_id)
+
+    def _require_safe_thread_mutation_access(
+        self,
+        thread: MissionControlThreadRecord,
+        *,
+        actor_org_id: str | None = None,
+    ) -> None:
+        if self._can_expose_unscoped_context(actor_org_id):
+            return
+        # Lead/contact/task/suppression records mutated by these endpoints are not org-scoped yet.
+        # Fail closed for tenant actors until the underlying projection carries safe org metadata.
+        raise KeyError(thread.id)
+
+    def _load_lead_machine_projection(
+        self,
+        *,
+        org_id: str | None = None,
+        business_id: str | None = None,
+        environment: str | None = None,
+    ) -> dict[str, list[Any]]:
+        if not self._can_expose_unscoped_context(org_id):
+            return {
+                "leads": [],
+                "campaigns": [],
+                "memberships": [],
+                "events": [],
+                "runs": [],
+                "tasks": [],
+                "suppressions": [],
+            }
+        with self.client.transaction() as store:
+            return {
+                "leads": [
+                    lead
+                    for lead in store.leads.values()
+                    if lead.source in {LeadSource.PROBATE_INTAKE, LeadSource.INSTANTLY_IMPORT, LeadSource.INSTANTLY_SYNC}
+                    and self._matches_scope(lead.business_id, lead.environment, business_id, environment)
+                ],
+                "campaigns": [
+                    campaign
+                    for campaign in store.campaigns.values()
+                    if self._matches_scope(campaign.business_id, campaign.environment, business_id, environment)
+                ],
+                "memberships": [
+                    membership
+                    for membership in store.campaign_memberships.values()
+                    if self._matches_scope(membership.business_id, membership.environment, business_id, environment)
+                ],
+                "events": [
+                    event
+                    for event in store.lead_events.values()
+                    if self._matches_scope(event.business_id, event.environment, business_id, environment)
+                ],
+                "runs": [
+                    run
+                    for run in store.automation_runs.values()
+                    if self._matches_scope(run.business_id, run.environment, business_id, environment)
+                ],
+                "tasks": [
+                    task
+                    for task in store.tasks.values()
+                    if self._matches_scope(task.business_id, task.environment, business_id, environment)
+                ],
+                "suppressions": [
+                    record
+                    for record in store.suppressions.values()
+                    if record.active and self._matches_scope(record.business_id, record.environment, business_id, environment)
+                ],
+            }
 
     def _resolve_lead_for_thread(self, thread: MissionControlThreadRecord) -> LeadRecord | MarketingLeadRecord | None:
         lead_id = self._context_value(thread.context, "lead_id")
@@ -770,44 +925,74 @@ class MissionControlService:
     def get_lead_machine(
         self,
         *,
+        org_id: str | None = None,
         business_id: str | None = None,
         environment: str | None = None,
         lead_id: str | None = None,
         campaign_id: str | None = None,
         limit: int | None = None,
     ) -> MissionControlLeadMachineResponse:
-        leads = self._lead_machine_leads(business_id=business_id, environment=environment)
-        campaigns = self.campaigns_repository.list(business_id=business_id, environment=environment)
-        memberships = self._safe_repo_call(
-            lambda: [
-                membership
-                for campaign in campaigns
-                if campaign.id is not None
-                for membership in self.campaign_memberships_repository.list_for_campaign(campaign.id)
-            ]
+        projection = self._load_lead_machine_projection(
+            org_id=org_id,
+            business_id=business_id,
+            environment=environment,
         )
-        lead_events = self.lead_events_repository.list(business_id=business_id, environment=environment)
-        automation_runs = self.automation_runs_repository.list(business_id=business_id, environment=environment)
-        tasks = self.tasks_repository.list(business_id=business_id, environment=environment)
+        leads = list(projection["leads"])
+        campaigns = list(projection["campaigns"])
+        filtered_memberships = list(projection["memberships"])
+        filtered_events = list(projection["events"])
+        filtered_runs = list(projection["runs"])
+        filtered_tasks = list(projection["tasks"])
+        filtered_suppressions = list(projection["suppressions"])
 
-        lead_ids = {lead.id for lead in leads if lead.id is not None}
+        if lead_id is not None:
+            leads = [lead for lead in leads if lead.id == lead_id]
+            filtered_memberships = [membership for membership in filtered_memberships if membership.lead_id == lead_id]
+            filtered_events = [event for event in filtered_events if event.lead_id == lead_id]
+            filtered_runs = [run for run in filtered_runs if run.lead_id == lead_id]
+            filtered_tasks = [task for task in filtered_tasks if task.lead_id == lead_id]
+            filtered_suppressions = [record for record in filtered_suppressions if record.lead_id == lead_id]
+        scoped_lead_ids = {lead.id for lead in leads if lead.id is not None}
+
+        if campaign_id is not None:
+            campaigns = [campaign for campaign in campaigns if campaign.id == campaign_id]
+            filtered_memberships = [membership for membership in filtered_memberships if membership.campaign_id == campaign_id]
+            filtered_events = [event for event in filtered_events if event.campaign_id == campaign_id]
+            filtered_runs = [run for run in filtered_runs if run.campaign_id == campaign_id]
+            filtered_suppressions = [record for record in filtered_suppressions if record.campaign_id == campaign_id]
+            if lead_id is None:
+                scoped_lead_ids = {
+                    membership.lead_id
+                    for membership in filtered_memberships
+                    if membership.lead_id is not None
+                }
+                leads = [lead for lead in leads if lead.id in scoped_lead_ids]
+                filtered_tasks = [task for task in filtered_tasks if task.lead_id in scoped_lead_ids]
+        if lead_id is None and campaign_id is None:
+            scoped_lead_ids = {lead.id for lead in leads if lead.id is not None}
+
         campaign_ids = {campaign.id for campaign in campaigns if campaign.id is not None}
         filtered_memberships = [
             membership
-            for membership in memberships
-            if membership.lead_id in lead_ids or membership.campaign_id in campaign_ids
+            for membership in filtered_memberships
+            if membership.lead_id in scoped_lead_ids or membership.campaign_id in campaign_ids
         ]
         filtered_events = [
             event
-            for event in lead_events
-            if event.lead_id in lead_ids or (event.campaign_id is not None and event.campaign_id in campaign_ids)
+            for event in filtered_events
+            if event.lead_id in scoped_lead_ids or (event.campaign_id is not None and event.campaign_id in campaign_ids)
         ]
         filtered_runs = [
             run
-            for run in automation_runs
-            if run.lead_id in lead_ids or (run.campaign_id is not None and run.campaign_id in campaign_ids)
+            for run in filtered_runs
+            if run.lead_id in scoped_lead_ids or (run.campaign_id is not None and run.campaign_id in campaign_ids)
         ]
-        filtered_tasks = [task for task in tasks if task.lead_id in lead_ids]
+        filtered_tasks = [task for task in filtered_tasks if task.lead_id in scoped_lead_ids]
+        filtered_suppressions = [
+            record
+            for record in filtered_suppressions
+            if record.lead_id in scoped_lead_ids or (record.campaign_id is not None and record.campaign_id in campaign_ids)
+        ]
 
         memberships_by_campaign: dict[str, list[Any]] = {}
         for membership in filtered_memberships:
@@ -820,6 +1005,17 @@ class MissionControlService:
         updated_at_candidates.extend(run.updated_at for run in filtered_runs)
         updated_at_candidates.extend(event.received_at for event in filtered_events)
 
+        recent_tasks = sorted(
+            filtered_tasks,
+            key=lambda record: (record.due_at or record.updated_at, record.created_at),
+            reverse=True,
+        )[: limit or 10]
+        timeline_items = self._build_lead_machine_timeline(
+            lead_events=filtered_events,
+            automation_runs=filtered_runs,
+            tasks=filtered_tasks,
+        )[: limit or 10]
+
         return MissionControlLeadMachineResponse(
             queue=MissionControlLeadMachineQueueSummary(
                 total_lead_count=len(leads),
@@ -827,8 +1023,7 @@ class MissionControlService:
                 active_count=sum(1 for lead in leads if lead.lifecycle_status == LeadLifecycleStatus.ACTIVE),
                 suppressed_count=self._lead_machine_suppressed_count(
                     leads=leads,
-                    business_id=business_id,
-                    environment=environment,
+                    suppressions=filtered_suppressions,
                 ),
                 interested_count=sum(1 for lead in leads if lead.lt_interest_status == LeadInterestStatus.INTERESTED),
             ),
@@ -867,29 +1062,27 @@ class MissionControlService:
                         lead_id=task.lead_id,
                         due_at=task.due_at,
                     )
-                    for task in sorted(
-                        filtered_tasks,
-                        key=lambda record: (record.due_at or record.updated_at, record.created_at),
-                        reverse=True,
-                    )[:10]
+                    for task in recent_tasks
                     if task.id is not None
                 ],
             ),
-            timeline=MissionControlLeadMachineTimelineSummary(
-                items=self._build_lead_machine_timeline(
-                    lead_events=filtered_events,
-                    automation_runs=filtered_runs,
-                    tasks=filtered_tasks,
-                )
-            ),
+            timeline=MissionControlLeadMachineTimelineSummary(items=timeline_items),
             updated_at=max(updated_at_candidates, default=utc_now()).isoformat(),
         )
 
-    def get_runs(self, *, business_id: str | None = None, environment: str | None = None) -> MissionControlRunsResponse:
+    def get_runs(
+        self,
+        *,
+        org_id: str | None = None,
+        business_id: str | None = None,
+        environment: str | None = None,
+    ) -> MissionControlRunsResponse:
         with self.client.transaction() as store:
+            commands_by_id = dict(store.commands)
             runs = [
                 run
                 for run in store.runs.values()
+                if self._matches_actor_org(self._run_org_id(run, commands_by_id=commands_by_id), org_id)
                 if self._matches_scope(run.business_id, run.environment, business_id, environment)
             ]
 
@@ -926,35 +1119,42 @@ class MissionControlService:
     def get_autonomy_visibility(
         self,
         *,
+        org_id: str | None = None,
         business_id: str | None = None,
         environment: str | None = None,
     ) -> MissionControlAutonomyVisibilityResponse:
         with self.client.transaction() as store:
+            commands_by_id = dict(store.commands)
             runs = [
                 run
                 for run in store.runs.values()
-                if self._matches_scope(run.business_id, run.environment, business_id, environment)
+                if self._matches_actor_org(self._run_org_id(run, commands_by_id=commands_by_id), org_id)
+                and self._matches_scope(run.business_id, run.environment, business_id, environment)
             ]
             approvals = [
                 approval
                 for approval in store.approvals.values()
                 if approval.status == ApprovalStatus.PENDING
+                and self._matches_actor_org(self._approval_org_id(approval, commands_by_id=commands_by_id), org_id)
                 and self._matches_scope(approval.business_id, approval.environment, business_id, environment)
             ]
             planner_snapshots = [
                 snapshot
                 for (scope_business_id, scope_environment), snapshot in store.ares_plans_by_scope.items()
-                if self._matches_scope(scope_business_id, scope_environment, business_id, environment)
+                if self._matches_actor_org(self._payload_org_id(snapshot), org_id)
+                and self._matches_scope(scope_business_id, scope_environment, business_id, environment)
             ]
             execution_snapshots = [
                 snapshot
                 for (scope_business_id, scope_environment), snapshot in store.ares_execution_runs_by_scope.items()
-                if self._matches_scope(scope_business_id, scope_environment, business_id, environment)
+                if self._matches_actor_org(self._payload_org_id(snapshot), org_id)
+                and self._matches_scope(scope_business_id, scope_environment, business_id, environment)
             ]
             operator_snapshots = [
                 snapshot
                 for (scope_business_id, scope_environment), snapshot in store.ares_operator_runs_by_scope.items()
-                if self._matches_scope(scope_business_id, scope_environment, business_id, environment)
+                if self._matches_actor_org(self._payload_org_id(snapshot), org_id)
+                and self._matches_scope(scope_business_id, scope_environment, business_id, environment)
             ]
 
         child_run_ids_by_parent: dict[str, list[str]] = {}
@@ -993,7 +1193,7 @@ class MissionControlService:
             if run.status == RunStatus.FAILED
         ]
 
-        lead_quality = self._lead_quality_score(business_id=business_id, environment=environment)
+        lead_quality = self._lead_quality_score(org_id=org_id, business_id=business_id, environment=environment)
         confidence = max(0.0, min(1.0, lead_quality - (0.15 if failed_steps else 0.0)))
 
         latest_snapshot_kind, _latest_snapshot = self._latest_autonomy_snapshot(
@@ -1147,14 +1347,19 @@ class MissionControlService:
     def get_approvals(
         self,
         *,
+        org_id: str | None = None,
         business_id: str | None = None,
         environment: str | None = None,
     ) -> MissionControlApprovalsResponse:
-        approvals = self.approval_service.list_approvals(
-            business_id=business_id,
-            environment=environment,
-            status=ApprovalStatus.PENDING,
-        )
+        with self.client.transaction() as store:
+            commands_by_id = dict(store.commands)
+            approvals = [
+                approval
+                for approval in store.approvals.values()
+                if approval.status == ApprovalStatus.PENDING
+                and self._matches_actor_org(self._approval_org_id(approval, commands_by_id=commands_by_id), org_id)
+                and self._matches_scope(approval.business_id, approval.environment, business_id, environment)
+            ]
         ordered_approvals = sorted(approvals, key=lambda approval: approval.created_at, reverse=True)
         return MissionControlApprovalsResponse(
             approvals=[
@@ -1177,10 +1382,15 @@ class MissionControlService:
     def get_agents(
         self,
         *,
+        org_id: str | None = None,
         business_id: str | None = None,
         environment: str | None = None,
     ) -> MissionControlAgentsResponse:
-        agents = self.agent_registry_service.list_agents(business_id=business_id, environment=environment)
+        agents = self.agent_registry_service.list_agents(
+            org_id=org_id,
+            business_id=business_id,
+            environment=environment,
+        )
         ordered_agents = sorted(agents, key=lambda agent: (agent.updated_at, agent.created_at), reverse=True)
         return MissionControlAgentsResponse(
             agents=[
@@ -1204,6 +1414,7 @@ class MissionControlService:
     def get_settings_assets(
         self,
         *,
+        org_id: str | None = None,
         agent_id: str | None = None,
         business_id: str | None = None,
         environment: str | None = None,
@@ -1213,6 +1424,14 @@ class MissionControlService:
             business_id=business_id,
             environment=environment,
         )
+        with self.client.transaction() as store:
+            agents_by_id = dict(store.agents)
+        if org_id is not None:
+            assets = [
+                asset
+                for asset in assets
+                if self._matches_actor_org(self._asset_org_id(asset, agents_by_id=agents_by_id), org_id)
+            ]
         ordered_assets = sorted(assets, key=lambda asset: (asset.updated_at, asset.created_at), reverse=True)
         return MissionControlAssetsResponse(
             assets=[
@@ -1235,10 +1454,11 @@ class MissionControlService:
     def get_assets(
         self,
         *,
+        org_id: str | None = None,
         business_id: str | None = None,
         environment: str | None = None,
     ) -> MissionControlAssetsResponse:
-        return self.get_settings_assets(business_id=business_id, environment=environment)
+        return self.get_settings_assets(org_id=org_id, business_id=business_id, environment=environment)
 
     def get_provider_status(self) -> MissionControlProvidersStatusResponse:
         settings = get_settings()
@@ -1250,24 +1470,35 @@ class MissionControlService:
     def get_instantly_provider_extras(
         self,
         *,
+        org_id: str | None = None,
         business_id: str | None = None,
         environment: str | None = None,
     ) -> InstantlyProviderExtrasSnapshot:
+        if not self._can_expose_unscoped_context(org_id):
+            return self._empty_instantly_provider_extras_snapshot()
         return provider_extras_service.get_instantly_snapshot(
             business_id=business_id,
             environment=environment,
         )
 
-    def get_secrets(self, *, org_id: str | None = None) -> SecretListResponse:
-        return SecretListResponse(secrets=secret_service.list_secrets(org_id=org_id))
+    def get_secrets(
+        self,
+        *,
+        org_id: str | None = None,
+        actor_org_id: str | None = None,
+    ) -> SecretListResponse:
+        effective_org_id = self._resolve_actor_scoped_org_id(org_id, actor_org_id=actor_org_id)
+        return SecretListResponse(secrets=secret_service.list_secrets(org_id=effective_org_id))
 
-    def get_secret_bindings(self, *, revision_id: str) -> SecretBindingListResponse:
+    def get_secret_bindings(self, *, revision_id: str, org_id: str | None = None) -> SecretBindingListResponse:
+        self._require_revision_in_org(revision_id, org_id=org_id)
         return SecretBindingListResponse(bindings=secret_service.list_bindings_for_revision(revision_id))
 
     def get_audit(
         self,
         *,
         org_id: str | None = None,
+        actor_org_id: str | None = None,
         agent_id: str | None = None,
         agent_revision_id: str | None = None,
         session_id: str | None = None,
@@ -1277,9 +1508,10 @@ class MissionControlService:
         event_type: str | None = None,
         limit: int | None = None,
     ) -> AuditListResponse:
+        effective_org_id = self._resolve_actor_scoped_org_id(org_id, actor_org_id=actor_org_id)
         return AuditListResponse(
             events=audit_service.list_events(
-                org_id=org_id,
+                org_id=effective_org_id,
                 agent_id=agent_id,
                 agent_revision_id=agent_revision_id,
                 session_id=session_id,
@@ -1295,14 +1527,16 @@ class MissionControlService:
         self,
         *,
         org_id: str | None = None,
+        actor_org_id: str | None = None,
         agent_id: str | None = None,
         agent_revision_id: str | None = None,
         kind: UsageEventKind | None = None,
         source_kind: str | None = None,
         limit: int | None = None,
     ) -> UsageResponse:
+        effective_org_id = self._resolve_actor_scoped_org_id(org_id, actor_org_id=actor_org_id)
         return usage_service.list_usage(
-            org_id=org_id,
+            org_id=effective_org_id,
             agent_id=agent_id,
             agent_revision_id=agent_revision_id,
             kind=kind,
@@ -1436,7 +1670,9 @@ class MissionControlService:
             suppressed_lead_count=suppressed_count,
         )
 
-    def _lead_quality_score(self, *, business_id: str | None, environment: str | None) -> float:
+    def _lead_quality_score(self, *, org_id: str | None = None, business_id: str | None, environment: str | None) -> float:
+        if not self._can_expose_unscoped_context(org_id):
+            return 0.0
         leads = self._lead_machine_leads(business_id=business_id, environment=environment)
         total = len(leads)
         if total == 0:
@@ -1508,10 +1744,11 @@ class MissionControlService:
         self,
         *,
         leads: list[LeadRecord],
-        business_id: str | None,
-        environment: str | None,
+        suppressions: list[Any] | None = None,
+        business_id: str | None = None,
+        environment: str | None = None,
     ) -> int:
-        suppressions = self._safe_repo_call(
+        suppressions = suppressions if suppressions is not None else self._safe_repo_call(
             lambda: self.suppression_repository.list_active(business_id=business_id, environment=environment)
         )
         targets = {
@@ -1612,6 +1849,145 @@ class MissionControlService:
                 bool(context.get("reply_needs_review")),
             ]
         )
+
+    def _empty_instantly_provider_extras_snapshot(self) -> InstantlyProviderExtrasSnapshot:
+        settings = get_settings()
+        denied_note = "Tenant-scoped provider extras projection is not available yet for non-internal orgs."
+
+        def family() -> ProviderExtraFamilyStatus:
+            return ProviderExtraFamilyStatus(
+                configured=False,
+                status="configuration_missing",
+                projection_mode="scaffold",
+                projected_record_count=0,
+                counts={},
+                notes=[denied_note],
+            )
+
+        return InstantlyProviderExtrasSnapshot(
+            configured=False,
+            transport_ready=False,
+            webhook_signing_configured=False,
+            base_url=settings.instantly_base_url,
+            batch_size=settings.instantly_batch_size,
+            batch_wait_seconds=settings.instantly_batch_wait_seconds,
+            summary=ProviderExtrasSummary(
+                configured_family_count=0,
+                projected_family_count=0,
+                campaign_count=0,
+                lead_count=0,
+                workspace_count=0,
+                webhook_receipt_count=0,
+                blocklist_count=0,
+            ),
+            labels=family(),
+            tags=family(),
+            verification=family(),
+            deliverability=family(),
+            blocklists=family(),
+            inbox_placement=family(),
+            crm_actions=family(),
+            workspace_resources=family(),
+            checked_at=utc_now(),
+        )
+
+    def _require_revision_in_org(self, revision_id: str, *, org_id: str | None = None) -> tuple[Any, Any]:
+        revision = self.agent_registry_service.agents_repository.get_revision(revision_id)
+        if revision is None:
+            raise ValueError("Agent revision not found")
+        agent = self.agent_registry_service.agents_repository.get_agent(revision.agent_id)
+        if agent is None or (org_id is not None and agent.org_id != org_id):
+            raise ValueError("Agent revision not found")
+        return revision, agent
+
+    @classmethod
+    def _resolve_actor_scoped_org_id(cls, request_org_id: str | None, *, actor_org_id: str | None = None) -> str | None:
+        if actor_org_id is None:
+            return request_org_id
+        if request_org_id in (None, cls._default_org_id()):
+            return actor_org_id
+        if request_org_id != actor_org_id:
+            raise ValueError("Org id must match actor context")
+        return actor_org_id
+
+    @staticmethod
+    def _record_org_id(record: Any) -> str | None:
+        if isinstance(record, dict):
+            raw = record.get("org_id")
+        else:
+            raw = getattr(record, "org_id", None)
+        return raw if isinstance(raw, str) and raw else None
+
+    @classmethod
+    def _payload_org_id(cls, payload: Any) -> str | None:
+        if not isinstance(payload, dict):
+            return None
+        raw = payload.get("org_id")
+        if isinstance(raw, str) and raw:
+            return raw
+        actor_context = payload.get("actor_context")
+        if isinstance(actor_context, dict):
+            actor_org_id = actor_context.get("org_id")
+            if isinstance(actor_org_id, str) and actor_org_id:
+                return actor_org_id
+        return None
+
+    @staticmethod
+    def _default_org_id() -> str:
+        return get_settings().default_org_id
+
+    @classmethod
+    def _command_org_id(cls, command: Any | None) -> str:
+        return cls._payload_org_id(getattr(command, "payload", None)) or cls._default_org_id()
+
+    @classmethod
+    def _approval_org_id(cls, approval: Any, *, commands_by_id: dict[str, Any]) -> str:
+        return (
+            cls._payload_org_id(getattr(approval, "payload_snapshot", None))
+            or cls._command_org_id(commands_by_id.get(getattr(approval, "command_id", "")))
+        )
+
+    @classmethod
+    def _run_org_id(cls, run: Any, *, commands_by_id: dict[str, Any]) -> str:
+        return cls._command_org_id(commands_by_id.get(getattr(run, "command_id", "")))
+
+    @classmethod
+    def _thread_org_id(
+        cls,
+        thread: MissionControlThreadRecord,
+        *,
+        approvals_by_id: dict[str, Any],
+        runs_by_id: dict[str, Any],
+        commands_by_id: dict[str, Any],
+    ) -> str:
+        return (
+            cls._payload_org_id(thread.context)
+            or (
+                cls._approval_org_id(approvals_by_id[thread.related_approval_id], commands_by_id=commands_by_id)
+                if thread.related_approval_id is not None and thread.related_approval_id in approvals_by_id
+                else None
+            )
+            or (
+                cls._run_org_id(runs_by_id[thread.related_run_id], commands_by_id=commands_by_id)
+                if thread.related_run_id is not None and thread.related_run_id in runs_by_id
+                else None
+            )
+            or cls._default_org_id()
+        )
+
+    @classmethod
+    def _asset_org_id(cls, asset: Any, *, agents_by_id: dict[str, Any]) -> str:
+        return cls._record_org_id(agents_by_id.get(getattr(asset, "agent_id", ""))) or cls._default_org_id()
+
+    @classmethod
+    def _matches_actor_org(cls, record_org_id: str | None, actor_org_id: str | None) -> bool:
+        if actor_org_id is None:
+            return True
+        return (record_org_id or cls._default_org_id()) == actor_org_id
+
+    @classmethod
+    def _can_expose_unscoped_context(cls, org_id: str | None) -> bool:
+        return org_id is None or org_id == cls._default_org_id()
 
     @staticmethod
     def _matches_scope(

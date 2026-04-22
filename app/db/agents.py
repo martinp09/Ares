@@ -4,7 +4,14 @@ from copy import deepcopy
 
 from app.core.config import DEFAULT_INTERNAL_ORG_ID
 from app.db.client import ControlPlaneClient, get_control_plane_client, utc_now
-from app.models.agents import AgentRecord, AgentRevisionRecord, AgentRevisionState
+from app.models.agents import (
+    AgentLifecycleStatus,
+    AgentRecord,
+    AgentRevisionRecord,
+    AgentRevisionState,
+    AgentVisibility,
+    default_agent_slug,
+)
 from app.models.commands import generate_id
 from app.models.host_adapters import HostAdapterKind
 from app.models.providers import ProviderCapability, ProviderKind
@@ -21,7 +28,11 @@ class AgentsRepository:
         business_id: str,
         environment: str,
         name: str,
+        slug: str | None = None,
         description: str | None,
+        visibility: AgentVisibility = AgentVisibility.INTERNAL,
+        lifecycle_status: AgentLifecycleStatus = AgentLifecycleStatus.DRAFT,
+        packaging_metadata: dict | None = None,
         config: dict,
         host_adapter_kind: HostAdapterKind = HostAdapterKind.TRIGGER_DEV,
         skill_ids: list[str] | None = None,
@@ -29,7 +40,13 @@ class AgentsRepository:
         provider_kind: ProviderKind = ProviderKind.ANTHROPIC,
         provider_config: dict | None = None,
         provider_capabilities: list[ProviderCapability] | None = None,
+        input_schema: dict | None = None,
+        output_schema: dict | None = None,
+        release_notes: str | None = None,
+        compatibility_metadata: dict | None = None,
     ) -> tuple[AgentRecord, AgentRevisionRecord]:
+        if lifecycle_status != AgentLifecycleStatus.DRAFT:
+            raise ValueError("New agents must start with lifecycle_status='draft'")
         now = utc_now()
         agent = AgentRecord(
             id=generate_id("agt"),
@@ -37,7 +54,11 @@ class AgentsRepository:
             business_id=business_id,
             environment=environment,
             name=name,
+            slug=slug or default_agent_slug(name),
             description=description,
+            visibility=visibility,
+            lifecycle_status=lifecycle_status,
+            packaging_metadata=deepcopy(packaging_metadata or {}),
             active_revision_id=None,
             created_at=now,
             updated_at=now,
@@ -54,6 +75,10 @@ class AgentsRepository:
             provider_config=deepcopy(provider_config or {}),
             provider_capabilities=deepcopy(provider_capabilities or []),
             skill_ids=deepcopy(skill_ids or []),
+            input_schema=deepcopy(input_schema or {}),
+            output_schema=deepcopy(output_schema or {}),
+            release_notes=release_notes,
+            compatibility_metadata=deepcopy(compatibility_metadata or {}),
             created_at=now,
             updated_at=now,
         )
@@ -122,7 +147,13 @@ class AgentsRepository:
                     "updated_at": now,
                 }
             )
-            updated_agent = agent.model_copy(update={"active_revision_id": revision_id, "updated_at": now})
+            updated_agent = agent.model_copy(
+                update={
+                    "active_revision_id": revision_id,
+                    "lifecycle_status": AgentLifecycleStatus.ACTIVE,
+                    "updated_at": now,
+                }
+            )
             store.agent_revisions[revision_id] = published_revision
             store.agents[agent_id] = updated_agent
             return updated_agent, published_revision
@@ -142,12 +173,38 @@ class AgentsRepository:
                     "updated_at": now,
                 }
             )
-            active_revision_id = agent.active_revision_id
-            updated_agent = agent
-            if active_revision_id == revision_id:
-                updated_agent = agent.model_copy(update={"active_revision_id": None, "updated_at": now})
-                store.agents[agent_id] = updated_agent
             store.agent_revisions[revision_id] = archived_revision
+
+            active_revision_id = agent.active_revision_id
+            updated_agent = agent.model_copy(update={"updated_at": now})
+            remaining_active_or_draft = [
+                candidate
+                for candidate_id in store.agent_revision_ids_by_agent.get(agent_id, [])
+                if candidate_id != revision_id
+                if (candidate := store.agent_revisions[candidate_id]).state != AgentRevisionState.ARCHIVED
+            ]
+            if active_revision_id == revision_id:
+                next_lifecycle_status = (
+                    AgentLifecycleStatus.ACTIVE
+                    if any(candidate.state == AgentRevisionState.PUBLISHED for candidate in remaining_active_or_draft)
+                    else AgentLifecycleStatus.DRAFT
+                    if remaining_active_or_draft
+                    else AgentLifecycleStatus.ARCHIVED
+                )
+                updated_agent = updated_agent.model_copy(
+                    update={
+                        "active_revision_id": None,
+                        "lifecycle_status": next_lifecycle_status,
+                    }
+                )
+            elif active_revision_id is None and not remaining_active_or_draft:
+                updated_agent = updated_agent.model_copy(
+                    update={
+                        "active_revision_id": None,
+                        "lifecycle_status": AgentLifecycleStatus.ARCHIVED,
+                    }
+                )
+            store.agents[agent_id] = updated_agent
             return updated_agent, archived_revision
 
     def clone_revision(self, agent_id: str, revision_id: str) -> tuple[AgentRecord, AgentRevisionRecord] | None:
@@ -171,11 +228,25 @@ class AgentsRepository:
                 provider_config=deepcopy(source_revision.provider_config),
                 provider_capabilities=deepcopy(source_revision.provider_capabilities),
                 skill_ids=deepcopy(source_revision.skill_ids),
+                input_schema=deepcopy(source_revision.input_schema),
+                output_schema=deepcopy(source_revision.output_schema),
+                release_notes=source_revision.release_notes,
+                compatibility_metadata=deepcopy(source_revision.compatibility_metadata),
                 created_at=now,
                 updated_at=now,
                 cloned_from_revision_id=source_revision.id,
             )
             store.agent_revisions[cloned_revision.id] = cloned_revision
             store.agent_revision_ids_by_agent.setdefault(agent_id, []).append(cloned_revision.id)
-            store.agents[agent_id] = agent.model_copy(update={"updated_at": now})
+            next_lifecycle_status = (
+                AgentLifecycleStatus.DRAFT
+                if agent.lifecycle_status == AgentLifecycleStatus.ARCHIVED
+                else agent.lifecycle_status
+            )
+            store.agents[agent_id] = agent.model_copy(
+                update={
+                    "lifecycle_status": next_lifecycle_status,
+                    "updated_at": now,
+                }
+            )
             return store.agents[agent_id], cloned_revision

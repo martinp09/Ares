@@ -129,7 +129,7 @@ def test_agent_execution_rejects_draft_revisions() -> None:
         raise AssertionError("Expected draft revision dispatch to fail")
 
 
-def test_agent_execution_uses_disabled_adapter_without_breaking_registry_boot() -> None:
+def test_agent_execution_rejects_disabled_adapters_without_breaking_registry_boot() -> None:
     client = InMemoryControlPlaneClient(InMemoryControlPlaneStore())
     agents = AgentsRepository(client)
     execution = AgentExecutionService(
@@ -149,8 +149,9 @@ def test_agent_execution_uses_disabled_adapter_without_breaking_registry_boot() 
     )
     agents.publish_revision(revision.agent_id, revision.id)
 
-    result = execution.dispatch_revision(revision.id)
-
-    assert revision.state == AgentRevisionState.DRAFT
-    assert result.adapter_kind == HostAdapterKind.CODEX
-    assert result.status == HostAdapterDispatchStatus.DISABLED
+    try:
+        execution.dispatch_revision(revision.id)
+    except ValueError as exc:
+        assert str(exc) == "codex adapter is disabled in this environment"
+    else:
+        raise AssertionError("Expected disabled adapter dispatch to fail")

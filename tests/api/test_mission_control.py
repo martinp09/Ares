@@ -15,6 +15,42 @@ from app.services.run_service import reset_control_plane_state
 AUTH_HEADERS = {"Authorization": "Bearer dev-runtime-key"}
 
 
+def org_actor_headers(*, org_id: str, actor_id: str, actor_type: str = "user") -> dict[str, str]:
+    return {
+        **AUTH_HEADERS,
+        "X-Ares-Org-Id": org_id,
+        "X-Ares-Actor-Id": actor_id,
+        "X-Ares-Actor-Type": actor_type,
+    }
+
+
+def create_published_agent(
+    client,
+    *,
+    headers: dict[str, str],
+    name: str,
+    business_id: str = "limitless",
+    environment: str = "dev",
+) -> tuple[str, str]:
+    created = client.post(
+        "/agents",
+        json={
+            "business_id": business_id,
+            "environment": environment,
+            "name": name,
+            "config": {"prompt": f"{name} prompt"},
+        },
+        headers=headers,
+    )
+    assert created.status_code == 200
+    created_body = created.json()
+    agent_id = created_body["agent"]["id"]
+    revision_id = created_body["revisions"][0]["id"]
+    publish_response = client.post(f"/agents/{agent_id}/revisions/{revision_id}/publish", headers=headers)
+    assert publish_response.status_code == 200
+    return agent_id, revision_id
+
+
 def test_dashboard_endpoint_returns_operator_counts(client) -> None:
     reset_control_plane_state()
 
@@ -121,54 +157,163 @@ def test_dashboard_endpoint_returns_operator_counts(client) -> None:
     assert "updated_at" in body
 
 
-def test_agents_endpoint_filters_to_requested_scope(client) -> None:
+def test_dashboard_endpoint_hides_other_org_records_with_same_scope(client) -> None:
     reset_control_plane_state()
+    alpha_headers = org_actor_headers(org_id="org_alpha", actor_id="actor_alpha")
+    beta_headers = org_actor_headers(org_id="org_beta", actor_id="actor_beta")
+    base_time = datetime(2026, 4, 18, 9, 0, tzinfo=UTC)
 
-    scoped_agent = client.post(
-        "/agents",
+    alpha_run = client.post(
+        "/commands",
         json={
             "business_id": "limitless",
             "environment": "dev",
-            "name": "Scoped Agent",
-            "config": {"prompt": "Stay scoped"},
+            "command_type": "run_market_research",
+            "idempotency_key": "mc-dashboard-alpha-run",
+            "payload": {"topic": "alpha leads", "org_id": "org_alpha"},
         },
         headers=AUTH_HEADERS,
-    ).json()
-    scoped_agent_id = scoped_agent["agent"]["id"]
-    scoped_revision_id = scoped_agent["revisions"][0]["id"]
-    scoped_publish_response = client.post(
-        f"/agents/{scoped_agent_id}/revisions/{scoped_revision_id}/publish",
-        headers=AUTH_HEADERS,
     )
-    assert scoped_publish_response.status_code == 200
+    assert alpha_run.status_code == 201
 
-    other_agent = client.post(
-        "/agents",
+    beta_run = client.post(
+        "/commands",
         json={
-            "business_id": "otherco",
-            "environment": "prod",
-            "name": "Other Agent",
-            "config": {"prompt": "Stay out of scope"},
+            "business_id": "limitless",
+            "environment": "dev",
+            "command_type": "run_market_research",
+            "idempotency_key": "mc-dashboard-beta-run",
+            "payload": {"topic": "beta leads", "org_id": "org_beta"},
         },
         headers=AUTH_HEADERS,
-    ).json()
-    other_agent_id = other_agent["agent"]["id"]
-    other_revision_id = other_agent["revisions"][0]["id"]
-    other_publish_response = client.post(
-        f"/agents/{other_agent_id}/revisions/{other_revision_id}/publish",
+    )
+    beta_run_id = beta_run.json()["run_id"]
+    failed_beta = client.post(
+        f"/trigger/callbacks/runs/{beta_run_id}/failed",
+        json={
+            "trigger_run_id": "trg_beta_failed_001",
+            "error_classification": "provider_timeout",
+            "error_message": "worker timed out",
+        },
         headers=AUTH_HEADERS,
     )
-    assert other_publish_response.status_code == 200
+    assert failed_beta.status_code == 200
+
+    alpha_approval = client.post(
+        "/commands",
+        json={
+            "business_id": "limitless",
+            "environment": "dev",
+            "command_type": "publish_campaign",
+            "idempotency_key": "mc-dashboard-alpha-approval",
+            "payload": {"campaign_id": "camp_alpha", "org_id": "org_alpha"},
+        },
+        headers=AUTH_HEADERS,
+    )
+    assert alpha_approval.status_code == 201
+
+    beta_approval = client.post(
+        "/commands",
+        json={
+            "business_id": "limitless",
+            "environment": "dev",
+            "command_type": "publish_campaign",
+            "idempotency_key": "mc-dashboard-beta-approval",
+            "payload": {"campaign_id": "camp_beta", "org_id": "org_beta"},
+        },
+        headers=AUTH_HEADERS,
+    )
+    assert beta_approval.status_code == 201
+
+    create_published_agent(client, headers=alpha_headers, name="Alpha Mission Control Agent")
+    create_published_agent(client, headers=beta_headers, name="Beta Mission Control Agent")
+
+    mission_control_service.upsert_thread_projection(
+        MissionControlThreadRecord(
+            business_id="limitless",
+            environment="dev",
+            channel="sms",
+            status="open",
+            unread_count=1,
+            contact=MissionControlContactRecord(display_name="Alpha Lead", phone="+155****0101"),
+            messages=[
+                MissionControlMessageRecord(
+                    direction="inbound",
+                    channel="sms",
+                    body="Alpha follow-up",
+                    created_at=base_time,
+                )
+            ],
+            context={"org_id": "org_alpha", "booking_status": "pending"},
+            created_at=base_time,
+            updated_at=base_time + timedelta(minutes=1),
+        )
+    )
+    mission_control_service.upsert_thread_projection(
+        MissionControlThreadRecord(
+            business_id="limitless",
+            environment="dev",
+            channel="sms",
+            status="open",
+            unread_count=3,
+            contact=MissionControlContactRecord(display_name="Beta Lead", phone="+155****0202"),
+            messages=[
+                MissionControlMessageRecord(
+                    direction="inbound",
+                    channel="sms",
+                    body="Beta follow-up",
+                    created_at=base_time,
+                )
+            ],
+            context={"org_id": "org_beta", "booking_status": "pending"},
+            created_at=base_time,
+            updated_at=base_time + timedelta(minutes=2),
+        )
+    )
+
+    alpha_response = client.get(
+        "/mission-control/dashboard?business_id=limitless&environment=dev",
+        headers=alpha_headers,
+    )
+    beta_response = client.get(
+        "/mission-control/dashboard?business_id=limitless&environment=dev",
+        headers=beta_headers,
+    )
+
+    assert alpha_response.status_code == 200
+    assert beta_response.status_code == 200
+    alpha_body = alpha_response.json()
+    beta_body = beta_response.json()
+    assert alpha_body["approval_count"] == 1
+    assert alpha_body["active_run_count"] == 1
+    assert alpha_body["failed_run_count"] == 0
+    assert alpha_body["active_agent_count"] == 1
+    assert alpha_body["unread_conversation_count"] == 1
+    assert beta_body["approval_count"] == 1
+    assert beta_body["active_run_count"] == 0
+    assert beta_body["failed_run_count"] == 1
+    assert beta_body["active_agent_count"] == 1
+    assert beta_body["unread_conversation_count"] == 1
+
+
+def test_agents_endpoint_filters_to_requested_scope(client) -> None:
+    reset_control_plane_state()
+
+    alpha_headers = org_actor_headers(org_id="org_alpha", actor_id="actor_alpha")
+    beta_headers = org_actor_headers(org_id="org_beta", actor_id="actor_beta")
+
+    alpha_agent_id, _ = create_published_agent(client, headers=alpha_headers, name="Alpha Agent")
+    create_published_agent(client, headers=beta_headers, name="Beta Agent")
 
     response = client.get(
         "/mission-control/agents?business_id=limitless&environment=dev",
-        headers=AUTH_HEADERS,
+        headers=alpha_headers,
     )
 
     assert response.status_code == 200
     body = response.json()
     assert len(body["agents"]) == 1
-    assert body["agents"][0]["id"] == scoped_agent_id
+    assert body["agents"][0]["id"] == alpha_agent_id
 
 
 def test_inbox_endpoint_returns_thread_summaries_and_selected_thread_payload(client) -> None:
@@ -290,6 +435,147 @@ def test_inbox_endpoint_returns_thread_summaries_and_selected_thread_payload(cli
         "Can you send me the offer details?",
         "Reply draft needs operator approval before send.",
     ]
+
+
+def test_inbox_endpoint_hides_other_org_threads_with_same_scope(client) -> None:
+    reset_control_plane_state()
+    alpha_headers = org_actor_headers(org_id="org_alpha", actor_id="actor_alpha")
+    base_time = datetime(2026, 4, 13, 20, 0, tzinfo=UTC)
+
+    alpha_thread = mission_control_service.upsert_thread_projection(
+        MissionControlThreadRecord(
+            business_id="limitless",
+            environment="dev",
+            channel="sms",
+            status="open",
+            unread_count=1,
+            contact=MissionControlContactRecord(display_name="Alpha Prospect", phone="+155****0303"),
+            messages=[
+                MissionControlMessageRecord(
+                    direction="inbound",
+                    channel="sms",
+                    body="Alpha thread",
+                    created_at=base_time,
+                )
+            ],
+            context={"org_id": "org_alpha", "stage": "qualified"},
+            created_at=base_time,
+            updated_at=base_time + timedelta(minutes=1),
+        )
+    )
+    beta_thread = mission_control_service.upsert_thread_projection(
+        MissionControlThreadRecord(
+            business_id="limitless",
+            environment="dev",
+            channel="sms",
+            status="open",
+            unread_count=2,
+            contact=MissionControlContactRecord(display_name="Beta Prospect", phone="+155****0404"),
+            messages=[
+                MissionControlMessageRecord(
+                    direction="inbound",
+                    channel="sms",
+                    body="Beta thread",
+                    created_at=base_time,
+                )
+            ],
+            context={"org_id": "org_beta", "stage": "new"},
+            created_at=base_time,
+            updated_at=base_time + timedelta(minutes=2),
+        )
+    )
+
+    alpha_response = client.get(
+        f"/mission-control/inbox?business_id=limitless&environment=dev&selected_thread_id={alpha_thread.id}",
+        headers=alpha_headers,
+    )
+    hidden_response = client.get(
+        f"/mission-control/inbox?business_id=limitless&environment=dev&selected_thread_id={beta_thread.id}",
+        headers=alpha_headers,
+    )
+
+    assert alpha_response.status_code == 200
+    alpha_body = alpha_response.json()
+    assert alpha_body["summary"] == {
+        "thread_count": 1,
+        "unread_count": 1,
+        "approval_required_count": 0,
+    }
+    assert [thread["thread_id"] for thread in alpha_body["threads"]] == [alpha_thread.id]
+    assert alpha_body["selected_thread_id"] == alpha_thread.id
+    assert hidden_response.status_code == 404
+    assert hidden_response.json()["detail"] == "Mission Control thread not found"
+
+
+def test_tasks_endpoint_hides_other_org_threads_with_same_scope(client) -> None:
+    reset_control_plane_state()
+    alpha_headers = org_actor_headers(org_id="org_alpha", actor_id="actor_alpha")
+    base_time = datetime(2026, 4, 18, 15, 0, tzinfo=UTC)
+
+    alpha_thread = mission_control_service.upsert_thread_projection(
+        MissionControlThreadRecord(
+            business_id="limitless",
+            environment="dev",
+            channel="sms",
+            status="open",
+            unread_count=1,
+            contact=MissionControlContactRecord(display_name="Alpha Follow Up", phone="+155****0707"),
+            messages=[
+                MissionControlMessageRecord(
+                    direction="inbound",
+                    channel="sms",
+                    body="Can you call me after lunch?",
+                    created_at=base_time,
+                )
+            ],
+            context={
+                "org_id": "org_alpha",
+                "manual_call_due_at": (base_time + timedelta(minutes=30)).isoformat(),
+                "reply_needs_review": True,
+                "booking_status": "pending",
+                "sequence_status": "active",
+            },
+            created_at=base_time,
+            updated_at=base_time,
+        )
+    )
+    mission_control_service.upsert_thread_projection(
+        MissionControlThreadRecord(
+            business_id="limitless",
+            environment="dev",
+            channel="sms",
+            status="open",
+            unread_count=1,
+            contact=MissionControlContactRecord(display_name="Beta Follow Up", phone="+155****0808"),
+            messages=[
+                MissionControlMessageRecord(
+                    direction="inbound",
+                    channel="sms",
+                    body="Beta org task",
+                    created_at=base_time,
+                )
+            ],
+            context={
+                "org_id": "org_beta",
+                "manual_call_due_at": (base_time + timedelta(minutes=35)).isoformat(),
+                "reply_needs_review": True,
+                "booking_status": "pending",
+                "sequence_status": "active",
+            },
+            created_at=base_time,
+            updated_at=base_time + timedelta(minutes=1),
+        )
+    )
+
+    response = client.get(
+        "/mission-control/tasks?business_id=limitless&environment=dev",
+        headers=alpha_headers,
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["due_count"] == 1
+    assert [task["thread_id"] for task in body["tasks"]] == [alpha_thread.id]
 
 
 def test_mission_control_task_action_endpoints_mutate_state(client) -> None:
@@ -428,6 +714,139 @@ def test_mission_control_task_action_endpoints_mutate_state(client) -> None:
     assert mission_control_service.campaign_memberships_repository.list_for_lead(lead.id)[0].status == CampaignMembershipStatus.ACTIVE
 
 
+def test_mission_control_task_actions_fail_closed_for_tenant_actor_when_target_lane_is_not_org_scoped(client) -> None:
+    reset_control_plane_state()
+    alpha_headers = org_actor_headers(org_id="org_alpha", actor_id="actor_alpha")
+    base_time = datetime(2026, 4, 18, 16, 0, tzinfo=UTC)
+
+    campaign = mission_control_service.campaigns_repository.upsert(
+        CampaignRecord(
+            business_id="limitless",
+            environment="dev",
+            name="Beta Lead Queue",
+            status=CampaignStatus.ACTIVE,
+            created_at=base_time,
+            updated_at=base_time,
+        )
+    )
+    beta_lead = mission_control_service.leads_repository.upsert(
+        LeadRecord(
+            business_id="limitless",
+            environment="dev",
+            source=LeadSource.PROBATE_INTAKE,
+            lifecycle_status=LeadLifecycleStatus.ACTIVE,
+            campaign_id=campaign.id,
+            external_key="beta-shared-thread-lead",
+            email="beta-thread@example.com",
+            phone="+155****1212",
+            first_name="Beta",
+            last_name="Lead",
+            created_at=base_time,
+            updated_at=base_time,
+        )
+    )
+    beta_membership = mission_control_service.campaign_memberships_repository.upsert(
+        CampaignMembershipRecord(
+            business_id="limitless",
+            environment="dev",
+            lead_id=beta_lead.id,
+            campaign_id=campaign.id,
+            status=CampaignMembershipStatus.ACTIVE,
+            subscribed_at=base_time,
+        )
+    )
+    beta_task = mission_control_service.tasks_repository.create(
+        TaskRecord(
+            business_id="limitless",
+            environment="dev",
+            lead_id=beta_lead.id,
+            title="Call beta lead",
+            status=TaskStatus.OPEN,
+            task_type=TaskType.MANUAL_CALL,
+            priority=TaskPriority.HIGH,
+            due_at=base_time + timedelta(minutes=15),
+            idempotency_key="task-beta-cross-org",
+            created_at=base_time,
+        )
+    )
+    alpha_thread = mission_control_service.upsert_thread_projection(
+        MissionControlThreadRecord(
+            business_id="limitless",
+            environment="dev",
+            channel="sms",
+            status="open",
+            unread_count=1,
+            contact=MissionControlContactRecord(
+                display_name="Alpha Thread Foreign Lead",
+                phone=beta_lead.phone,
+                email=beta_lead.email,
+            ),
+            messages=[
+                MissionControlMessageRecord(
+                    direction="inbound",
+                    channel="sms",
+                    body="Cross-org mutation probe",
+                    created_at=base_time,
+                )
+            ],
+            context={
+                "org_id": "org_alpha",
+                "lead_id": beta_lead.id,
+                "manual_call_due_at": (base_time + timedelta(minutes=10)).isoformat(),
+                "reply_needs_review": True,
+                "sequence_status": "active",
+                "booking_status": "pending",
+            },
+            created_at=base_time,
+            updated_at=base_time,
+        )
+    )
+
+    complete_response = client.post(
+        f"/mission-control/tasks/{alpha_thread.id}/complete",
+        json={"notes": "Should be denied", "follow_up_outcome": "left_voicemail"},
+        headers=alpha_headers,
+    )
+    suppress_response = client.post(
+        f"/mission-control/leads/{alpha_thread.id}/suppress",
+        json={"reason": "do_not_contact", "note": "should not land"},
+        headers=alpha_headers,
+    )
+
+    assert complete_response.status_code == 404
+    assert suppress_response.status_code == 404
+    assert mission_control_service.tasks_repository.get(beta_task.id).status == TaskStatus.OPEN
+    assert mission_control_service.leads_repository.get(beta_lead.id).lifecycle_status == LeadLifecycleStatus.ACTIVE
+    assert mission_control_service.campaign_memberships_repository.get(beta_membership.id).status == CampaignMembershipStatus.ACTIVE
+
+    mission_control_service.leads_repository.upsert(
+        beta_lead.model_copy(
+            update={
+                "lifecycle_status": LeadLifecycleStatus.SUPPRESSED,
+                "updated_at": base_time + timedelta(minutes=1),
+            }
+        )
+    )
+    mission_control_service.campaign_memberships_repository.upsert(
+        beta_membership.model_copy(
+            update={
+                "status": CampaignMembershipStatus.SUPPRESSED,
+                "unsubscribed_at": base_time + timedelta(minutes=1),
+            }
+        )
+    )
+
+    unsuppress_response = client.post(
+        f"/mission-control/leads/{alpha_thread.id}/unsuppress",
+        json={"note": "should stay suppressed"},
+        headers=alpha_headers,
+    )
+
+    assert unsuppress_response.status_code == 404
+    assert mission_control_service.leads_repository.get(beta_lead.id).lifecycle_status == LeadLifecycleStatus.SUPPRESSED
+    assert mission_control_service.campaign_memberships_repository.get(beta_membership.id).status == CampaignMembershipStatus.SUPPRESSED
+
+
 def test_runs_endpoint_returns_lineage_with_parent_run_id(client) -> None:
     reset_control_plane_state()
 
@@ -464,6 +883,351 @@ def test_runs_endpoint_returns_lineage_with_parent_run_id(client) -> None:
     assert runs_by_id[parent_run_id]["parent_run_id"] is None
     assert child_run_id in runs_by_id[parent_run_id]["child_run_ids"]
     assert runs_by_id[child_run_id]["parent_run_id"] == parent_run_id
+
+
+def test_runs_endpoint_hides_other_org_runs_with_same_scope(client) -> None:
+    reset_control_plane_state()
+    alpha_headers = org_actor_headers(org_id="org_alpha", actor_id="actor_alpha")
+
+    alpha_run = client.post(
+        "/commands",
+        json={
+            "business_id": "limitless",
+            "environment": "dev",
+            "command_type": "run_market_research",
+            "idempotency_key": "mc-runs-alpha-org",
+            "payload": {"topic": "alpha probate", "org_id": "org_alpha"},
+        },
+        headers=AUTH_HEADERS,
+    )
+    beta_run = client.post(
+        "/commands",
+        json={
+            "business_id": "limitless",
+            "environment": "dev",
+            "command_type": "run_market_research",
+            "idempotency_key": "mc-runs-beta-org",
+            "payload": {"topic": "beta probate", "org_id": "org_beta"},
+        },
+        headers=AUTH_HEADERS,
+    )
+
+    assert alpha_run.status_code == 201
+    assert beta_run.status_code == 201
+
+    response = client.get(
+        "/mission-control/runs?business_id=limitless&environment=dev",
+        headers=alpha_headers,
+    )
+
+    assert response.status_code == 200
+    assert [run["id"] for run in response.json()["runs"]] == [alpha_run.json()["run_id"]]
+
+
+def test_approvals_and_assets_endpoints_hide_other_org_records_with_same_scope(client) -> None:
+    reset_control_plane_state()
+    alpha_headers = org_actor_headers(org_id="org_alpha", actor_id="actor_alpha")
+    beta_headers = org_actor_headers(org_id="org_beta", actor_id="actor_beta")
+
+    alpha_agent_id, _ = create_published_agent(client, headers=alpha_headers, name="Alpha Asset Agent")
+    beta_agent_id, _ = create_published_agent(client, headers=beta_headers, name="Beta Asset Agent")
+
+    alpha_asset = client.post(
+        "/agent-assets",
+        json={
+            "agent_id": alpha_agent_id,
+            "asset_type": "calendar",
+            "label": "Alpha Calendar",
+            "metadata": {"provider": "cal.com"},
+        },
+        headers=AUTH_HEADERS,
+    )
+    beta_asset = client.post(
+        "/agent-assets",
+        json={
+            "agent_id": beta_agent_id,
+            "asset_type": "calendar",
+            "label": "Beta Calendar",
+            "metadata": {"provider": "cal.com"},
+        },
+        headers=AUTH_HEADERS,
+    )
+    assert alpha_asset.status_code == 200
+    assert beta_asset.status_code == 200
+
+    alpha_approval = client.post(
+        "/commands",
+        json={
+            "business_id": "limitless",
+            "environment": "dev",
+            "command_type": "publish_campaign",
+            "idempotency_key": "mc-approvals-alpha-org",
+            "payload": {"campaign_id": "camp_alpha_assets", "org_id": "org_alpha"},
+        },
+        headers=AUTH_HEADERS,
+    )
+    beta_approval = client.post(
+        "/commands",
+        json={
+            "business_id": "limitless",
+            "environment": "dev",
+            "command_type": "publish_campaign",
+            "idempotency_key": "mc-approvals-beta-org",
+            "payload": {"campaign_id": "camp_beta_assets", "org_id": "org_beta"},
+        },
+        headers=AUTH_HEADERS,
+    )
+    assert alpha_approval.status_code == 201
+    assert beta_approval.status_code == 201
+
+    approvals_response = client.get(
+        "/mission-control/approvals?business_id=limitless&environment=dev",
+        headers=alpha_headers,
+    )
+    assets_response = client.get(
+        "/mission-control/settings/assets?business_id=limitless&environment=dev",
+        headers=alpha_headers,
+    )
+
+    assert approvals_response.status_code == 200
+    assert [approval["id"] for approval in approvals_response.json()["approvals"]] == [
+        alpha_approval.json()["approval_id"]
+    ]
+    assert assets_response.status_code == 200
+    assert [asset["agent_id"] for asset in assets_response.json()["assets"]] == [alpha_agent_id]
+
+
+def test_autonomy_visibility_hides_other_org_runs_and_unscoped_lead_quality(client) -> None:
+    reset_control_plane_state()
+    alpha_headers = org_actor_headers(org_id="org_alpha", actor_id="actor_alpha")
+
+    alpha_run = client.post(
+        "/commands",
+        json={
+            "business_id": "limitless",
+            "environment": "dev",
+            "command_type": "run_market_research",
+            "idempotency_key": "mc-autonomy-alpha-org",
+            "payload": {"topic": "alpha autonomy", "org_id": "org_alpha"},
+        },
+        headers=AUTH_HEADERS,
+    )
+    beta_approval = client.post(
+        "/commands",
+        json={
+            "business_id": "limitless",
+            "environment": "dev",
+            "command_type": "publish_campaign",
+            "idempotency_key": "mc-autonomy-beta-approval",
+            "payload": {"campaign_id": "camp_beta_visibility", "org_id": "org_beta"},
+        },
+        headers=AUTH_HEADERS,
+    )
+    assert alpha_run.status_code == 201
+    assert beta_approval.status_code == 201
+
+    mission_control_service.leads_repository.upsert(
+        LeadRecord(
+            business_id="limitless",
+            environment="dev",
+            source=LeadSource.PROBATE_INTAKE,
+            lifecycle_status=LeadLifecycleStatus.ACTIVE,
+            external_key="unscoped-alpha-visibility-lead",
+            email="visibility@example.com",
+        )
+    )
+
+    response = client.get(
+        "/mission-control/autonomy-visibility?business_id=limitless&environment=dev",
+        headers=alpha_headers,
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["active_run"]["id"] == alpha_run.json()["run_id"]
+    assert body["pending_approval_count"] == 0
+    assert body["lead_quality"] == 0.0
+    assert body["confidence"] == 0.0
+    assert body["next_action"] == "continue_run:run_market_research"
+
+
+def test_lead_machine_and_provider_extras_fail_closed_for_tenant_orgs(client) -> None:
+    reset_control_plane_state()
+    alpha_headers = org_actor_headers(org_id="org_alpha", actor_id="actor_alpha")
+    base_time = datetime(2026, 4, 18, 17, 0, tzinfo=UTC)
+
+    campaign = mission_control_service.campaigns_repository.upsert(
+        CampaignRecord(
+            business_id="limitless",
+            environment="dev",
+            name="Instantly Tenant Leak Probe",
+            provider_name="instantly",
+            provider_campaign_id="inst_tenant_probe",
+            status=CampaignStatus.ACTIVE,
+            created_at=base_time,
+            updated_at=base_time,
+        )
+    )
+    mission_control_service.leads_repository.upsert(
+        LeadRecord(
+            business_id="limitless",
+            environment="dev",
+            source=LeadSource.INSTANTLY_IMPORT,
+            lifecycle_status=LeadLifecycleStatus.ACTIVE,
+            campaign_id=campaign.id,
+            provider_name="instantly",
+            provider_lead_id="inst_lead_probe",
+            external_key="tenant-leak-probe",
+            email="instantly-probe@example.com",
+            created_at=base_time,
+            updated_at=base_time,
+        )
+    )
+
+    lead_machine_response = client.get(
+        "/mission-control/lead-machine?business_id=limitless&environment=dev",
+        headers=alpha_headers,
+    )
+    provider_extras_response = client.get(
+        "/mission-control/providers/instantly/extras?business_id=limitless&environment=dev",
+        headers=alpha_headers,
+    )
+
+    assert lead_machine_response.status_code == 200
+    assert provider_extras_response.status_code == 200
+    lead_machine_body = lead_machine_response.json()
+    provider_extras_body = provider_extras_response.json()
+    assert lead_machine_body["queue"] == {
+        "total_lead_count": 0,
+        "ready_count": 0,
+        "active_count": 0,
+        "suppressed_count": 0,
+        "interested_count": 0,
+    }
+    assert lead_machine_body["campaigns"]["total_campaign_count"] == 0
+    assert lead_machine_body["tasks"]["open_count"] == 0
+    assert provider_extras_body["configured"] is False
+    assert provider_extras_body["summary"]["campaign_count"] == 0
+    assert provider_extras_body["summary"]["lead_count"] == 0
+    assert provider_extras_body["labels"]["notes"] == [
+        "Tenant-scoped provider extras projection is not available yet for non-internal orgs."
+    ]
+
+
+def test_secret_audit_and_usage_endpoints_scope_to_actor_org(client) -> None:
+    reset_control_plane_state()
+    alpha_headers = org_actor_headers(org_id="org_alpha", actor_id="actor_alpha")
+    beta_headers = org_actor_headers(org_id="org_beta", actor_id="actor_beta")
+
+    alpha_agent_id, alpha_revision_id = create_published_agent(client, headers=alpha_headers, name="Alpha Secret Agent")
+    _, beta_revision_id = create_published_agent(client, headers=beta_headers, name="Beta Secret Agent")
+
+    alpha_secret = client.post(
+        "/secrets",
+        json={"org_id": "org_alpha", "name": "alpha_token", "secret_value": "alpha-secret"},
+        headers=AUTH_HEADERS,
+    )
+    beta_secret = client.post(
+        "/secrets",
+        json={"org_id": "org_beta", "name": "beta_token", "secret_value": "beta-secret"},
+        headers=AUTH_HEADERS,
+    )
+    assert alpha_secret.status_code == 200
+    assert beta_secret.status_code == 200
+
+    alpha_binding = client.post(
+        f"/secrets/{alpha_secret.json()['id']}/bindings",
+        json={"agent_revision_id": alpha_revision_id, "binding_name": "alpha_token"},
+        headers=AUTH_HEADERS,
+    )
+    beta_binding = client.post(
+        f"/secrets/{beta_secret.json()['id']}/bindings",
+        json={"agent_revision_id": beta_revision_id, "binding_name": "beta_token"},
+        headers=AUTH_HEADERS,
+    )
+    assert alpha_binding.status_code == 200
+    assert beta_binding.status_code == 200
+
+    alpha_audit = client.post(
+        "/audit",
+        json={
+            "event_type": "secret_accessed",
+            "summary": "Alpha secret accessed",
+            "org_id": "org_alpha",
+            "resource_type": "secret",
+            "resource_id": alpha_secret.json()["id"],
+            "agent_id": alpha_agent_id,
+            "agent_revision_id": alpha_revision_id,
+        },
+        headers=AUTH_HEADERS,
+    )
+    beta_audit = client.post(
+        "/audit",
+        json={
+            "event_type": "secret_accessed",
+            "summary": "Beta secret accessed",
+            "org_id": "org_beta",
+            "resource_type": "secret",
+            "resource_id": beta_secret.json()["id"],
+            "agent_revision_id": beta_revision_id,
+        },
+        headers=AUTH_HEADERS,
+    )
+    alpha_usage = client.post(
+        "/usage",
+        json={
+            "kind": "tool_call",
+            "org_id": "org_alpha",
+            "agent_id": alpha_agent_id,
+            "agent_revision_id": alpha_revision_id,
+            "count": 3,
+        },
+        headers=AUTH_HEADERS,
+    )
+    beta_usage = client.post(
+        "/usage",
+        json={
+            "kind": "tool_call",
+            "org_id": "org_beta",
+            "agent_revision_id": beta_revision_id,
+            "count": 7,
+        },
+        headers=AUTH_HEADERS,
+    )
+    assert alpha_audit.status_code == 200
+    assert beta_audit.status_code == 200
+    assert alpha_usage.status_code == 200
+    assert beta_usage.status_code == 200
+
+    secrets_response = client.get("/mission-control/settings/secrets", headers=alpha_headers)
+    alpha_bindings_response = client.get(
+        f"/mission-control/settings/secrets/bindings/{alpha_revision_id}",
+        headers=alpha_headers,
+    )
+    foreign_bindings_response = client.get(
+        f"/mission-control/settings/secrets/bindings/{beta_revision_id}",
+        headers=alpha_headers,
+    )
+    audit_response = client.get("/mission-control/audit", headers=alpha_headers)
+    usage_response = client.get("/mission-control/usage", headers=alpha_headers)
+    mismatched_secrets = client.get("/mission-control/settings/secrets?org_id=org_beta", headers=alpha_headers)
+    mismatched_audit = client.get("/mission-control/audit?org_id=org_beta", headers=alpha_headers)
+    mismatched_usage = client.get("/mission-control/usage?org_id=org_beta", headers=alpha_headers)
+
+    assert secrets_response.status_code == 200
+    assert [secret["org_id"] for secret in secrets_response.json()["secrets"]] == ["org_alpha"]
+    assert alpha_bindings_response.status_code == 200
+    assert [binding["org_id"] for binding in alpha_bindings_response.json()["bindings"]] == ["org_alpha"]
+    assert foreign_bindings_response.status_code == 404
+    assert audit_response.status_code == 200
+    assert all(event["org_id"] == "org_alpha" for event in audit_response.json()["events"])
+    assert any(event["event_type"] == "secret_accessed" for event in audit_response.json()["events"])
+    assert usage_response.status_code == 200
+    assert usage_response.json()["summary"]["total_count"] == 3
+    assert [event["org_id"] for event in usage_response.json()["events"]] == ["org_alpha"]
+    assert mismatched_secrets.status_code == 422
+    assert mismatched_audit.status_code == 422
+    assert mismatched_usage.status_code == 422
 
 
 def test_provider_status_endpoint_reflects_configured_sms_and_email(client, monkeypatch) -> None:

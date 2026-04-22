@@ -16,6 +16,8 @@ from app.db.commands import CommandsRepository
 from app.db.events import EventsRepository
 from app.db.lead_events import LeadEventsRepository
 from app.db.leads import LeadsRepository
+from app.db.memberships import MembershipsRepository
+from app.db.organizations import OrganizationsRepository
 from app.db.outcomes import OutcomesRepository
 from app.db.permissions import PermissionsRepository
 from app.db.probate_leads import ProbateLeadsRepository
@@ -39,6 +41,8 @@ __all__ = [
     "InMemoryControlPlaneStore",
     "LeadEventsRepository",
     "LeadsRepository",
+    "MembershipsRepository",
+    "OrganizationsRepository",
     "OutcomesRepository",
     "PermissionsRepository",
     "ProbateLeadsRepository",

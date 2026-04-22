@@ -5,6 +5,7 @@ from app.db.events import EventsRepository
 from app.db.runs import RunsRepository
 from app.models.commands import CommandRecord, CommandStatus
 from app.models.runs import RunDetailResponse, RunRecord, RunStatus
+from app.services.agent_execution_service import agent_execution_service as default_agent_execution_service
 import shutil
 from pathlib import Path
 
@@ -22,18 +23,23 @@ class RunService:
         runs_repository: RunsRepository | None = None,
         commands_repository: CommandsRepository | None = None,
         events_repository: EventsRepository | None = None,
+        agent_execution_service=default_agent_execution_service,
     ) -> None:
         self.runs_repository = runs_repository or RunsRepository()
         self.commands_repository = commands_repository or CommandsRepository()
         self.events_repository = events_repository or EventsRepository()
+        self.agent_execution_service = agent_execution_service
 
     def create_run(
         self,
         command: CommandRecord,
         *,
+        agent_revision_id: str | None = None,
         parent_run_id: str | None = None,
         replay_reason: str | None = None,
     ) -> RunRecord:
+        if agent_revision_id is not None:
+            self.agent_execution_service.validate_dispatchable(agent_revision_id)
         now = utc_now()
         run = self.runs_repository.create(
             command_id=command.id,
@@ -56,6 +62,12 @@ class RunService:
         self.commands_repository.attach_run(command.id, run_id=run.id)
         command.run_id = run.id
         command.status = CommandStatus.QUEUED
+        if agent_revision_id is not None:
+            self.agent_execution_service.dispatch_revision(
+                agent_revision_id,
+                payload=command.payload,
+                run_id=run.id,
+            )
         return run
 
     def get_run(self, run_id: str) -> RunRecord | None:

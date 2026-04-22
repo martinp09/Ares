@@ -32,6 +32,10 @@ from app.services.mission_control_service import mission_control_service
 router = APIRouter(prefix="/mission-control", tags=["mission-control"])
 
 
+def _status_code_for_mission_control_error(message: str) -> int:
+    return 404 if "not found" in message.lower() else 422
+
+
 @router.get(
     "/dashboard",
     response_model=MissionControlDashboardResponse,
@@ -40,8 +44,13 @@ router = APIRouter(prefix="/mission-control", tags=["mission-control"])
 def get_dashboard(
     business_id: str | None = Query(default=None),
     environment: str | None = Query(default=None),
+    actor_context: ActorContext = Depends(actor_context_dependency),
 ) -> MissionControlDashboardResponse:
-    return mission_control_service.get_dashboard(business_id=business_id, environment=environment)
+    return mission_control_service.get_dashboard(
+        org_id=actor_context.org_id,
+        business_id=business_id,
+        environment=environment,
+    )
 
 
 @router.get("/inbox", response_model=MissionControlInboxResponse)
@@ -49,10 +58,12 @@ def get_inbox(
     selected_thread_id: str | None = Query(default=None),
     business_id: str | None = Query(default=None),
     environment: str | None = Query(default=None),
+    actor_context: ActorContext = Depends(actor_context_dependency),
 ) -> MissionControlInboxResponse:
     try:
         return mission_control_service.get_inbox(
             selected_thread_id=selected_thread_id,
+            org_id=actor_context.org_id,
             business_id=business_id,
             environment=environment,
         )
@@ -64,34 +75,51 @@ def get_inbox(
 def get_runs(
     business_id: str | None = Query(default=None),
     environment: str | None = Query(default=None),
+    actor_context: ActorContext = Depends(actor_context_dependency),
 ) -> MissionControlRunsResponse:
-    return mission_control_service.get_runs(business_id=business_id, environment=environment)
+    return mission_control_service.get_runs(
+        org_id=actor_context.org_id,
+        business_id=business_id,
+        environment=environment,
+    )
 
 
 @router.get("/autonomy-visibility", response_model=MissionControlAutonomyVisibilityResponse)
 def get_autonomy_visibility(
     business_id: str | None = Query(default=None),
     environment: str | None = Query(default=None),
+    actor_context: ActorContext = Depends(actor_context_dependency),
 ) -> MissionControlAutonomyVisibilityResponse:
-    return mission_control_service.get_autonomy_visibility(business_id=business_id, environment=environment)
+    return mission_control_service.get_autonomy_visibility(
+        org_id=actor_context.org_id,
+        business_id=business_id,
+        environment=environment,
+    )
 
 
 @router.get("/tasks", response_model=MissionControlTasksResponse)
 def get_tasks(
     business_id: str | None = Query(default=None),
     environment: str | None = Query(default=None),
+    actor_context: ActorContext = Depends(actor_context_dependency),
 ) -> MissionControlTasksResponse:
-    return mission_control_service.get_tasks(business_id=business_id, environment=environment)
+    return mission_control_service.get_tasks(
+        org_id=actor_context.org_id,
+        business_id=business_id,
+        environment=environment,
+    )
 
 
 @router.post("/tasks/{thread_id}/complete", response_model=MissionControlTaskActionResponse)
 def complete_task_for_thread(
     thread_id: str,
     payload: MissionControlTaskCompletionRequest,
+    actor_context: ActorContext = Depends(actor_context_dependency),
 ) -> MissionControlTaskActionResponse:
     try:
         return mission_control_service.complete_task_for_thread(
             thread_id=thread_id,
+            org_id=actor_context.org_id,
             notes=payload.notes,
             follow_up_outcome=payload.follow_up_outcome,
         )
@@ -103,10 +131,12 @@ def complete_task_for_thread(
 def suppress_thread(
     thread_id: str,
     payload: MissionControlLeadSuppressionRequest,
+    actor_context: ActorContext = Depends(actor_context_dependency),
 ) -> MissionControlLeadActionResponse:
     try:
         return mission_control_service.suppress_thread(
             thread_id=thread_id,
+            org_id=actor_context.org_id,
             reason=payload.reason,
             note=payload.note,
         )
@@ -118,10 +148,12 @@ def suppress_thread(
 def unsuppress_thread(
     thread_id: str,
     payload: MissionControlLeadUnsuppressionRequest,
+    actor_context: ActorContext = Depends(actor_context_dependency),
 ) -> MissionControlLeadActionResponse:
     try:
         return mission_control_service.unsuppress_thread(
             thread_id=thread_id,
+            org_id=actor_context.org_id,
             note=payload.note,
         )
     except KeyError as exc:
@@ -135,8 +167,10 @@ def get_lead_machine(
     lead_id: str | None = Query(default=None),
     campaign_id: str | None = Query(default=None),
     limit: int | None = Query(default=None, ge=1),
+    actor_context: ActorContext = Depends(actor_context_dependency),
 ) -> MissionControlLeadMachineResponse:
     return mission_control_service.get_lead_machine(
+        org_id=actor_context.org_id,
         business_id=business_id,
         environment=environment,
         lead_id=lead_id,
@@ -149,34 +183,62 @@ def get_lead_machine(
 def get_approvals(
     business_id: str | None = Query(default=None),
     environment: str | None = Query(default=None),
+    actor_context: ActorContext = Depends(actor_context_dependency),
 ) -> MissionControlApprovalsResponse:
-    return mission_control_service.get_approvals(business_id=business_id, environment=environment)
+    return mission_control_service.get_approvals(
+        org_id=actor_context.org_id,
+        business_id=business_id,
+        environment=environment,
+    )
 
 
 @router.get("/agents", response_model=MissionControlAgentsResponse)
 def get_agents(
     business_id: str | None = Query(default=None),
     environment: str | None = Query(default=None),
+    actor_context: ActorContext = Depends(actor_context_dependency),
 ) -> MissionControlAgentsResponse:
-    return mission_control_service.get_agents(business_id=business_id, environment=environment)
+    return mission_control_service.get_agents(
+        org_id=actor_context.org_id,
+        business_id=business_id,
+        environment=environment,
+    )
 
 
 @router.get("/settings/assets", response_model=MissionControlAssetsResponse)
 def get_settings_assets(
     business_id: str | None = Query(default=None),
     environment: str | None = Query(default=None),
+    actor_context: ActorContext = Depends(actor_context_dependency),
 ) -> MissionControlAssetsResponse:
-    return mission_control_service.get_assets(business_id=business_id, environment=environment)
+    return mission_control_service.get_assets(
+        org_id=actor_context.org_id,
+        business_id=business_id,
+        environment=environment,
+    )
 
 
 @router.get("/settings/secrets", response_model=SecretListResponse)
-def get_secrets(org_id: str | None = Query(default=None)) -> SecretListResponse:
-    return mission_control_service.get_secrets(org_id=org_id)
+def get_secrets(
+    org_id: str | None = Query(default=None),
+    actor_context: ActorContext = Depends(actor_context_dependency),
+) -> SecretListResponse:
+    try:
+        return mission_control_service.get_secrets(org_id=org_id, actor_org_id=actor_context.org_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=_status_code_for_mission_control_error(str(exc)), detail=str(exc)) from exc
 
 
 @router.get("/settings/secrets/revisions/{revision_id}", response_model=SecretBindingListResponse)
-def get_secret_bindings(revision_id: str) -> SecretBindingListResponse:
-    return mission_control_service.get_secret_bindings(revision_id=revision_id)
+@router.get("/settings/secrets/bindings/{revision_id}", response_model=SecretBindingListResponse)
+def get_secret_bindings(
+    revision_id: str,
+    actor_context: ActorContext = Depends(actor_context_dependency),
+) -> SecretBindingListResponse:
+    try:
+        return mission_control_service.get_secret_bindings(revision_id=revision_id, org_id=actor_context.org_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=_status_code_for_mission_control_error(str(exc)), detail=str(exc)) from exc
 
 
 @router.get("/audit", response_model=AuditListResponse)
@@ -190,18 +252,23 @@ def get_audit(
     resource_id: str | None = Query(default=None),
     event_type: str | None = Query(default=None),
     limit: int | None = Query(default=None, ge=1),
+    actor_context: ActorContext = Depends(actor_context_dependency),
 ) -> AuditListResponse:
-    return mission_control_service.get_audit(
-        org_id=org_id,
-        agent_id=agent_id,
-        agent_revision_id=agent_revision_id,
-        session_id=session_id,
-        run_id=run_id,
-        resource_type=resource_type,
-        resource_id=resource_id,
-        event_type=event_type,
-        limit=limit,
-    )
+    try:
+        return mission_control_service.get_audit(
+            org_id=org_id,
+            actor_org_id=actor_context.org_id,
+            agent_id=agent_id,
+            agent_revision_id=agent_revision_id,
+            session_id=session_id,
+            run_id=run_id,
+            resource_type=resource_type,
+            resource_id=resource_id,
+            event_type=event_type,
+            limit=limit,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=_status_code_for_mission_control_error(str(exc)), detail=str(exc)) from exc
 
 
 @router.get("/usage", response_model=UsageResponse)
@@ -212,15 +279,20 @@ def get_usage(
     kind: UsageEventKind | None = Query(default=None),
     source_kind: str | None = Query(default=None),
     limit: int | None = Query(default=None, ge=1),
+    actor_context: ActorContext = Depends(actor_context_dependency),
 ) -> UsageResponse:
-    return mission_control_service.get_usage(
-        org_id=org_id,
-        agent_id=agent_id,
-        agent_revision_id=agent_revision_id,
-        kind=kind,
-        source_kind=source_kind,
-        limit=limit,
-    )
+    try:
+        return mission_control_service.get_usage(
+            org_id=org_id,
+            actor_org_id=actor_context.org_id,
+            agent_id=agent_id,
+            agent_revision_id=agent_revision_id,
+            kind=kind,
+            source_kind=source_kind,
+            limit=limit,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=_status_code_for_mission_control_error(str(exc)), detail=str(exc)) from exc
 
 
 @router.get("/providers/status", response_model=MissionControlProvidersStatusResponse)
@@ -232,8 +304,10 @@ def get_provider_status() -> MissionControlProvidersStatusResponse:
 def get_instantly_provider_extras(
     business_id: str | None = Query(default=None),
     environment: str | None = Query(default=None),
+    actor_context: ActorContext = Depends(actor_context_dependency),
 ) -> InstantlyProviderExtrasSnapshot:
     return mission_control_service.get_instantly_provider_extras(
+        org_id=actor_context.org_id,
         business_id=business_id,
         environment=environment,
     )

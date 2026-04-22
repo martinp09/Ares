@@ -3,20 +3,35 @@ from __future__ import annotations
 from app.db.host_adapter_dispatches import HostAdapterDispatchesRepository
 from app.host_adapters.base import HostAdapter
 from app.models.host_adapters import (
+    HostAdapterArtifactReportRequest,
+    HostAdapterArtifactReportResult,
+    HostAdapterCapabilityRecord,
     HostAdapterDispatchRequest,
     HostAdapterDispatchResult,
     HostAdapterDispatchStatus,
     HostAdapterKind,
+    HostAdapterStatusCorrelationRequest,
+    HostAdapterStatusCorrelationResult,
 )
 
 
 class TriggerDevHostAdapter(HostAdapter):
     kind = HostAdapterKind.TRIGGER_DEV
     enabled = True
-    description = "Default in-memory Trigger.dev adapter seam"
+    display_name = "Trigger.dev"
+    description = "Current in-memory host adapter seam backed by Trigger.dev-style dispatch callbacks"
 
     def __init__(self, dispatches_repository: HostAdapterDispatchesRepository | None = None):
         self.dispatches_repository = dispatches_repository or HostAdapterDispatchesRepository()
+
+    @property
+    def capabilities(self) -> HostAdapterCapabilityRecord:
+        return HostAdapterCapabilityRecord(
+            dispatch=True,
+            status_correlation=True,
+            artifact_reporting=True,
+            cancellation=False,
+        )
 
     def dispatch(self, request: HostAdapterDispatchRequest) -> HostAdapterDispatchResult:
         external_reference = request.run_id
@@ -40,4 +55,42 @@ class TriggerDevHostAdapter(HostAdapter):
             status=HostAdapterDispatchStatus.ACCEPTED,
             dispatch_id=record.id,
             external_reference=external_reference,
+            correlation=self.correlation_from_request(
+                request,
+                dispatch_id=record.id,
+                external_reference=external_reference,
+            ),
+        )
+
+    def correlate_status(self, request: HostAdapterStatusCorrelationRequest) -> HostAdapterStatusCorrelationResult:
+        if request.dispatch_id is None and request.run_id is None and request.external_reference is None:
+            return HostAdapterStatusCorrelationResult(
+                adapter_kind=self.kind,
+                enabled=self.enabled,
+                supported=False,
+                message="trigger_dev adapter correlation requires dispatch_id, run_id, or external_reference",
+            )
+        correlation = self._build_correlation(
+            dispatch_id=request.dispatch_id,
+            run_id=request.run_id,
+            session_id=request.session_id,
+            external_reference=request.external_reference if request.external_reference is not None else request.run_id,
+            adapter_reference=request.adapter_reference,
+            adapter_details=request.adapter_details,
+        )
+        return HostAdapterStatusCorrelationResult(
+            adapter_kind=self.kind,
+            enabled=self.enabled,
+            supported=True,
+            correlation=correlation,
+        )
+
+    def report_artifact(self, request: HostAdapterArtifactReportRequest) -> HostAdapterArtifactReportResult:
+        return HostAdapterArtifactReportResult(
+            adapter_kind=self.kind,
+            enabled=self.enabled,
+            supported=True,
+            accepted=True,
+            correlation=request.correlation.model_copy(deep=True),
+            artifact=request.artifact.model_copy(deep=True),
         )

@@ -8,7 +8,10 @@ router = APIRouter(tags=["replays"])
 
 @router.post("/replays/{run_id}", response_model=ReplayResponse)
 def replay(run_id: str, request: ReplayRequest, response: Response) -> ReplayResponse:
-    replay_result = replay_service.replay_run(run_id, request)
+    try:
+        replay_result = replay_service.replay_run(run_id, request)
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(exc)) from exc
     if replay_result is None:
         raise HTTPException(status_code=404, detail="Run not found")
 

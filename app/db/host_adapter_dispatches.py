@@ -53,6 +53,14 @@ class HostAdapterDispatchesRepository:
         with self.client.transaction() as store:
             return store.host_adapter_dispatches.get(dispatch_id)
 
+    def get_by_run_id(self, run_id: str) -> HostAdapterDispatchRecord | None:
+        with self.client.transaction() as store:
+            records = [record for record in store.host_adapter_dispatches.values() if record.run_id == run_id]
+        if not records:
+            return None
+        records.sort(key=lambda record: record.created_at, reverse=True)
+        return records[0]
+
     def list(self) -> list[HostAdapterDispatchRecord]:
         with self.client.transaction() as store:
             records = list(store.host_adapter_dispatches.values())

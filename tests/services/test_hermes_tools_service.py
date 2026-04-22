@@ -8,7 +8,11 @@ from app.services.run_service import reset_control_plane_state
 from app.services.tool_hook_service import ToolHookService
 
 
-def _create_revision(*, provider_capabilities: list[ProviderCapability] | None = None) -> str:
+def _create_revision(
+    *,
+    provider_capabilities: list[ProviderCapability] | None = None,
+    published: bool = False,
+) -> str:
     agents_repository = AgentsRepository()
     agent, revision = agents_repository.create_agent(
         business_id="limitless",
@@ -18,12 +22,14 @@ def _create_revision(*, provider_capabilities: list[ProviderCapability] | None =
         config={"prompt": "Use tools carefully"},
         provider_capabilities=provider_capabilities,
     )
+    if published:
+        agents_repository.publish_revision(agent.id, revision.id)
     return revision.id
 
 
 def test_tool_hooks_capture_before_and_after_success() -> None:
     reset_control_plane_state()
-    revision_id = _create_revision(provider_capabilities=[ProviderCapability.TOOL_CALLS])
+    revision_id = _create_revision(provider_capabilities=[ProviderCapability.TOOL_CALLS], published=True)
     events: list[tuple[str, object]] = []
 
     hook_service = ToolHookService(
