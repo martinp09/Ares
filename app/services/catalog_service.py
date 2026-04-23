@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from app.db.catalog import CatalogRepository
 from app.models.catalog import CatalogEntryCreateRequest, CatalogEntryListResponse, CatalogEntryRecord
+from app.services._control_plane_runtime import resolve_repository_for_active_backend
 from app.services.agent_registry_service import agent_registry_service
 from app.services.audit_service import audit_service
 
@@ -10,7 +11,15 @@ class CatalogService:
     def __init__(self, repository: CatalogRepository | None = None) -> None:
         self.repository = repository or CatalogRepository()
 
+    def _catalog_repository(self) -> CatalogRepository:
+        self.repository = resolve_repository_for_active_backend(
+            self.repository,
+            factory=lambda client: CatalogRepository(client=client),
+        )
+        return self.repository
+
     def create_entry(self, request: CatalogEntryCreateRequest, *, org_id: str) -> CatalogEntryRecord:
+        repository = self._catalog_repository()
         source = agent_registry_service.get_agent(request.agent_id, org_id=org_id)
         if source is None:
             raise LookupError("Agent revision not found")
@@ -25,7 +34,7 @@ class CatalogService:
             for value in revision.compatibility_metadata.get("requires_secrets", [])
             if isinstance(value, str) and value
         ]
-        entry = self.repository.create(
+        entry = repository.create(
             org_id=org_id,
             agent_id=source.agent.id,
             agent_revision_id=revision.id,
@@ -54,13 +63,13 @@ class CatalogService:
         return entry
 
     def get_entry(self, entry_id: str, *, org_id: str) -> CatalogEntryRecord | None:
-        entry = self.repository.get(entry_id)
+        entry = self._catalog_repository().get(entry_id)
         if entry is None or entry.org_id != org_id:
             return None
         return entry
 
     def list_entries(self, *, org_id: str) -> CatalogEntryListResponse:
-        return CatalogEntryListResponse(entries=self.repository.list(org_id=org_id))
+        return CatalogEntryListResponse(entries=self._catalog_repository().list(org_id=org_id))
 
 
 catalog_service = CatalogService()

@@ -4,11 +4,19 @@ from app.core.config import DEFAULT_INTERNAL_ORG_ID, get_settings
 from app.db.audit import AuditRepository
 from app.models.actors import ActorContext
 from app.models.audit import AuditAppendRequest, AuditRecord
+from app.services._control_plane_runtime import resolve_repository_for_active_backend
 
 
 class AuditService:
     def __init__(self, audit_repository: AuditRepository | None = None) -> None:
         self.audit_repository = audit_repository or AuditRepository()
+
+    def _audit_repository(self) -> AuditRepository:
+        self.audit_repository = resolve_repository_for_active_backend(
+            self.audit_repository,
+            factory=lambda client: AuditRepository(client=client),
+        )
+        return self.audit_repository
 
     @staticmethod
     def _resolve_request_org_id(request_org_id: str | None, *, actor_org_id: str | None = None) -> str | None:
@@ -85,7 +93,8 @@ class AuditService:
         elif kwargs:
             raise TypeError("append_event accepts either an AuditAppendRequest or keyword fields, not both")
         request = self._normalize_append_request(request, actor_context=actor_context)
-        record = self.audit_repository.append(
+        repository = self._audit_repository()
+        record = repository.append(
             event_type=request.event_type,
             summary=request.summary,
             org_id=request.org_id,
@@ -116,7 +125,8 @@ class AuditService:
         limit: int | None = None,
     ) -> list[AuditRecord]:
         effective_org_id = self._resolve_list_org_id(org_id, actor_org_id=actor_org_id)
-        events = self.audit_repository.list(
+        repository = self._audit_repository()
+        events = repository.list(
             org_id=effective_org_id,
             agent_id=agent_id,
             agent_revision_id=agent_revision_id,

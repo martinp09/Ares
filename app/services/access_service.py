@@ -4,6 +4,7 @@ from app.core.config import DEFAULT_INTERNAL_ORG_ID
 from app.db.memberships import MembershipsRepository
 from app.db.organizations import OrganizationsRepository
 from app.models.organizations import MembershipCreateRequest, MembershipListResponse, MembershipRecord
+from app.services._control_plane_runtime import resolve_repository_for_active_backend
 from app.services.audit_service import audit_service
 
 
@@ -15,6 +16,20 @@ class AccessService:
     ) -> None:
         self.memberships_repository = memberships_repository or MembershipsRepository()
         self.organizations_repository = organizations_repository or OrganizationsRepository()
+
+    def _memberships_repository(self) -> MembershipsRepository:
+        self.memberships_repository = resolve_repository_for_active_backend(
+            self.memberships_repository,
+            factory=lambda client: MembershipsRepository(client=client),
+        )
+        return self.memberships_repository
+
+    def _organizations_repository(self) -> OrganizationsRepository:
+        self.organizations_repository = resolve_repository_for_active_backend(
+            self.organizations_repository,
+            factory=lambda client: OrganizationsRepository(client=client),
+        )
+        return self.organizations_repository
 
     @staticmethod
     def _resolve_request_org_id(request_org_id: str | None, *, actor_org_id: str | None = None) -> str | None:
@@ -33,14 +48,16 @@ class AccessService:
         return actor_org_id or request_org_id
 
     def create_membership(self, request: MembershipCreateRequest, *, org_id: str | None = None) -> MembershipRecord:
+        organizations_repository = self._organizations_repository()
+        memberships_repository = self._memberships_repository()
         effective_org_id = self._resolve_request_org_id(request.org_id, actor_org_id=org_id)
         if effective_org_id is None:
             raise ValueError("Org id is required")
-        organization = self.organizations_repository.get(effective_org_id)
+        organization = organizations_repository.get(effective_org_id)
         if organization is None:
             raise ValueError("Organization not found")
-        existing = self.memberships_repository.get_by_actor(org_id=effective_org_id, actor_id=request.actor_id)
-        membership = self.memberships_repository.upsert(
+        existing = memberships_repository.get_by_actor(org_id=effective_org_id, actor_id=request.actor_id)
+        membership = memberships_repository.upsert(
             org_id=effective_org_id,
             actor_id=request.actor_id,
             actor_type=request.actor_type,
@@ -66,13 +83,13 @@ class AccessService:
         return membership
 
     def get_membership(self, membership_id: str, *, org_id: str | None = None) -> MembershipRecord | None:
-        membership = self.memberships_repository.get(membership_id)
+        membership = self._memberships_repository().get(membership_id)
         if membership is None or (org_id is not None and membership.org_id != org_id):
             return None
         return membership
 
     def get_actor_membership(self, *, org_id: str, actor_id: str) -> MembershipRecord | None:
-        return self.memberships_repository.get_by_actor(org_id=org_id, actor_id=actor_id)
+        return self._memberships_repository().get_by_actor(org_id=org_id, actor_id=actor_id)
 
     def list_memberships(
         self,
@@ -82,7 +99,8 @@ class AccessService:
         actor_org_id: str | None = None,
     ) -> MembershipListResponse:
         effective_org_id = self._resolve_list_org_id(org_id, actor_org_id=actor_org_id)
-        return MembershipListResponse(memberships=self.memberships_repository.list(org_id=effective_org_id, actor_id=actor_id))
+        memberships_repository = self._memberships_repository()
+        return MembershipListResponse(memberships=memberships_repository.list(org_id=effective_org_id, actor_id=actor_id))
 
 
 access_service = AccessService()

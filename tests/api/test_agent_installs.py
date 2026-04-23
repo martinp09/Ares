@@ -1,11 +1,7 @@
-from app.core.config import Settings
+import pytest
+
+from app.core.config import get_settings
 from app.db.agent_installs import AgentInstallsRepository
-from app.db.agents import AgentsRepository
-from app.db.catalog import CatalogRepository
-from app.db.client import SupabaseControlPlaneClient
-from app.services.agent_install_service import agent_install_service
-from app.services.agent_registry_service import agent_registry_service
-from app.services.catalog_service import catalog_service
 from app.services.run_service import reset_control_plane_state
 
 AUTH_HEADERS = {"Authorization": "Bearer dev-runtime-key"}
@@ -20,13 +16,11 @@ def org_actor_headers(*, org_id: str, actor_id: str, actor_type: str = "user") -
     }
 
 
-def _build_supabase_client(monkeypatch) -> SupabaseControlPlaneClient:
-    settings = Settings(
-        _env_file=None,
-        control_plane_backend="supabase",
-        supabase_url="https://example.supabase.co",
-        supabase_service_role_key="service-role",
-    )
+def _configure_supabase_backend(monkeypatch) -> dict[str, dict[str, dict]]:
+    monkeypatch.setenv("CONTROL_PLANE_BACKEND", "supabase")
+    monkeypatch.setenv("SUPABASE_URL", "https://example.supabase.co")
+    monkeypatch.setenv("SUPABASE_SERVICE_ROLE_KEY", "service-role")
+    get_settings.cache_clear()
     rows_by_table: dict[str, dict[str, dict]] = {}
 
     def fake_fetch_rows(table: str, *, params: dict[str, str], settings=None):
@@ -72,7 +66,7 @@ def _build_supabase_client(monkeypatch) -> SupabaseControlPlaneClient:
     monkeypatch.setattr("app.db.control_plane_store_supabase.fetch_rows", fake_fetch_rows)
     monkeypatch.setattr("app.db.control_plane_store_supabase.insert_rows", fake_insert_rows)
     monkeypatch.setattr("app.db.control_plane_store_supabase.patch_rows", fake_patch_rows)
-    return SupabaseControlPlaneClient(settings)
+    return rows_by_table
 
 
 def create_agent(client, *, headers: dict[str, str], name: str) -> tuple[str, str]:
@@ -229,22 +223,7 @@ def test_agent_installs_api_rejects_missing_catalog_entries(client) -> None:
 
 def test_agent_installs_api_persists_across_supabase_transaction_boundary(client, monkeypatch) -> None:
     reset_control_plane_state()
-    supabase_client = _build_supabase_client(monkeypatch)
-    monkeypatch.setattr(
-        agent_registry_service,
-        "agents_repository",
-        AgentsRepository(client=supabase_client),
-    )
-    monkeypatch.setattr(
-        catalog_service,
-        "repository",
-        CatalogRepository(client=supabase_client),
-    )
-    monkeypatch.setattr(
-        agent_install_service,
-        "repository",
-        AgentInstallsRepository(client=supabase_client),
-    )
+    _configure_supabase_backend(monkeypatch)
 
     alpha_headers = org_actor_headers(org_id="org_alpha", actor_id="actor_alpha")
     source_agent_id, source_revision_id = create_agent(client, headers=alpha_headers, name="Persistent Install Agent")
@@ -275,3 +254,38 @@ def test_agent_installs_api_persists_across_supabase_transaction_boundary(client
     detail = client.get(f"/agent-installs/{install_id}", headers=alpha_headers)
     assert detail.status_code == 200
     assert detail.json()["install"]["catalog_entry_id"] == catalog_entry_id
+
+
+def test_agent_installs_rollback_created_agent_when_install_record_write_fails(client, monkeypatch) -> None:
+    reset_control_plane_state()
+    rows_by_table = _configure_supabase_backend(monkeypatch)
+
+    alpha_headers = org_actor_headers(org_id="org_alpha", actor_id="actor_alpha")
+    source_agent_id, source_revision_id = create_agent(client, headers=alpha_headers, name="Rollback Source Agent")
+    catalog_entry_id = create_catalog_entry(
+        client,
+        headers=alpha_headers,
+        agent_id=source_agent_id,
+        revision_id=source_revision_id,
+    )
+
+    def fail_create(self, **kwargs):
+        raise RuntimeError("install write failed")
+
+    monkeypatch.setattr(AgentInstallsRepository, "create", fail_create)
+
+    with pytest.raises(RuntimeError, match="install write failed"):
+        client.post(
+            "/agent-installs",
+            json={
+                "catalog_entry_id": catalog_entry_id,
+                "business_id": "limitless",
+                "environment": "prod",
+                "name": "Should Roll Back",
+            },
+            headers=alpha_headers,
+        )
+
+    assert len(rows_by_table.get("agent_installs_runtime", {})) == 0
+    assert len(rows_by_table.get("agents_runtime", {})) == 1
+    assert len(rows_by_table.get("agent_revisions_runtime", {})) == 1

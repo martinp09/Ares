@@ -1,10 +1,4 @@
 from app.core.config import get_settings
-from app.core.config import Settings
-from app.db.agents import AgentsRepository
-from app.db.catalog import CatalogRepository
-from app.db.client import SupabaseControlPlaneClient
-from app.services.agent_registry_service import agent_registry_service
-from app.services.catalog_service import catalog_service
 from app.services.run_service import reset_control_plane_state
 
 AUTH_HEADERS = {"Authorization": "Bearer dev-runtime-key"}
@@ -19,13 +13,11 @@ def org_actor_headers(*, org_id: str, actor_id: str, actor_type: str = "user") -
     }
 
 
-def _build_supabase_client(monkeypatch) -> SupabaseControlPlaneClient:
-    settings = Settings(
-        _env_file=None,
-        control_plane_backend="supabase",
-        supabase_url="https://example.supabase.co",
-        supabase_service_role_key="service-role",
-    )
+def _configure_supabase_backend(monkeypatch) -> dict[str, dict[str, dict]]:
+    monkeypatch.setenv("CONTROL_PLANE_BACKEND", "supabase")
+    monkeypatch.setenv("SUPABASE_URL", "https://example.supabase.co")
+    monkeypatch.setenv("SUPABASE_SERVICE_ROLE_KEY", "service-role")
+    get_settings.cache_clear()
     rows_by_table: dict[str, dict[str, dict]] = {}
 
     def fake_fetch_rows(table: str, *, params: dict[str, str], settings=None):
@@ -71,7 +63,7 @@ def _build_supabase_client(monkeypatch) -> SupabaseControlPlaneClient:
     monkeypatch.setattr("app.db.control_plane_store_supabase.fetch_rows", fake_fetch_rows)
     monkeypatch.setattr("app.db.control_plane_store_supabase.insert_rows", fake_insert_rows)
     monkeypatch.setattr("app.db.control_plane_store_supabase.patch_rows", fake_patch_rows)
-    return SupabaseControlPlaneClient(settings)
+    return rows_by_table
 
 
 def create_agent(client, *, headers: dict[str, str], name: str, compatibility_metadata: dict | None = None) -> tuple[str, str]:
@@ -252,17 +244,7 @@ def test_catalog_api_rejects_cross_org_agent_revisions(client) -> None:
 
 def test_catalog_api_persists_entries_across_supabase_transaction_boundary(client, monkeypatch) -> None:
     reset_control_plane_state()
-    supabase_client = _build_supabase_client(monkeypatch)
-    monkeypatch.setattr(
-        agent_registry_service,
-        "agents_repository",
-        AgentsRepository(client=supabase_client),
-    )
-    monkeypatch.setattr(
-        catalog_service,
-        "repository",
-        CatalogRepository(client=supabase_client),
-    )
+    _configure_supabase_backend(monkeypatch)
 
     alpha_headers = org_actor_headers(org_id="org_alpha", actor_id="actor_alpha")
     agent_id, revision_id = create_agent(client, headers=alpha_headers, name="Persisted Catalog Agent")

@@ -1,7 +1,4 @@
-from app.core.config import DEFAULT_INTERNAL_ORG_ID, Settings
-from app.db.client import SupabaseControlPlaneClient
-from app.db.organizations import OrganizationsRepository
-from app.services.organization_service import organization_service
+from app.core.config import DEFAULT_INTERNAL_ORG_ID, get_settings
 from app.services.run_service import reset_control_plane_state
 
 AUTH_HEADERS = {"Authorization": "Bearer dev-runtime-key"}
@@ -16,13 +13,11 @@ def org_actor_headers(*, org_id: str, actor_id: str, actor_type: str = "user") -
     }
 
 
-def _build_supabase_client(monkeypatch) -> SupabaseControlPlaneClient:
-    settings = Settings(
-        _env_file=None,
-        control_plane_backend="supabase",
-        supabase_url="https://example.supabase.co",
-        supabase_service_role_key="service-role",
-    )
+def _configure_supabase_backend(monkeypatch) -> dict[str, dict[str, dict]]:
+    monkeypatch.setenv("CONTROL_PLANE_BACKEND", "supabase")
+    monkeypatch.setenv("SUPABASE_URL", "https://example.supabase.co")
+    monkeypatch.setenv("SUPABASE_SERVICE_ROLE_KEY", "service-role")
+    get_settings.cache_clear()
     rows_by_table: dict[str, dict[str, dict]] = {}
 
     def fake_fetch_rows(table: str, *, params: dict[str, str], settings=None):
@@ -68,7 +63,7 @@ def _build_supabase_client(monkeypatch) -> SupabaseControlPlaneClient:
     monkeypatch.setattr("app.db.control_plane_store_supabase.fetch_rows", fake_fetch_rows)
     monkeypatch.setattr("app.db.control_plane_store_supabase.insert_rows", fake_insert_rows)
     monkeypatch.setattr("app.db.control_plane_store_supabase.patch_rows", fake_patch_rows)
-    return SupabaseControlPlaneClient(settings)
+    return rows_by_table
 
 
 def test_organizations_api_keeps_internal_runtime_api_key_scope_sane(client) -> None:
@@ -183,12 +178,7 @@ def test_organizations_api_is_scoped_to_actor_org_headers(client) -> None:
 
 def test_organizations_api_persists_across_supabase_transaction_boundary(client, monkeypatch) -> None:
     reset_control_plane_state()
-    supabase_client = _build_supabase_client(monkeypatch)
-    monkeypatch.setattr(
-        organization_service,
-        "organizations_repository",
-        OrganizationsRepository(client=supabase_client),
-    )
+    _configure_supabase_backend(monkeypatch)
 
     alpha_headers = org_actor_headers(org_id="org_alpha", actor_id="actor_alpha")
     create_response = client.post(

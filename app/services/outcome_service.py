@@ -9,14 +9,23 @@ from app.models.outcomes import (
     ReleaseDecisionContext,
     ReleaseDecisionEvaluationSummary,
 )
+from app.services._control_plane_runtime import resolve_repository_for_active_backend
 
 
 class OutcomeService:
     def __init__(self, outcomes_repository: OutcomesRepository | None = None) -> None:
         self.outcomes_repository = outcomes_repository or OutcomesRepository()
 
+    def _outcomes_repository(self) -> OutcomesRepository:
+        self.outcomes_repository = resolve_repository_for_active_backend(
+            self.outcomes_repository,
+            factory=lambda client: OutcomesRepository(client=client),
+        )
+        return self.outcomes_repository
+
     def evaluate_outcome(self, request: OutcomeEvaluateRequest) -> OutcomeRecord:
-        return self.outcomes_repository.create(
+        repository = self._outcomes_repository()
+        return repository.create(
             outcome_name=request.outcome_name,
             artifact_type=request.artifact_type,
             artifact_payload=request.artifact_payload,
@@ -83,7 +92,7 @@ class OutcomeService:
         )
 
     def get_outcome(self, outcome_id: str) -> OutcomeRecord | None:
-        return self.outcomes_repository.get(outcome_id)
+        return self._outcomes_repository().get(outcome_id)
 
 
 outcome_service = OutcomeService()

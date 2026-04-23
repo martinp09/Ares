@@ -1,9 +1,6 @@
-from app.core.config import Settings
-from app.db.agents import AgentsRepository
-from app.db.client import STORE, SupabaseControlPlaneClient
+from app.core.config import get_settings
+from app.db.client import STORE
 from app.db.release_management import ReleaseManagementRepository
-from app.services.agent_registry_service import agent_registry_service
-from app.services.release_management_service import release_management_service
 from app.services.run_service import reset_control_plane_state
 
 AUTH_HEADERS = {"Authorization": "Bearer dev-runtime-key"}
@@ -18,13 +15,11 @@ def org_actor_headers(*, org_id: str, actor_id: str, actor_type: str = "user") -
     }
 
 
-def _build_supabase_client(monkeypatch) -> SupabaseControlPlaneClient:
-    settings = Settings(
-        _env_file=None,
-        control_plane_backend="supabase",
-        supabase_url="https://example.supabase.co",
-        supabase_service_role_key="service-role",
-    )
+def _configure_supabase_backend(monkeypatch) -> dict[str, dict[str, dict]]:
+    monkeypatch.setenv("CONTROL_PLANE_BACKEND", "supabase")
+    monkeypatch.setenv("SUPABASE_URL", "https://example.supabase.co")
+    monkeypatch.setenv("SUPABASE_SERVICE_ROLE_KEY", "service-role")
+    get_settings.cache_clear()
     rows_by_table: dict[str, dict[str, dict]] = {}
 
     def fake_fetch_rows(table: str, *, params: dict[str, str], settings=None):
@@ -70,7 +65,7 @@ def _build_supabase_client(monkeypatch) -> SupabaseControlPlaneClient:
     monkeypatch.setattr("app.db.control_plane_store_supabase.fetch_rows", fake_fetch_rows)
     monkeypatch.setattr("app.db.control_plane_store_supabase.insert_rows", fake_insert_rows)
     monkeypatch.setattr("app.db.control_plane_store_supabase.patch_rows", fake_patch_rows)
-    return SupabaseControlPlaneClient(settings)
+    return rows_by_table
 
 
 def test_release_management_publish_rollback_and_list_events(client) -> None:
@@ -472,22 +467,7 @@ def test_invalid_release_transitions_do_not_persist_evaluation_outcomes(client) 
 
 def test_release_management_events_persist_across_supabase_transaction_boundary(client, monkeypatch) -> None:
     reset_control_plane_state()
-    supabase_client = _build_supabase_client(monkeypatch)
-    monkeypatch.setattr(
-        agent_registry_service,
-        "agents_repository",
-        AgentsRepository(client=supabase_client),
-    )
-    monkeypatch.setattr(
-        release_management_service,
-        "agents_repository",
-        AgentsRepository(client=supabase_client),
-    )
-    monkeypatch.setattr(
-        release_management_service,
-        "release_management_repository",
-        ReleaseManagementRepository(client=supabase_client),
-    )
+    _configure_supabase_backend(monkeypatch)
 
     headers = org_actor_headers(org_id="org_release", actor_id="usr_release")
     create_response = client.post(
@@ -548,3 +528,51 @@ def test_release_management_events_persist_across_supabase_transaction_boundary(
     events = events_response.json()["events"]
     assert [event["event_type"] for event in events] == ["publish", "publish", "rollback", "deactivate"]
     assert events[-1]["resulting_active_revision_id"] is None
+
+
+def test_release_management_rolls_back_evaluation_outcome_when_transition_fails(client, monkeypatch) -> None:
+    reset_control_plane_state()
+    rows_by_table = _configure_supabase_backend(monkeypatch)
+
+    headers = org_actor_headers(org_id="org_release", actor_id="usr_release")
+    create_response = client.post(
+        "/agents",
+        json={
+            "name": "Supabase Failure Agent",
+            "business_id": "limitless",
+            "environment": "prod",
+            "config": {"prompt": "Force transition failure"},
+            "release_channel": "dogfood",
+        },
+        headers=headers,
+    )
+    assert create_response.status_code == 200
+    create_body = create_response.json()
+    agent_id = create_body["agent"]["id"]
+    revision_id = create_body["revisions"][0]["id"]
+
+    def fail_publish(self, *args, **kwargs):
+        raise ValueError("forced transition failure")
+
+    monkeypatch.setattr(ReleaseManagementRepository, "publish_revision", fail_publish)
+
+    publish_response = client.post(
+        f"/release-management/agents/{agent_id}/revisions/{revision_id}/publish",
+        json={
+            "notes": "This publish should fail after evaluation creation",
+            "evaluation_summary": {
+                "outcome_name": "release_readiness",
+                "artifact_type": "agent_revision",
+                "artifact_payload": {"revision_id": revision_id},
+                "rubric_criteria": ["smoke tests pass"],
+                "evaluator_result": "simulated failure",
+                "passed": True,
+                "failure_details": [],
+            },
+        },
+        headers=headers,
+    )
+    assert publish_response.status_code == 409
+    assert publish_response.json()["detail"] == "forced transition failure"
+    assert rows_by_table.get("outcomes_runtime", {}) == {}
+    assert rows_by_table.get("release_events_runtime", {}) == {}
