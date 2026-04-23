@@ -29,7 +29,10 @@ class TasksRepository:
     ):
         self.settings = settings or get_settings()
         self.client = client or get_control_plane_client(self.settings)
-        self._force_memory = False if force_memory is None else force_memory
+        if force_memory is None:
+            self._force_memory = client is not None and getattr(client, "backend", "memory") != "supabase"
+        else:
+            self._force_memory = force_memory
 
     def create(self, record: TaskRecord, *, dedupe_key: str | None = None) -> TaskRecord:
         if self._supabase_tasks_enabled():
@@ -203,29 +206,48 @@ class TasksRepository:
     ) -> list[TaskRecord]:
         params = {"select": "*", "order": "created_at.asc,id.asc"}
         business_scope: str | None = None
+        rows: list[dict[str, Any]]
         if business_id is not None and environment is not None:
             tenant = resolve_tenant(business_id, environment, settings=self.settings)
             params["business_id"] = f"eq.{tenant.business_pk}"
             params["environment"] = f"eq.{tenant.environment}"
             business_scope = business_id
+            rows = fetch_rows("tasks", params=params, settings=self.settings)
         elif business_id is not None and business_id.isdigit():
             params["business_id"] = f"eq.{business_id}"
             business_scope = business_id
+            if environment is not None:
+                params["environment"] = f"eq.{environment}"
+            rows = fetch_rows("tasks", params=params, settings=self.settings)
         elif business_id is not None:
             business_rows = fetch_rows(
                 "businesses",
-                params={"select": "business_id", "slug": f"eq.{business_id}", "limit": "1"},
+                params={"select": "business_id,environment", "slug": f"eq.{business_id}"},
                 settings=self.settings,
             )
             if not business_rows:
                 return []
-            params["business_id"] = f"eq.{business_rows[0]['business_id']}"
             business_scope = business_id
+            rows = []
+            for business_row in business_rows:
+                business_params = {
+                    "select": "*",
+                    "order": "created_at.asc,id.asc",
+                    "business_id": f"eq.{business_row['business_id']}",
+                    "environment": f"eq.{business_row['environment']}",
+                }
+                if lead_id is not None:
+                    business_params["lead_id"] = f"eq.{lead_id}"
+                rows.extend(fetch_rows("tasks", params=business_params, settings=self.settings))
         elif environment is not None:
             params["environment"] = f"eq.{environment}"
-        if lead_id is not None:
-            params["lead_id"] = f"eq.{lead_id}"
-        rows = fetch_rows("tasks", params=params, settings=self.settings)
+            if lead_id is not None:
+                params["lead_id"] = f"eq.{lead_id}"
+            rows = fetch_rows("tasks", params=params, settings=self.settings)
+        else:
+            if lead_id is not None:
+                params["lead_id"] = f"eq.{lead_id}"
+            rows = fetch_rows("tasks", params=params, settings=self.settings)
         tasks = [self._record_from_supabase(row, business_scope=business_scope) for row in rows]
         tasks.sort(key=lambda task: (task.due_at or task.created_at, task.created_at, task.id or ""))
         return tasks

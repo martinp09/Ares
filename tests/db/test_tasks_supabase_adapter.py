@@ -19,7 +19,7 @@ def _seed_businesses() -> dict[str, dict[str, dict]]:
     return {
         "businesses": {
             "1": {"id": "1", "business_id": 7, "environment": "dev", "slug": "limitless"},
-            "2": {"id": "2", "business_id": 7, "environment": "prod", "slug": "limitless"},
+            "2": {"id": "2", "business_id": 9, "environment": "prod", "slug": "limitless"},
             "3": {"id": "3", "business_id": 8, "environment": "prod", "slug": "otherco"},
         }
     }
@@ -47,7 +47,7 @@ def _filter_rows(rows_by_table: dict[str, dict[str, dict]], table: str, params: 
 def test_tasks_repository_round_trips_generic_contract_through_supabase_adapter(monkeypatch) -> None:
     settings = build_settings()
     rows_by_table: dict[str, dict[str, dict]] = _seed_businesses()
-    tenant_by_scope = {("limitless", "dev"): 7, ("limitless", "prod"): 7, ("otherco", "prod"): 8}
+    tenant_by_scope = {("limitless", "dev"): 7, ("limitless", "prod"): 9, ("otherco", "prod"): 8}
 
     def fake_resolve_tenant(business_id: str, environment: str, *, settings=None):
         return type(
@@ -227,6 +227,33 @@ def test_create_handles_duplicate_insert_conflict_by_returning_deduped_record(mo
     assert task.id == "tsk_11"
     assert task.business_id == "limitless"
     assert task.deduped is True
+
+
+def test_explicit_memory_client_stays_on_memory_path_even_when_supabase_is_enabled() -> None:
+    settings = Settings(
+        _env_file=None,
+        control_plane_backend="supabase",
+        supabase_url="https://example.supabase.co",
+        supabase_service_role_key="service-role",
+    )
+    from app.db.client import InMemoryControlPlaneClient, InMemoryControlPlaneStore
+
+    repository = TasksRepository(client=InMemoryControlPlaneClient(InMemoryControlPlaneStore()), settings=settings)
+    created = repository.create(
+        TaskRecord(
+            business_id="limitless",
+            environment="dev",
+            title="Force memory task",
+            status=TaskStatus.OPEN,
+            task_type=TaskType.MANUAL_REVIEW,
+            priority=TaskPriority.NORMAL,
+            idempotency_key="memory-task-1",
+        )
+    )
+
+    assert created.id is not None
+    assert created.id.startswith("tsk_")
+    assert created.business_id == "limitless"
 
 
 def test_create_manual_call_uses_unified_supabase_path_when_marketing_backend_enabled(monkeypatch) -> None:
