@@ -5,16 +5,20 @@ from typing import TYPE_CHECKING
 
 from app.core.config import Settings
 from app.db.control_plane_supabase import fetch_rows, insert_rows, patch_rows
+from app.models.agent_installs import AgentInstallRecord
 from app.models.agent_assets import AgentAssetRecord
 from app.models.agents import AgentRecord, AgentRevisionRecord
 from app.models.approvals import ApprovalRecord, ApprovalStatus
 from app.models.audit import AuditRecord
+from app.models.catalog import CatalogEntryRecord
 from app.models.commands import CommandPolicy, CommandRecord, CommandStatus
 from app.models.host_adapters import HostAdapterDispatchRecord
 from app.models.mission_control import MissionControlThreadRecord
+from app.models.organizations import MembershipRecord, OrganizationRecord
 from app.models.outcomes import OutcomeRecord
 from app.models.permissions import PermissionRecord
 from app.models.rbac import OrgPolicyRecord, OrgRoleAssignmentRecord, OrgRoleGrantRecord, OrgRoleRecord
+from app.models.release_management import ReleaseEventRecord
 from app.models.runs import RunRecord, RunStatus
 from app.models.secrets import SecretBindingRecord, SecretRecord
 from app.models.session_journal import SessionMemorySummary
@@ -71,6 +75,43 @@ def hydrate_control_plane_store(settings: Settings) -> InMemoryControlPlaneStore
     _hydrate_text_table(store.roles, "org_roles_runtime", OrgRoleRecord, settings)
     for record in store.roles.values():
         store.role_keys[(record.org_id, record.name)] = record.id
+    _hydrate_text_table(store.organizations, "organizations_runtime", OrganizationRecord, settings)
+    store.organization_keys.clear()
+    for record in store.organizations.values():
+        if record.slug:
+            store.organization_keys[record.slug.strip().casefold()] = record.id
+    _hydrate_text_table(store.memberships, "memberships_runtime", MembershipRecord, settings)
+    store.membership_keys.clear()
+    store.membership_ids_by_org.clear()
+    store.membership_ids_by_actor.clear()
+    for record in store.memberships.values():
+        store.membership_keys[(record.org_id, record.actor_id)] = record.id
+        store.membership_ids_by_org.setdefault(record.org_id, []).append(record.id)
+        store.membership_ids_by_actor.setdefault(record.actor_id, []).append(record.id)
+    for membership_ids in store.membership_ids_by_org.values():
+        membership_ids.sort(key=lambda membership_id: (store.memberships[membership_id].created_at, membership_id))
+    for membership_ids in store.membership_ids_by_actor.values():
+        membership_ids.sort(key=lambda membership_id: (store.memberships[membership_id].created_at, membership_id))
+    _hydrate_text_table(store.catalog_entries, "catalog_entries_runtime", CatalogEntryRecord, settings)
+    store.catalog_entry_keys.clear()
+    store.catalog_entry_ids_by_org.clear()
+    for record in store.catalog_entries.values():
+        store.catalog_entry_keys[(record.org_id, record.slug.strip().casefold())] = record.id
+        store.catalog_entry_ids_by_org.setdefault(record.org_id, []).append(record.id)
+    for entry_ids in store.catalog_entry_ids_by_org.values():
+        entry_ids.sort(key=lambda entry_id: (store.catalog_entries[entry_id].created_at, entry_id))
+    _hydrate_text_table(store.agent_installs, "agent_installs_runtime", AgentInstallRecord, settings)
+    store.agent_install_ids_by_org.clear()
+    for record in store.agent_installs.values():
+        store.agent_install_ids_by_org.setdefault(record.org_id, []).append(record.id)
+    for install_ids in store.agent_install_ids_by_org.values():
+        install_ids.sort(key=lambda install_id: (store.agent_installs[install_id].created_at, install_id))
+    _hydrate_text_table(store.release_events, "release_events_runtime", ReleaseEventRecord, settings)
+    store.release_event_ids_by_agent.clear()
+    for record in store.release_events.values():
+        store.release_event_ids_by_agent.setdefault(record.agent_id, []).append(record.id)
+    for event_ids in store.release_event_ids_by_agent.values():
+        event_ids.sort(key=lambda event_id: (store.release_events[event_id].created_at, event_id))
     _hydrate_text_table(store.role_grants, "org_role_grants_runtime", OrgRoleGrantRecord, settings)
     for record in store.role_grants.values():
         store.role_grant_keys[(record.role_id, record.tool_name)] = record.id
@@ -95,6 +136,9 @@ def hydrate_control_plane_store(settings: Settings) -> InMemoryControlPlaneStore
     for record in store.skills.values():
         store.skill_keys[record.name.strip().lower()] = record.id
     _hydrate_text_table(store.host_adapter_dispatches, "host_adapter_dispatches_runtime", HostAdapterDispatchRecord, settings)
+    _hydrate_scope_snapshots(store.ares_plans_by_scope, "ares_plans_runtime", settings)
+    _hydrate_scope_snapshots(store.ares_execution_runs_by_scope, "ares_execution_runs_runtime", settings)
+    _hydrate_scope_snapshots(store.ares_operator_runs_by_scope, "ares_operator_runs_runtime", settings)
     _hydrate_text_table(store.turn_events, "turn_events_runtime", TurnEventRecord, settings, grouped=True)
     for turn_id, events in store.turn_events.items():
         events.sort(key=lambda event: event.sequence_number)
@@ -109,6 +153,11 @@ def persist_control_plane_store(store: InMemoryControlPlaneStore, settings: Sett
     for table, rows in (
         ("agents_runtime", store.agents.values()),
         ("agent_revisions_runtime", store.agent_revisions.values()),
+        ("organizations_runtime", store.organizations.values()),
+        ("memberships_runtime", store.memberships.values()),
+        ("catalog_entries_runtime", store.catalog_entries.values()),
+        ("agent_installs_runtime", store.agent_installs.values()),
+        ("release_events_runtime", store.release_events.values()),
         ("sessions_runtime", store.sessions.values()),
         ("session_memory_summaries_runtime", store.session_memory_summaries.values()),
         ("turns_runtime", store.turns.values()),
@@ -128,6 +177,9 @@ def persist_control_plane_store(store: InMemoryControlPlaneStore, settings: Sett
         ("host_adapter_dispatches_runtime", store.host_adapter_dispatches.values()),
     ):
         _persist_rows(table, rows, settings)
+    _persist_scope_snapshots("ares_plans_runtime", store.ares_plans_by_scope, settings)
+    _persist_scope_snapshots("ares_execution_runs_runtime", store.ares_execution_runs_by_scope, settings)
+    _persist_scope_snapshots("ares_operator_runs_runtime", store.ares_operator_runs_by_scope, settings)
     _persist_rows(
         "turn_events_runtime",
         [event for events in store.turn_events.values() for event in events],
@@ -154,7 +206,7 @@ def _persist_rows(table: str, rows: Iterable, settings: Settings) -> None:
         for row in fetch_rows(table, params={"select": "id", "order": "id.asc"}, settings=settings)
     }
     for record in rows:
-        payload = record.model_dump(mode="json")
+        payload = record.model_dump(mode="json", exclude_computed_fields=True)
         row = {
             "id": payload["id"] if "id" in payload else payload["session_id"],
             "payload_json": payload,
@@ -181,6 +233,62 @@ def _persist_rows(table: str, rows: Iterable, settings: Settings) -> None:
                 row[field] = payload[field]
         if row["id"] in existing:
             patch_rows(table, params={"id": f"eq.{row['id']}"}, row=row, select="id", settings=settings)
+        else:
+            insert_rows(table, [row], select="id", settings=settings)
+
+
+def _hydrate_scope_snapshots(target: dict[tuple[str, str], dict[str, object]], table: str, settings: Settings) -> None:
+    rows = fetch_rows(
+        table,
+        params={"select": "business_id,environment,payload_json", "order": "updated_at.asc"},
+        settings=settings,
+    )
+    for row in rows:
+        payload = row.get("payload_json")
+        if not isinstance(payload, dict):
+            continue
+        business_id = payload.get("business_id") or row.get("business_id")
+        environment = payload.get("environment") or row.get("environment")
+        if not isinstance(business_id, str) or not business_id:
+            continue
+        if not isinstance(environment, str) or not environment:
+            continue
+        snapshot = dict(payload)
+        snapshot.setdefault("business_id", business_id)
+        snapshot.setdefault("environment", environment)
+        target[(business_id, environment)] = snapshot
+
+
+def _persist_scope_snapshots(table: str, snapshots: dict[tuple[str, str], object], settings: Settings) -> None:
+    existing = {
+        row["id"]: row
+        for row in fetch_rows(table, params={"select": "id", "order": "id.asc"}, settings=settings)
+    }
+    for (business_id, environment), snapshot in snapshots.items():
+        payload: dict[str, object]
+        if hasattr(snapshot, "model_dump"):
+            payload = snapshot.model_dump(mode="json")
+        elif isinstance(snapshot, dict):
+            payload = dict(snapshot)
+        else:
+            continue
+        payload.setdefault("business_id", business_id)
+        payload.setdefault("environment", environment)
+        row_id = f"{business_id}:{environment}"
+        row = {
+            "id": row_id,
+            "business_id": business_id,
+            "environment": environment,
+            "payload_json": payload,
+        }
+        created_at = payload.get("created_at") or payload.get("updated_at") or payload.get("generated_at")
+        updated_at = payload.get("updated_at") or payload.get("created_at") or payload.get("generated_at")
+        if created_at is not None:
+            row["created_at"] = created_at
+        if updated_at is not None:
+            row["updated_at"] = updated_at
+        if row_id in existing:
+            patch_rows(table, params={"id": f"eq.{row_id}"}, row=row, select="id", settings=settings)
         else:
             insert_rows(table, [row], select="id", settings=settings)
 
