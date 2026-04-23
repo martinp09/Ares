@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime
 from typing import Any
+from urllib import error as url_error
 
 from app.core.config import Settings, get_settings
 from app.db.client import ControlPlaneClient, get_control_plane_client, utc_now
@@ -14,6 +15,7 @@ from app.db.control_plane_supabase import (
     resolve_tenant,
     row_id_from_external_id,
 )
+from app.db.marketing_supabase import marketing_backend_enabled
 from app.models.commands import generate_id, generate_stable_id
 from app.models.tasks import TaskPriority, TaskRecord, TaskStatus, TaskType
 
@@ -30,7 +32,7 @@ class TasksRepository:
         self._force_memory = False if force_memory is None else force_memory
 
     def create(self, record: TaskRecord, *, dedupe_key: str | None = None) -> TaskRecord:
-        if control_plane_backend_enabled(self.settings) and not self._force_memory:
+        if self._supabase_tasks_enabled():
             return self._create_in_supabase(record, dedupe_key=dedupe_key)
         now = utc_now()
         resolved_key = dedupe_key or record.idempotency_key
@@ -56,7 +58,7 @@ class TasksRepository:
             return created
 
     def get(self, task_id: str) -> TaskRecord | None:
-        if control_plane_backend_enabled(self.settings) and not self._force_memory:
+        if self._supabase_tasks_enabled():
             return self._get_in_supabase(task_id)
         with self.client.transaction() as store:
             return store.tasks.get(task_id)
@@ -68,7 +70,7 @@ class TasksRepository:
         environment: str | None = None,
         lead_id: str | None = None,
     ) -> list[TaskRecord]:
-        if control_plane_backend_enabled(self.settings) and not self._force_memory:
+        if self._supabase_tasks_enabled():
             return self._list_in_supabase(business_id=business_id, environment=environment, lead_id=lead_id)
         with self.client.transaction() as store:
             tasks = list(store.tasks.values())
@@ -85,7 +87,7 @@ class TasksRepository:
         return self.list(lead_id=lead_id)
 
     def update(self, task_id: str, updates: dict[str, Any]) -> TaskRecord | None:
-        if control_plane_backend_enabled(self.settings) and not self._force_memory:
+        if self._supabase_tasks_enabled():
             return self._update_in_supabase(task_id, updates)
         now = utc_now()
         with self.client.transaction() as store:
@@ -124,19 +126,17 @@ class TasksRepository:
         tenant = resolve_tenant(record.business_id, record.environment, settings=self.settings)
         resolved_key = dedupe_key or record.idempotency_key
         if resolved_key is not None:
-            existing_rows = fetch_rows(
-                "tasks",
-                params={
-                    "select": "*",
-                    "business_id": f"eq.{tenant.business_pk}",
-                    "environment": f"eq.{tenant.environment}",
-                    "idempotency_key": f"eq.{resolved_key}",
-                    "limit": "1",
-                },
-                settings=self.settings,
+            existing_rows = self._fetch_by_idempotency_key(
+                business_pk=tenant.business_pk,
+                environment=tenant.environment,
+                idempotency_key=resolved_key,
             )
             if existing_rows:
-                return self._record_from_supabase(existing_rows[0], deduped=True)
+                return self._record_from_supabase(
+                    existing_rows[0],
+                    deduped=True,
+                    business_scope=record.business_id,
+                )
         now = utc_now()
         payload: dict[str, Any] = {
             "business_id": tenant.business_pk,
@@ -160,13 +160,28 @@ class TasksRepository:
         provided_id = row_id_from_external_id(record.id, "tsk")
         if provided_id is not None:
             payload["id"] = provided_id
-        row = insert_rows(
-            "tasks",
-            [payload],
-            select="*",
-            settings=self.settings,
-        )[0]
-        return self._record_from_supabase(row)
+        try:
+            row = insert_rows(
+                "tasks",
+                [payload],
+                select="*",
+                settings=self.settings,
+            )[0]
+        except Exception as exc:
+            if resolved_key is not None and self._is_duplicate_insert_error(exc):
+                deduped_rows = self._fetch_by_idempotency_key(
+                    business_pk=tenant.business_pk,
+                    environment=tenant.environment,
+                    idempotency_key=resolved_key,
+                )
+                if deduped_rows:
+                    return self._record_from_supabase(
+                        deduped_rows[0],
+                        deduped=True,
+                        business_scope=record.business_id,
+                    )
+            raise
+        return self._record_from_supabase(row, business_scope=record.business_id)
 
     def _get_in_supabase(self, task_id: str) -> TaskRecord | None:
         row_id = row_id_from_external_id(task_id, "tsk")
@@ -187,18 +202,31 @@ class TasksRepository:
         lead_id: str | None,
     ) -> list[TaskRecord]:
         params = {"select": "*", "order": "created_at.asc,id.asc"}
+        business_scope: str | None = None
         if business_id is not None and environment is not None:
             tenant = resolve_tenant(business_id, environment, settings=self.settings)
             params["business_id"] = f"eq.{tenant.business_pk}"
             params["environment"] = f"eq.{tenant.environment}"
+            business_scope = business_id
         elif business_id is not None and business_id.isdigit():
             params["business_id"] = f"eq.{business_id}"
+            business_scope = business_id
+        elif business_id is not None:
+            business_rows = fetch_rows(
+                "businesses",
+                params={"select": "business_id", "slug": f"eq.{business_id}", "limit": "1"},
+                settings=self.settings,
+            )
+            if not business_rows:
+                return []
+            params["business_id"] = f"eq.{business_rows[0]['business_id']}"
+            business_scope = business_id
         elif environment is not None:
             params["environment"] = f"eq.{environment}"
         if lead_id is not None:
             params["lead_id"] = f"eq.{lead_id}"
         rows = fetch_rows("tasks", params=params, settings=self.settings)
-        tasks = [self._record_from_supabase(row) for row in rows]
+        tasks = [self._record_from_supabase(row, business_scope=business_scope) for row in rows]
         tasks.sort(key=lambda task: (task.due_at or task.created_at, task.created_at, task.id or ""))
         return tasks
 
@@ -249,7 +277,13 @@ class TasksRepository:
         )
         return self._record_from_supabase(rows[0]) if rows else None
 
-    def _record_from_supabase(self, row: dict[str, Any], *, deduped: bool = False) -> TaskRecord:
+    def _record_from_supabase(
+        self,
+        row: dict[str, Any],
+        *,
+        deduped: bool = False,
+        business_scope: str | None = None,
+    ) -> TaskRecord:
         details = row.get("details")
         details_payload = dict(details) if isinstance(details, dict) else {}
         title = str(row.get("title") or details_payload.get("title") or row.get("task_type") or "task")
@@ -259,9 +293,11 @@ class TasksRepository:
         lead_id = row.get("lead_id") or details_payload.get("contact_external_id")
         created_at = row.get("created_at")
         updated_at = row.get("updated_at") or created_at
+        if business_scope is None:
+            business_scope = self._business_scope_from_row(row)
         return TaskRecord(
             id=external_id("tsk", row["id"]),
-            business_id=str(row["business_id"]),
+            business_id=business_scope,
             environment=str(row["environment"]),
             title=title,
             status=TaskStatus(str(row.get("status") or TaskStatus.OPEN.value)),
@@ -279,3 +315,59 @@ class TasksRepository:
             updated_at=updated_at,
             deduped=deduped,
         )
+
+    def _business_scope_from_row(self, row: dict[str, Any]) -> str:
+        business_rows = fetch_rows(
+            "businesses",
+            params={
+                "select": "slug,business_id",
+                "business_id": f"eq.{row['business_id']}",
+                "environment": f"eq.{row['environment']}",
+                "limit": "1",
+            },
+            settings=self.settings,
+        )
+        if business_rows:
+            slug = business_rows[0].get("slug")
+            if isinstance(slug, str) and slug.strip():
+                return slug.strip()
+        return str(row["business_id"])
+
+    def _fetch_by_idempotency_key(
+        self,
+        *,
+        business_pk: int,
+        environment: str,
+        idempotency_key: str,
+    ) -> list[dict[str, Any]]:
+        return fetch_rows(
+            "tasks",
+            params={
+                "select": "*",
+                "business_id": f"eq.{business_pk}",
+                "environment": f"eq.{environment}",
+                "idempotency_key": f"eq.{idempotency_key}",
+                "limit": "1",
+            },
+            settings=self.settings,
+        )
+
+    def _supabase_tasks_enabled(self) -> bool:
+        if self._force_memory:
+            return False
+        return control_plane_backend_enabled(self.settings) or marketing_backend_enabled(self.settings)
+
+    @staticmethod
+    def _is_duplicate_insert_error(exc: Exception) -> bool:
+        if not isinstance(exc, url_error.HTTPError):
+            return False
+        if exc.code == 409:
+            return True
+        if exc.code != 400:
+            return False
+        try:
+            body = exc.read().decode("utf-8")
+        except Exception:
+            return False
+        lowered = body.lower()
+        return "duplicate key" in lowered or "unique constraint" in lowered or "23505" in lowered
