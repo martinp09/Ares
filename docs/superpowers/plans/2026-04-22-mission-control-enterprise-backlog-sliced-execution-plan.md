@@ -816,6 +816,8 @@ Run:
 
 ### Slice P7.2 — Add catalog UI
 
+**Status note (2026-04-23):** implemented and verified on the active branch. The catalog UI now stays org-scoped, shows compatibility requirements before install, disables installs while the catalog is fixture-backed, and drops stale install/catalog writes across scope changes.
+
 **Files:**
 - Create: `apps/mission-control/src/pages/CatalogPage.tsx`
 - Create: `apps/mission-control/src/components/AgentInstallWizard.tsx`
@@ -823,10 +825,10 @@ Run:
 - Modify: `apps/mission-control/src/App.tsx`
 - Modify: `apps/mission-control/src/lib/api.ts`
 
-- [ ] **Step 1: Add catalog browse/install UX**
-- [ ] **Step 2: Show compatibility requirements before install**
-- [ ] **Step 3: Show install failure reasons before runtime**
-- [ ] **Step 4: Run UI verification**
+- [x] **Step 1: Add catalog browse/install UX**
+- [x] **Step 2: Show compatibility requirements before install**
+- [x] **Step 3: Show install failure reasons before runtime**
+- [x] **Step 4: Run UI verification**
 
 Run:
 ```bash
@@ -835,6 +837,13 @@ npm --prefix apps/mission-control run typecheck
 npm --prefix apps/mission-control run build
 ```
 
+**Verification snapshot (2026-04-23):**
+- `npm --prefix apps/mission-control run test -- --run src/App.test.tsx src/lib/api.test.ts src/pages/CatalogPage.test.tsx` → `31 passed`
+- `npm --prefix apps/mission-control run test -- --run` → `20 files passed`, `58 tests passed`
+- `npm --prefix apps/mission-control run typecheck` → pass
+- `npm --prefix apps/mission-control run build` → pass
+- `./.venv/bin/python -m pytest -q` → `465 passed, 5 warnings`
+
 **Exit gate:**
 - internal catalog is usable end-to-end.
 
@@ -842,13 +851,15 @@ npm --prefix apps/mission-control run build
 
 ### Slice P7.3 — Add marketplace readiness flags (not public launch)
 
+**Status note (2026-04-23):** implemented and verified on the active branch. Catalog/agent visibility now supports `internal`, `private_catalog`, and `marketplace_candidate` as internal metadata, while `marketplace_published` is fail-closed behind an explicit config gate so public launch stays disabled by default.
+
 **Files:**
 - Modify: `app/models/agents.py`
 - Modify: catalog services/APIs
 - Modify: catalog UI badges if needed
 - Test: catalog/install tests
 
-- [ ] **Step 1: Add visibility states**
+- [x] **Step 1: Add visibility states**
 
 Support:
 - `internal`
@@ -856,9 +867,9 @@ Support:
 - `marketplace_candidate`
 - `marketplace_published`
 
-- [ ] **Step 2: Keep external/public release disabled by default**
-- [ ] **Step 3: Add tests for accidental public-release prevention**
-- [ ] **Step 4: Run targeted + UI verification**
+- [x] **Step 2: Keep external/public release disabled by default**
+- [x] **Step 3: Add tests for accidental public-release prevention**
+- [x] **Step 4: Run targeted + UI verification**
 
 Run:
 ```bash
@@ -868,12 +879,24 @@ npm --prefix apps/mission-control run typecheck
 npm --prefix apps/mission-control run build
 ```
 
-- [ ] **Step 5: Run full tests**
+**Verification snapshot (2026-04-23):**
+- `./.venv/bin/python -m pytest tests/api/test_catalog.py tests/api/test_agent_installs.py -q` → `6 passed`
+- `npm --prefix apps/mission-control run test -- --run` → `20 files passed`, `59 tests passed`
+- `npm --prefix apps/mission-control run typecheck` → pass
+- `npm --prefix apps/mission-control run build` → pass
+- QC fix follow-up:
+  - `npm --prefix apps/mission-control run test -- --run src/App.test.tsx src/pages/CatalogPage.test.tsx src/lib/api.test.ts` → `32 passed`
+  - `./.venv/bin/python -m pytest tests/api/test_catalog.py tests/db/test_catalog_repository.py tests/api/test_agent_installs.py tests/api/test_agents.py -q` → `24 passed`
+
+- [x] **Step 5: Run full tests**
 
 Run:
 ```bash
 ./.venv/bin/python -m pytest -q
 ```
+
+**Phase 7 verification snapshot (2026-04-23):**
+- `./.venv/bin/python -m pytest -q` → `469 passed, 5 warnings`
 
 **Phase 7 exit gate:**
 - internal catalog works, marketplace remains controlled metadata only, and no public launch is implied.

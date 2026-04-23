@@ -629,4 +629,149 @@ describe("Mission Control API client", () => {
     expect(missionControlFixtures.agents[0].release?.eventType).toBe("rollback");
     expect(missionControlFixtures.runs[0].replay?.replay?.releaseEventType).toBe("rollback");
   });
+
+  it("maps catalog entries and installs through the new catalog APIs", async () => {
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = input.toString();
+      const headers = new Headers(init?.headers);
+
+      if (url.endsWith("/catalog")) {
+        expect(headers.get("X-Ares-Org-Id")).toBe("org_alpha");
+        return jsonResponse({
+          entries: [
+            {
+              id: "cat-1",
+              org_id: "org_alpha",
+              agent_id: "agt-source-1",
+              agent_revision_id: "rev-source-1",
+              slug: "seller-ops",
+              name: "Seller Ops",
+              summary: "Installable seller ops agent",
+              description: "Operator package for seller follow-up.",
+              visibility: "marketplace_candidate",
+              marketplace_publication_enabled: false,
+              host_adapter_kind: "trigger_dev",
+              provider_kind: "anthropic",
+              provider_capabilities: ["tool_calls"],
+              required_skill_ids: ["skl_triage"],
+              required_secret_names: ["resend_api_key"],
+              release_channel: "dogfood",
+              metadata: { category: "operations" },
+              created_at: "2026-04-23T03:00:00+00:00",
+              updated_at: "2026-04-23T03:00:00+00:00",
+            },
+          ],
+        });
+      }
+
+      if (url.endsWith("/agent-installs") && init?.method === "POST") {
+        expect(headers.get("X-Ares-Org-Id")).toBe("org_alpha");
+        expect(init?.body).toBe(
+          JSON.stringify({
+            catalog_entry_id: "cat-1",
+            business_id: "limitless",
+            environment: "prod",
+            name: "Installed Seller Ops",
+          }),
+        );
+        return jsonResponse({
+          install: {
+            id: "ins-1",
+            org_id: "org_alpha",
+            catalog_entry_id: "cat-1",
+            source_agent_id: "agt-source-1",
+            source_agent_revision_id: "rev-source-1",
+            installed_agent_id: "agt-installed-1",
+            installed_agent_revision_id: "rev-installed-1",
+            business_id: "limitless",
+            environment: "prod",
+            created_at: "2026-04-23T03:05:00+00:00",
+            updated_at: "2026-04-23T03:05:00+00:00",
+          },
+          agent: {
+            id: "agt-installed-1",
+            org_id: "org_alpha",
+            business_id: "limitless",
+            environment: "prod",
+            name: "Installed Seller Ops",
+            slug: "installed-seller-ops",
+            description: "Operator package for seller follow-up.",
+            visibility: "private_catalog",
+            lifecycle_status: "draft",
+            packaging_metadata: {
+              catalog_entry_id: "cat-1",
+              source_agent_id: "agt-source-1",
+              source_agent_revision_id: "rev-source-1",
+            },
+            active_revision_id: null,
+            created_at: "2026-04-23T03:05:00+00:00",
+            updated_at: "2026-04-23T03:05:00+00:00",
+          },
+          revisions: [
+            {
+              id: "rev-installed-1",
+              agent_id: "agt-installed-1",
+              revision_number: 1,
+              state: "draft",
+              host_adapter_kind: "trigger_dev",
+              host_adapter_config: {},
+              provider_kind: "anthropic",
+              provider_config: {},
+              provider_capabilities: ["tool_calls"],
+              skill_ids: ["skl_triage"],
+              input_schema: {},
+              output_schema: {},
+              release_notes: null,
+              compatibility_metadata: { requires_secrets: ["resend_api_key"] },
+              release_channel: "dogfood",
+              created_at: "2026-04-23T03:05:00+00:00",
+              updated_at: "2026-04-23T03:05:00+00:00",
+              published_at: null,
+              archived_at: null,
+              cloned_from_revision_id: null,
+            },
+          ],
+        });
+      }
+
+      throw new Error(`Unexpected URL ${url}`);
+    });
+
+    const api = createMissionControlApi({
+      fetchImpl: fetchMock as typeof fetch,
+      orgId: "org_alpha",
+    });
+
+    const entries = await api.getCatalogEntries();
+    const install = await api.installCatalogEntry({
+      catalogEntryId: "cat-1",
+      businessId: "limitless",
+      environment: "prod",
+      name: "Installed Seller Ops",
+    });
+
+    expect(entries[0]).toMatchObject({
+      id: "cat-1",
+      slug: "seller-ops",
+      visibility: "marketplace_candidate",
+      marketplacePublicationEnabled: false,
+      requiredSecretNames: ["resend_api_key"],
+      requiredSkillIds: ["skl_triage"],
+    });
+    expect(install.install).toMatchObject({
+      id: "ins-1",
+      catalogEntryId: "cat-1",
+      installedAgentId: "agt-installed-1",
+      environment: "prod",
+    });
+    expect(install.agent).toMatchObject({
+      id: "agt-installed-1",
+      businessId: "limitless",
+      packagingMetadata: {
+        catalogEntryId: "cat-1",
+        sourceAgentId: "agt-source-1",
+        sourceAgentRevisionId: "rev-source-1",
+      },
+    });
+  });
 });

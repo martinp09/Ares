@@ -84,6 +84,7 @@ def test_agent_installs_api_creates_install_and_preserves_lineage(client) -> Non
     assert body["agent"]["business_id"] == "limitless"
     assert body["agent"]["environment"] == "prod"
     assert body["agent"]["name"] == "Installed Seller Ops"
+    assert body["agent"]["visibility"] == "private_catalog"
     assert body["agent"]["packaging_metadata"]["catalog_entry_id"] == catalog_entry_id
     assert body["agent"]["packaging_metadata"]["source_agent_id"] == source_agent_id
     assert body["agent"]["packaging_metadata"]["source_agent_revision_id"] == source_revision_id
@@ -98,6 +99,51 @@ def test_agent_installs_api_creates_install_and_preserves_lineage(client) -> Non
     assert [install["id"] for install in alpha_list.json()["installs"]] == [body["install"]["id"]]
     assert beta_list.json()["installs"] == []
     assert client.get(f"/agent-installs/{body['install']['id']}", headers=beta_headers).status_code == 404
+
+
+def test_agent_installs_preserve_marketplace_candidate_visibility_as_internal_metadata_only(client) -> None:
+    reset_control_plane_state()
+
+    alpha_headers = org_actor_headers(org_id="org_alpha", actor_id="actor_alpha")
+    source_response = client.post(
+        "/agents",
+        json={
+            "name": "Candidate Source Agent",
+            "description": "Candidate metadata only",
+            "visibility": "marketplace_candidate",
+            "packaging_metadata": {"category": "operations"},
+            "config": {"prompt": "Candidate prompt"},
+            "release_channel": "dogfood",
+            "compatibility_metadata": {"requires_secrets": ["resend_api_key"]},
+        },
+        headers=alpha_headers,
+    )
+    assert source_response.status_code == 200
+    source_body = source_response.json()
+    source_agent_id = source_body["agent"]["id"]
+    source_revision_id = source_body["revisions"][0]["id"]
+
+    catalog_entry_id = create_catalog_entry(
+        client,
+        headers=alpha_headers,
+        agent_id=source_agent_id,
+        revision_id=source_revision_id,
+    )
+
+    install_response = client.post(
+        "/agent-installs",
+        json={
+            "catalog_entry_id": catalog_entry_id,
+            "business_id": "limitless",
+            "environment": "prod",
+            "name": "Installed Candidate Agent",
+        },
+        headers=alpha_headers,
+    )
+
+    assert install_response.status_code == 200
+    body = install_response.json()
+    assert body["agent"]["visibility"] == "marketplace_candidate"
 
 
 def test_agent_installs_api_rejects_missing_catalog_entries(client) -> None:

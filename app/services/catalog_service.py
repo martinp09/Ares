@@ -33,6 +33,7 @@ class CatalogService:
             name=request.name,
             summary=request.summary,
             description=request.description,
+            visibility=source.agent.visibility,
             host_adapter_kind=revision.host_adapter_kind,
             provider_kind=revision.provider_kind,
             provider_capabilities=list(revision.provider_capabilities),

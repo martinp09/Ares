@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import { ContextPanel } from "./components/ContextPanel";
 import {
@@ -10,17 +10,23 @@ import { OrgSwitcher } from "./components/OrgSwitcher";
 import {
   createMissionControlApi,
   type AgentDetailData,
+  type CatalogEntrySummary,
   type MissionControlDataSource,
   type MissionControlSnapshot,
   type MissionControlView,
   type OrganizationSummary,
   type OutboundSendResponse,
 } from "./lib/api";
-import { missionControlAgentDetailFixtures, missionControlFixtures } from "./lib/fixtures";
+import {
+  missionControlAgentDetailFixtures,
+  missionControlCatalogFixtures,
+  missionControlFixtures,
+} from "./lib/fixtures";
 import { queryClient } from "./lib/queryClient";
 import { AgentDetailPage } from "./pages/AgentDetailPage";
 import { AgentsPage, type AgentsPageOperatorView } from "./pages/AgentsPage";
 import { ApprovalsPage } from "./pages/ApprovalsPage";
+import { CatalogPage } from "./pages/CatalogPage";
 import { DashboardPage } from "./pages/DashboardPage";
 import { InboxPage } from "./pages/InboxPage";
 import { PipelinePage } from "./pages/PipelinePage";
@@ -64,7 +70,24 @@ interface MissionControlScopeState {
   environment: string | null;
 }
 
-function collectScopeOptionValues(snapshot: MissionControlSnapshot): { businesses: string[]; environments: string[] } {
+interface CatalogInstallUiState {
+  status: "submitting" | "succeeded" | "failed";
+  message: string;
+}
+
+function getScopeKey(scope: MissionControlScopeState): string {
+  return `${scope.orgId ?? "none"}:${scope.businessId ?? "all"}:${scope.environment ?? "all"}`;
+}
+
+function normalizeCatalogEntriesForScope(
+  entries: CatalogEntrySummary[],
+  scope: MissionControlScopeState,
+): CatalogEntrySummary[] {
+  const targetOrgId = scope.orgId ?? missionControlFixtures.governance.orgId;
+  return entries.filter((entry) => entry.orgId === targetOrgId);
+}
+
+function collectScopeOptionValues(snapshot: MissionControlSnapshot): { businessIds: string[]; environments: string[] } {
   const businessValues = new Set<string>();
   const environmentValues = new Set<string>();
 
@@ -96,7 +119,7 @@ function collectScopeOptionValues(snapshot: MissionControlSnapshot): { businesse
   }
 
   return {
-    businesses: Array.from(businessValues).sort((left, right) => left.localeCompare(right)),
+    businessIds: Array.from(businessValues).sort((left, right) => left.localeCompare(right)),
     environments: Array.from(environmentValues).sort((left, right) => left.localeCompare(right)),
   };
 }
@@ -320,6 +343,8 @@ export default function App() {
   const [activeView, setActiveView] = useState<MissionControlView>("agents");
   const [searchValue, setSearchValue] = useState("");
   const [snapshot, setSnapshot] = useState<MissionControlSnapshot>(missionControlFixtures);
+  const [catalogEntries, setCatalogEntries] = useState<CatalogEntrySummary[]>([]);
+  const [catalogInstallStates, setCatalogInstallStates] = useState<Record<string, CatalogInstallUiState | undefined>>({});
   const [scopeOptionValues, setScopeOptionValues] = useState(() => collectScopeOptionValues(missionControlFixtures));
   const [organizations, setOrganizations] = useState<OrganizationSummary[]>([]);
   const [selectedOrgId, setSelectedOrgId] = useState<string | null>(missionControlFixtures.governance.orgId ?? null);
@@ -353,6 +378,11 @@ export default function App() {
       }),
     [selectedBusinessId, selectedEnvironment, selectedOrgId],
   );
+  const scopeRef = useRef(scope);
+
+  useEffect(() => {
+    scopeRef.current = scope;
+  }, [scope]);
 
   useEffect(() => {
     let isMounted = true;
@@ -399,8 +429,10 @@ export default function App() {
 
   useEffect(() => {
     setSnapshot(buildPendingScopeSnapshot(scope));
+    setCatalogEntries([]);
     setSelectedConversationId("");
     setSelectedAgentId(null);
+    setCatalogInstallStates({});
   }, [scope]);
 
   useEffect(() => {
@@ -430,7 +462,7 @@ export default function App() {
     async function load() {
       setIsLoading(true);
 
-      const [dashboard, inbox, tasks, approvals, runs, assets, governance] = await Promise.all([
+      const [dashboard, inbox, tasks, approvals, runs, catalog, assets, governance] = await Promise.all([
         queryClient.fetch(
           `dashboard:${selectedOrgId ?? "default"}:${selectedBusinessId ?? "all"}:${selectedEnvironment ?? "all"}`,
           api.getDashboard,
@@ -455,6 +487,11 @@ export default function App() {
           `runs:${selectedOrgId ?? "default"}:${selectedBusinessId ?? "all"}:${selectedEnvironment ?? "all"}`,
           api.getRuns,
           missionControlFixtures.runs,
+        ),
+        queryClient.fetch(
+          `catalog:${selectedOrgId ?? "default"}`,
+          api.getCatalogEntries,
+          missionControlCatalogFixtures,
         ),
         queryClient.fetch(
           `assets:${selectedOrgId ?? "default"}:${selectedBusinessId ?? "all"}:${selectedEnvironment ?? "all"}`,
@@ -486,6 +523,7 @@ export default function App() {
           ["approvals", approvals.source],
           ["runs", runs.source],
           ["agents", agents.source],
+          ["catalog", catalog.source],
           ["settings", governance.source === "fixture" || assets.source === "fixture" ? "fixture" : "api"],
           ["suppression", dashboard.source],
         ] as const
@@ -509,7 +547,9 @@ export default function App() {
         scope,
         nextFallbackViews,
       );
+      const nextCatalogEntries = normalizeCatalogEntriesForScope(catalog.data, scope);
       setSnapshot(nextSnapshot);
+      setCatalogEntries(nextCatalogEntries);
       setScopeOptionValues(collectScopeOptionValues(loadedSnapshot));
       setDataSource(deriveShellDataSource(nextFallbackViews));
       setAgentsDataSource(agents.source);
@@ -600,8 +640,8 @@ export default function App() {
 
   const normalizedSearchValue = searchValue.trim().toLowerCase();
   const businessFilterOptions = useMemo(
-    () => toFilterOptions(scopeOptionValues.businesses, "All businesses", selectedBusinessId),
-    [scopeOptionValues.businesses, selectedBusinessId],
+    () => toFilterOptions(scopeOptionValues.businessIds, "All businesses", selectedBusinessId),
+    [scopeOptionValues.businessIds, selectedBusinessId],
   );
   const environmentFilterOptions = useMemo(
     () => toFilterOptions(scopeOptionValues.environments, "All environments", selectedEnvironment),
@@ -727,6 +767,27 @@ export default function App() {
     [normalizedSearchValue, snapshot.agents],
   );
 
+  const filteredCatalogEntries = useMemo(
+    () =>
+      catalogEntries.filter((entry) =>
+        includesSearch(
+          [
+            entry.name,
+            entry.slug,
+            entry.summary,
+            entry.description,
+            entry.hostAdapterKind,
+            entry.providerKind,
+            ...entry.providerCapabilities,
+            ...entry.requiredSkillIds,
+            ...entry.requiredSecretNames,
+          ],
+          normalizedSearchValue,
+        ),
+      ),
+    [catalogEntries, normalizedSearchValue],
+  );
+
   const selectedAgentSummary = useMemo(
     () => snapshot.agents.find((agent) => agent.id === selectedAgentId) ?? null,
     [selectedAgentId, snapshot.agents],
@@ -804,6 +865,11 @@ export default function App() {
     ],
   );
 
+  const isCatalogInstallEnabled = !fallbackViews.includes("catalog");
+  const catalogInstallDisabledReason = isCatalogInstallEnabled
+    ? undefined
+    : "Install is unavailable while the catalog is running on fixture fallback.";
+
   const settingsPage: WorkspacePage = {
     title: "Settings / Governance",
     subtitle: "Read-only governance posture for approvals, secrets, audit, and usage.",
@@ -816,6 +882,102 @@ export default function App() {
           `${snapshot.governance.pendingApprovals.length} pending approvals are visible`,
           `${snapshot.governance.secretsHealth.attentionRevisionCount} active revisions need secret attention`,
           `${snapshot.governance.recentAudit.length} recent audit events are surfaced read-only`,
+        ]}
+      />
+    ),
+  };
+
+  async function handleCatalogInstall(entryId: string, request: { businessId: string; environment: string; name: string }) {
+    const installScopeKey = getScopeKey(scopeRef.current);
+    setCatalogInstallStates((current) => ({
+      ...current,
+      [entryId]: { status: "submitting", message: `Installing into ${request.businessId}/${request.environment}...` },
+    }));
+
+    try {
+      const result = await api.installCatalogEntry({
+        catalogEntryId: entryId,
+        businessId: request.businessId,
+        environment: request.environment,
+        name: request.name,
+      });
+      if (installScopeKey !== getScopeKey(scopeRef.current)) {
+        return;
+      }
+
+      const installMatchesCurrentView = matchesSecondaryScope(
+        result.agent.businessId,
+        result.agent.environment,
+        scopeRef.current,
+      );
+      const successMessage = installMatchesCurrentView
+        ? `Installed ${result.agent.name} as ${result.agent.slug} in ${result.agent.businessId}/${result.agent.environment}.`
+        : `Installed ${result.agent.name} as ${result.agent.slug} in ${result.agent.businessId}/${result.agent.environment}. It landed outside the current filtered view.`;
+
+      setCatalogInstallStates((current) => ({
+        ...current,
+        [entryId]: {
+          status: "succeeded",
+          message: successMessage,
+        },
+      }));
+
+      if (!installMatchesCurrentView) {
+        return;
+      }
+
+      try {
+        const liveAgents = await api.getAgents();
+        if (installScopeKey !== getScopeKey(scopeRef.current)) {
+          return;
+        }
+        setSnapshot((current) => ({ ...current, agents: liveAgents }));
+        setAgentsDataSource("api");
+        setFallbackViews((current) => {
+          const next = current.filter((viewId) => viewId !== "agents");
+          setDataSource(deriveShellDataSource(next));
+          return next;
+        });
+      } catch {
+        // Keep the install success visible even if the follow-up agents refresh is unavailable.
+      }
+    } catch (error) {
+      if (installScopeKey !== getScopeKey(scopeRef.current)) {
+        return;
+      }
+      const message = error instanceof Error
+        ? error.message.replace(/^Mission Control API request failed:\s*/, "")
+        : "Catalog install failed.";
+      setCatalogInstallStates((current) => ({
+        ...current,
+        [entryId]: { status: "failed", message },
+      }));
+    }
+  }
+
+  const catalogPageView: WorkspacePage = {
+    title: "Internal catalog",
+    subtitle: "Browse installable agent revisions, review compatibility requirements, and install into a selected target scope.",
+    mainContent: (
+      <CatalogPage
+        entries={filteredCatalogEntries}
+        installEnabled={isCatalogInstallEnabled}
+        installDisabledReason={catalogInstallDisabledReason}
+        hasActiveSearch={normalizedSearchValue.length > 0}
+        installStates={catalogInstallStates}
+        onInstall={handleCatalogInstall}
+        selectedBusinessId={selectedBusinessId}
+        selectedEnvironment={selectedEnvironment}
+      />
+    ),
+    contextContent: (
+      <ContextPanel
+        eyebrow="Catalog posture"
+        title="Install before runtime pain"
+        items={[
+          `${filteredCatalogEntries.length} catalog entries are visible in the current org scope`,
+          `${filteredCatalogEntries.filter((entry) => entry.requiredSecretNames.length > 0).length} entries require secrets before install`,
+          `${filteredCatalogEntries.filter((entry) => entry.requiredSkillIds.length > 0).length} entries carry skill dependencies`,
         ]}
       />
     ),
@@ -896,7 +1058,10 @@ export default function App() {
       navSections: [
         {
           title: "Agents",
-          items: [{ id: "agents", label: "Agents", badge: filteredAgents.length }],
+          items: [
+            { id: "agents", label: "Agents", badge: filteredAgents.length },
+            { id: "catalog", label: "Catalog", badge: filteredCatalogEntries.length },
+          ],
         },
         {
           title: "Operator views",
@@ -1076,6 +1241,7 @@ export default function App() {
           ),
         },
         settings: settingsPage,
+        catalog: catalogPageView,
       },
     },
     marketing: {
@@ -1084,7 +1250,10 @@ export default function App() {
       navSections: [
         {
           title: "Agents",
-          items: [{ id: "agents", label: "Agents", badge: filteredAgents.length }],
+          items: [
+            { id: "agents", label: "Agents", badge: filteredAgents.length },
+            { id: "catalog", label: "Catalog", badge: filteredCatalogEntries.length },
+          ],
         },
         {
           title: "Operator views",
@@ -1244,6 +1413,7 @@ export default function App() {
           ),
         },
         settings: settingsPage,
+        catalog: catalogPageView,
       },
     },
     pipeline: {
@@ -1260,6 +1430,11 @@ export default function App() {
                 snapshot.dashboard.opportunityPipelineSummary?.totalOpportunityCount ??
                 snapshot.dashboard.opportunityCount ??
                 0,
+            },
+            {
+              id: "catalog",
+              label: "Catalog",
+              badge: filteredCatalogEntries.length,
             },
             {
               id: "settings",
@@ -1295,6 +1470,7 @@ export default function App() {
           ),
         },
         settings: settingsPage,
+        catalog: catalogPageView,
       },
     },
   };
@@ -1308,7 +1484,7 @@ export default function App() {
   }
 
   const fallbackLabel = fallbackViews.length > 0 ? ` (${fallbackViews.join(", ")})` : "";
-  const isFullFixtureMode = fallbackViews.length === 8;
+  const isFullFixtureMode = fallbackViews.length === 9;
   const statusBadge = isLoading
     ? "Loading shell"
     : dataSource === "api"

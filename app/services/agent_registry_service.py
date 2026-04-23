@@ -1,7 +1,8 @@
 from __future__ import annotations
 
 from app.db.agents import AgentsRepository
-from app.models.agents import AgentCreateRequest, AgentRecord, AgentResponse, AgentRevisionState
+from app.core.config import get_settings
+from app.models.agents import AgentCreateRequest, AgentRecord, AgentResponse, AgentRevisionState, AgentVisibility
 from app.models.providers import ProviderCapability, ProviderKind
 from app.services.provider_registry_service import provider_registry_service
 from app.services.skill_registry_service import skill_registry_service
@@ -13,6 +14,10 @@ class AgentRegistryService:
         self.agents_repository = agents_repository or AgentsRepository()
 
     def create_agent(self, request: AgentCreateRequest) -> AgentResponse:
+        settings = get_settings()
+        if request.visibility == AgentVisibility.MARKETPLACE_PUBLISHED and not settings.marketplace_publish_enabled:
+            raise ValueError("Marketplace publication is disabled by default")
+
         provider_entry = provider_registry_service.describe_provider(request.provider_kind)
         allowed_capabilities: list[str] = []
         if provider_entry.capabilities.streaming:

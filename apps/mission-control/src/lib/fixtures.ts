@@ -1,4 +1,28 @@
-import type { AgentDetailData, MissionControlSnapshot, TasksData } from "./api";
+import type { CatalogEntrySummary, AgentDetailData, MissionControlSnapshot, TasksData } from "./api";
+
+export const missionControlCatalogFixtures: CatalogEntrySummary[] = [
+  {
+    id: "cat-1001",
+    orgId: "org_internal",
+    agentId: "agt-1001",
+    agentRevisionId: "rev-201",
+    slug: "sierra-inbox-agent",
+    name: "Sierra Inbox Agent",
+    summary: "Installable inbox operator agent for reply review and seller follow-up.",
+    description: "Internal catalog entry for the current dogfood inbox operator.",
+    visibility: "private_catalog",
+    marketplacePublicationEnabled: false,
+    hostAdapterKind: "trigger_dev",
+    providerKind: "anthropic",
+    providerCapabilities: ["tool_calls", "json_schema"],
+    requiredSkillIds: ["skl-inbox-triage"],
+    requiredSecretNames: ["resend_api_key"],
+    releaseChannel: "dogfood",
+    metadata: { category: "operations" },
+    createdAt: "2026-04-23T03:00:00+00:00",
+    updatedAt: "2026-04-23T03:00:00+00:00",
+  },
+];
 
 export const missionControlTasksFixture: TasksData = {
   dueCount: 2,

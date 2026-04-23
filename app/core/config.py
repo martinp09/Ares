@@ -15,6 +15,10 @@ class Settings(BaseSettings):
     default_org_id: str = DEFAULT_INTERNAL_ORG_ID
     default_actor_id: str = DEFAULT_INTERNAL_ACTOR_ID
     default_actor_type: Literal["user", "service", "system"] = DEFAULT_INTERNAL_ACTOR_TYPE
+    marketplace_publish_enabled: bool = Field(
+        default=False,
+        validation_alias=AliasChoices("marketplace_publish_enabled", "MARKETPLACE_PUBLISH_ENABLED"),
+    )
     control_plane_backend: Literal["memory", "supabase"] = "memory"
     marketing_backend: Literal["memory", "supabase"] = "memory"
     lead_machine_backend: Literal["memory", "supabase"] = "memory"

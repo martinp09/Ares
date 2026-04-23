@@ -2,9 +2,10 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, computed_field
 
-from app.core.config import DEFAULT_INTERNAL_ORG_ID
+from app.core.config import DEFAULT_INTERNAL_ORG_ID, get_settings
+from app.models.agents import AgentVisibility
 from app.models.host_adapters import HostAdapterKind
 from app.models.providers import ProviderCapability, ProviderKind
 
@@ -32,6 +33,7 @@ class CatalogEntryRecord(BaseModel):
     name: str = Field(min_length=1)
     summary: str = Field(min_length=1)
     description: str | None = None
+    visibility: AgentVisibility = AgentVisibility.INTERNAL
     host_adapter_kind: HostAdapterKind
     provider_kind: ProviderKind
     provider_capabilities: list[ProviderCapability] = Field(default_factory=list)
@@ -41,6 +43,12 @@ class CatalogEntryRecord(BaseModel):
     metadata: dict[str, object] = Field(default_factory=dict)
     created_at: datetime
     updated_at: datetime
+
+    @computed_field
+    @property
+    def marketplace_publication_enabled(self) -> bool:
+        settings = get_settings()
+        return settings.marketplace_publish_enabled and self.visibility == AgentVisibility.MARKETPLACE_PUBLISHED
 
 
 class CatalogEntryListResponse(BaseModel):

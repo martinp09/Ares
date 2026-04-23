@@ -4,6 +4,7 @@ export type MissionControlView =
   | "approvals"
   | "runs"
   | "agents"
+  | "catalog"
   | "settings"
   | "tasks"
   | "pipeline"
@@ -405,6 +406,69 @@ export interface GovernanceData {
   recentUsage: GovernanceUsageEvent[];
 }
 
+export interface CatalogEntrySummary {
+  id: string;
+  orgId: string;
+  agentId: string;
+  agentRevisionId: string;
+  slug: string;
+  name: string;
+  summary: string;
+  description: string | null;
+  visibility: string;
+  marketplacePublicationEnabled: boolean;
+  hostAdapterKind: string;
+  providerKind: string;
+  providerCapabilities: string[];
+  requiredSkillIds: string[];
+  requiredSecretNames: string[];
+  releaseChannel: string;
+  metadata: JsonRecord;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CatalogInstallRequest {
+  catalogEntryId: string;
+  businessId: string;
+  environment: string;
+  name?: string;
+}
+
+export interface CatalogInstallRecord {
+  id: string;
+  catalogEntryId: string;
+  sourceAgentId: string;
+  sourceAgentRevisionId: string;
+  installedAgentId: string;
+  installedAgentRevisionId: string;
+  businessId: string;
+  environment: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CatalogInstalledAgent {
+  id: string;
+  orgId: string;
+  businessId: string;
+  environment: string;
+  name: string;
+  slug: string;
+  description: string | null;
+  visibility: string;
+  lifecycleStatus: string;
+  packagingMetadata: Record<string, unknown>;
+  activeRevisionId: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CatalogInstallResult {
+  install: CatalogInstallRecord;
+  agent: CatalogInstalledAgent;
+}
+
 export interface MissionControlSnapshot {
   dashboard: DashboardSummaryData;
   inbox: InboxData;
@@ -426,6 +490,8 @@ export interface MissionControlApi {
   getRuns(): Promise<RunSummary[]>;
   getAgents(): Promise<AgentSummary[]>;
   getAgentDetail(agentId: string): Promise<AgentDetailData>;
+  getCatalogEntries(): Promise<CatalogEntrySummary[]>;
+  installCatalogEntry(request: CatalogInstallRequest): Promise<CatalogInstallResult>;
   getAssets(): Promise<AssetSummary[]>;
   getGovernance(): Promise<GovernanceData>;
 }
@@ -673,12 +739,15 @@ interface RunsPayload {
 
 interface AgentPayload {
   id?: string;
+  org_id?: string;
   business_id?: string;
   environment?: string;
   name?: string;
   slug?: string;
   description?: string | null;
+  visibility?: string;
   lifecycle_status?: string;
+  packaging_metadata?: Record<string, unknown>;
   active_revision_id?: string | null;
   active_revision_state?: string;
   live_session_count?: number;
@@ -904,6 +973,50 @@ interface OrganizationPayload {
 
 interface OrganizationListPayload {
   organizations?: OrganizationPayload[];
+}
+
+interface CatalogEntryPayload {
+  id?: string;
+  org_id?: string;
+  agent_id?: string;
+  agent_revision_id?: string;
+  slug?: string;
+  name?: string;
+  summary?: string;
+  description?: string | null;
+  visibility?: string;
+  marketplace_publication_enabled?: boolean;
+  host_adapter_kind?: string;
+  provider_kind?: string;
+  provider_capabilities?: string[];
+  required_skill_ids?: string[];
+  required_secret_names?: string[];
+  release_channel?: string;
+  metadata?: JsonRecord;
+  created_at?: string;
+  updated_at?: string;
+}
+
+interface CatalogEntryListPayload {
+  entries?: CatalogEntryPayload[];
+}
+
+interface AgentInstallPayload {
+  id?: string;
+  catalog_entry_id?: string;
+  source_agent_id?: string;
+  source_agent_revision_id?: string;
+  installed_agent_id?: string;
+  installed_agent_revision_id?: string;
+  business_id?: string;
+  environment?: string;
+  created_at?: string;
+  updated_at?: string;
+}
+
+interface AgentInstallResponsePayload {
+  install?: AgentInstallPayload;
+  agent?: AgentPayload;
 }
 
 const defaultBaseUrl = import.meta.env.VITE_RUNTIME_API_BASE_URL ?? "";
@@ -1773,6 +1886,76 @@ function mapOrganizations(payload: OrganizationListPayload | OrganizationPayload
   }));
 }
 
+function mapCatalogEntries(payload: CatalogEntryListPayload | CatalogEntryPayload[]): CatalogEntrySummary[] {
+  const entries = Array.isArray(payload) ? payload : asArray<CatalogEntryPayload>(payload.entries);
+  return entries.map((entry, index) => ({
+    id: asString(entry.id, `cat-${index}`),
+    orgId: asString(entry.org_id, "org_internal"),
+    agentId: asString(entry.agent_id, `agent-${index}`),
+    agentRevisionId: asString(entry.agent_revision_id, `revision-${index}`),
+    slug: asString(entry.slug, `catalog-${index}`),
+    name: asString(entry.name, "Unknown catalog entry"),
+    summary: asString(entry.summary, "No summary available."),
+    description: asNullableString(entry.description),
+    visibility: asString(entry.visibility, "internal"),
+    marketplacePublicationEnabled: Boolean(entry.marketplace_publication_enabled),
+    hostAdapterKind: asString(entry.host_adapter_kind, "unknown"),
+    providerKind: asString(entry.provider_kind, "unknown"),
+    providerCapabilities: asArray<string>(entry.provider_capabilities).map((value) => asString(value)).filter(Boolean),
+    requiredSkillIds: asArray<string>(entry.required_skill_ids).map((value) => asString(value)).filter(Boolean),
+    requiredSecretNames: asArray<string>(entry.required_secret_names).map((value) => asString(value)).filter(Boolean),
+    releaseChannel: asString(entry.release_channel, "internal"),
+    metadata: isRecord(entry.metadata) ? entry.metadata : {},
+    createdAt: asString(entry.created_at, "Unknown"),
+    updatedAt: asString(entry.updated_at, "Unknown"),
+  }));
+}
+
+function mapCatalogInstalledAgent(payload: AgentPayload): CatalogInstalledAgent {
+  const rawPackagingMetadata = isRecord(payload.packaging_metadata) ? payload.packaging_metadata : {};
+  return {
+    id: asString(payload.id, "agt-installed"),
+    orgId: asString(payload.org_id, "org_internal"),
+    businessId: asString(payload.business_id, "default"),
+    environment: asString(payload.environment, "dev"),
+    name: asString(payload.name, "Installed agent"),
+    slug: asString(payload.slug, "installed-agent"),
+    description: asNullableString(payload.description),
+    visibility: asString(payload.visibility, "internal"),
+    lifecycleStatus: asString(payload.lifecycle_status, "draft"),
+    packagingMetadata: {
+      ...rawPackagingMetadata,
+      catalogEntryId: asNullableString(rawPackagingMetadata.catalog_entry_id) ?? asNullableString(rawPackagingMetadata.catalogEntryId),
+      sourceAgentId: asNullableString(rawPackagingMetadata.source_agent_id) ?? asNullableString(rawPackagingMetadata.sourceAgentId),
+      sourceAgentRevisionId:
+        asNullableString(rawPackagingMetadata.source_agent_revision_id) ?? asNullableString(rawPackagingMetadata.sourceAgentRevisionId),
+    },
+    activeRevisionId: asNullableString(payload.active_revision_id),
+    createdAt: asString(payload.created_at, "Unknown"),
+    updatedAt: asString(payload.updated_at, "Unknown"),
+  };
+}
+
+function mapCatalogInstallResult(payload: AgentInstallResponsePayload): CatalogInstallResult {
+  const install = isRecord(payload.install) ? payload.install : {};
+  const agent = isRecord(payload.agent) ? payload.agent : {};
+  return {
+    install: {
+      id: asString(install.id, "ins-1"),
+      catalogEntryId: asString(install.catalog_entry_id, "catalog-entry"),
+      sourceAgentId: asString(install.source_agent_id, "source-agent"),
+      sourceAgentRevisionId: asString(install.source_agent_revision_id, "source-revision"),
+      installedAgentId: asString(install.installed_agent_id, "installed-agent"),
+      installedAgentRevisionId: asString(install.installed_agent_revision_id, "installed-revision"),
+      businessId: asString(install.business_id, "default"),
+      environment: asString(install.environment, "dev"),
+      createdAt: asString(install.created_at, "Unknown"),
+      updatedAt: asString(install.updated_at, "Unknown"),
+    },
+    agent: mapCatalogInstalledAgent(agent as AgentPayload),
+  };
+}
+
 type RequestScope = "none" | "mission-control" | "governance";
 
 function buildRequestPath(
@@ -1794,11 +1977,17 @@ async function requestJson<T>(
   path: string,
   options: MissionControlApiOptions,
   scope: RequestScope = "none",
+  init?: RequestInit,
 ): Promise<T> {
   const fetchImpl = options.fetchImpl ?? fetch;
+  const requestHeaders = new Headers(init?.headers);
   const headers: Record<string, string> = {
     Accept: "application/json",
   };
+
+  requestHeaders.forEach((value, key) => {
+    headers[key] = value;
+  });
 
   if (options.runtimeApiKey) {
     headers.Authorization = `Bearer ${options.runtimeApiKey}`;
@@ -1809,11 +1998,24 @@ async function requestJson<T>(
   }
 
   const response = await fetchImpl(buildUrl(options.baseUrl ?? defaultBaseUrl, buildRequestPath(path, options, scope)), {
+    ...init,
     headers,
   });
 
   if (!response.ok) {
-    throw new Error(`Mission Control API request failed: ${response.status} ${response.statusText}`);
+    let detail = `${response.status} ${response.statusText}`;
+    try {
+      const payload = (await response.json()) as { detail?: unknown };
+      if (typeof payload.detail === "string" && payload.detail.trim().length > 0) {
+        detail = payload.detail;
+      }
+    } catch {
+      const text = await response.text().catch(() => "");
+      if (text.trim().length > 0) {
+        detail = text.trim();
+      }
+    }
+    throw new Error(`Mission Control API request failed: ${detail}`);
   }
 
   return (await response.json()) as T;
@@ -1899,6 +2101,25 @@ export function createMissionControlApi(
 
       return mapAgentDetail(agentPayload, releaseHistoryPayload, auditPayload, usagePayload, turnsPayload, bindingsPayload, degradedSections);
     },
+    getCatalogEntries: async () => mapCatalogEntries(await requestJson<CatalogEntryListPayload>("/catalog", resolvedOptions)),
+    installCatalogEntry: async (request) =>
+      mapCatalogInstallResult(
+        await requestJson<AgentInstallResponsePayload>(
+          "/agent-installs",
+          resolvedOptions,
+          "none",
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              catalog_entry_id: request.catalogEntryId,
+              business_id: request.businessId,
+              environment: request.environment,
+              name: request.name,
+            }),
+          },
+        ),
+      ),
     getAssets: async () =>
       mapAssets(
         await requestJson<MissionControlAssetsPayload | AssetPayload[]>(

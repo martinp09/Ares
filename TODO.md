@@ -1,7 +1,7 @@
 ---
 title: "Ares TODO / Handoff"
 status: active
-updated_at: "2026-04-23T03:07:06Z"
+updated_at: "2026-04-23T15:38:00Z"
 repo: "martinp09/Ares"
 local_checkout: "/root/.config/superpowers/worktrees/Hermes-Central-Command/mission-control-enterprise-backlog"
 current_branch: "feature/mission-control-enterprise-backlog"
@@ -46,11 +46,16 @@ current_branch: "feature/mission-control-enterprise-backlog"
 ### Phase 7 current state
 
 - `P7.1` backend/domain work is now implemented locally and verified.
-- The new backend slice adds:
+- `P7.2` Mission Control catalog/install UI is now implemented locally and verified.
+- `P7.3` marketplace-readiness metadata is now implemented locally and verified.
+- The new Phase 7 branch state adds:
   - catalog entries that point at agent revisions
   - derived host/provider/skill/secret/release compatibility metadata
   - install lineage records that preserve source agent/revision context
   - `/catalog` and `/agent-installs` API surfaces
+  - a bounded Mission Control catalog page + install wizard with pre-install compatibility visibility and install outcome messaging
+  - explicit truth gates so fixture-backed catalog entries cannot be installed and non-internal org scope does not inherit internal fixture catalog entries
+  - visibility metadata that supports `internal`, `private_catalog`, and `marketplace_candidate`, while `marketplace_published` stays fail-closed behind an explicit config gate
 - Installs preserve runtime semantics by reusing the existing agent-creation contract rather than inventing a parallel execution path.
 
 ### Latest verification evidence
@@ -65,22 +70,38 @@ Phase 6 recorded branch evidence:
 
 P7.1 local backend evidence:
 - `./.venv/bin/python -m pytest tests/db/test_catalog_repository.py tests/db/test_agent_install_repository.py tests/api/test_catalog.py tests/api/test_agent_installs.py tests/api/test_agents.py -q` → `21 passed`
-- `./.venv/bin/python -m pytest -q` → `460 passed, 5 warnings`
+- `./.venv/bin/python -m pytest -q` → `465 passed, 5 warnings`
+
+P7.2 local frontend evidence:
+- `npm --prefix apps/mission-control run test -- --run src/App.test.tsx src/lib/api.test.ts src/pages/CatalogPage.test.tsx` → `31 passed`
+- `npm --prefix apps/mission-control run test -- --run` → `20 files passed`, `58 tests passed`
+- `npm --prefix apps/mission-control run typecheck` → pass
+- `npm --prefix apps/mission-control run build` → pass
+
+P7.3 local marketplace-readiness evidence:
+- `./.venv/bin/python -m pytest tests/api/test_catalog.py tests/api/test_agent_installs.py -q` → `6 passed`
+- `./.venv/bin/python -m pytest tests/api/test_agents.py tests/api/test_catalog.py tests/api/test_agent_installs.py tests/db/test_catalog_repository.py -q` → `23 passed`
+- `npm --prefix apps/mission-control run test -- --run` → `20 files passed`, `58 tests passed`
+- `npm --prefix apps/mission-control run typecheck` → pass
+- `npm --prefix apps/mission-control run build` → pass
+- `./.venv/bin/python -m pytest -q` → `468 passed, 5 warnings`
 
 Known warnings:
 - existing `HTTP_422_UNPROCESSABLE_ENTITY` deprecation warnings in older tests
 
 ## Recommended next slice
 
-### P7.2 — Internal catalog UI
+### Phase 7 commit/push pass
 
-The backend/domain layer for `P7.1` is implemented locally and green.
+`P7.1`, `P7.2`, and `P7.3` are implemented, QC-reviewed, and locally verified on the active branch.
 
-Next up from the sliced execution plan:
-- add catalog browse/install UX in Mission Control
-- show compatibility requirements before install
-- surface install failure reasons before runtime
-- keep marketplace/public distribution deferred
+The two Phase 7 QC findings are now closed:
+- `marketplace_publication_enabled` is derived live instead of persisted as stale point-in-time truth
+- catalog install UX now speaks in terms of selected target scope and explicitly reports when an install landed outside the current filtered view
+
+Next up:
+- commit the Phase 7 UI + marketplace-readiness work
+- push the branch cleanly after QC
 
 ## Repo cleanup check already performed
 

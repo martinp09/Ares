@@ -57,6 +57,23 @@ def test_create_agent_rejects_non_draft_lifecycle_status(client) -> None:
     assert any("lifecycle_status='draft'" in item["msg"] for item in detail)
 
 
+def test_create_agent_rejects_marketplace_published_visibility_while_public_launch_is_disabled(client) -> None:
+    reset_control_plane_state()
+
+    response = client.post(
+        "/agents",
+        json={
+            "name": "Published Marketplace Agent",
+            "visibility": "marketplace_published",
+            "config": {"prompt": "Should not imply public launch"},
+        },
+        headers=AUTH_HEADERS,
+    )
+
+    assert response.status_code == 422
+    assert response.json()["detail"] == "Marketplace publication is disabled by default"
+
+
 def test_create_agent_persists_provider_selection_and_capabilities(client) -> None:
     reset_control_plane_state()
 

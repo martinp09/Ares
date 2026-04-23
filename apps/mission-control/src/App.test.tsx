@@ -141,7 +141,20 @@ describe("App", () => {
       }
 
       if (url.includes("/mission-control/agents")) {
-        return jsonResponse({ agents: [] });
+        return jsonResponse({
+          agents: [
+            {
+              id: "agt-filtered-1",
+              name: "Filtered Agent",
+              business_id: "default",
+              environment: "dev",
+              active_revision_id: "rev-filtered-1",
+              active_revision_state: "draft",
+              live_session_count: 0,
+              delegated_work_count: 0,
+            },
+          ],
+        });
       }
 
       if (url.includes("/mission-control/settings/governance")) {
@@ -1012,6 +1025,10 @@ describe("App", () => {
         });
       }
 
+      if (url.includes("/catalog")) {
+        return jsonResponse({ entries: [] });
+      }
+
       if (url.includes("/mission-control/settings/governance")) {
         return jsonResponse({
           org_id: "org_alpha",
@@ -1450,6 +1467,9 @@ describe("App", () => {
           ],
         });
       }
+      if (url.includes("/catalog")) {
+        return jsonResponse({ entries: [] });
+      }
       if (url.includes("/mission-control/settings/governance")) {
         return jsonResponse({
           org_id: "org_alpha",
@@ -1631,7 +1651,7 @@ describe("App", () => {
               requires_approval: true,
               related_run_id: null,
               related_approval_id: null,
-              contact: { display_name: "Taylor Brooks", phone: "+15551230001" },
+              contact: { display_name: "Taylor Brooks", phone: "+155****0001" },
             },
             {
               thread_id: "thread-2",
@@ -1655,7 +1675,7 @@ describe("App", () => {
             requires_approval: true,
             related_run_id: null,
             related_approval_id: null,
-            contact: { display_name: "Taylor Brooks", phone: "+15551230001" },
+            contact: { display_name: "Taylor Brooks", phone: "+155****0001" },
             messages: [
               {
                 id: "msg-1",
@@ -1671,6 +1691,10 @@ describe("App", () => {
         });
       }
 
+      if (url.includes("/catalog")) {
+        return jsonResponse({ entries: [] });
+      }
+
       if (url.includes("/mission-control/tasks")) {
         return jsonResponse({ due_count: 0, tasks: [] });
       }
@@ -1684,7 +1708,20 @@ describe("App", () => {
       }
 
       if (url.includes("/mission-control/agents")) {
-        return jsonResponse({ agents: [] });
+        return jsonResponse({
+          agents: [
+            {
+              id: "agt-filtered-1",
+              name: "Filtered Agent",
+              business_id: "default",
+              environment: "dev",
+              active_revision_id: "rev-filtered-1",
+              active_revision_state: "draft",
+              live_session_count: 0,
+              delegated_work_count: 0,
+            },
+          ],
+        });
       }
 
       if (url.includes("/mission-control/settings/governance")) {
@@ -1834,7 +1871,20 @@ describe("App", () => {
       }
 
       if (url.includes("/mission-control/agents")) {
-        return jsonResponse({ agents: [] });
+        return jsonResponse({
+          agents: [
+            {
+              id: "agt-filtered-1",
+              name: "Filtered Agent",
+              business_id: "default",
+              environment: "dev",
+              active_revision_id: "rev-filtered-1",
+              active_revision_state: "draft",
+              live_session_count: 0,
+              delegated_work_count: 0,
+            },
+          ],
+        });
       }
 
       if (url.includes("/mission-control/settings/governance")) {
@@ -1938,7 +1988,20 @@ describe("App", () => {
       }
 
       if (url.includes("/mission-control/agents")) {
-        return jsonResponse({ agents: [] });
+        return jsonResponse({
+          agents: [
+            {
+              id: "agt-filtered-1",
+              name: "Filtered Agent",
+              business_id: "default",
+              environment: "dev",
+              active_revision_id: "rev-filtered-1",
+              active_revision_state: "draft",
+              live_session_count: 0,
+              delegated_work_count: 0,
+            },
+          ],
+        });
       }
 
       if (url.includes("/mission-control/settings/governance")) {
@@ -2964,5 +3027,363 @@ describe("App", () => {
         }),
       );
     });
+  });
+
+  it("neutralizes fixture-backed catalog entries when the operator switches away from the internal org", async () => {
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+      const url = typeof input === "string" ? input : input instanceof URL ? input.toString() : input.url;
+
+      if (url.endsWith("/organizations")) {
+        return jsonResponse({
+          organizations: [
+            { id: "org_internal", name: "Internal", is_internal: true, created_at: "2026-04-23T00:00:00+00:00", updated_at: "2026-04-23T00:00:00+00:00" },
+            { id: "org_alpha", name: "Acme Alpha", is_internal: false, created_at: "2026-04-23T00:00:00+00:00", updated_at: "2026-04-23T00:00:00+00:00" },
+          ],
+        });
+      }
+      if (url.includes("/mission-control/dashboard")) {
+        return jsonResponse({ approval_count: 0, active_run_count: 0, failed_run_count: 0, active_agent_count: 0, unread_conversation_count: 0, busy_channel_count: 0, recent_completed_count: 0, system_status: "healthy", updated_at: "2026-04-23T00:00:00+00:00" });
+      }
+      if (url.includes("/mission-control/inbox")) {
+        return jsonResponse({ summary: { thread_count: 0, unread_count: 0, approval_required_count: 0 }, threads: [], selected_thread_id: null });
+      }
+      if (url.includes("/mission-control/tasks")) {
+        return jsonResponse({ due_count: 0, tasks: [] });
+      }
+      if (url.includes("/mission-control/approvals")) {
+        return jsonResponse({ approvals: [] });
+      }
+      if (url.includes("/mission-control/runs")) {
+        return jsonResponse({ runs: [] });
+      }
+      if (url.includes("/mission-control/settings/governance")) {
+        return jsonResponse({
+          org_id: "org_internal",
+          pending_approvals: [],
+          secrets_health: {
+            active_revision_count: 0,
+            healthy_revision_count: 0,
+            attention_revision_count: 0,
+            required_secret_count: 0,
+            configured_secret_count: 0,
+            missing_secret_count: 0,
+            revisions: [],
+          },
+          recent_audit: [],
+          usage_summary: { total_count: 0, by_kind: {}, by_source_kind: [], by_agent: [], updated_at: "2026-04-23T00:00:00+00:00" },
+          recent_usage: [],
+        });
+      }
+      if (url.includes("/mission-control/settings/assets")) {
+        return jsonResponse({ assets: [] });
+      }
+      if (url.includes("/mission-control/agents")) {
+        return jsonResponse({
+          agents: [
+            {
+              id: "agt-filtered-1",
+              name: "Filtered Agent",
+              business_id: "default",
+              environment: "dev",
+              active_revision_id: "rev-filtered-1",
+              active_revision_state: "draft",
+              live_session_count: 0,
+              delegated_work_count: 0,
+            },
+          ],
+        });
+      }
+      if (url.includes("/catalog")) {
+        throw new Error("catalog unavailable");
+      }
+
+      throw new Error(`Unexpected fetch URL: ${url}`);
+    });
+
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<App />);
+
+    fireEvent.click(await screen.findByRole("button", { name: /catalog/i }));
+
+    expect(await screen.findByText("Sierra Inbox Agent")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /install sierra inbox agent/i })).toBeDisabled();
+
+    fireEvent.click(screen.getByRole("tab", { name: /acme alpha/i }));
+    expect(await screen.findByText(/no catalog entries are available for the current org scope/i)).toBeInTheDocument();
+    expect(screen.queryByText("Sierra Inbox Agent")).not.toBeInTheDocument();
+  });
+
+  it("renders the catalog UI and installs a catalog entry through the Mission Control shell", async () => {
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = typeof input === "string" ? input : input instanceof URL ? input.toString() : input.url;
+
+      if (url.endsWith("/organizations")) {
+        return jsonResponse({ organizations: [{ id: "org_internal", name: "Internal", slug: "internal", is_internal: true }] });
+      }
+      if (url.includes("/mission-control/dashboard")) {
+        return jsonResponse({ approval_count: 0, active_run_count: 0, failed_run_count: 0, active_agent_count: 0, unread_conversation_count: 0, busy_channel_count: 0, recent_completed_count: 0, system_status: "healthy", updated_at: "2026-04-23T03:00:00+00:00" });
+      }
+      if (url.includes("/mission-control/inbox")) {
+        return jsonResponse({ summary: { thread_count: 0, unread_count: 0, approval_required_count: 0 }, threads: [], selected_thread_id: null });
+      }
+      if (url.includes("/mission-control/tasks")) {
+        return jsonResponse({ due_count: 0, tasks: [] });
+      }
+      if (url.includes("/mission-control/approvals")) {
+        return jsonResponse({ approvals: [] });
+      }
+      if (url.includes("/mission-control/runs")) {
+        return jsonResponse({ runs: [] });
+      }
+      if (url.includes("/mission-control/agents")) {
+        return jsonResponse({
+          agents: [
+            {
+              id: "agt-filtered-1",
+              name: "Filtered Agent",
+              business_id: "default",
+              environment: "dev",
+              active_revision_id: "rev-filtered-1",
+              active_revision_state: "draft",
+              live_session_count: 0,
+              delegated_work_count: 0,
+            },
+          ],
+        });
+      }
+      if (url.includes("/mission-control/settings/governance")) {
+        return jsonResponse({
+          org_id: "org_internal",
+          pending_approvals: [],
+          secrets_health: { active_revision_count: 0, healthy_revision_count: 0, attention_revision_count: 0, required_secret_count: 0, configured_secret_count: 0, missing_secret_count: 0, revisions: [] },
+          recent_audit: [],
+          usage_summary: { total_count: 0, by_kind: {}, by_source_kind: [], by_agent: [], updated_at: "2026-04-23T03:00:00+00:00" },
+          recent_usage: [],
+        });
+      }
+      if (url.includes("/mission-control/settings/assets")) {
+        return jsonResponse({ assets: [] });
+      }
+      if (url.includes("/catalog")) {
+        return jsonResponse({
+          entries: [{
+            id: "cat-1",
+            org_id: "org_internal",
+            agent_id: "agt-source-1",
+            agent_revision_id: "rev-source-1",
+            slug: "seller-ops",
+            name: "Seller Ops",
+            summary: "Installable seller ops agent",
+            description: "Operator package for seller follow-up.",
+            visibility: "private_catalog",
+            marketplace_publication_enabled: false,
+            host_adapter_kind: "trigger_dev",
+            provider_kind: "anthropic",
+            provider_capabilities: ["tool_calls"],
+            required_skill_ids: ["skl_triage"],
+            required_secret_names: ["resend_api_key"],
+            release_channel: "dogfood",
+            metadata: { category: "operations" },
+            created_at: "2026-04-23T03:00:00+00:00",
+            updated_at: "2026-04-23T03:00:00+00:00",
+          }],
+        });
+      }
+      if (url.endsWith("/agent-installs") && init?.method === "POST") {
+        return jsonResponse({
+          install: {
+            id: "ins-1",
+            org_id: "org_internal",
+            catalog_entry_id: "cat-1",
+            source_agent_id: "agt-source-1",
+            source_agent_revision_id: "rev-source-1",
+            installed_agent_id: "agt-installed-1",
+            installed_agent_revision_id: "rev-installed-1",
+            business_id: "default",
+            environment: "dev",
+            created_at: "2026-04-23T03:05:00+00:00",
+            updated_at: "2026-04-23T03:05:00+00:00",
+          },
+          agent: {
+            id: "agt-installed-1",
+            org_id: "org_internal",
+            business_id: "default",
+            environment: "dev",
+            name: "Seller Ops",
+            slug: "seller-ops",
+            description: "Operator package for seller follow-up.",
+            visibility: "private_catalog",
+            lifecycle_status: "draft",
+            packaging_metadata: { catalog_entry_id: "cat-1", source_agent_id: "agt-source-1", source_agent_revision_id: "rev-source-1" },
+            active_revision_id: null,
+            created_at: "2026-04-23T03:05:00+00:00",
+            updated_at: "2026-04-23T03:05:00+00:00",
+          },
+          revisions: [{
+            id: "rev-installed-1",
+            agent_id: "agt-installed-1",
+            revision_number: 1,
+            state: "draft",
+            host_adapter_kind: "trigger_dev",
+            host_adapter_config: {},
+            provider_kind: "anthropic",
+            provider_config: {},
+            provider_capabilities: ["tool_calls"],
+            skill_ids: ["skl_triage"],
+            input_schema: {},
+            output_schema: {},
+            release_notes: null,
+            compatibility_metadata: { requires_secrets: ["resend_api_key"] },
+            release_channel: "dogfood",
+            created_at: "2026-04-23T03:05:00+00:00",
+            updated_at: "2026-04-23T03:05:00+00:00",
+            published_at: null,
+            archived_at: null,
+            cloned_from_revision_id: null,
+          }],
+        });
+      }
+
+      throw new Error(`Unexpected fetch URL: ${url}`);
+    });
+
+    vi.stubGlobal("fetch", fetchMock);
+    render(<App />);
+
+    fireEvent.click(await screen.findByRole("button", { name: /catalog/i }));
+    expect(screen.getAllByRole("heading", { name: /internal catalog/i }).length).toBeGreaterThan(0);
+    expect(screen.getByText(/resend_api_key/i)).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /install seller ops/i }));
+    expect(await screen.findByText(/installed seller ops as seller-ops in default\/dev\./i)).toBeInTheDocument();
+  });
+
+  it("reports when a catalog install succeeds outside the currently viewed filters", async () => {
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = typeof input === "string" ? input : input instanceof URL ? input.toString() : input.url;
+
+      if (url.endsWith("/organizations")) {
+        return jsonResponse({ organizations: [{ id: "org_internal", name: "Internal", slug: "internal", is_internal: true }] });
+      }
+      if (url.includes("/mission-control/dashboard")) {
+        return jsonResponse({ approval_count: 0, active_run_count: 0, failed_run_count: 0, active_agent_count: 0, unread_conversation_count: 0, busy_channel_count: 0, recent_completed_count: 0, system_status: "healthy", updated_at: "2026-04-23T03:00:00+00:00" });
+      }
+      if (url.includes("/mission-control/inbox")) {
+        return jsonResponse({ summary: { thread_count: 0, unread_count: 0, approval_required_count: 0 }, threads: [], selected_thread_id: null });
+      }
+      if (url.includes("/mission-control/tasks")) {
+        return jsonResponse({ due_count: 0, tasks: [] });
+      }
+      if (url.includes("/mission-control/approvals")) {
+        return jsonResponse({ approvals: [] });
+      }
+      if (url.includes("/mission-control/runs")) {
+        return jsonResponse({ runs: [] });
+      }
+      if (url.includes("/mission-control/agents")) {
+        return jsonResponse({
+          agents: [
+            {
+              id: "agt-filtered-1",
+              name: "Filtered Agent",
+              business_id: "default",
+              environment: "dev",
+              active_revision_id: "rev-filtered-1",
+              active_revision_state: "draft",
+              live_session_count: 0,
+              delegated_work_count: 0,
+            },
+          ],
+        });
+      }
+      if (url.includes("/mission-control/settings/governance")) {
+        return jsonResponse({
+          org_id: "org_internal",
+          pending_approvals: [],
+          secrets_health: { active_revision_count: 0, healthy_revision_count: 0, attention_revision_count: 0, required_secret_count: 0, configured_secret_count: 0, missing_secret_count: 0, revisions: [] },
+          recent_audit: [],
+          usage_summary: { total_count: 0, by_kind: {}, by_source_kind: [], by_agent: [], updated_at: "2026-04-23T03:00:00+00:00" },
+          recent_usage: [],
+        });
+      }
+      if (url.includes("/mission-control/settings/assets")) {
+        return jsonResponse({ assets: [] });
+      }
+      if (url.includes("/catalog")) {
+        return jsonResponse({
+          entries: [{
+            id: "cat-1",
+            org_id: "org_internal",
+            agent_id: "agt-source-1",
+            agent_revision_id: "rev-source-1",
+            slug: "seller-ops",
+            name: "Seller Ops",
+            summary: "Installable seller ops agent",
+            description: "Operator package for seller follow-up.",
+            visibility: "private_catalog",
+            marketplace_publication_enabled: false,
+            host_adapter_kind: "trigger_dev",
+            provider_kind: "anthropic",
+            provider_capabilities: ["tool_calls"],
+            required_skill_ids: ["skl_triage"],
+            required_secret_names: ["resend_api_key"],
+            release_channel: "dogfood",
+            metadata: { category: "operations" },
+            created_at: "2026-04-23T03:00:00+00:00",
+            updated_at: "2026-04-23T03:00:00+00:00",
+          }],
+        });
+      }
+      if (url.endsWith("/agent-installs") && init?.method === "POST") {
+        return jsonResponse({
+          install: {
+            id: "ins-2",
+            org_id: "org_internal",
+            catalog_entry_id: "cat-1",
+            source_agent_id: "agt-source-1",
+            source_agent_revision_id: "rev-source-1",
+            installed_agent_id: "agt-installed-2",
+            installed_agent_revision_id: "rev-installed-2",
+            business_id: "otherbiz",
+            environment: "stage",
+            created_at: "2026-04-23T03:06:00+00:00",
+            updated_at: "2026-04-23T03:06:00+00:00",
+          },
+          agent: {
+            id: "agt-installed-2",
+            org_id: "org_internal",
+            business_id: "otherbiz",
+            environment: "stage",
+            name: "Seller Ops",
+            slug: "seller-ops",
+            description: "Operator package for seller follow-up.",
+            visibility: "private_catalog",
+            lifecycle_status: "draft",
+            packaging_metadata: { catalog_entry_id: "cat-1", source_agent_id: "agt-source-1", source_agent_revision_id: "rev-source-1" },
+            active_revision_id: null,
+            created_at: "2026-04-23T03:06:00+00:00",
+            updated_at: "2026-04-23T03:06:00+00:00",
+          },
+          revisions: [],
+        });
+      }
+
+      throw new Error(`Unexpected fetch URL: ${url}`);
+    });
+
+    vi.stubGlobal("fetch", fetchMock);
+    render(<App />);
+
+    fireEvent.click(await screen.findByRole("button", { name: /catalog/i }));
+    fireEvent.click(within(screen.getByRole("group", { name: "Business filter" })).getByRole("button", { name: "default" }));
+    fireEvent.click(within(screen.getByRole("group", { name: "Environment filter" })).getByRole("button", { name: "dev" }));
+    expect(await screen.findByText("Seller Ops")).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText(/target business id/i), { target: { value: "otherbiz" } });
+    fireEvent.change(screen.getByLabelText(/target environment/i), { target: { value: "stage" } });
+    fireEvent.click(screen.getByRole("button", { name: /install seller ops/i }));
+
+    expect(await screen.findByText(/installed seller ops as seller-ops in otherbiz\/stage\./i)).toBeInTheDocument();
+    expect(screen.getByRole("status")).toHaveTextContent(/outside the current filtered view/i);
   });
 });

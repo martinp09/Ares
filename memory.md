@@ -167,12 +167,41 @@
 ## Open Work
 
 1. keep Phase 6 closed through `P6.5` unless a fresh blocker appears
-2. treat `P7.1` backend/domain work as implemented and verified locally; the next slice is `P7.2` catalog UI
+2. treat Phase 7 (`P7.1` + `P7.2` + `P7.3`) as implemented, QC-fixed, and locally verified; the next step is commit/push for the combined diff
 3. keep browser acquisition and ambiguous research in Hermes or other driver agents, not inside Ares
 4. add durable Trigger lead-machine jobs only where sync paths become operationally risky
 5. keep `docs/superpowers/plans/2026-04-13-hermes-mission-control-orchestration-plan.md` and `docs/superpowers/plans/2026-04-15-ares-enterprise-agent-platform-implementation-plan.md` as live source inputs for this branch scope
 
 ## Change Log
+
+### 2026-04-23 Phase 7 QC Fix Follow-up
+
+- Closed the two Phase 7 QC findings without widening scope:
+  - `marketplace_publication_enabled` now derives live from config at read time instead of being persisted as stale point-in-time truth in catalog records
+  - Mission Control catalog install copy now speaks in terms of selected target scope, and install success messaging explicitly reports when the install landed outside the current filtered view
+- Updated `app/models/catalog.py`, `app/db/catalog.py`, and `app/services/catalog_service.py` so catalog responses keep visibility metadata truthful even if the marketplace-publication gate flips after the entry was created.
+- Updated `apps/mission-control/src/App.tsx`, `apps/mission-control/src/pages/CatalogPage.tsx`, `apps/mission-control/src/components/AgentInstallWizard.tsx`, and related frontend tests so scope-switch/install messaging stays honest and same-scope installs still refresh the visible agents surface.
+- Added/updated regressions in `tests/api/test_catalog.py`, `tests/db/test_catalog_repository.py`, `apps/mission-control/src/App.test.tsx`, and `apps/mission-control/src/pages/CatalogPage.test.tsx`.
+- Verified with `npm --prefix apps/mission-control run test -- --run src/App.test.tsx src/pages/CatalogPage.test.tsx src/lib/api.test.ts` (`32 passed`), `npm --prefix apps/mission-control run test -- --run` (`20 files passed`, `59 tests passed`), `npm --prefix apps/mission-control run typecheck`, `npm --prefix apps/mission-control run build`, `./.venv/bin/python -m pytest tests/api/test_catalog.py tests/db/test_catalog_repository.py tests/api/test_agent_installs.py tests/api/test_agents.py -q` (`24 passed`), and `./.venv/bin/python -m pytest -q` (`469 passed, 5 warnings`).
+
+### 2026-04-23 Phase 7 Slice P7.3 Marketplace Readiness Flags
+
+- Added a fail-closed marketplace publication gate in `app/core/config.py` + `app/services/agent_registry_service.py`: `marketplace_published` is now blocked by default unless `marketplace_publish_enabled` is explicitly turned on, so public launch cannot happen by accident.
+- Extended catalog metadata in `app/models/catalog.py`, `app/db/catalog.py`, and `app/services/catalog_service.py` so catalog entries now expose source-agent visibility plus a derived `marketplace_publication_enabled` flag while remaining org-scoped internal catalog records.
+- Updated Mission Control catalog mapping + UI (`apps/mission-control/src/lib/api.ts`, `apps/mission-control/src/lib/fixtures.ts`, `apps/mission-control/src/pages/CatalogPage.tsx`) so operators can see listing visibility and whether public launch is still disabled without implying an actual marketplace rollout.
+- Added focused regressions for the new gate + metadata in `tests/api/test_agents.py`, `tests/api/test_catalog.py`, `tests/api/test_agent_installs.py`, `tests/db/test_catalog_repository.py`, `apps/mission-control/src/lib/api.test.ts`, and `apps/mission-control/src/pages/CatalogPage.test.tsx`.
+- Verified with `./.venv/bin/python -m pytest tests/api/test_catalog.py tests/api/test_agent_installs.py -q` (`6 passed`), `./.venv/bin/python -m pytest tests/api/test_agents.py tests/api/test_catalog.py tests/api/test_agent_installs.py tests/db/test_catalog_repository.py -q` (`23 passed`), `npm --prefix apps/mission-control run test -- --run` (`20 files passed`, `58 tests passed`), `npm --prefix apps/mission-control run typecheck`, `npm --prefix apps/mission-control run build`, and `./.venv/bin/python -m pytest -q` (`468 passed, 5 warnings`).
+
+### 2026-04-23 Phase 7 Slice P7.2 Catalog UI
+
+- Added `apps/mission-control/src/pages/CatalogPage.tsx`, `apps/mission-control/src/components/AgentInstallWizard.tsx`, and `apps/mission-control/src/pages/CatalogPage.test.tsx` to expose the internal catalog as a bounded Mission Control surface on top of the already-landed `P7.1` backend APIs.
+- Updated `apps/mission-control/src/App.tsx`, `apps/mission-control/src/lib/api.ts`, `apps/mission-control/src/lib/fixtures.ts`, `apps/mission-control/src/App.test.tsx`, and `apps/mission-control/src/lib/api.test.ts` so the shell can fetch catalog entries, install a selected entry into the current runtime scope, and keep the UI truthful about org scope + fallback state.
+- Closed the main truthfulness risks discovered during review:
+  - fixture-backed catalog entries are visible for dogfood inspection but installs are disabled until `/catalog` is live again
+  - catalog entries now carry `orgId`, are normalized to the selected org scope, and neutralize outside the internal org instead of leaking internal fixtures
+  - install success/failure writes are dropped when the operator changes scope mid-request
+- Added focused regressions covering catalog mapping/install behavior, fixture-backed install disabling, and org-scope neutralization in `apps/mission-control/src/App.test.tsx`, `apps/mission-control/src/lib/api.test.ts`, and `apps/mission-control/src/pages/CatalogPage.test.tsx`.
+- Verified with `npm --prefix apps/mission-control run test -- --run` (`20 files passed`, `58 tests passed`), `npm --prefix apps/mission-control run typecheck`, `npm --prefix apps/mission-control run build`, and `./.venv/bin/python -m pytest -q` (`465 passed, 5 warnings`).
 
 ### 2026-04-23 Phase 7 Slice P7.1 Catalog Domain (backend/domain)
 

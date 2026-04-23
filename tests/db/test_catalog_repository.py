@@ -16,6 +16,7 @@ def test_catalog_repository_creates_and_lists_entries_by_org() -> None:
         name="Seller Ops",
         summary="Internal seller ops package",
         description="Alpha org internal package",
+        visibility="private_catalog",
         host_adapter_kind=HostAdapterKind.TRIGGER_DEV,
         provider_kind=ProviderKind.ANTHROPIC,
         provider_capabilities=[ProviderCapability.TOOL_CALLS],
@@ -31,6 +32,7 @@ def test_catalog_repository_creates_and_lists_entries_by_org() -> None:
         name="Seller Ops",
         summary="Beta org package",
         description=None,
+        visibility="marketplace_candidate",
         host_adapter_kind=HostAdapterKind.TRIGGER_DEV,
         provider_kind=ProviderKind.ANTHROPIC,
         provider_capabilities=[],
@@ -38,6 +40,9 @@ def test_catalog_repository_creates_and_lists_entries_by_org() -> None:
     )
 
     assert repository.get(alpha_entry.id) == alpha_entry
+    assert alpha_entry.visibility == "private_catalog"
+    assert alpha_entry.marketplace_publication_enabled is False
+    assert beta_entry.visibility == "marketplace_candidate"
     assert [entry.id for entry in repository.list(org_id="org_alpha")] == [alpha_entry.id]
     assert [entry.id for entry in repository.list(org_id="org_beta")] == [beta_entry.id]
 
@@ -54,6 +59,7 @@ def test_catalog_repository_rejects_duplicate_slugs_within_an_org() -> None:
         name="Seller Ops",
         summary="Internal seller ops package",
         description=None,
+        visibility="private_catalog",
         host_adapter_kind=HostAdapterKind.TRIGGER_DEV,
         provider_kind=ProviderKind.ANTHROPIC,
         provider_capabilities=[],
@@ -68,6 +74,7 @@ def test_catalog_repository_rejects_duplicate_slugs_within_an_org() -> None:
             name="Seller Ops Copy",
             summary="Should fail",
             description=None,
+            visibility="private_catalog",
             host_adapter_kind=HostAdapterKind.TRIGGER_DEV,
             provider_kind=ProviderKind.ANTHROPIC,
             provider_capabilities=[],
