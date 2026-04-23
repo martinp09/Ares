@@ -36,87 +36,51 @@ current_branch: "feature/mission-control-enterprise-backlog"
 
 ## Current status
 
-There is no active Phase 6 slice anymore. `P6.1` through `P6.5` are closed on this branch.
-
 ### Phase 6 final closeout
 
 - `P6.3` added release/host visibility to the Mission Control shell through the agents-first workflow.
 - `P6.4` added read-only governance surfaces for secrets health, audit, usage, and settings.
 - `P6.5` added org-aware navigation/filtering while keeping `business_id + environment` alive as secondary scope and preserving the non-Supabase path.
+- Phase 6 remains closed unless a fresh blocker appears.
 
-### Final P6.5 blocker fixes landed
+### Phase 7 current state
 
-1. Prior-scope detail now stays neutral during org/business/environment and conversation switches instead of rendering stale inbox or agent detail while reloads are in flight.
-2. Fallback rendering now respects secondary business/environment filters without leaking unscoped fixture agents/runs.
-3. Org-only fixture fallback now fails neutral for dashboard/inbox/tasks/approvals/settings surfaces instead of relabeling internal fixture truth under another org.
-4. Settings assets now re-fetch on `business_id` / `environment` changes because the cache key matches the scoped request contract.
+- `P7.1` backend/domain work is now implemented locally and verified.
+- The new backend slice adds:
+  - catalog entries that point at agent revisions
+  - derived host/provider/skill/secret/release compatibility metadata
+  - install lineage records that preserve source agent/revision context
+  - `/catalog` and `/agent-installs` API surfaces
+- Installs preserve runtime semantics by reusing the existing agent-creation contract rather than inventing a parallel execution path.
 
-### Files changed across the final Phase 6 slices
+### Latest verification evidence
 
-- Backend:
-  - `app/services/organization_service.py`
-  - `app/models/mission_control.py`
-  - `app/services/mission_control_service.py`
-  - `tests/api/test_mission_control.py`
-  - `tests/api/test_organizations.py`
-  - `tests/services/test_mission_control_service.py`
-- Frontend:
-  - `apps/mission-control/src/App.tsx`
-  - `apps/mission-control/src/App.test.tsx`
-  - `apps/mission-control/src/lib/api.ts`
-  - `apps/mission-control/src/lib/api.test.ts`
-  - `apps/mission-control/src/components/MissionControlShell.tsx`
-  - `apps/mission-control/src/components/MissionControlShell.test.tsx`
-  - `apps/mission-control/src/components/OrgSwitcher.tsx`
-  - `apps/mission-control/src/components/OrgSwitcher.test.tsx`
-  - `apps/mission-control/src/pages/InboxPage.tsx`
-  - `apps/mission-control/src/pages/InboxPage.test.tsx`
-  - `apps/mission-control/src/pages/AgentDetailPage.tsx`
-  - `apps/mission-control/src/pages/AgentDetailPage.test.tsx`
-  - `apps/mission-control/src/pages/AgentsPage.tsx`
-  - `apps/mission-control/src/pages/AgentsPage.test.tsx`
-  - `apps/mission-control/src/pages/SettingsPage.tsx`
-  - `apps/mission-control/src/pages/SettingsPage.test.tsx`
-  - `apps/mission-control/src/components/AgentReleasePanel.tsx`
-  - `apps/mission-control/src/components/HostAdapterBadge.tsx`
-  - `apps/mission-control/src/components/SecretHealthPanel.tsx`
-  - `apps/mission-control/src/components/SecretHealthPanel.test.tsx`
-  - `apps/mission-control/src/components/AuditTimeline.tsx`
-  - `apps/mission-control/src/components/AuditTimeline.test.tsx`
-  - `apps/mission-control/src/components/UsagePanel.tsx`
-  - `apps/mission-control/src/components/UsagePanel.test.tsx`
-  - `apps/mission-control/src/pages/SecretsPage.tsx`
-  - `apps/mission-control/src/pages/SecretsPage.test.tsx`
-  - `apps/mission-control/src/pages/AuditPage.tsx`
-  - `apps/mission-control/src/pages/AuditPage.test.tsx`
-  - `apps/mission-control/src/pages/UsagePage.tsx`
-  - `apps/mission-control/src/pages/UsagePage.test.tsx`
-  - `apps/mission-control/src/lib/fixtures.ts`
-  - `apps/mission-control/src/styles.css`
-
-### Final verification evidence
-
-Frontend:
+Phase 6 recorded branch evidence:
 - `npm --prefix apps/mission-control run test -- --run` → `19 files passed`, `52 tests passed`
 - `npm --prefix apps/mission-control run typecheck` → pass
 - `npm --prefix apps/mission-control run build` → pass
+- targeted backend gate on the branch closeout → `53 passed`
+- backend full suite on the branch closeout → `458 passed, 5 warnings`
+- fresh `gpt-5.4` XHIGH QC approved the Phase 6 closeout
 
-Backend targeted:
-- `/Users/solomartin/Projects/Ares/.venv/bin/python -m pytest tests/api/test_mission_control.py tests/api/test_agents.py tests/api/test_release_management.py tests/api/test_organizations.py tests/services/test_mission_control_service.py -q` → `53 passed`
-
-Backend full suite:
-- `/Users/solomartin/Projects/Ares/.venv/bin/python -m pytest -q` → `458 passed, 5 warnings`
+P7.1 local backend evidence:
+- `./.venv/bin/python -m pytest tests/db/test_catalog_repository.py tests/db/test_agent_install_repository.py tests/api/test_catalog.py tests/api/test_agent_installs.py tests/api/test_agents.py -q` → `21 passed`
+- `./.venv/bin/python -m pytest -q` → `460 passed, 5 warnings`
 
 Known warnings:
 - existing `HTTP_422_UNPROCESSABLE_ENTITY` deprecation warnings in older tests
 
-QC:
-- fresh `gpt-5.4` XHIGH QC review approved the current `P6.5` diff with no remaining blocker-level findings
+## Recommended next slice
 
-## Smallest safe next step for the next session
+### P7.2 — Internal catalog UI
 
-1. Keep Phase 6 closed.
-2. Start any post-Phase-6 branch work only with a fresh bounded handoff from the master plan.
+The backend/domain layer for `P7.1` is implemented locally and green.
+
+Next up from the sliced execution plan:
+- add catalog browse/install UX in Mission Control
+- show compatibility requirements before install
+- surface install failure reasons before runtime
+- keep marketplace/public distribution deferred
 
 ## Repo cleanup check already performed
 

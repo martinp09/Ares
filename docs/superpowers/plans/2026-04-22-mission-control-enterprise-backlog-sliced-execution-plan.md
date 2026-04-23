@@ -770,6 +770,8 @@ Run:
 
 ### Slice P7.1 — Add the catalog domain
 
+**Status note (2026-04-23):** backend/domain portion implemented and verified on the active branch. Mission Control UI work remains in `P7.2`.
+
 **Files:**
 - Create: `app/models/catalog.py`
 - Create: `app/models/agent_installs.py`
@@ -780,27 +782,32 @@ Run:
 - Create: `app/api/catalog.py`
 - Create: `app/api/agent_installs.py`
 - Modify: `app/main.py`
+- Modify: `app/db/client.py`
 - Test: `tests/db/test_catalog_repository.py`
 - Test: `tests/db/test_agent_install_repository.py`
 - Test: `tests/api/test_catalog.py`
 - Test: `tests/api/test_agent_installs.py`
 
-- [ ] **Step 1: Add catalog entries that point at agent revisions**
-- [ ] **Step 2: Add host/skill/secret/release compatibility metadata**
-- [ ] **Step 3: Add install record model and lineage preservation**
-- [ ] **Step 4: Run targeted catalog/install tests**
+- [x] **Step 1: Add catalog entries that point at agent revisions**
+- [x] **Step 2: Add host/skill/secret/release compatibility metadata**
+- [x] **Step 3: Add install record model and lineage preservation**
+- [x] **Step 4: Run targeted catalog/install tests**
 
 Run:
 ```bash
-./.venv/bin/python -m pytest tests/db/test_catalog_repository.py tests/db/test_agent_install_repository.py tests/api/test_catalog.py tests/api/test_agent_installs.py -q
+./.venv/bin/python -m pytest tests/db/test_catalog_repository.py tests/db/test_agent_install_repository.py tests/api/test_catalog.py tests/api/test_agent_installs.py tests/api/test_agents.py -q
 ```
 
-- [ ] **Step 5: Run full tests**
+- [x] **Step 5: Run full tests**
 
 Run:
 ```bash
 ./.venv/bin/python -m pytest -q
 ```
+
+**Verification snapshot (2026-04-23):**
+- `./.venv/bin/python -m pytest tests/db/test_catalog_repository.py tests/db/test_agent_install_repository.py tests/api/test_catalog.py tests/api/test_agent_installs.py tests/api/test_agents.py -q` → `21 passed`
+- `./.venv/bin/python -m pytest -q` → `460 passed, 5 warnings`
 
 **Exit gate:**
 - catalog and install domain exists without changing execution semantics.

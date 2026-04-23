@@ -167,12 +167,20 @@
 ## Open Work
 
 1. keep Phase 6 closed through `P6.5` unless a fresh blocker appears
-2. start any post-Phase-6 work only with a fresh bounded handoff from the master plan
+2. treat `P7.1` backend/domain work as implemented and verified locally; the next slice is `P7.2` catalog UI
 3. keep browser acquisition and ambiguous research in Hermes or other driver agents, not inside Ares
 4. add durable Trigger lead-machine jobs only where sync paths become operationally risky
 5. keep `docs/superpowers/plans/2026-04-13-hermes-mission-control-orchestration-plan.md` and `docs/superpowers/plans/2026-04-15-ares-enterprise-agent-platform-implementation-plan.md` as live source inputs for this branch scope
 
 ## Change Log
+
+### 2026-04-23 Phase 7 Slice P7.1 Catalog Domain (backend/domain)
+
+- Added `app/models/catalog.py`, `app/models/agent_installs.py`, `app/db/catalog.py`, `app/db/agent_installs.py`, `app/services/catalog_service.py`, `app/services/agent_install_service.py`, `app/api/catalog.py`, and `app/api/agent_installs.py` for the first bounded internal catalog/install domain.
+- Updated `app/db/client.py` and `app/main.py` so the in-memory control-plane store now tracks catalog entries + install lineage and the new routers are mounted behind the existing runtime API-key guard.
+- Kept execution semantics stable by making installs reuse the existing agent-creation contract: catalog entries point at agent revisions with derived host/provider/skill/secret/release compatibility metadata, while installs create new agent/revision records plus a first-class install lineage record instead of adding a parallel runtime path.
+- Added focused repository/API coverage in `tests/db/test_catalog_repository.py`, `tests/db/test_agent_install_repository.py`, `tests/api/test_catalog.py`, and `tests/api/test_agent_installs.py`.
+- Verified with `./.venv/bin/python -m pytest tests/db/test_catalog_repository.py tests/db/test_agent_install_repository.py tests/api/test_catalog.py tests/api/test_agent_installs.py tests/api/test_agents.py -q` (`21 passed`) and `./.venv/bin/python -m pytest -q` (`460 passed, 5 warnings`).
 
 ### 2026-04-23 Phase 6 Completion Through P6.5 (QC-approved)
 
