@@ -8,6 +8,7 @@ describe("AgentsPage", () => {
     render(
       <AgentsPage
         agents={missionControlFixtures.agents}
+        dataSource="fixture"
         workspaceLabel="Lead Machine"
         operatorViews={[
           {
@@ -43,8 +44,11 @@ describe("AgentsPage", () => {
     );
 
     expect(screen.getByRole("heading", { name: "Agent platform cockpit" })).toBeInTheDocument();
-    expect(screen.getByText("Fixture-backed / no Supabase wiring")).toBeInTheDocument();
+    expect(screen.getByText("Fixture fallback / no Supabase wiring")).toBeInTheDocument();
     expect(screen.getByText("Agents are the product unit here. The rest is just scaffolding until live runtime wiring is turned on later.")).toBeInTheDocument();
+    expect(
+      screen.getByText(/Select an agent from the registry to inspect revisions, release posture, secrets, audit, usage, and recent turns./i),
+    ).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Operator views around agents" })).toBeInTheDocument();
     expect(screen.getByText("Lead Machine operator workspace")).toBeInTheDocument();
     expect(screen.getByText("Queue")).toBeInTheDocument();
@@ -73,6 +77,7 @@ describe("AgentsPage", () => {
     expect(within(delegatedWorkCard).getByText("6")).toBeInTheDocument();
 
     expect(screen.getByText(/featured agent: sierra inbox agent/i)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /view lifecycle for sierra inbox agent/i })).toBeInTheDocument();
     expect(screen.getByText("Agent registry")).toBeInTheDocument();
     expect(screen.getByText("2 tracked")).toBeInTheDocument();
   });

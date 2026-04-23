@@ -181,6 +181,254 @@ describe("Mission Control API client", () => {
     });
   });
 
+  it("aggregates a read-only agent lifecycle detail view from existing typed endpoints", async () => {
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+      const url = input.toString();
+      if (url.endsWith("/agents/agt-1")) {
+        return jsonResponse({
+          agent: {
+            id: "agt-1",
+            name: "Lifecycle Agent",
+            slug: "lifecycle-agent",
+            description: "Read-only detail agent",
+            business_id: "limitless",
+            environment: "production",
+            lifecycle_status: "active",
+            active_revision_id: "rev-2",
+            active_revision_state: "published",
+          },
+          revisions: [
+            {
+              id: "rev-1",
+              agent_id: "agt-1",
+              revision_number: 1,
+              state: "published",
+              host_adapter_kind: "trigger_dev",
+              provider_kind: "anthropic",
+              provider_capabilities: ["chat"],
+              skill_ids: ["skill.one"],
+              compatibility_metadata: { requires_secrets: ["textgrid_auth_token"] },
+              release_channel: "dogfood",
+              created_at: "2026-04-16T20:00:00+00:00",
+              updated_at: "2026-04-16T20:01:00+00:00",
+              published_at: "2026-04-16T20:02:00+00:00",
+            },
+            {
+              id: "rev-2",
+              agent_id: "agt-1",
+              revision_number: 2,
+              state: "published",
+              host_adapter_kind: "trigger_dev",
+              provider_kind: "anthropic",
+              provider_capabilities: ["chat", "tool_calling"],
+              skill_ids: ["skill.one", "skill.two"],
+              compatibility_metadata: { requires_secrets: ["textgrid_auth_token", "resend_api_key"] },
+              release_channel: "dogfood",
+              release_notes: "Known-good rollback clone.",
+              created_at: "2026-04-16T21:00:00+00:00",
+              updated_at: "2026-04-16T21:01:00+00:00",
+              published_at: "2026-04-16T21:02:00+00:00",
+              cloned_from_revision_id: "rev-1",
+            },
+          ],
+        });
+      }
+      if (url.endsWith("/release-management/agents/agt-1/events")) {
+        return jsonResponse({
+          events: [
+            {
+              id: "rle-1",
+              event_type: "rollback",
+              actor_id: "ops-42",
+              actor_type: "user",
+              previous_active_revision_id: "rev-3",
+              target_revision_id: "rev-1",
+              resulting_active_revision_id: "rev-2",
+              release_channel: "dogfood",
+              notes: "Rollback to the last known-good revision.",
+              created_at: "2026-04-16T21:03:00+00:00",
+              evaluation_summary: {
+                outcome_id: "out-1",
+                outcome_name: "rollback_assessment",
+                status: "failed",
+                satisfied: false,
+                evaluator_result: "Regression confirmed.",
+                failure_details: ["reply quality regressed"],
+                rubric_criteria: ["known good revision exists"],
+                require_passing_evaluation: false,
+                blocked_promotion: false,
+                rollback_reason: "Operator reported a regression",
+              },
+            },
+          ],
+        });
+      }
+      if (url.includes("/mission-control/audit?agent_id=agt-1")) {
+        return jsonResponse({
+          events: [
+            {
+              id: "audit-1",
+              event_type: "release_rolled_back",
+              summary: "Lifecycle agent was rolled back.",
+              resource_type: "agent_release",
+              resource_id: "rle-1",
+              created_at: "2026-04-16T21:03:00+00:00",
+            },
+          ],
+        });
+      }
+      if (url.includes("/usage?agent_id=agt-1")) {
+        return jsonResponse({
+          summary: {
+            total_count: 5,
+            by_kind: { tool_call: 3, host_dispatch: 2 },
+            by_source_kind: [{ key: "hermes", label: "hermes", count: 3, last_used_at: "2026-04-16T21:04:00+00:00" }],
+            by_agent: [{ key: "agt-1", label: "Lifecycle Agent", count: 5, last_used_at: "2026-04-16T21:04:00+00:00" }],
+            updated_at: "2026-04-16T21:04:00+00:00",
+          },
+          events: [
+            {
+              id: "usage-1",
+              kind: "tool_call",
+              count: 3,
+              source_kind: "hermes",
+              created_at: "2026-04-16T21:04:00+00:00",
+            },
+          ],
+        });
+      }
+      if (url.endsWith("/mission-control/turns")) {
+        return jsonResponse({
+          turns: [
+            {
+              id: "turn-1",
+              session_id: "session-1",
+              business_id: "limitless",
+              environment: "production",
+              agent_id: "agt-1",
+              agent_revision_id: "rev-2",
+              turn_number: 1,
+              state: "completed",
+              retry_count: 0,
+              updated_at: "2026-04-16T21:05:00+00:00",
+            },
+            {
+              id: "turn-2",
+              session_id: "session-2",
+              business_id: "limitless",
+              environment: "production",
+              agent_id: "agt-other",
+              agent_revision_id: "rev-9",
+              turn_number: 2,
+              state: "completed",
+              retry_count: 0,
+              updated_at: "2026-04-16T21:06:00+00:00",
+            },
+          ],
+        });
+      }
+      if (url.endsWith("/mission-control/settings/secrets/revisions/rev-2")) {
+        return jsonResponse({
+          bindings: [{ binding_name: "textgrid_auth_token" }],
+        });
+      }
+      throw new Error(`Unexpected URL ${url}`);
+    });
+
+    const api = createMissionControlApi({ fetchImpl: fetchMock as typeof fetch });
+    const detail = await api.getAgentDetail("agt-1");
+
+    expect(detail.agent).toMatchObject({
+      id: "agt-1",
+      activeRevisionId: "rev-2",
+      activeRevisionState: "published",
+    });
+    expect(detail.revisions[1]).toMatchObject({
+      id: "rev-2",
+      skillIds: ["skill.one", "skill.two"],
+      requiredSecrets: ["textgrid_auth_token", "resend_api_key"],
+    });
+    expect(detail.secretsHealth).toMatchObject({
+      revisionId: "rev-2",
+      configuredSecrets: ["textgrid_auth_token"],
+      missingSecrets: ["resend_api_key"],
+      status: "attention",
+    });
+    expect(detail.releaseHistory).toHaveLength(1);
+    expect(detail.releaseHistory[0]).toMatchObject({
+      eventType: "rollback",
+      targetRevisionId: "rev-1",
+      evaluation: { rollbackReason: "Operator reported a regression" },
+    });
+    expect(detail.recentTurns).toHaveLength(1);
+    expect(detail.usageSummary.totalCount).toBe(5);
+    expect(detail.recentAudit[0].eventType).toBe("release_rolled_back");
+  });
+
+  it("keeps live agent detail when auxiliary detail endpoints fail", async () => {
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+      const url = input.toString();
+      if (url.endsWith("/agents/agt-1")) {
+        return jsonResponse({
+          agent: {
+            id: "agt-1",
+            name: "Lifecycle Agent",
+            slug: "lifecycle-agent",
+            business_id: "limitless",
+            environment: "production",
+            lifecycle_status: "active",
+            active_revision_id: "rev-2",
+            active_revision_state: "published",
+          },
+          revisions: [
+            {
+              id: "rev-2",
+              agent_id: "agt-1",
+              revision_number: 2,
+              state: "published",
+              host_adapter_kind: "trigger_dev",
+              provider_kind: "anthropic",
+              provider_capabilities: ["chat"],
+              skill_ids: ["skill.one"],
+              compatibility_metadata: { requires_secrets: ["textgrid_auth_token"] },
+              release_channel: "dogfood",
+              created_at: "2026-04-16T21:00:00+00:00",
+              updated_at: "2026-04-16T21:01:00+00:00",
+            },
+          ],
+        });
+      }
+      if (url.endsWith("/release-management/agents/agt-1/events") || url.includes("/mission-control/audit?agent_id=agt-1") || url.includes("/usage?agent_id=agt-1")) {
+        throw new Error("transient detail dependency failure");
+      }
+      if (url.endsWith("/mission-control/turns")) {
+        return jsonResponse({ turns: [] });
+      }
+      if (url.includes("/mission-control/settings/secrets/revisions/rev-2")) {
+        throw new Error("bindings temporarily unavailable");
+      }
+      throw new Error(`Unexpected URL ${url}`);
+    });
+
+    const api = createMissionControlApi({ fetchImpl: fetchMock as typeof fetch });
+    const detail = await api.getAgentDetail("agt-1");
+
+    expect(detail.agent).toMatchObject({
+      id: "agt-1",
+      name: "Lifecycle Agent",
+      activeRevisionId: "rev-2",
+    });
+    expect(detail.revisions).toHaveLength(1);
+    expect(detail.releaseHistory).toEqual([]);
+    expect(detail.recentAudit).toEqual([]);
+    expect(detail.recentUsage).toEqual([]);
+    expect(detail.usageSummary.totalCount).toBe(0);
+    expect(detail.secretsHealth).toBeNull();
+    expect(detail.degradedSections).toEqual(
+      expect.arrayContaining(["releaseHistory", "recentAudit", "usage", "secretsHealth"]),
+    );
+  });
+
   it("exposes compact fixture data for the marketing manual-call lane", () => {
     expect(missionControlFixtures.dashboard.opportunityCount).toBeGreaterThan(0);
     expect(missionControlFixtures.dashboard.opportunityStageSummaries).toEqual(

@@ -11,6 +11,9 @@ export interface AgentsPageOperatorView {
 
 interface AgentsPageProps {
   agents: AgentSummary[];
+  dataSource?: "api" | "fixture";
+  onSelectAgent?: (agentId: string) => void;
+  selectedAgentId?: string | null;
   workspaceLabel: string;
   operatorViews: AgentsPageOperatorView[];
 }
@@ -33,7 +36,14 @@ function summarizeRelease(agent: AgentSummary): string {
   return `${release.eventType} · ${release.releaseChannel ?? "internal"} · ${evaluationLabel}`;
 }
 
-export function AgentsPage({ agents, workspaceLabel, operatorViews }: AgentsPageProps) {
+export function AgentsPage({
+  agents,
+  dataSource = "fixture",
+  workspaceLabel,
+  operatorViews,
+  onSelectAgent,
+  selectedAgentId,
+}: AgentsPageProps) {
   const publishedCount = getPublishedCount(agents);
   const environmentCount = new Set(agents.map((agent) => agent.environment)).size;
   const liveSessionCount = agents.reduce((total, agent) => total + agent.liveSessionCount, 0);
@@ -48,7 +58,7 @@ export function AgentsPage({ agents, workspaceLabel, operatorViews }: AgentsPage
       <section className="panel-stack">
         <div className="section-heading">
           <h3>Agent platform cockpit</h3>
-          <span>Fixture-backed / no Supabase wiring</span>
+          <span>{dataSource === "api" ? "Live API / no Supabase wiring" : "Fixture fallback / no Supabase wiring"}</span>
         </div>
         <div className="summary-grid summary-grid--secondary">
           <article className="summary-card summary-card--compact">
@@ -79,6 +89,7 @@ export function AgentsPage({ agents, workspaceLabel, operatorViews }: AgentsPage
         <p className="panel-copy">
           Agents are the product unit here. The rest is just scaffolding until live runtime wiring is turned on later.
         </p>
+        <p className="panel-copy">Select an agent from the registry to inspect revisions, release posture, secrets, audit, usage, and recent turns.</p>
         {featuredAgent ? (
           <p className="panel-copy">
             Featured agent: {featuredAgent.name} — {summarizeRelease(featuredAgent)} in {featuredAgent.environment}.
@@ -149,7 +160,7 @@ export function AgentsPage({ agents, workspaceLabel, operatorViews }: AgentsPage
         )}
       </section>
 
-      <AgentRegistryTable agents={agents} />
+      <AgentRegistryTable agents={agents} onSelectAgent={onSelectAgent} selectedAgentId={selectedAgentId} />
     </div>
   );
 }

@@ -229,6 +229,76 @@ export interface AgentSummary {
   release?: AgentReleaseState;
 }
 
+export interface AgentRecordState {
+  id: string;
+  name: string;
+  slug: string;
+  description: string | null;
+  businessId: string;
+  environment: string;
+  lifecycleStatus: string;
+  activeRevisionId: string | null;
+  activeRevisionState: string;
+}
+
+export interface AgentRevisionDetail {
+  id: string;
+  agentId: string;
+  revisionNumber: number;
+  state: string;
+  hostAdapterKind: string;
+  providerKind: string;
+  providerCapabilities: string[];
+  skillIds: string[];
+  requiredSecrets: string[];
+  releaseChannel: string;
+  releaseNotes: string | null;
+  createdAt: string;
+  updatedAt: string;
+  publishedAt: string | null;
+  archivedAt: string | null;
+  clonedFromRevisionId: string | null;
+}
+
+export interface AgentReleaseEvent {
+  id: string;
+  eventType: ReleaseEventType;
+  actorId: string;
+  actorType: string;
+  previousActiveRevisionId: string | null;
+  targetRevisionId: string;
+  resultingActiveRevisionId: string;
+  releaseChannel: string | null;
+  notes: string | null;
+  createdAt: string;
+  evaluation?: ReleaseEvaluationState;
+}
+
+export interface AgentSecretsHealth {
+  revisionId: string;
+  status: "healthy" | "attention";
+  requiredSecretCount: number;
+  configuredSecretCount: number;
+  missingSecretCount: number;
+  requiredSecrets: string[];
+  configuredSecrets: string[];
+  missingSecrets: string[];
+}
+
+export type AgentDetailDegradedSection = "revisions" | "releaseHistory" | "secretsHealth" | "recentAudit" | "usage" | "recentTurns";
+
+export interface AgentDetailData {
+  agent: AgentRecordState;
+  revisions: AgentRevisionDetail[];
+  releaseHistory: AgentReleaseEvent[];
+  secretsHealth: AgentSecretsHealth | null;
+  recentAudit: GovernanceAuditEvent[];
+  usageSummary: GovernanceUsageSummary;
+  recentUsage: GovernanceUsageEvent[];
+  recentTurns: TurnSummary[];
+  degradedSections: AgentDetailDegradedSection[];
+}
+
 export interface AssetSummary {
   id: string;
   name: string;
@@ -323,6 +393,7 @@ export interface MissionControlApi {
   getApprovals(): Promise<ApprovalItem[]>;
   getRuns(): Promise<RunSummary[]>;
   getAgents(): Promise<AgentSummary[]>;
+  getAgentDetail(agentId: string): Promise<AgentDetailData>;
   getAssets(): Promise<AssetSummary[]>;
   getGovernance(): Promise<GovernanceData>;
 }
@@ -570,6 +641,9 @@ interface AgentPayload {
   business_id?: string;
   environment?: string;
   name?: string;
+  slug?: string;
+  description?: string | null;
+  lifecycle_status?: string;
   active_revision_id?: string | null;
   active_revision_state?: string;
   live_session_count?: number;
@@ -579,7 +653,21 @@ interface AgentPayload {
 
 interface AgentRevisionPayload {
   id?: string;
+  agent_id?: string;
+  revision_number?: number;
   state?: string;
+  host_adapter_kind?: string;
+  provider_kind?: string;
+  provider_capabilities?: string[];
+  skill_ids?: string[];
+  compatibility_metadata?: Record<string, unknown>;
+  release_channel?: string;
+  release_notes?: string | null;
+  created_at?: string;
+  updated_at?: string;
+  published_at?: string | null;
+  archived_at?: string | null;
+  cloned_from_revision_id?: string | null;
 }
 
 interface AgentResponsePayload {
@@ -589,6 +677,89 @@ interface AgentResponsePayload {
 
 interface MissionControlAgentsPayload {
   agents?: Array<AgentPayload | AgentResponsePayload>;
+}
+
+interface ReleaseEventPayload {
+  id?: string;
+  event_type?: string;
+  actor_id?: string;
+  actor_type?: string;
+  previous_active_revision_id?: string | null;
+  target_revision_id?: string;
+  resulting_active_revision_id?: string;
+  release_channel?: string | null;
+  notes?: string | null;
+  evaluation_summary?: ReleaseEvaluationPayload | null;
+  created_at?: string;
+}
+
+interface ReleaseEventListPayload {
+  events?: ReleaseEventPayload[];
+}
+
+interface SecretBindingPayload {
+  binding_name?: string;
+}
+
+interface SecretBindingListPayload {
+  bindings?: SecretBindingPayload[];
+}
+
+interface AuditPayload {
+  id?: string;
+  event_type?: string;
+  summary?: string;
+  resource_type?: string | null;
+  resource_id?: string | null;
+  created_at?: string;
+}
+
+interface AuditListPayload {
+  events?: AuditPayload[];
+}
+
+interface UsageBucketPayload {
+  key?: string;
+  label?: string;
+  count?: number;
+  last_used_at?: string | null;
+}
+
+interface UsageEventPayload {
+  id?: string;
+  kind?: string;
+  count?: number;
+  source_kind?: string | null;
+  created_at?: string;
+}
+
+interface UsageResponsePayload {
+  summary?: {
+    total_count?: number;
+    by_kind?: Record<string, number>;
+    by_source_kind?: UsageBucketPayload[];
+    by_agent?: UsageBucketPayload[];
+    updated_at?: string;
+  };
+  events?: UsageEventPayload[];
+}
+
+interface TurnPayload {
+  id?: string;
+  session_id?: string;
+  business_id?: string;
+  environment?: string;
+  agent_id?: string;
+  agent_revision_id?: string;
+  turn_number?: number;
+  state?: string;
+  retry_count?: number;
+  resumed_from_turn_id?: string | null;
+  updated_at?: string;
+}
+
+interface TurnsPayload {
+  turns?: TurnPayload[];
 }
 
 interface AssetPayload {
@@ -1214,6 +1385,202 @@ function mapAssets(payload: MissionControlAssetsPayload | AssetPayload[]): Asset
   });
 }
 
+function declaredSecretNames(compatibilityMetadata: unknown): string[] {
+  if (!isRecord(compatibilityMetadata)) {
+    return [];
+  }
+
+  return asArray<string>(compatibilityMetadata.requires_secrets)
+    .map((value) => asString(value))
+    .filter(Boolean);
+}
+
+function mapAuditEvents(events: AuditPayload[] | Array<Record<string, unknown>>): GovernanceAuditEvent[] {
+  return events.map((event, index) => ({
+    id: asString(event.id, `audit-${index}`),
+    eventType: asString(event.event_type, "event"),
+    summary: asString(event.summary, "Audit event"),
+    resourceType: asNullableString(event.resource_type),
+    resourceId: asNullableString(event.resource_id),
+    createdAt: asString(event.created_at, "Unknown"),
+  }));
+}
+
+function mapUsageSummary(payload?: UsageResponsePayload["summary"] | Record<string, unknown>): GovernanceUsageSummary {
+  const summary = payload && isRecord(payload) ? payload : {};
+
+  return {
+    totalCount: asNumber(summary.total_count),
+    byKind: isRecord(summary.by_kind)
+      ? Object.fromEntries(Object.entries(summary.by_kind).map(([key, value]) => [key, asNumber(value)]))
+      : {},
+    bySourceKind: asArray<UsageBucketPayload>(summary.by_source_kind).map((bucket, index) => ({
+      key: asString(bucket.key, `source-${index}`),
+      label: asString(bucket.label, asString(bucket.key, `source-${index}`)),
+      count: asNumber(bucket.count),
+      lastUsedAt: asNullableString(bucket.last_used_at),
+    })),
+    byAgent: asArray<UsageBucketPayload>(summary.by_agent).map((bucket, index) => ({
+      key: asString(bucket.key, `agent-${index}`),
+      label: asString(bucket.label, asString(bucket.key, `agent-${index}`)),
+      count: asNumber(bucket.count),
+      lastUsedAt: asNullableString(bucket.last_used_at),
+    })),
+    updatedAt: asString(summary.updated_at, "Unknown"),
+  };
+}
+
+function mapUsageEvents(events: UsageEventPayload[] | Array<Record<string, unknown>>): GovernanceUsageEvent[] {
+  return events.map((event, index) => ({
+    id: asString(event.id, `usage-${index}`),
+    kind: asString(event.kind, "usage"),
+    count: asNumber(event.count),
+    sourceKind: asNullableString(event.source_kind),
+    createdAt: asString(event.created_at, "Unknown"),
+  }));
+}
+
+function mapTurns(payload: TurnsPayload): TurnSummary[] {
+  return asArray<TurnPayload>(payload.turns).map((turn, index) => ({
+    id: asString(turn.id, `turn-${index}`),
+    sessionId: asString(turn.session_id),
+    businessId: asString(turn.business_id, "default"),
+    environment: asString(turn.environment, "dev"),
+    agentId: asString(turn.agent_id),
+    agentRevisionId: asString(turn.agent_revision_id),
+    turnNumber: asNumber(turn.turn_number, index + 1),
+    state: asString(turn.state, "queued"),
+    retryCount: asNumber(turn.retry_count),
+    resumedFromTurnId: asNullableString(turn.resumed_from_turn_id),
+    updatedAt: asString(turn.updated_at, "Unknown"),
+  }));
+}
+
+function mapAgentRecord(
+  payload: AgentPayload,
+  revisions: AgentRevisionPayload[] = [],
+  fallbackState = "unpublished",
+): AgentRecordState {
+  const activeRevisionId = asNullableString(payload.active_revision_id);
+  const activeRevisionState = asString(
+    payload.active_revision_state,
+    activeRevisionId
+      ? "published"
+      : revisions.find((revision) => revision.state === "draft")
+        ? "draft"
+        : fallbackState,
+  );
+
+  return {
+    id: asString(payload.id),
+    name: asString(payload.name, "Unknown agent"),
+    slug: asString(payload.slug, asString(payload.id, "agent")),
+    description: asNullableString(payload.description),
+    businessId: asString(payload.business_id, "default"),
+    environment: asString(payload.environment, "unknown"),
+    lifecycleStatus: asString(payload.lifecycle_status, activeRevisionState),
+    activeRevisionId,
+    activeRevisionState,
+  };
+}
+
+function mapAgentRevision(payload: AgentRevisionPayload, index: number): AgentRevisionDetail {
+  return {
+    id: asString(payload.id, `revision-${index}`),
+    agentId: asString(payload.agent_id),
+    revisionNumber: asNumber(payload.revision_number, index + 1),
+    state: asString(payload.state, "draft"),
+    hostAdapterKind: asString(payload.host_adapter_kind, "unknown"),
+    providerKind: asString(payload.provider_kind, "unknown"),
+    providerCapabilities: asArray<string>(payload.provider_capabilities).map((value) => asString(value)).filter(Boolean),
+    skillIds: asArray<string>(payload.skill_ids).map((value) => asString(value)).filter(Boolean),
+    requiredSecrets: declaredSecretNames(payload.compatibility_metadata),
+    releaseChannel: asString(payload.release_channel, "internal"),
+    releaseNotes: asNullableString(payload.release_notes),
+    createdAt: asString(payload.created_at, "Unknown"),
+    updatedAt: asString(payload.updated_at, "Unknown"),
+    publishedAt: asNullableString(payload.published_at),
+    archivedAt: asNullableString(payload.archived_at),
+    clonedFromRevisionId: asNullableString(payload.cloned_from_revision_id),
+  };
+}
+
+function mapAgentReleaseEvents(payload: ReleaseEventListPayload): AgentReleaseEvent[] {
+  return asArray<ReleaseEventPayload>(payload.events).map((event, index) => ({
+    id: asString(event.id, `release-${index}`),
+    eventType: normalizeReleaseEventType(event.event_type),
+    actorId: asString(event.actor_id, "system"),
+    actorType: asString(event.actor_type, "service"),
+    previousActiveRevisionId: asNullableString(event.previous_active_revision_id),
+    targetRevisionId: asString(event.target_revision_id),
+    resultingActiveRevisionId: asString(event.resulting_active_revision_id),
+    releaseChannel: asNullableString(event.release_channel),
+    notes: asNullableString(event.notes),
+    createdAt: asString(event.created_at, "Unknown"),
+    evaluation: mapReleaseEvaluation(event.evaluation_summary),
+  }));
+}
+
+function mapAgentSecretsHealth(
+  revisionId: string | null,
+  bindingsPayload: SecretBindingListPayload | null,
+  revisions: AgentRevisionDetail[],
+  bindingsUnavailable = false,
+): AgentSecretsHealth | null {
+  if (!revisionId || bindingsUnavailable) {
+    return null;
+  }
+
+  const activeRevision = revisions.find((revision) => revision.id === revisionId);
+  if (!activeRevision) {
+    return null;
+  }
+
+  const configuredSecrets = asArray<SecretBindingPayload>(bindingsPayload?.bindings)
+    .map((binding) => asString(binding.binding_name))
+    .filter(Boolean);
+  const missingSecrets = activeRevision.requiredSecrets.filter((secretName) => !configuredSecrets.includes(secretName));
+
+  return {
+    revisionId,
+    status: missingSecrets.length > 0 ? "attention" : "healthy",
+    requiredSecretCount: activeRevision.requiredSecrets.length,
+    configuredSecretCount: configuredSecrets.length,
+    missingSecretCount: missingSecrets.length,
+    requiredSecrets: activeRevision.requiredSecrets,
+    configuredSecrets,
+    missingSecrets,
+  };
+}
+
+function mapAgentDetail(
+  payload: AgentResponsePayload,
+  releaseHistoryPayload: ReleaseEventListPayload,
+  auditPayload: AuditListPayload,
+  usagePayload: UsageResponsePayload,
+  turnsPayload: TurnsPayload,
+  bindingsPayload: SecretBindingListPayload | null,
+  degradedSections: AgentDetailDegradedSection[] = [],
+): AgentDetailData {
+  const revisionsPayload = asArray<AgentRevisionPayload>(payload.revisions);
+  const revisions = revisionsPayload.map((revision, index) => mapAgentRevision(revision, index));
+  const agent = mapAgentRecord(payload.agent ?? {}, revisionsPayload);
+
+  return {
+    agent,
+    revisions,
+    releaseHistory: mapAgentReleaseEvents(releaseHistoryPayload),
+    secretsHealth: mapAgentSecretsHealth(agent.activeRevisionId, bindingsPayload, revisions, degradedSections.includes("secretsHealth")),
+    recentAudit: mapAuditEvents(asArray<AuditPayload>(auditPayload.events)),
+    usageSummary: mapUsageSummary(usagePayload.summary),
+    recentUsage: mapUsageEvents(asArray<UsageEventPayload>(usagePayload.events)),
+    recentTurns: mapTurns(turnsPayload)
+      .filter((turn) => turn.agentId === agent.id)
+      .slice(0, 6),
+    degradedSections,
+  };
+}
+
 function mapGovernance(payload: GovernancePayload): GovernanceData {
   const secretsHealth = isRecord(payload.secrets_health) ? payload.secrets_health : {};
   const usageSummary = isRecord(payload.usage_summary) ? payload.usage_summary : {};
@@ -1339,6 +1706,44 @@ export function createMissionControlApi(
           resolvedOptions,
         ),
       ),
+    getAgentDetail: async (agentId: string) => {
+      const agentPath = `/agents/${encodeURIComponent(agentId)}`;
+      const releasePath = `/release-management/agents/${encodeURIComponent(agentId)}/events`;
+      const auditPath = `/mission-control/audit?agent_id=${encodeURIComponent(agentId)}&limit=8`;
+      const usagePath = `/usage?agent_id=${encodeURIComponent(agentId)}&limit=8`;
+      const turnsPath = "/mission-control/turns";
+
+      const agentPayload = await requestJson<AgentResponsePayload>(agentPath, resolvedOptions);
+      const degradedSections: AgentDetailDegradedSection[] = [];
+      const [releaseHistoryResult, auditResult, usageResult, turnsResult] = await Promise.allSettled([
+        requestJson<ReleaseEventListPayload>(releasePath, resolvedOptions),
+        requestJson<AuditListPayload>(auditPath, resolvedOptions),
+        requestJson<UsageResponsePayload>(usagePath, resolvedOptions),
+        requestJson<TurnsPayload>(turnsPath, resolvedOptions),
+      ]);
+
+      const releaseHistoryPayload = releaseHistoryResult.status === "fulfilled" ? releaseHistoryResult.value : (degradedSections.push("releaseHistory"), { events: [] });
+      const auditPayload = auditResult.status === "fulfilled" ? auditResult.value : (degradedSections.push("recentAudit"), { events: [] });
+      const usagePayload = usageResult.status === "fulfilled"
+        ? usageResult.value
+        : (degradedSections.push("usage"), { summary: { total_count: 0, by_kind: {}, by_source_kind: [], by_agent: [], updated_at: "Unknown" }, events: [] });
+      const turnsPayload = turnsResult.status === "fulfilled" ? turnsResult.value : (degradedSections.push("recentTurns"), { turns: [] });
+
+      const activeRevisionId = asNullableString(agentPayload.agent?.active_revision_id);
+      let bindingsPayload: SecretBindingListPayload | null = null;
+      if (activeRevisionId) {
+        try {
+          bindingsPayload = await requestJson<SecretBindingListPayload>(
+            `/mission-control/settings/secrets/revisions/${encodeURIComponent(activeRevisionId)}`,
+            resolvedOptions,
+          );
+        } catch {
+          degradedSections.push("secretsHealth");
+        }
+      }
+
+      return mapAgentDetail(agentPayload, releaseHistoryPayload, auditPayload, usagePayload, turnsPayload, bindingsPayload, degradedSections);
+    },
     getAssets: async () =>
       mapAssets(
         await requestJson<MissionControlAssetsPayload | AssetPayload[]>(

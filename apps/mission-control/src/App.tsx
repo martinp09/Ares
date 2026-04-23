@@ -8,12 +8,15 @@ import {
 } from "./components/MissionControlShell";
 import {
   createMissionControlApi,
+  type AgentDetailData,
+  type MissionControlDataSource,
   type MissionControlSnapshot,
   type MissionControlView,
   type OutboundSendResponse,
 } from "./lib/api";
-import { missionControlFixtures } from "./lib/fixtures";
+import { missionControlAgentDetailFixtures, missionControlFixtures } from "./lib/fixtures";
 import { queryClient } from "./lib/queryClient";
+import { AgentDetailPage } from "./pages/AgentDetailPage";
 import { AgentsPage, type AgentsPageOperatorView } from "./pages/AgentsPage";
 import { ApprovalsPage } from "./pages/ApprovalsPage";
 import { DashboardPage } from "./pages/DashboardPage";
@@ -62,13 +65,53 @@ function includesSearch(haystack: Array<string | number | null | undefined>, sea
     .includes(searchValue);
 }
 
+function fallbackAgentDetailForSnapshot(
+  snapshot: MissionControlSnapshot,
+  agentId: string,
+  preferFixture = false,
+): AgentDetailData {
+  const summaryAgent = snapshot.agents.find((agent) => agent.id === agentId);
+  const fallbackFixture = missionControlAgentDetailFixtures[agentId];
+
+  if (preferFixture && fallbackFixture) {
+    return fallbackFixture;
+  }
+
+  return {
+    agent: {
+      id: agentId,
+      name: summaryAgent?.name ?? "Unknown agent",
+      slug: agentId,
+      description: null,
+      businessId: "unavailable",
+      environment: summaryAgent?.environment ?? "unknown",
+      lifecycleStatus: "unavailable",
+      activeRevisionId: summaryAgent?.activeRevisionId ?? null,
+      activeRevisionState: summaryAgent?.activeRevisionState ?? "unknown",
+    },
+    revisions: [],
+    releaseHistory: [],
+    secretsHealth: null,
+    recentAudit: [],
+    usageSummary: { totalCount: 0, byKind: {}, bySourceKind: [], byAgent: [], updatedAt: "Unknown" },
+    recentUsage: [],
+    recentTurns: [],
+    degradedSections: ["revisions", "releaseHistory", "secretsHealth", "recentAudit", "usage", "recentTurns"],
+  };
+}
+
 export default function App() {
   const [activeWorkspace, setActiveWorkspace] = useState<WorkspaceId>("lead-machine");
   const [activeView, setActiveView] = useState<MissionControlView>("agents");
   const [searchValue, setSearchValue] = useState("");
   const [snapshot, setSnapshot] = useState<MissionControlSnapshot>(missionControlFixtures);
   const [selectedConversationId, setSelectedConversationId] = useState("");
-  const [dataSource, setDataSource] = useState<"api" | "fixture">("fixture");
+  const [dataSource, setDataSource] = useState<MissionControlDataSource>("fixture");
+  const [agentsDataSource, setAgentsDataSource] = useState<MissionControlDataSource>("fixture");
+  const [selectedAgentId, setSelectedAgentId] = useState<string | null>(null);
+  const [selectedAgentDetail, setSelectedAgentDetail] = useState<AgentDetailData | null>(null);
+  const [selectedAgentDetailSource, setSelectedAgentDetailSource] = useState<"api" | "fixture" | "degraded">("fixture");
+  const [isAgentDetailLoading, setIsAgentDetailLoading] = useState(false);
   const [fallbackViews, setFallbackViews] = useState<MissionControlView[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -78,7 +121,7 @@ export default function App() {
     async function load() {
       setIsLoading(true);
 
-      const [dashboard, inbox, tasks, approvals, runs, agents, assets, governance] = await Promise.all([
+      const [dashboard, inbox, tasks, approvals, runs, assets, governance] = await Promise.all([
         queryClient.fetch("dashboard", api.getDashboard, missionControlFixtures.dashboard),
         queryClient.fetch(
           `inbox:${selectedConversationId || "default"}`,
@@ -88,10 +131,15 @@ export default function App() {
         queryClient.fetch("tasks", api.getTasks, missionControlFixtures.tasks),
         queryClient.fetch("approvals", api.getApprovals, missionControlFixtures.approvals),
         queryClient.fetch("runs", api.getRuns, missionControlFixtures.runs),
-        queryClient.fetch("agents", api.getAgents, missionControlFixtures.agents),
         queryClient.fetch("assets", api.getAssets, missionControlFixtures.assets),
         queryClient.fetch("governance", api.getGovernance, missionControlFixtures.governance),
       ]);
+      let agents: { data: MissionControlSnapshot["agents"]; source: MissionControlDataSource };
+      try {
+        agents = { data: await api.getAgents(), source: "api" };
+      } catch {
+        agents = { data: missionControlFixtures.agents, source: "fixture" };
+      }
 
       if (!isMounted) {
         return;
@@ -113,6 +161,7 @@ export default function App() {
           ? "fixture"
           : "api",
       );
+      setAgentsDataSource(agents.source);
       setFallbackViews(
         (
           [
@@ -143,6 +192,73 @@ export default function App() {
       isMounted = false;
     };
   }, [selectedConversationId]);
+
+  useEffect(() => {
+    if (!selectedAgentId) {
+      setSelectedAgentDetail(null);
+      setSelectedAgentDetailSource("fixture");
+      setIsAgentDetailLoading(false);
+      return;
+    }
+
+    const agentId = selectedAgentId;
+    let isMounted = true;
+
+    async function loadAgentDetail() {
+      setIsAgentDetailLoading(true);
+      try {
+        const detail = await api.getAgentDetail(agentId);
+        if (!isMounted) {
+          return;
+        }
+        setSelectedAgentDetail(detail);
+        setSelectedAgentDetailSource("api");
+      } catch {
+        if (!isMounted) {
+          return;
+        }
+        setSelectedAgentDetail(fallbackAgentDetailForSnapshot(snapshot, agentId, agentsDataSource === "fixture"));
+        setSelectedAgentDetailSource(agentsDataSource === "fixture" ? "fixture" : "degraded");
+      } finally {
+        if (isMounted) {
+          setIsAgentDetailLoading(false);
+        }
+      }
+    }
+
+    void loadAgentDetail();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [selectedAgentId, snapshot, agentsDataSource]);
+
+  useEffect(() => {
+    if (activeView !== "agents" || agentsDataSource !== "fixture") {
+      return;
+    }
+
+    let isMounted = true;
+
+    async function refreshAgents() {
+      try {
+        const liveAgents = await api.getAgents();
+        if (!isMounted) {
+          return;
+        }
+        setSnapshot((current) => ({ ...current, agents: liveAgents }));
+        setAgentsDataSource("api");
+      } catch {
+        // Keep the current fixture-backed agents surface until the next explicit retry opportunity.
+      }
+    }
+
+    void refreshAgents();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [activeView, agentsDataSource]);
 
   const normalizedSearchValue = searchValue.trim().toLowerCase();
 
@@ -225,6 +341,44 @@ export default function App() {
       ),
     [normalizedSearchValue, snapshot.agents],
   );
+
+  const selectedAgentSummary = useMemo(
+    () => snapshot.agents.find((agent) => agent.id === selectedAgentId) ?? null,
+    [selectedAgentId, snapshot.agents],
+  );
+  const selectedAgentIsVisible = Boolean(selectedAgentId && filteredAgents.some((agent) => agent.id === selectedAgentId));
+  const canRenderSelectedAgentDetail = Boolean(
+    selectedAgentId &&
+      selectedAgentIsVisible &&
+      selectedAgentDetail &&
+      selectedAgentDetail.agent.id === selectedAgentId,
+  );
+
+  useEffect(() => {
+    if (!selectedAgentId) {
+      return;
+    }
+
+    if (!selectedAgentIsVisible) {
+      setSelectedAgentId(null);
+    }
+  }, [selectedAgentIsVisible, selectedAgentId]);
+
+  const selectedAgentContextItems = selectedAgentDetail
+    ? [
+        selectedAgentDetail.degradedSections.includes("revisions")
+          ? "Revision data is temporarily unavailable from the current live read models"
+          : `${selectedAgentDetail.revisions.length} revisions are tracked for this agent`,
+        selectedAgentDetail.degradedSections.includes("releaseHistory")
+          ? "Release history is temporarily unavailable from the current live read models"
+          : `${selectedAgentDetail.releaseHistory.length} release events are visible in the runtime history`,
+        selectedAgentDetail.degradedSections.includes("secretsHealth")
+          ? "Secrets health is temporarily unavailable from the current live read models"
+          : selectedAgentDetail.secretsHealth
+            ? `${selectedAgentDetail.secretsHealth.missingSecretCount} missing secrets on the active revision`
+            : "No active revision secrets posture is available",
+      ]
+    : ["Select an agent to inspect runtime lifecycle detail."];
 
   const filteredApprovals = useMemo(
     () =>
@@ -371,16 +525,43 @@ export default function App() {
       ],
       pages: {
         agents: {
-          title: "Lead Machine / Agents",
-          subtitle: "Agents are the first stop in this workspace; queue, replies, approvals, and runs stay adjacent operator views.",
-          mainContent: (
+          title: selectedAgentId && selectedAgentIsVisible && selectedAgentSummary ? `Lead Machine / ${selectedAgentSummary.name}` : "Lead Machine / Agents",
+          subtitle: selectedAgentId && selectedAgentIsVisible
+            ? "Read-only lifecycle detail for the selected agent. Publish and rollback remain runtime-owned in this bounded slice."
+            : "Agents are the first stop in this workspace; queue, replies, approvals, and runs stay adjacent operator views.",
+          mainContent: selectedAgentId && selectedAgentIsVisible ? (
+            isAgentDetailLoading || !canRenderSelectedAgentDetail ? (
+              <section className="panel-stack">
+                <div className="section-heading">
+                  <h3>Loading agent lifecycle</h3>
+                  <span>{selectedAgentSummary?.name ?? selectedAgentId}</span>
+                </div>
+                <p className="panel-copy">Fetching revisions, release posture, secrets health, audit, usage, and recent turns.</p>
+              </section>
+            ) : (
+              <AgentDetailPage
+                dataSource={selectedAgentDetailSource}
+                detail={selectedAgentDetail!}
+                onBack={() => setSelectedAgentId(null)}
+              />
+            )
+          ) : (
             <AgentsPage
               agents={filteredAgents}
-              workspaceLabel="Lead Machine"
+              dataSource={agentsDataSource}
+              onSelectAgent={setSelectedAgentId}
               operatorViews={leadMachineOperatorViews}
+              selectedAgentId={selectedAgentId}
+              workspaceLabel="Lead Machine"
             />
           ),
-          contextContent: (
+          contextContent: selectedAgentId && selectedAgentIsVisible ? (
+            <ContextPanel
+              eyebrow="Selected agent"
+              title={selectedAgentSummary?.name ?? "Agent lifecycle"}
+              items={selectedAgentContextItems}
+            />
+          ) : (
             <ContextPanel
               eyebrow="Agent posture"
               title="Agent-centered operator cockpit"
@@ -541,12 +722,43 @@ export default function App() {
       ],
       pages: {
         agents: {
-          title: "Marketing / Agents",
-          subtitle: "Agents are the first stop in this workspace while submissions, approvals, and runs stay visible around them.",
-          mainContent: (
-            <AgentsPage agents={filteredAgents} workspaceLabel="Marketing" operatorViews={marketingOperatorViews} />
+          title: selectedAgentId && selectedAgentIsVisible && selectedAgentSummary ? `Marketing / ${selectedAgentSummary.name}` : "Marketing / Agents",
+          subtitle: selectedAgentId && selectedAgentIsVisible
+            ? "Read-only lifecycle detail for the selected agent. Publish and rollback remain runtime-owned in this bounded slice."
+            : "Agents are the first stop in this workspace while submissions, approvals, and runs stay visible around them.",
+          mainContent: selectedAgentId && selectedAgentIsVisible ? (
+            isAgentDetailLoading || !canRenderSelectedAgentDetail ? (
+              <section className="panel-stack">
+                <div className="section-heading">
+                  <h3>Loading agent lifecycle</h3>
+                  <span>{selectedAgentSummary?.name ?? selectedAgentId}</span>
+                </div>
+                <p className="panel-copy">Fetching revisions, release posture, secrets health, audit, usage, and recent turns.</p>
+              </section>
+            ) : (
+              <AgentDetailPage
+                dataSource={selectedAgentDetailSource}
+                detail={selectedAgentDetail!}
+                onBack={() => setSelectedAgentId(null)}
+              />
+            )
+          ) : (
+            <AgentsPage
+              agents={filteredAgents}
+              dataSource={agentsDataSource}
+              onSelectAgent={setSelectedAgentId}
+              operatorViews={marketingOperatorViews}
+              selectedAgentId={selectedAgentId}
+              workspaceLabel="Marketing"
+            />
           ),
-          contextContent: (
+          contextContent: selectedAgentId && selectedAgentIsVisible ? (
+            <ContextPanel
+              eyebrow="Selected agent"
+              title={selectedAgentSummary?.name ?? "Agent lifecycle"}
+              items={selectedAgentContextItems}
+            />
+          ) : (
             <ContextPanel
               eyebrow="Agent posture"
               title="Agent-centered marketing workspace"
@@ -708,17 +920,19 @@ export default function App() {
   }
 
   const fallbackLabel = fallbackViews.length > 0 ? ` (${fallbackViews.join(", ")})` : "";
+  const isFullFixtureMode = fallbackViews.length === 8;
   const statusBadge = isLoading
     ? "Loading shell"
     : dataSource === "api"
       ? "Live API"
-      : fallbackViews.length === 7
+      : isFullFixtureMode
         ? "Fixture mode"
         : `API + fixture fallback${fallbackLabel}`;
-  const footerNote =
-    dataSource === "api"
+  const footerNote = isLoading
+    ? "Collecting Mission Control surfaces..."
+    : dataSource === "api"
       ? "Mission Control is reading Hermes runtime data."
-      : fallbackViews.length === 7
+      : isFullFixtureMode
         ? "Using local fixtures until the native read-model endpoints are wired."
         : `Using fixture fallback for: ${fallbackViews.join(", ")}.`;
 
@@ -731,9 +945,15 @@ export default function App() {
         const nextWorkspace = workspaceId as WorkspaceId;
         setActiveWorkspace(nextWorkspace);
         setActiveView(workspaceDefinitions[nextWorkspace].defaultView);
+        setSelectedAgentId(null);
       }}
       activeItemId={activeView}
-      onNavigate={(itemId) => setActiveView(itemId as MissionControlView)}
+      onNavigate={(itemId) => {
+        setActiveView(itemId as MissionControlView);
+        if (itemId !== "agents") {
+          setSelectedAgentId(null);
+        }
+      }}
       searchValue={searchValue}
       onSearchChange={setSearchValue}
       workspaceTitle={activePage.title}

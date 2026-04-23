@@ -166,18 +166,26 @@
 
 ## Open Work
 
-1. keep the live MVP lanes stable on Supabase-backed persistence and keep the remote smoke checks passing
-2. add broader stage wiring only where the business actually needs it next:
-   - operator-ready lease-option opportunities
-   - later title / TC / dispo advancement
-3. model composite pain stacks such as `estate_of + tax_delinquent` more explicitly in scoring and Mission Control prioritization
-4. run a live remote smoke against the new shared control-plane migration and fix any schema mismatches it exposes
-5. keep browser acquisition and ambiguous research in Hermes or other driver agents, not inside Ares
-6. add durable Trigger lead-machine jobs only where sync paths become operationally risky
-7. execute the combined Mission Control + enterprise backlog master plan for org tenancy, host adapters, enterprise controls, release lifecycle, and Mission Control productization
-8. keep `docs/superpowers/plans/2026-04-13-hermes-mission-control-orchestration-plan.md` and `docs/superpowers/plans/2026-04-15-ares-enterprise-agent-platform-implementation-plan.md` as live source inputs for that branch scope
+1. finish Phase 6 slice `P6.2` on the active non-Supabase path and do not advance until QC signs it off
+2. close the remaining P6.2 truthfulness blockers in Mission Control:
+   - stale side context-panel detail during agent-to-agent switches
+   - degraded root-detail fallback dropping summary identity/business truth already known from agent summaries
+   - shell-level fallback/source labels lagging after the agents surface recovers from fixture fallback
+3. continue bounded Mission Control productization slices only after `P6.2` is verified + QC-approved
+4. keep browser acquisition and ambiguous research in Hermes or other driver agents, not inside Ares
+5. add durable Trigger lead-machine jobs only where sync paths become operationally risky
+6. execute the combined Mission Control + enterprise backlog master plan for org tenancy, host adapters, enterprise controls, release lifecycle, and Mission Control productization
+7. keep `docs/superpowers/plans/2026-04-13-hermes-mission-control-orchestration-plan.md` and `docs/superpowers/plans/2026-04-15-ares-enterprise-agent-platform-implementation-plan.md` as live source inputs for that branch scope
 
 ## Change Log
+
+### 2026-04-23 Phase 6 Slice P6.2 Read-Only Agent Detail Workflow (WIP, not QC-approved)
+
+- Added the first bounded Mission Control agent-detail surface via `apps/mission-control/src/pages/AgentDetailPage.tsx`, wired from the agents-first workspace through `apps/mission-control/src/App.tsx` and `apps/mission-control/src/components/AgentRegistryTable.tsx`, while keeping the slice strictly read-only with no publish/rollback controls.
+- Expanded the frontend Mission Control data seam in `apps/mission-control/src/lib/api.ts` plus fixtures/tests so the detail page can project revisions, release history, secrets health, recent audit, usage, and turns, and so partial auxiliary failures now mark degraded sections explicitly instead of silently pretending empty-state truth.
+- Hardened the UI truthfulness path partway: latest release posture now derives from timestamps instead of array position, hidden selected agents are cleared when search excludes them, degraded detail can render without collapsing into full fabricated fixture history, and the agents surface now has its own retry path after fixture fallback.
+- Verified the in-progress slice with `npm --prefix apps/mission-control run test -- --run`, `npm --prefix apps/mission-control run typecheck`, `npm --prefix apps/mission-control run build`, `./.venv/bin/python -m pytest tests/api/test_mission_control.py tests/api/test_agents.py tests/api/test_release_management.py -q`, and `./.venv/bin/python -m pytest -q` (`22 frontend tests passed`, `40 targeted backend tests passed`, `452 passed, 5 warnings` full backend suite).
+- Left `P6.2` open because QC still found blocker-level truthfulness seams: the side context panel still needs the same id-match/loading guard as the main detail pane during agent-to-agent switches, degraded root-detail fallback still drops summary identity/business fields already known from the agent summary contract, and shell-level fallback/source labels still need reconciliation after the agents surface recovers from fixture mode.
 
 ### 2026-04-22 Phase 6 Slice P6.1 Agents-First Mission Control Navigation
 
