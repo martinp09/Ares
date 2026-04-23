@@ -1,6 +1,7 @@
 from datetime import UTC, datetime, timedelta
 
-from app.core.config import get_settings
+from app.core.config import Settings, get_settings
+from app.db.client import SupabaseControlPlaneClient
 from app.models.host_adapters import HostAdapterKind
 from app.models.mission_control import (
     MissionControlContactRecord,
@@ -1486,6 +1487,105 @@ def test_autonomy_visibility_hides_other_org_runs_and_unscoped_lead_quality(clie
     assert body["lead_quality"] == 0.0
     assert body["confidence"] == 0.0
     assert body["next_action"] == "continue_run:run_market_research"
+
+
+def test_autonomy_visibility_operator_snapshot_survives_supabase_transaction_boundary(client, monkeypatch) -> None:
+    reset_control_plane_state()
+    settings = Settings(
+        _env_file=None,
+        control_plane_backend="supabase",
+        supabase_url="https://example.supabase.co",
+        supabase_service_role_key="service-role",
+    )
+    rows_by_table: dict[str, dict[str, dict]] = {}
+
+    def fake_fetch_rows(table: str, *, params: dict[str, str], settings=None):
+        table_rows = list(rows_by_table.get(table, {}).values())
+        filtered = []
+        for row in table_rows:
+            matches = True
+            for key, value in params.items():
+                if key in {"select", "order", "limit", "offset"}:
+                    continue
+                if isinstance(value, str) and value.startswith("eq.") and str(row.get(key)) != value[3:]:
+                    matches = False
+                    break
+            if matches:
+                filtered.append(row)
+        return filtered
+
+    def fake_insert_rows(table: str, rows: list[dict], *, select=None, prefer="return=representation", settings=None):
+        table_rows = rows_by_table.setdefault(table, {})
+        inserted = []
+        for row in rows:
+            payload = dict(row)
+            row_id = str(payload.get("id", len(table_rows) + 1))
+            payload["id"] = row_id
+            table_rows[row_id] = payload
+            inserted.append(payload)
+        return inserted
+
+    def fake_patch_rows(table: str, *, params: dict[str, str], row: dict, select=None, settings=None):
+        table_rows = rows_by_table.setdefault(table, {})
+        row_id = params.get("id", "")
+        if row_id.startswith("eq."):
+            existing_id = row_id[3:]
+        else:
+            existing_id = str(row.get("id", len(table_rows) + 1))
+        payload = dict(table_rows.get(existing_id, {}))
+        payload.update(row)
+        payload["id"] = existing_id
+        table_rows[existing_id] = payload
+        return [payload]
+
+    monkeypatch.setattr("app.db.control_plane_store_supabase.fetch_rows", fake_fetch_rows)
+    monkeypatch.setattr("app.db.control_plane_store_supabase.insert_rows", fake_insert_rows)
+    monkeypatch.setattr("app.db.control_plane_store_supabase.patch_rows", fake_patch_rows)
+
+    supabase_client = SupabaseControlPlaneClient(settings)
+    monkeypatch.setattr("app.api.ares._control_plane_client", supabase_client)
+    monkeypatch.setattr("app.services.mission_control_service.mission_control_service.client", supabase_client)
+
+    operator_run = client.post(
+        "/ares/operator/run",
+        json={
+            "objective_id": "objective-probate-harris-01",
+            "objective_status": "approved",
+            "business_id": "limitless",
+            "environment": "dev",
+            "market": "texas",
+            "counties": ["harris"],
+            "county_payloads": {
+                "harris": {
+                    "probate": [
+                        {
+                            "property_address": "321 Main St, Houston, TX",
+                            "owner_name": "Estate of John Doe",
+                        }
+                    ],
+                    "tax": [
+                        {
+                            "property_address": "321 Main St, Houston, TX",
+                            "owner_name": "Estate of John Doe",
+                        }
+                    ],
+                }
+            },
+            "response_events": ["positive_reply"],
+        },
+        headers=AUTH_HEADERS,
+    )
+    assert operator_run.status_code == 200
+
+    visibility = client.get(
+        "/mission-control/autonomy-visibility?business_id=limitless&environment=dev",
+        headers=AUTH_HEADERS,
+    )
+    assert visibility.status_code == 200
+    body = visibility.json()
+
+    assert body["autonomous_operator"] is not None
+    assert body["autonomous_operator"]["objective_id"] == "objective-probate-harris-01"
 
 
 def test_lead_machine_and_provider_extras_fail_closed_for_tenant_orgs(client) -> None:
