@@ -21,6 +21,9 @@ def test_corrective_migration_backfills_and_tightens_runtime_constraints() -> No
     assert "update public.memberships_runtime" in sql
     assert "update public.catalog_entries_runtime" in sql
     assert "update public.agent_installs_runtime" in sql
+    assert "raise exception 'organizations_runtime contains duplicate normalized slugs'" in sql
+    assert "raise exception 'memberships_runtime contains duplicate org_id/actor_id pairs'" in sql
+    assert "raise exception 'catalog_entries_runtime contains duplicate normalized slugs per org'" in sql
     assert "alter table public.memberships_runtime" in sql
     assert "alter column actor_id set not null" in sql
     assert "alter column actor_type set not null" in sql
