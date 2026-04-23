@@ -1,4 +1,9 @@
-from app.db.client import STORE
+from app.core.config import Settings
+from app.db.agents import AgentsRepository
+from app.db.client import STORE, SupabaseControlPlaneClient
+from app.db.release_management import ReleaseManagementRepository
+from app.services.agent_registry_service import agent_registry_service
+from app.services.release_management_service import release_management_service
 from app.services.run_service import reset_control_plane_state
 
 AUTH_HEADERS = {"Authorization": "Bearer dev-runtime-key"}
@@ -11,6 +16,61 @@ def org_actor_headers(*, org_id: str, actor_id: str, actor_type: str = "user") -
         "X-Ares-Actor-Id": actor_id,
         "X-Ares-Actor-Type": actor_type,
     }
+
+
+def _build_supabase_client(monkeypatch) -> SupabaseControlPlaneClient:
+    settings = Settings(
+        _env_file=None,
+        control_plane_backend="supabase",
+        supabase_url="https://example.supabase.co",
+        supabase_service_role_key="service-role",
+    )
+    rows_by_table: dict[str, dict[str, dict]] = {}
+
+    def fake_fetch_rows(table: str, *, params: dict[str, str], settings=None):
+        table_rows = list(rows_by_table.get(table, {}).values())
+        filtered: list[dict] = []
+        for row in table_rows:
+            matches = True
+            for key, value in params.items():
+                if key in {"select", "order", "limit", "offset"}:
+                    continue
+                if isinstance(value, str) and value.startswith("eq.") and str(row.get(key)) != value[3:]:
+                    matches = False
+                    break
+            if matches:
+                filtered.append(dict(row))
+        order = params.get("order")
+        if isinstance(order, str) and order.endswith(".asc"):
+            sort_key = order[:-4]
+            filtered.sort(key=lambda row: str(row.get(sort_key) or ""))
+        return filtered
+
+    def fake_insert_rows(table: str, rows: list[dict], *, select=None, prefer="return=representation", settings=None):
+        table_rows = rows_by_table.setdefault(table, {})
+        inserted = []
+        for row in rows:
+            payload = dict(row)
+            row_id = str(payload.get("id", len(table_rows) + 1))
+            payload["id"] = row_id
+            table_rows[row_id] = payload
+            inserted.append(payload)
+        return inserted
+
+    def fake_patch_rows(table: str, *, params: dict[str, str], row: dict, select=None, settings=None):
+        table_rows = rows_by_table.setdefault(table, {})
+        row_id = params.get("id", "")
+        existing_id = row_id[3:] if row_id.startswith("eq.") else str(row.get("id", len(table_rows) + 1))
+        payload = dict(table_rows.get(existing_id, {}))
+        payload.update(row)
+        payload["id"] = existing_id
+        table_rows[existing_id] = payload
+        return [payload]
+
+    monkeypatch.setattr("app.db.control_plane_store_supabase.fetch_rows", fake_fetch_rows)
+    monkeypatch.setattr("app.db.control_plane_store_supabase.insert_rows", fake_insert_rows)
+    monkeypatch.setattr("app.db.control_plane_store_supabase.patch_rows", fake_patch_rows)
+    return SupabaseControlPlaneClient(settings)
 
 
 def test_release_management_publish_rollback_and_list_events(client) -> None:
@@ -408,3 +468,83 @@ def test_invalid_release_transitions_do_not_persist_evaluation_outcomes(client) 
     )
     assert missing_rollback_response.status_code == 404
     assert len(STORE.outcomes) == 0
+
+
+def test_release_management_events_persist_across_supabase_transaction_boundary(client, monkeypatch) -> None:
+    reset_control_plane_state()
+    supabase_client = _build_supabase_client(monkeypatch)
+    monkeypatch.setattr(
+        agent_registry_service,
+        "agents_repository",
+        AgentsRepository(client=supabase_client),
+    )
+    monkeypatch.setattr(
+        release_management_service,
+        "agents_repository",
+        AgentsRepository(client=supabase_client),
+    )
+    monkeypatch.setattr(
+        release_management_service,
+        "release_management_repository",
+        ReleaseManagementRepository(client=supabase_client),
+    )
+
+    headers = org_actor_headers(org_id="org_release", actor_id="usr_release")
+    create_response = client.post(
+        "/agents",
+        json={
+            "name": "Supabase Release Agent",
+            "business_id": "limitless",
+            "environment": "prod",
+            "config": {"prompt": "Persist release state"},
+            "release_channel": "dogfood",
+        },
+        headers=headers,
+    )
+    assert create_response.status_code == 200
+    create_body = create_response.json()
+    agent_id = create_body["agent"]["id"]
+    first_revision_id = create_body["revisions"][0]["id"]
+
+    first_publish = client.post(
+        f"/release-management/agents/{agent_id}/revisions/{first_revision_id}/publish",
+        headers=headers,
+    )
+    assert first_publish.status_code == 200
+
+    clone_response = client.post(
+        f"/agents/{agent_id}/revisions/{first_revision_id}/clone",
+        headers=headers,
+    )
+    assert clone_response.status_code == 200
+    second_revision_id = max(clone_response.json()["revisions"], key=lambda revision: revision["revision_number"])["id"]
+
+    second_publish = client.post(
+        f"/release-management/agents/{agent_id}/revisions/{second_revision_id}/publish",
+        headers=headers,
+    )
+    assert second_publish.status_code == 200
+
+    rollback_response = client.post(
+        f"/release-management/agents/{agent_id}/revisions/{first_revision_id}/rollback",
+        json={"notes": "Rollback for persistence regression"},
+        headers=headers,
+    )
+    assert rollback_response.status_code == 200
+    rollback_active_revision_id = rollback_response.json()["agent"]["active_revision_id"]
+
+    deactivate_response = client.post(
+        f"/release-management/agents/{agent_id}/revisions/{rollback_active_revision_id}/deactivate",
+        json={"notes": "Retire active release"},
+        headers=headers,
+    )
+    assert deactivate_response.status_code == 200
+
+    events_response = client.get(
+        f"/release-management/agents/{agent_id}/events",
+        headers=headers,
+    )
+    assert events_response.status_code == 200
+    events = events_response.json()["events"]
+    assert [event["event_type"] for event in events] == ["publish", "publish", "rollback", "deactivate"]
+    assert events[-1]["resulting_active_revision_id"] is None

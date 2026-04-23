@@ -1,4 +1,9 @@
-from app.core.config import DEFAULT_INTERNAL_ACTOR_ID, DEFAULT_INTERNAL_ORG_ID
+from app.core.config import DEFAULT_INTERNAL_ACTOR_ID, DEFAULT_INTERNAL_ORG_ID, Settings
+from app.db.client import SupabaseControlPlaneClient
+from app.db.memberships import MembershipsRepository
+from app.db.organizations import OrganizationsRepository
+from app.services.access_service import access_service
+from app.services.organization_service import organization_service
 from app.services.run_service import reset_control_plane_state
 
 AUTH_HEADERS = {"Authorization": "Bearer dev-runtime-key"}
@@ -11,6 +16,61 @@ def org_actor_headers(*, org_id: str, actor_id: str, actor_type: str = "user") -
         "X-Ares-Actor-Id": actor_id,
         "X-Ares-Actor-Type": actor_type,
     }
+
+
+def _build_supabase_client(monkeypatch) -> SupabaseControlPlaneClient:
+    settings = Settings(
+        _env_file=None,
+        control_plane_backend="supabase",
+        supabase_url="https://example.supabase.co",
+        supabase_service_role_key="service-role",
+    )
+    rows_by_table: dict[str, dict[str, dict]] = {}
+
+    def fake_fetch_rows(table: str, *, params: dict[str, str], settings=None):
+        table_rows = list(rows_by_table.get(table, {}).values())
+        filtered: list[dict] = []
+        for row in table_rows:
+            matches = True
+            for key, value in params.items():
+                if key in {"select", "order", "limit", "offset"}:
+                    continue
+                if isinstance(value, str) and value.startswith("eq.") and str(row.get(key)) != value[3:]:
+                    matches = False
+                    break
+            if matches:
+                filtered.append(dict(row))
+        order = params.get("order")
+        if isinstance(order, str) and order.endswith(".asc"):
+            sort_key = order[:-4]
+            filtered.sort(key=lambda row: str(row.get(sort_key) or ""))
+        return filtered
+
+    def fake_insert_rows(table: str, rows: list[dict], *, select=None, prefer="return=representation", settings=None):
+        table_rows = rows_by_table.setdefault(table, {})
+        inserted = []
+        for row in rows:
+            payload = dict(row)
+            row_id = str(payload.get("id", len(table_rows) + 1))
+            payload["id"] = row_id
+            table_rows[row_id] = payload
+            inserted.append(payload)
+        return inserted
+
+    def fake_patch_rows(table: str, *, params: dict[str, str], row: dict, select=None, settings=None):
+        table_rows = rows_by_table.setdefault(table, {})
+        row_id = params.get("id", "")
+        existing_id = row_id[3:] if row_id.startswith("eq.") else str(row.get("id", len(table_rows) + 1))
+        payload = dict(table_rows.get(existing_id, {}))
+        payload.update(row)
+        payload["id"] = existing_id
+        table_rows[existing_id] = payload
+        return [payload]
+
+    monkeypatch.setattr("app.db.control_plane_store_supabase.fetch_rows", fake_fetch_rows)
+    monkeypatch.setattr("app.db.control_plane_store_supabase.insert_rows", fake_insert_rows)
+    monkeypatch.setattr("app.db.control_plane_store_supabase.patch_rows", fake_patch_rows)
+    return SupabaseControlPlaneClient(settings)
 
 
 def create_org(client, *, headers: dict[str, str], org_id: str, name: str) -> None:
@@ -158,3 +218,68 @@ def test_memberships_api_is_scoped_to_actor_org_headers(client) -> None:
     assert leaked_list.status_code == 422
     assert leaked_detail.status_code == 404
     assert leaked_write.status_code == 422
+
+
+def test_memberships_api_persists_across_supabase_transaction_boundary(client, monkeypatch) -> None:
+    reset_control_plane_state()
+    supabase_client = _build_supabase_client(monkeypatch)
+    monkeypatch.setattr(
+        organization_service,
+        "organizations_repository",
+        OrganizationsRepository(client=supabase_client),
+    )
+    monkeypatch.setattr(
+        access_service,
+        "organizations_repository",
+        OrganizationsRepository(client=supabase_client),
+    )
+    monkeypatch.setattr(
+        access_service,
+        "memberships_repository",
+        MembershipsRepository(client=supabase_client),
+    )
+
+    alpha_headers = org_actor_headers(org_id="org_alpha", actor_id="actor_alpha")
+    create_org(client, headers=alpha_headers, org_id="org_alpha", name="Alpha Org")
+
+    created = client.post(
+        "/memberships",
+        json={
+            "org_id": "org_alpha",
+            "actor_id": "actor_alice",
+            "actor_type": "user",
+            "member_id": "member_alice",
+            "name": "Alice",
+            "role_name": "viewer",
+            "metadata": {"source": "invite"},
+        },
+        headers=alpha_headers,
+    )
+    assert created.status_code == 200
+    membership_id = created.json()["id"]
+
+    updated = client.post(
+        "/memberships",
+        json={
+            "org_id": "org_alpha",
+            "actor_id": "actor_alice",
+            "actor_type": "user",
+            "member_id": "member_alice",
+            "name": "Alice",
+            "role_name": "admin",
+            "metadata": {"source": "sso"},
+        },
+        headers=alpha_headers,
+    )
+    assert updated.status_code == 200
+    assert updated.json()["id"] == membership_id
+    assert updated.json()["role_name"] == "admin"
+
+    listed = client.get("/memberships", headers=alpha_headers)
+    assert listed.status_code == 200
+    assert [membership["id"] for membership in listed.json()["memberships"]] == [membership_id]
+
+    detail = client.get(f"/memberships/{membership_id}", headers=alpha_headers)
+    assert detail.status_code == 200
+    assert detail.json()["role_name"] == "admin"
+    assert detail.json()["metadata"] == {"source": "sso"}
