@@ -1,9 +1,12 @@
-import type { AgentDetailData, AgentDetailDegradedSection, AgentReleaseEvent } from "../lib/api";
+import { AgentReleasePanel } from "../components/AgentReleasePanel";
+import type { AgentDetailData, AgentDetailDegradedSection, AgentReleaseEvent, AgentSummary } from "../lib/api";
 
 interface AgentDetailPageProps {
   detail: AgentDetailData;
   dataSource: "api" | "fixture" | "degraded";
   onBack: () => void;
+  selectedAgentSummary?: AgentSummary | null;
+  selectedAgentHostAdapter?: AgentSummary["hostAdapter"];
 }
 
 function formatList(values: string[]): string {
@@ -14,13 +17,33 @@ function sectionIsDegraded(detail: AgentDetailData, section: AgentDetailDegraded
   return (detail.degradedSections ?? []).includes(section);
 }
 
-export function AgentDetailPage({ detail, dataSource, onBack }: AgentDetailPageProps) {
+export function AgentDetailPage({
+  detail,
+  dataSource,
+  onBack,
+  selectedAgentSummary,
+  selectedAgentHostAdapter,
+}: AgentDetailPageProps) {
   const activeRevision = detail.revisions.find((revision) => revision.id === detail.agent.activeRevisionId) ?? detail.revisions[0];
   const latestRelease = detail.releaseHistory.reduce<AgentReleaseEvent | undefined>(
     (latest, event) => (!latest || event.createdAt > latest.createdAt ? event : latest),
     undefined,
   );
+  const latestReleaseMatchesActiveRevision = latestRelease?.resultingActiveRevisionId === detail.agent.activeRevisionId;
+  const visibleRelease = sectionIsDegraded(detail, "releaseHistory")
+    ? selectedAgentSummary?.release
+    : latestReleaseMatchesActiveRevision
+      ? latestRelease
+      : undefined;
   const usageKinds = Object.entries(detail.usageSummary.byKind);
+  const compatibilityWarnings =
+    detail.secretsHealth && detail.secretsHealth.missingSecretCount > 0
+      ? [
+          `Compatibility warning: ${detail.secretsHealth.missingSecretCount} required secret${
+            detail.secretsHealth.missingSecretCount === 1 ? " is" : "s are"
+          } missing for the active revision.`,
+        ]
+      : [];
 
   return (
     <div className="page-stack">
@@ -86,6 +109,37 @@ export function AgentDetailPage({ detail, dataSource, onBack }: AgentDetailPageP
         </div>
         {activeRevision ? (
           <div className="list-stack">
+            <AgentReleasePanel
+              activeRevision={activeRevision}
+              activeRevisionState={detail.agent.activeRevisionState}
+              agentName={detail.agent.name}
+              compatibilityWarnings={compatibilityWarnings}
+              hostAdapter={selectedAgentHostAdapter}
+              release={visibleRelease}
+            />
+            <article className="list-card">
+              <div className="list-card__row">
+                <strong>Release control status</strong>
+                <span>
+                  {sectionIsDegraded(detail, "releaseHistory")
+                    ? "unavailable"
+                    : latestRelease
+                      ? latestReleaseMatchesActiveRevision
+                        ? latestRelease.eventType
+                        : "unavailable"
+                      : "unreleased"}
+                </span>
+              </div>
+              <p className="list-card__body">
+                {sectionIsDegraded(detail, "releaseHistory")
+                  ? "Release history is temporarily unavailable from the current live read models."
+                  : latestRelease
+                    ? latestReleaseMatchesActiveRevision
+                      ? `Latest event ${latestRelease.id} moved ${latestRelease.targetRevisionId} to ${latestRelease.resultingActiveRevisionId}.`
+                      : "Release history is newer than the fetched agent snapshot. Refresh detail to reconcile active revision posture."
+                    : "No release events are recorded for this agent yet."}
+              </p>
+            </article>
             <article className="list-card">
               <div className="list-card__row">
                 <strong>{activeRevision.id}</strong>
@@ -103,22 +157,6 @@ export function AgentDetailPage({ detail, dataSource, onBack }: AgentDetailPageP
                 <span>Required secrets: {activeRevision.requiredSecrets.length}</span>
               </div>
               {activeRevision.releaseNotes ? <p className="list-card__body list-card__body--muted">{activeRevision.releaseNotes}</p> : null}
-            </article>
-            <article className="list-card">
-              <div className="list-card__row">
-                <strong>Release control status</strong>
-                <span>{sectionIsDegraded(detail, "releaseHistory") ? "unavailable" : latestRelease ? latestRelease.eventType : "unreleased"}</span>
-              </div>
-              <p className="list-card__body">
-                {sectionIsDegraded(detail, "releaseHistory")
-                  ? "Release history is temporarily unavailable from the current live read models."
-                  : latestRelease
-                    ? `Latest event ${latestRelease.id} moved ${latestRelease.targetRevisionId} to ${latestRelease.resultingActiveRevisionId}.`
-                    : "No release events are recorded for this agent yet."}
-              </p>
-              <p className="list-card__body list-card__body--muted">
-                No publish or rollback buttons are exposed in this bounded slice.
-              </p>
             </article>
           </div>
         ) : sectionIsDegraded(detail, "revisions") ? (

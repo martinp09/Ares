@@ -17,6 +17,7 @@ from app.db.leads import LeadsRepository
 from app.db.opportunities import OpportunitiesRepository
 from app.db.suppression import SuppressionRepository
 from app.db.tasks import TasksRepository
+from app.host_adapters.registry import HostAdapterRegistry, host_adapter_registry
 from app.models.approvals import ApprovalStatus
 from app.models.campaigns import CampaignMembershipStatus, CampaignStatus
 from app.models.leads import LeadInterestStatus, LeadLifecycleStatus, LeadRecord, LeadSource
@@ -39,6 +40,7 @@ from app.models.mission_control import (
     MissionControlExecutionReviewSummary,
     MissionControlFailedStepSummary,
     MissionControlGovernanceResponse,
+    MissionControlHostAdapterSummary,
     MissionControlInboxResponse,
     MissionControlInboxSummary,
     MissionControlInboundLeaseOptionSummary,
@@ -116,6 +118,7 @@ class MissionControlService:
         lead_events_repository: LeadEventsRepository | None = None,
         automation_runs_repository: AutomationRunsRepository | None = None,
         tasks_repository: TasksRepository | None = None,
+        host_adapter_registry_dependency: HostAdapterRegistry | None = None,
     ) -> None:
         self.client = client or get_control_plane_client()
         self.approval_service = approval_service_dependency or approval_service
@@ -131,6 +134,7 @@ class MissionControlService:
         self.lead_events_repository = lead_events_repository or LeadEventsRepository(client=self.client)
         self.automation_runs_repository = automation_runs_repository or AutomationRunsRepository(client=self.client)
         self.tasks_repository = tasks_repository or TasksRepository(client=self.client)
+        self.host_adapter_registry = host_adapter_registry_dependency or host_adapter_registry
 
     def upsert_thread_projection(self, thread: MissionControlThreadRecord) -> MissionControlThreadRecord:
         with self.client.transaction() as store:
@@ -1423,6 +1427,10 @@ class MissionControlService:
                     active_revision_state=(
                         state.value if (state := self.agent_registry_service.get_agent_revision_state(agent)) is not None else None
                     ),
+                    host_adapter=self._build_agent_host_adapter_summary(
+                        agent,
+                        revisions_by_id=revisions_by_id,
+                    ),
                     release=self._build_agent_release_summary(
                         agent,
                         revisions_by_id=revisions_by_id,
@@ -1434,6 +1442,30 @@ class MissionControlService:
                 )
                 for agent in ordered_agents
             ]
+        )
+
+    def _build_agent_host_adapter_summary(
+        self,
+        agent,
+        *,
+        revisions_by_id: dict[str, Any],
+    ) -> MissionControlHostAdapterSummary | None:
+        if agent.active_revision_id is None:
+            return None
+        revision = revisions_by_id.get(agent.active_revision_id)
+        if revision is None or getattr(revision, "host_adapter_kind", None) is None:
+            return None
+        try:
+            adapter = self.host_adapter_registry.describe_adapter(revision.host_adapter_kind)
+        except ValueError:
+            return None
+        return MissionControlHostAdapterSummary(
+            kind=adapter.kind,
+            enabled=adapter.enabled,
+            display_name=adapter.display_name,
+            adapter_details_label=adapter.adapter_details_label,
+            capabilities=adapter.capabilities.model_copy(deep=True),
+            disabled_reason=adapter.disabled_reason,
         )
 
     def get_settings_assets(
@@ -1841,6 +1873,8 @@ class MissionControlService:
             return None
         release_events.sort(key=lambda event: (event.created_at, event.updated_at, event.id))
         latest_event = release_events[-1]
+        if latest_event.resulting_active_revision_id != getattr(agent, "active_revision_id", None):
+            return None
         resulting_revision = revisions_by_id.get(latest_event.resulting_active_revision_id)
         rollback_source_revision_id = None
         if latest_event.event_type == ReleaseEventType.ROLLBACK and resulting_revision is not None:

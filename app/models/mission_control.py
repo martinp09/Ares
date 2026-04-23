@@ -11,6 +11,7 @@ from app.models.agents import AgentRevisionState
 from app.models.approvals import ApprovalStatus
 from app.models.audit import AuditRecord
 from app.models.commands import generate_id
+from app.models.host_adapters import HostAdapterCapabilityRecord, HostAdapterKind
 from app.models.outcomes import OutcomeStatus
 from app.models.release_management import ReleaseEventType
 from app.models.runs import RunStatus
@@ -650,6 +651,17 @@ class MissionControlApprovalsResponse(BaseModel):
     approvals: list[MissionControlApprovalSummary] = Field(default_factory=list)
 
 
+class MissionControlHostAdapterSummary(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    kind: HostAdapterKind
+    enabled: bool
+    display_name: str
+    adapter_details_label: str = "Adapter details"
+    capabilities: HostAdapterCapabilityRecord = Field(default_factory=HostAdapterCapabilityRecord)
+    disabled_reason: str | None = None
+
+
 class MissionControlAgentSummary(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -660,6 +672,7 @@ class MissionControlAgentSummary(BaseModel):
     description: str | None = None
     active_revision_id: str | None = None
     active_revision_state: str | None = None
+    host_adapter: MissionControlHostAdapterSummary | None = None
     release: MissionControlAgentReleaseSummary | None = None
     created_at: datetime
     updated_at: datetime

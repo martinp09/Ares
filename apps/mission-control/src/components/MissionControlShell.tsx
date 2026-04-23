@@ -28,6 +28,7 @@ interface MissionControlShellProps {
   onSearchChange: (value: string) => void;
   workspaceTitle: string;
   workspaceSubtitle: string;
+  headerSlot?: ReactNode;
   statusBadge: string;
   footerNote: string;
   mainContent: ReactNode;
@@ -45,6 +46,7 @@ export function MissionControlShell({
   onSearchChange,
   workspaceTitle,
   workspaceSubtitle,
+  headerSlot,
   statusBadge,
   footerNote,
   mainContent,
@@ -118,6 +120,7 @@ export function MissionControlShell({
                 );
               })}
             </div>
+            {headerSlot}
             <h2 className="workspace-header__title">{workspaceTitle}</h2>
             <p className="workspace-header__subtitle">{workspaceSubtitle}</p>
           </div>

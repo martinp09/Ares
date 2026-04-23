@@ -40,6 +40,7 @@ describe("MissionControlShell", () => {
         onSearchChange={vi.fn()}
         workspaceTitle="Lead Machine / Agents"
         workspaceSubtitle="Agents are the product unit; the rest of Mission Control stays adjacent as operator views."
+        headerSlot={<div>Org-aware scope controls</div>}
         statusBadge="Fixture mode"
         footerNote="Using local fixtures until the native read-model endpoints are wired."
         mainContent={<div>Agents workspace</div>}
@@ -58,6 +59,7 @@ describe("MissionControlShell", () => {
     expect(screen.getByRole("tab", { name: "Lead Machine" })).toHaveClass("workspace-switcher__item--active");
     expect(screen.getByRole("tab", { name: "Marketing" })).toBeInTheDocument();
     expect(screen.getByRole("tab", { name: "Pipeline" })).toBeInTheDocument();
+    expect(screen.getByText("Org-aware scope controls")).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Lead Machine / Agents" })).toBeInTheDocument();
     expect(screen.getByText("Agents workspace")).toBeInTheDocument();
   });

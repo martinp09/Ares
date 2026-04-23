@@ -52,7 +52,7 @@ class OrganizationService:
         return self.organizations_repository.get(org_id)
 
     def list_organizations(self, *, actor_org_id: str | None = None) -> OrganizationListResponse:
-        if actor_org_id is None:
+        if actor_org_id in (None, DEFAULT_INTERNAL_ORG_ID):
             return OrganizationListResponse(organizations=self.organizations_repository.list())
         organization = self.organizations_repository.get(actor_org_id)
         return OrganizationListResponse(organizations=[] if organization is None else [organization])

@@ -19,15 +19,32 @@ export function InboxPage({
 }: InboxPageProps) {
   const selectedThread =
     data.threadsById[selectedConversationId] ?? data.threadsById[data.selectedConversationId];
+  const resolvedConversationId = selectedThread?.conversationId ?? "";
 
   return (
     <div className="inbox-layout">
       <InboxList
         conversations={data.conversations}
-        selectedConversationId={selectedThread.conversationId}
+        selectedConversationId={resolvedConversationId}
         onSelectConversation={onSelectConversation}
       />
-      <ConversationThread thread={selectedThread} onSendSmsTest={onSendSmsTest} onSendEmailTest={onSendEmailTest} />
+      {selectedThread ? (
+        <ConversationThread
+          thread={selectedThread}
+          onSendSmsTest={onSendSmsTest}
+          onSendEmailTest={onSendEmailTest}
+        />
+      ) : (
+        <section className="panel-stack" aria-label="inbox-thread-placeholder">
+          <div className="section-heading">
+            <h3>Conversation detail</h3>
+            <span>Waiting for thread</span>
+          </div>
+          <div className="list-card">
+            <p className="list-card__body">Select a thread to inspect context.</p>
+          </div>
+        </section>
+      )}
     </div>
   );
 }

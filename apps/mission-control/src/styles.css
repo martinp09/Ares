@@ -556,6 +556,7 @@ textarea:focus-visible {
 }
 
 .risk-pill--low,
+.risk-pill--healthy,
 .risk-pill--connected,
 .status-pill--completed {
   background: rgba(79, 224, 163, 0.12);

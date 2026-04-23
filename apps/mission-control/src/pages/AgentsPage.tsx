@@ -1,3 +1,4 @@
+import { AgentReleasePanel } from "../components/AgentReleasePanel";
 import { AgentRegistryTable } from "../components/AgentRegistryTable";
 import type { AgentSummary, MissionControlView } from "../lib/api";
 
@@ -25,7 +26,7 @@ function getPublishedCount(agents: AgentSummary[]): number {
 function summarizeRelease(agent: AgentSummary): string {
   const release = agent.release;
   if (!release) {
-    return `${agent.activeRevisionState} / no release events yet`;
+    return `${agent.activeRevisionState} / release posture unavailable until runtime history reconciles`;
   }
   const evaluation = release.evaluation;
   const evaluationLabel = evaluation
@@ -51,8 +52,6 @@ export function AgentsPage({
   const rollbackCount = agents.filter((agent) => agent.release?.eventType === "rollback").length;
   const failingEvalCount = agents.filter((agent) => agent.release?.evaluation && !agent.release.evaluation.satisfied).length;
   const featuredAgent = agents[0];
-  const releaseAgents = agents.filter((agent) => agent.release);
-
   return (
     <div className="page-stack">
       <section className="panel-stack">
@@ -115,48 +114,23 @@ export function AgentsPage({
 
       <section className="panel-stack">
         <div className="section-heading">
-          <h3>Release read model</h3>
-          <span>{releaseAgents.length} agents with runtime release state</span>
+          <h3>Release posture</h3>
+          <span>{agents.length} agents in scope</span>
         </div>
-        {releaseAgents.length > 0 ? (
+        {agents.length > 0 ? (
           <div className="list-stack">
-            {releaseAgents.map((agent) => {
-              const release = agent.release!;
-              return (
-                <article className="list-card" key={`${agent.id}-release`}>
-                  <div className="list-card__row">
-                    <strong>{agent.name}</strong>
-                    <span>{release.eventType}</span>
-                  </div>
-                  <p className="list-card__body">
-                    {release.releaseChannel ?? "internal"} · target {release.targetRevisionId} · active {release.resultingActiveRevisionId}
-                  </p>
-                  <div className="list-card__row list-card__row--muted">
-                    <span>
-                      {release.rollbackSourceRevisionId
-                        ? `rollback source ${release.rollbackSourceRevisionId}`
-                        : release.previousActiveRevisionId
-                          ? `superseded ${release.previousActiveRevisionId}`
-                          : "first release"}
-                    </span>
-                    <span>{release.createdAt}</span>
-                  </div>
-                  {release.evaluation ? (
-                    <div className="list-card__row list-card__row--muted">
-                      <span>{release.evaluation.evaluatorResult}</span>
-                      <span>
-                        {release.evaluation.rollbackReason
-                          ? `reason: ${release.evaluation.rollbackReason}`
-                          : `evaluation ${release.evaluation.status}`}
-                      </span>
-                    </div>
-                  ) : null}
-                </article>
-              );
-            })}
+            {agents.map((agent) => (
+              <AgentReleasePanel
+                key={`${agent.id}-release`}
+                activeRevisionState={agent.activeRevisionState}
+                agentName={agent.name}
+                hostAdapter={agent.hostAdapter}
+                release={agent.release}
+              />
+            ))}
           </div>
         ) : (
-          <p className="panel-copy">No release events are available for the current agent scope yet.</p>
+          <p className="panel-copy">No agents are available for the current scope yet.</p>
         )}
       </section>
 

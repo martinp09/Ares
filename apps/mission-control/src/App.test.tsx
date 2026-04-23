@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import App from "./App";
@@ -9,6 +9,16 @@ function jsonResponse(payload: unknown): Response {
     status: 200,
     headers: { "Content-Type": "application/json" },
   });
+}
+
+function createDeferred<T>() {
+  let resolve!: (value: T | PromiseLike<T>) => void;
+  let reject!: (reason?: unknown) => void;
+  const promise = new Promise<T>((nextResolve, nextReject) => {
+    resolve = nextResolve;
+    reject = nextReject;
+  });
+  return { promise, resolve, reject };
 }
 
 describe("App", () => {
@@ -226,12 +236,27 @@ describe("App", () => {
           agents: [
             {
               id: "agt-1",
+              business_id: "limitless",
+              description: "Primary rollback-managed agent",
               name: "Lifecycle Agent",
               environment: "production",
               active_revision_id: "rev-2",
               active_revision_state: "published",
               live_session_count: 2,
               delegated_work_count: 3,
+              host_adapter: {
+                kind: "trigger_dev",
+                enabled: true,
+                display_name: "Trigger.dev",
+                adapter_details_label: "Adapter details",
+                capabilities: {
+                  dispatch: true,
+                  status_correlation: true,
+                  artifact_reporting: true,
+                  cancellation: false,
+                },
+                disabled_reason: null,
+              },
               release: {
                 event_id: "rle-1",
                 event_type: "rollback",
@@ -412,12 +437,639 @@ describe("App", () => {
     expect(screen.getByText(/read-only lifecycle view for the selected agent/i)).toBeInTheDocument();
     expect(screen.getByText("Lifecycle Agent · limitless · production")).toBeInTheDocument();
     expect(screen.getByText(/Latest event rle-1 moved rev-1 to rev-2/i)).toBeInTheDocument();
+    expect(screen.getByText("Adapter details: dispatch, status correlation, artifact reporting")).toBeInTheDocument();
     expect(screen.getByText("Lifecycle agent was rolled back.")).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: /back to agents/i }));
 
     expect(await screen.findByRole("heading", { name: /lead machine \/ agents/i, level: 2 })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /view lifecycle for lifecycle agent/i })).toBeInTheDocument();
+  });
+
+  it("keeps host-adapter truth unavailable when agents are fixture-backed but detail loads live", async () => {
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+      const url = typeof input === "string" ? input : input instanceof URL ? input.toString() : input.url;
+
+      if (url.includes("/mission-control/dashboard")) {
+        return jsonResponse({
+          approval_count: 1,
+          active_run_count: 1,
+          failed_run_count: 0,
+          active_agent_count: 1,
+          unread_conversation_count: 0,
+          busy_channel_count: 0,
+          recent_completed_count: 1,
+          system_status: "healthy",
+          updated_at: "2026-04-16T21:00:00+00:00",
+        });
+      }
+
+      if (url.includes("/mission-control/inbox")) {
+        return jsonResponse({ summary: { thread_count: 0, unread_count: 0, approval_required_count: 0 }, threads: [], selected_thread_id: null });
+      }
+
+      if (url.includes("/mission-control/tasks")) {
+        return jsonResponse({ due_count: 0, tasks: [] });
+      }
+
+      if (url.includes("/mission-control/approvals")) {
+        return jsonResponse({ approvals: [] });
+      }
+
+      if (url.includes("/mission-control/runs")) {
+        return jsonResponse({ runs: [] });
+      }
+
+      if (url.includes("/mission-control/agents")) {
+        throw new Error("agents unavailable");
+      }
+
+      if (url.includes("/mission-control/settings/governance")) {
+        return jsonResponse({
+          org_id: "org_alpha",
+          pending_approvals: [],
+          secrets_health: {
+            active_revision_count: 1,
+            healthy_revision_count: 1,
+            attention_revision_count: 0,
+            required_secret_count: 1,
+            configured_secret_count: 1,
+            missing_secret_count: 0,
+            revisions: [],
+          },
+          recent_audit: [],
+          usage_summary: {
+            total_count: 0,
+            by_kind: {},
+            by_source_kind: [],
+            by_agent: [],
+            updated_at: "2026-04-16T21:00:00+00:00",
+          },
+          recent_usage: [],
+        });
+      }
+
+      if (url.includes("/mission-control/settings/assets")) {
+        return jsonResponse({ assets: [] });
+      }
+
+      if (url.endsWith("/agents/agt-1001")) {
+        return jsonResponse({
+          agent: {
+            id: "agt-1001",
+            name: "Sierra Inbox Agent",
+            slug: "sierra-inbox-agent",
+            business_id: "limitless",
+            environment: "production",
+            lifecycle_status: "active",
+            active_revision_id: "rev-201",
+            active_revision_state: "published",
+          },
+          revisions: [
+            {
+              id: "rev-201",
+              agent_id: "agt-1001",
+              revision_number: 3,
+              state: "published",
+              host_adapter_kind: "trigger_dev",
+              provider_kind: "anthropic",
+              provider_capabilities: ["chat", "tool_calling"],
+              skill_ids: ["inbox.reply-review"],
+              compatibility_metadata: { requires_secrets: [] },
+              release_channel: "dogfood",
+              release_notes: "Live detail revision.",
+              created_at: "2026-04-16T21:57:00+00:00",
+              updated_at: "2026-04-16T22:02:00+00:00",
+              published_at: "2026-04-16T22:03:00+00:00",
+            },
+          ],
+        });
+      }
+
+      if (url.endsWith("/release-management/agents/agt-1001/events")) {
+        throw new Error("release history unavailable");
+      }
+
+      if (url.includes("/mission-control/audit?agent_id=agt-1001")) {
+        return jsonResponse({ events: [] });
+      }
+
+      if (url.includes("/usage?agent_id=agt-1001")) {
+        return jsonResponse({
+          summary: {
+            total_count: 0,
+            by_kind: {},
+            by_source_kind: [],
+            by_agent: [],
+            updated_at: "2026-04-16T21:00:00+00:00",
+          },
+          events: [],
+        });
+      }
+
+      if (url.endsWith("/mission-control/turns")) {
+        return jsonResponse({ turns: [] });
+      }
+
+      if (url.endsWith("/mission-control/settings/secrets/revisions/rev-201")) {
+        return jsonResponse({ bindings: [{ binding_name: "textgrid_auth_token" }] });
+      }
+
+      throw new Error(`Unexpected fetch URL: ${url}`);
+    });
+
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<App />);
+
+    fireEvent.click(await screen.findByRole("button", { name: /view lifecycle for sierra inbox agent/i }));
+
+    expect(await screen.findByRole("heading", { name: "Agent lifecycle" })).toBeInTheDocument();
+    expect(screen.getByText(/status unavailable/i)).toBeInTheDocument();
+    expect(screen.queryByText("Trigger.dev enabled")).not.toBeInTheDocument();
+    expect(screen.getByText("Channel dogfood · revision rev-201 · state published")).toBeInTheDocument();
+    expect(screen.queryByText("Channel dogfood · target rev-198 · active rev-201")).not.toBeInTheDocument();
+  });
+
+  it("keeps summary release and host-adapter truth unavailable when the live agents revision no longer matches detail", async () => {
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+      const url = typeof input === "string" ? input : input instanceof URL ? input.toString() : input.url;
+
+      if (url.includes("/mission-control/dashboard")) {
+        return jsonResponse({
+          approval_count: 1,
+          active_run_count: 1,
+          failed_run_count: 0,
+          active_agent_count: 1,
+          unread_conversation_count: 0,
+          busy_channel_count: 0,
+          recent_completed_count: 1,
+          system_status: "healthy",
+          updated_at: "2026-04-16T21:00:00+00:00",
+        });
+      }
+
+      if (url.includes("/mission-control/inbox")) {
+        return jsonResponse({ summary: { thread_count: 0, unread_count: 0, approval_required_count: 0 }, threads: [], selected_thread_id: null });
+      }
+
+      if (url.includes("/mission-control/tasks")) {
+        return jsonResponse({ due_count: 0, tasks: [] });
+      }
+
+      if (url.includes("/mission-control/approvals")) {
+        return jsonResponse({ approvals: [] });
+      }
+
+      if (url.includes("/mission-control/runs")) {
+        return jsonResponse({ runs: [] });
+      }
+
+      if (url.includes("/mission-control/agents")) {
+        return jsonResponse({
+          agents: [
+            {
+              id: "agt-1001",
+              business_id: "limitless",
+              description: "Live agents summary is stale.",
+              name: "Sierra Inbox Agent",
+              environment: "production",
+              active_revision_id: "rev-stale",
+              active_revision_state: "published",
+              host_adapter: {
+                kind: "trigger_dev",
+                enabled: false,
+                display_name: "Trigger.dev",
+                disabled_reason: "Trigger.dev is disabled in the stale summary.",
+              },
+              release: {
+                event_id: "rle-stale",
+                event_type: "rollback",
+                release_channel: "dogfood",
+                created_at: "2026-04-16T20:30:00+00:00",
+                previous_active_revision_id: "rev-older",
+                target_revision_id: "rev-stale",
+                resulting_active_revision_id: "rev-stale",
+              },
+            },
+          ],
+        });
+      }
+
+      if (url.includes("/mission-control/settings/governance")) {
+        return jsonResponse({
+          org_id: "org_alpha",
+          pending_approvals: [],
+          secrets_health: {
+            active_revision_count: 1,
+            healthy_revision_count: 1,
+            attention_revision_count: 0,
+            required_secret_count: 0,
+            configured_secret_count: 0,
+            missing_secret_count: 0,
+            revisions: [],
+          },
+          recent_audit: [],
+          usage_summary: {
+            total_count: 0,
+            by_kind: {},
+            by_source_kind: [],
+            by_agent: [],
+            updated_at: "2026-04-16T21:00:00+00:00",
+          },
+          recent_usage: [],
+        });
+      }
+
+      if (url.includes("/mission-control/settings/assets")) {
+        return jsonResponse({ assets: [] });
+      }
+
+      if (url.endsWith("/agents/agt-1001")) {
+        return jsonResponse({
+          agent: {
+            id: "agt-1001",
+            name: "Sierra Inbox Agent",
+            slug: "sierra-inbox-agent",
+            business_id: "limitless",
+            environment: "production",
+            lifecycle_status: "active",
+            active_revision_id: "rev-201",
+            active_revision_state: "published",
+          },
+          revisions: [
+            {
+              id: "rev-201",
+              agent_id: "agt-1001",
+              revision_number: 3,
+              state: "published",
+              host_adapter_kind: "trigger_dev",
+              provider_kind: "anthropic",
+              provider_capabilities: ["chat", "tool_calling"],
+              skill_ids: ["inbox.reply-review"],
+              compatibility_metadata: { requires_secrets: [] },
+              release_channel: "dogfood",
+              release_notes: "Live detail revision.",
+              created_at: "2026-04-16T21:57:00+00:00",
+              updated_at: "2026-04-16T22:02:00+00:00",
+              published_at: "2026-04-16T22:03:00+00:00",
+            },
+          ],
+        });
+      }
+
+      if (url.endsWith("/release-management/agents/agt-1001/events")) {
+        throw new Error("release history unavailable");
+      }
+
+      if (url.includes("/mission-control/audit?agent_id=agt-1001")) {
+        return jsonResponse({ events: [] });
+      }
+
+      if (url.includes("/usage?agent_id=agt-1001")) {
+        return jsonResponse({
+          summary: {
+            total_count: 0,
+            by_kind: {},
+            by_source_kind: [],
+            by_agent: [],
+            updated_at: "2026-04-16T21:00:00+00:00",
+          },
+          events: [],
+        });
+      }
+
+      if (url.endsWith("/mission-control/turns")) {
+        return jsonResponse({ turns: [] });
+      }
+
+      if (url.endsWith("/mission-control/settings/secrets/revisions/rev-201")) {
+        return jsonResponse({ bindings: [] });
+      }
+
+      throw new Error(`Unexpected fetch URL: ${url}`);
+    });
+
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<App />);
+
+    fireEvent.click(await screen.findByRole("button", { name: /view lifecycle for sierra inbox agent/i }));
+
+    expect(await screen.findByRole("heading", { name: "Agent lifecycle" })).toBeInTheDocument();
+    expect(screen.getByText(/status unavailable/i)).toBeInTheDocument();
+    expect(screen.queryByText("Trigger.dev disabled")).not.toBeInTheDocument();
+    expect(screen.queryByText("Trigger.dev is disabled in the stale summary.")).not.toBeInTheDocument();
+    expect(screen.getByText("Channel dogfood · revision rev-201 · state published")).toBeInTheDocument();
+    expect(screen.queryByText("Channel dogfood · target rev-stale · active rev-stale")).not.toBeInTheDocument();
+  });
+
+  it("keeps summary release and host-adapter truth unavailable when the live agents state no longer matches detail", async () => {
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+      const url = typeof input === "string" ? input : input instanceof URL ? input.toString() : input.url;
+
+      if (url.includes("/mission-control/dashboard")) {
+        return jsonResponse({
+          approval_count: 1,
+          active_run_count: 1,
+          failed_run_count: 0,
+          active_agent_count: 1,
+          unread_conversation_count: 0,
+          busy_channel_count: 0,
+          recent_completed_count: 1,
+          system_status: "healthy",
+          updated_at: "2026-04-16T21:00:00+00:00",
+        });
+      }
+
+      if (url.includes("/mission-control/inbox")) {
+        return jsonResponse({ summary: { thread_count: 0, unread_count: 0, approval_required_count: 0 }, threads: [], selected_thread_id: null });
+      }
+
+      if (url.includes("/mission-control/tasks")) {
+        return jsonResponse({ due_count: 0, tasks: [] });
+      }
+
+      if (url.includes("/mission-control/approvals")) {
+        return jsonResponse({ approvals: [] });
+      }
+
+      if (url.includes("/mission-control/runs")) {
+        return jsonResponse({ runs: [] });
+      }
+
+      if (url.includes("/mission-control/agents")) {
+        return jsonResponse({
+          agents: [
+            {
+              id: "agt-1001",
+              business_id: "limitless",
+              description: "Live agents summary has a newer state.",
+              name: "Sierra Inbox Agent",
+              environment: "production",
+              active_revision_id: "rev-201",
+              active_revision_state: "draft",
+              host_adapter: {
+                kind: "trigger_dev",
+                enabled: false,
+                display_name: "Trigger.dev",
+                adapter_details_label: "Adapter details",
+                capabilities: {
+                  dispatch: false,
+                  status_correlation: false,
+                  artifact_reporting: false,
+                  cancellation: false,
+                },
+                disabled_reason: "Trigger.dev is disabled in the stale state summary.",
+              },
+              release: {
+                event_id: "rle-stale-state",
+                event_type: "publish",
+                release_channel: "dogfood",
+                created_at: "2026-04-16T20:30:00+00:00",
+                previous_active_revision_id: "rev-200",
+                target_revision_id: "rev-201",
+                resulting_active_revision_id: "rev-201",
+              },
+            },
+          ],
+        });
+      }
+
+      if (url.includes("/mission-control/settings/governance")) {
+        return jsonResponse({
+          org_id: "org_alpha",
+          pending_approvals: [],
+          secrets_health: {
+            active_revision_count: 1,
+            healthy_revision_count: 1,
+            attention_revision_count: 0,
+            required_secret_count: 0,
+            configured_secret_count: 0,
+            missing_secret_count: 0,
+            revisions: [],
+          },
+          recent_audit: [],
+          usage_summary: {
+            total_count: 0,
+            by_kind: {},
+            by_source_kind: [],
+            by_agent: [],
+            updated_at: "2026-04-16T21:00:00+00:00",
+          },
+          recent_usage: [],
+        });
+      }
+
+      if (url.includes("/mission-control/settings/assets")) {
+        return jsonResponse({ assets: [] });
+      }
+
+      if (url.endsWith("/agents/agt-1001")) {
+        return jsonResponse({
+          agent: {
+            id: "agt-1001",
+            name: "Sierra Inbox Agent",
+            slug: "sierra-inbox-agent",
+            business_id: "limitless",
+            environment: "production",
+            lifecycle_status: "active",
+            active_revision_id: "rev-201",
+            active_revision_state: "published",
+          },
+          revisions: [
+            {
+              id: "rev-201",
+              agent_id: "agt-1001",
+              revision_number: 3,
+              state: "published",
+              host_adapter_kind: "trigger_dev",
+              provider_kind: "anthropic",
+              provider_capabilities: ["chat", "tool_calling"],
+              skill_ids: ["inbox.reply-review"],
+              compatibility_metadata: { requires_secrets: [] },
+              release_channel: "dogfood",
+              release_notes: "Live detail revision.",
+              created_at: "2026-04-16T21:57:00+00:00",
+              updated_at: "2026-04-16T22:02:00+00:00",
+              published_at: "2026-04-16T22:03:00+00:00",
+            },
+          ],
+        });
+      }
+
+      if (url.endsWith("/release-management/agents/agt-1001/events")) {
+        throw new Error("release history unavailable");
+      }
+
+      if (url.includes("/mission-control/audit?agent_id=agt-1001")) {
+        return jsonResponse({ events: [] });
+      }
+
+      if (url.includes("/usage?agent_id=agt-1001")) {
+        return jsonResponse({
+          summary: {
+            total_count: 0,
+            by_kind: {},
+            by_source_kind: [],
+            by_agent: [],
+            updated_at: "2026-04-16T21:00:00+00:00",
+          },
+          events: [],
+        });
+      }
+
+      if (url.endsWith("/mission-control/turns")) {
+        return jsonResponse({ turns: [] });
+      }
+
+      if (url.endsWith("/mission-control/settings/secrets/revisions/rev-201")) {
+        return jsonResponse({ bindings: [] });
+      }
+
+      throw new Error(`Unexpected fetch URL: ${url}`);
+    });
+
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<App />);
+
+    fireEvent.click(await screen.findByRole("button", { name: /view lifecycle for sierra inbox agent/i }));
+
+    expect(await screen.findByRole("heading", { name: "Agent lifecycle" })).toBeInTheDocument();
+    expect(screen.queryByText("Trigger.dev disabled")).not.toBeInTheDocument();
+    expect(screen.queryByText("Trigger.dev is disabled in the stale state summary.")).not.toBeInTheDocument();
+    expect(screen.getByText("Channel dogfood · revision rev-201 · state published")).toBeInTheDocument();
+    expect(screen.queryByText("Channel dogfood · target rev-201 · active rev-201")).not.toBeInTheDocument();
+  });
+
+  it("keeps summary host-adapter truth unavailable when agents recover after fixture detail fallback", async () => {
+    let agentsRequestCount = 0;
+
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+      const url = typeof input === "string" ? input : input instanceof URL ? input.toString() : input.url;
+
+      if (url.includes("/mission-control/dashboard")) {
+        return jsonResponse({
+          approval_count: 1,
+          active_run_count: 1,
+          failed_run_count: 0,
+          active_agent_count: 1,
+          unread_conversation_count: 0,
+          busy_channel_count: 0,
+          recent_completed_count: 1,
+          system_status: "healthy",
+          updated_at: "2026-04-16T21:00:00+00:00",
+        });
+      }
+
+      if (url.includes("/mission-control/inbox")) {
+        return jsonResponse({ summary: { thread_count: 0, unread_count: 0, approval_required_count: 0 }, threads: [], selected_thread_id: null });
+      }
+
+      if (url.includes("/mission-control/tasks")) {
+        return jsonResponse({ due_count: 0, tasks: [] });
+      }
+
+      if (url.includes("/mission-control/approvals")) {
+        return jsonResponse({ approvals: [] });
+      }
+
+      if (url.includes("/mission-control/runs")) {
+        return jsonResponse({ runs: [] });
+      }
+
+      if (url.includes("/mission-control/agents")) {
+        agentsRequestCount += 1;
+        if (agentsRequestCount < 3) {
+          throw new Error("agents unavailable");
+        }
+        return jsonResponse({
+          agents: [
+            {
+              id: "agt-1001",
+              business_id: "limitless",
+              description: "Recovered live agent.",
+              name: "Sierra Inbox Agent",
+              environment: "production",
+              active_revision_id: "rev-201",
+              active_revision_state: "published",
+              host_adapter: {
+                kind: "trigger_dev",
+                enabled: true,
+                display_name: "Trigger.dev",
+                adapter_details_label: "Adapter details",
+                capabilities: {
+                  dispatch: true,
+                  status_correlation: true,
+                  artifact_reporting: true,
+                  cancellation: false,
+                },
+                disabled_reason: null,
+              },
+            },
+          ],
+        });
+      }
+
+      if (url.includes("/mission-control/settings/governance")) {
+        return jsonResponse({
+          org_id: "org_alpha",
+          pending_approvals: [],
+          secrets_health: {
+            active_revision_count: 0,
+            healthy_revision_count: 0,
+            attention_revision_count: 0,
+            required_secret_count: 0,
+            configured_secret_count: 0,
+            missing_secret_count: 0,
+            revisions: [],
+          },
+          recent_audit: [],
+          usage_summary: {
+            total_count: 0,
+            by_kind: {},
+            by_source_kind: [],
+            by_agent: [],
+            updated_at: "2026-04-16T21:00:00+00:00",
+          },
+          recent_usage: [],
+        });
+      }
+
+      if (url.includes("/mission-control/settings/assets")) {
+        return jsonResponse({ assets: [] });
+      }
+
+      if (url.endsWith("/agents/agt-1001")) {
+        throw new Error("detail unavailable");
+      }
+
+      throw new Error(`Unexpected fetch URL: ${url}`);
+    });
+
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<App />);
+
+    fireEvent.click(await screen.findByRole("button", { name: /view lifecycle for sierra inbox agent/i }));
+
+    expect(await screen.findByRole("heading", { name: "Agent lifecycle" })).toBeInTheDocument();
+    expect(screen.getByText("Fixture fallback")).toBeInTheDocument();
+    expect(screen.getByText(/status unavailable/i)).toBeInTheDocument();
+    expect(screen.queryByText("Trigger.dev enabled")).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /queue/i }));
+    fireEvent.click(screen.getAllByRole("button", { name: /agents/i })[0]);
+
+    expect(await screen.findByText("Live API")).toBeInTheDocument();
+    const reopenedLifecycleButton = screen.queryByRole("button", { name: /view lifecycle for sierra inbox agent/i });
+    if (reopenedLifecycleButton) {
+      fireEvent.click(reopenedLifecycleButton);
+    }
+    expect(await screen.findByRole("heading", { name: "Agent lifecycle" })).toBeInTheDocument();
+    expect(screen.queryByText("Trigger.dev enabled")).not.toBeInTheDocument();
+    expect(screen.queryByText("Adapter details: dispatch, status correlation, artifact reporting")).not.toBeInTheDocument();
   });
 
   it("clears stale selected agent detail when search excludes the agent", async () => {
@@ -542,6 +1194,199 @@ describe("App", () => {
     expect(screen.getByRole("button", { name: /view lifecycle for other agent/i })).toBeInTheDocument();
   });
 
+  it("keeps the side context panel neutral while a different agent detail is still loading", async () => {
+    let resolveFirstAgentDetail: ((value: Response) => void) | null = null;
+    let resolveSecondAgentDetail: ((value: Response) => void) | null = null;
+
+    const fetchMock = vi.fn((input: RequestInfo | URL) => {
+      const url = typeof input === "string" ? input : input instanceof URL ? input.toString() : input.url;
+
+      if (url.includes("/mission-control/dashboard")) {
+        return Promise.resolve(
+          jsonResponse({
+            approval_count: 0,
+            active_run_count: 0,
+            failed_run_count: 0,
+            active_agent_count: 2,
+            unread_conversation_count: 0,
+            busy_channel_count: 0,
+            recent_completed_count: 0,
+            system_status: "healthy",
+            updated_at: "2026-04-16T21:00:00+00:00",
+          }),
+        );
+      }
+      if (url.includes("/mission-control/inbox")) {
+        return Promise.resolve(
+          jsonResponse({ summary: { thread_count: 0, unread_count: 0, approval_required_count: 0 }, threads: [], selected_thread_id: null }),
+        );
+      }
+      if (url.includes("/mission-control/tasks")) {
+        return Promise.resolve(jsonResponse({ due_count: 0, tasks: [] }));
+      }
+      if (url.includes("/mission-control/approvals")) {
+        return Promise.resolve(jsonResponse({ approvals: [] }));
+      }
+      if (url.includes("/mission-control/runs")) {
+        return Promise.resolve(jsonResponse({ runs: [] }));
+      }
+      if (url.includes("/mission-control/agents")) {
+        return Promise.resolve(
+          jsonResponse({
+            agents: [
+              {
+                id: "agt-1",
+                business_id: "limitless",
+                description: "First live agent",
+                name: "First Agent",
+                environment: "production",
+                active_revision_id: "rev-1",
+                active_revision_state: "published",
+              },
+              {
+                id: "agt-2",
+                business_id: "limitless",
+                description: "Second live agent",
+                name: "Second Agent",
+                environment: "production",
+                active_revision_id: "rev-2",
+                active_revision_state: "published",
+              },
+            ],
+          }),
+        );
+      }
+      if (url.includes("/mission-control/settings/governance")) {
+        return Promise.resolve(
+          jsonResponse({
+            org_id: "org_alpha",
+            pending_approvals: [],
+            secrets_health: {
+              active_revision_count: 0,
+              healthy_revision_count: 0,
+              attention_revision_count: 0,
+              required_secret_count: 0,
+              configured_secret_count: 0,
+              missing_secret_count: 0,
+              revisions: [],
+            },
+            recent_audit: [],
+            usage_summary: { total_count: 0, by_kind: {}, by_source_kind: [], by_agent: [], updated_at: "2026-04-16T21:00:00+00:00" },
+            recent_usage: [],
+          }),
+        );
+      }
+      if (url.includes("/mission-control/settings/assets")) {
+        return Promise.resolve(jsonResponse({ assets: [] }));
+      }
+      if (url.endsWith("/agents/agt-1")) {
+        return new Promise((resolve) => {
+          resolveFirstAgentDetail = resolve;
+        });
+      }
+      if (url.endsWith("/agents/agt-2")) {
+        return new Promise((resolve) => {
+          resolveSecondAgentDetail = resolve;
+        });
+      }
+      if (url.endsWith("/release-management/agents/agt-1/events") || url.endsWith("/release-management/agents/agt-2/events")) {
+        return Promise.resolve(jsonResponse({ events: [] }));
+      }
+      if (url.includes("/mission-control/audit?agent_id=agt-1") || url.includes("/mission-control/audit?agent_id=agt-2")) {
+        return Promise.resolve(jsonResponse({ events: [] }));
+      }
+      if (url.includes("/usage?agent_id=agt-1") || url.includes("/usage?agent_id=agt-2")) {
+        return Promise.resolve(
+          jsonResponse({ summary: { total_count: 0, by_kind: {}, by_source_kind: [], by_agent: [], updated_at: "2026-04-16T21:00:00+00:00" }, events: [] }),
+        );
+      }
+      if (url.endsWith("/mission-control/turns")) {
+        return Promise.resolve(jsonResponse({ turns: [] }));
+      }
+      if (url.includes("/mission-control/settings/secrets/revisions/rev-1") || url.includes("/mission-control/settings/secrets/revisions/rev-2")) {
+        return Promise.resolve(jsonResponse({ bindings: [] }));
+      }
+
+      return Promise.reject(new Error(`Unexpected fetch URL: ${url}`));
+    });
+
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<App />);
+
+    fireEvent.click(await screen.findByRole("button", { name: /view lifecycle for first agent/i }));
+
+    if (!resolveFirstAgentDetail) {
+      throw new Error("First agent detail request was not issued");
+    }
+
+    (resolveFirstAgentDetail as (value: Response) => void)(
+      jsonResponse({
+        agent: {
+          id: "agt-1",
+          name: "First Agent",
+          slug: "first-agent",
+          business_id: "limitless",
+          environment: "production",
+          lifecycle_status: "active",
+          active_revision_id: "rev-1",
+          active_revision_state: "published",
+        },
+        revisions: [
+          {
+            id: "rev-1",
+            agent_id: "agt-1",
+            revision_number: 1,
+            state: "published",
+            host_adapter_kind: "trigger_dev",
+            provider_kind: "anthropic",
+            provider_capabilities: ["chat"],
+            skill_ids: ["skill.one"],
+            compatibility_metadata: { requires_secrets: [] },
+            release_channel: "dogfood",
+            created_at: "2026-04-16T21:00:00+00:00",
+            updated_at: "2026-04-16T21:01:00+00:00",
+          },
+        ],
+      }),
+    );
+
+    expect(await screen.findByRole("heading", { name: "Agent lifecycle" })).toBeInTheDocument();
+    expect(screen.getByText("1 revisions are tracked for this agent")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /back to agents/i }));
+    expect(await screen.findByRole("button", { name: /view lifecycle for second agent/i })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /view lifecycle for second agent/i }));
+
+    expect(await screen.findByRole("heading", { name: "Loading agent lifecycle" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Second Agent" })).toBeInTheDocument();
+    expect(screen.getByText("Fetching runtime lifecycle context for the selected agent.")).toBeInTheDocument();
+    expect(screen.queryByText("1 revisions are tracked for this agent")).not.toBeInTheDocument();
+
+    if (!resolveSecondAgentDetail) {
+      throw new Error("Second agent detail request was not issued");
+    }
+
+    (resolveSecondAgentDetail as (value: Response) => void)(
+      jsonResponse({
+        agent: {
+          id: "agt-2",
+          name: "Second Agent",
+          slug: "second-agent",
+          business_id: "limitless",
+          environment: "production",
+          lifecycle_status: "active",
+          active_revision_id: "rev-2",
+          active_revision_state: "published",
+        },
+        revisions: [],
+      }),
+    );
+
+    expect(await screen.findByText("0 revisions are tracked for this agent")).toBeInTheDocument();
+  });
+
   it("loads fixtures when the API is unavailable", async () => {
     const fetchMock = vi.fn(async () => {
       throw new Error("API unavailable");
@@ -553,6 +1398,199 @@ describe("App", () => {
 
     expect(await screen.findByRole("heading", { name: "Agent platform cockpit" })).toBeInTheDocument();
     expect(screen.getByText("Fixture mode")).toBeInTheDocument();
+  });
+
+  it("reconciles shell fallback labels after the agents surface recovers from fixture mode", async () => {
+    let agentsRequestCount = 0;
+
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+      const url = typeof input === "string" ? input : input instanceof URL ? input.toString() : input.url;
+
+      if (url.includes("/mission-control/dashboard")) {
+        return jsonResponse({
+          approval_count: 0,
+          active_run_count: 0,
+          failed_run_count: 0,
+          active_agent_count: 1,
+          unread_conversation_count: 0,
+          busy_channel_count: 0,
+          recent_completed_count: 0,
+          system_status: "healthy",
+          updated_at: "2026-04-16T21:00:00+00:00",
+        });
+      }
+      if (url.includes("/mission-control/inbox")) {
+        return jsonResponse({ summary: { thread_count: 0, unread_count: 0, approval_required_count: 0 }, threads: [], selected_thread_id: null });
+      }
+      if (url.includes("/mission-control/tasks")) {
+        return jsonResponse({ due_count: 0, tasks: [] });
+      }
+      if (url.includes("/mission-control/approvals")) {
+        return jsonResponse({ approvals: [] });
+      }
+      if (url.includes("/mission-control/runs")) {
+        return jsonResponse({ runs: [] });
+      }
+      if (url.includes("/mission-control/agents")) {
+        agentsRequestCount += 1;
+        if (agentsRequestCount < 3) {
+          throw new Error("agents temporarily unavailable");
+        }
+        return jsonResponse({
+          agents: [
+            {
+              id: "agt-1",
+              business_id: "limitless",
+              description: "Recovered agent",
+              name: "Recovered Agent",
+              environment: "production",
+              active_revision_id: "rev-2",
+              active_revision_state: "published",
+            },
+          ],
+        });
+      }
+      if (url.includes("/mission-control/settings/governance")) {
+        return jsonResponse({
+          org_id: "org_alpha",
+          pending_approvals: [],
+          secrets_health: {
+            active_revision_count: 0,
+            healthy_revision_count: 0,
+            attention_revision_count: 0,
+            required_secret_count: 0,
+            configured_secret_count: 0,
+            missing_secret_count: 0,
+            revisions: [],
+          },
+          recent_audit: [],
+          usage_summary: { total_count: 0, by_kind: {}, by_source_kind: [], by_agent: [], updated_at: "2026-04-16T21:00:00+00:00" },
+          recent_usage: [],
+        });
+      }
+      if (url.includes("/mission-control/settings/assets")) {
+        return jsonResponse({ assets: [] });
+      }
+
+      throw new Error(`Unexpected fetch URL: ${url}`);
+    });
+
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<App />);
+
+    expect(await screen.findByText("API + fixture fallback (agents)")).toBeInTheDocument();
+    expect(screen.getByText("Fixture fallback / no Supabase wiring")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /queue/i }));
+    fireEvent.click(screen.getAllByRole("button", { name: /agents/i })[0]);
+
+    await screen.findByText("Live API / no Supabase wiring");
+    await screen.findByText("Live API");
+
+    expect(screen.getByText("Mission Control is reading Hermes runtime data.")).toBeInTheDocument();
+    expect(screen.queryByText("API + fixture fallback (agents)")).not.toBeInTheDocument();
+    expect(screen.queryByText("Using fixture fallback for: agents.")).not.toBeInTheDocument();
+  });
+
+  it("preserves summary business truth when agent detail falls back to degraded mode", async () => {
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+      const url = typeof input === "string" ? input : input instanceof URL ? input.toString() : input.url;
+
+      if (url.includes("/mission-control/dashboard")) {
+        return jsonResponse({
+          approval_count: 0,
+          active_run_count: 0,
+          failed_run_count: 0,
+          active_agent_count: 1,
+          unread_conversation_count: 0,
+          busy_channel_count: 0,
+          recent_completed_count: 0,
+          system_status: "healthy",
+          updated_at: "2026-04-16T21:00:00+00:00",
+        });
+      }
+      if (url.includes("/mission-control/inbox")) {
+        return jsonResponse({ summary: { thread_count: 0, unread_count: 0, approval_required_count: 0 }, threads: [], selected_thread_id: null });
+      }
+      if (url.includes("/mission-control/tasks")) {
+        return jsonResponse({ due_count: 0, tasks: [] });
+      }
+      if (url.includes("/mission-control/approvals")) {
+        return jsonResponse({ approvals: [] });
+      }
+      if (url.includes("/mission-control/runs")) {
+        return jsonResponse({ runs: [] });
+      }
+      if (url.includes("/mission-control/agents")) {
+        return jsonResponse({
+          agents: [
+            {
+              id: "agt-1",
+              business_id: "limitless",
+              description: "Primary rollback-managed agent",
+              name: "Lifecycle Agent",
+              environment: "production",
+              active_revision_id: "rev-2",
+              active_revision_state: "published",
+              release: {
+                event_id: "rle-1",
+                event_type: "rollback",
+                release_channel: "dogfood",
+                created_at: "2026-04-16T21:03:00+00:00",
+                previous_active_revision_id: "rev-3",
+                target_revision_id: "rev-1",
+                resulting_active_revision_id: "rev-2",
+                rollback_source_revision_id: "rev-1",
+              },
+            },
+          ],
+        });
+      }
+      if (url.includes("/mission-control/settings/governance")) {
+        return jsonResponse({
+          org_id: "org_alpha",
+          pending_approvals: [],
+          secrets_health: {
+            active_revision_count: 0,
+            healthy_revision_count: 0,
+            attention_revision_count: 0,
+            required_secret_count: 0,
+            configured_secret_count: 0,
+            missing_secret_count: 0,
+            revisions: [],
+          },
+          recent_audit: [],
+          usage_summary: { total_count: 0, by_kind: {}, by_source_kind: [], by_agent: [], updated_at: "2026-04-16T21:00:00+00:00" },
+          recent_usage: [],
+        });
+      }
+      if (url.includes("/mission-control/settings/assets")) {
+        return jsonResponse({ assets: [] });
+      }
+      if (url.endsWith("/agents/agt-1")) {
+        throw new Error("detail endpoint unavailable");
+      }
+
+      throw new Error(`Unexpected fetch URL: ${url}`);
+    });
+
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<App />);
+
+    fireEvent.click(await screen.findByRole("button", { name: /view lifecycle for lifecycle agent/i }));
+
+    expect(await screen.findByRole("heading", { name: "Agent lifecycle" })).toBeInTheDocument();
+    expect(screen.getByText("Lifecycle Agent · limitless · production")).toBeInTheDocument();
+    expect(screen.getByText("Live detail unavailable")).toBeInTheDocument();
+    expect(screen.queryByText("Lifecycle Agent · unavailable · production")).not.toBeInTheDocument();
+    const lifecycleBadgeRow = screen.getByRole("button", { name: /back to agents/i }).parentElement;
+    if (!lifecycleBadgeRow) {
+      throw new Error("Lifecycle badge row is missing");
+    }
+    expect(within(lifecycleBadgeRow).getByText("published")).toBeInTheDocument();
+    expect(within(lifecycleBadgeRow).getByText("unavailable")).toBeInTheDocument();
   });
 
   it("falls back safely when the second-thread inbox detail fetch fails mid-session", async () => {
@@ -860,7 +1898,7 @@ describe("App", () => {
     expect(screen.getByText("Under Negotiation")).toBeInTheDocument();
   });
 
-  it("renders governance data in the settings surface", async () => {
+  it("renders the settings workspace and governance surface through App", async () => {
     const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
       const url = typeof input === "string" ? input : input instanceof URL ? input.toString() : input.url;
 
@@ -956,8 +1994,8 @@ describe("App", () => {
           recent_audit: [
             {
               id: "audit-1",
-              event_type: "secret_accessed",
-              summary: "Operator viewed secret posture.",
+              event_type: "approval_granted",
+              summary: "Governance review approved the current release posture.",
               created_at: "2026-04-16T22:05:00+00:00",
             },
           ],
@@ -1004,12 +2042,927 @@ describe("App", () => {
 
     fireEvent.click(await screen.findByRole("button", { name: /settings/i }));
 
+    expect(await screen.findByRole("heading", { name: "Settings / Governance", level: 2 })).toBeInTheDocument();
     expect(await screen.findByRole("heading", { name: /governance overview/i, level: 3 })).toBeInTheDocument();
+    expect(screen.getByText("Operator trust surface")).toBeInTheDocument();
     expect(screen.getByText(/1\/2 configured/i)).toBeInTheDocument();
     expect(screen.getByText("Atlas Research Agent")).toBeInTheDocument();
     expect(screen.getByText(/Missing: provider_api_key/i)).toBeInTheDocument();
-    expect(screen.getByText("Operator viewed secret posture.")).toBeInTheDocument();
-    expect(screen.getByText(/tool_call: 3/i)).toBeInTheDocument();
+    expect(screen.getByText("Governance review approved the current release posture.")).toBeInTheDocument();
+    expect(within(screen.getByRole("region", { name: "Usage summary" })).getByText(/tool_call: 3/i)).toBeInTheDocument();
+  });
+
+  it("applies org scope first, keeps business and environment as secondary filters, and clears stale selections on scope changes", async () => {
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = typeof input === "string" ? input : input instanceof URL ? input.toString() : input.url;
+      const parsedUrl = new URL(url, "http://localhost");
+      const headers = init?.headers as Record<string, string> | undefined;
+      const orgId = headers?.["X-Ares-Org-Id"] ?? "org_internal";
+      const businessId = parsedUrl.searchParams.get("business_id");
+      const environment = parsedUrl.searchParams.get("environment");
+
+      if (parsedUrl.pathname === "/organizations") {
+        return jsonResponse({
+          organizations: [
+            { id: "org_alpha", name: "Alpha Org", slug: "alpha-org" },
+            { id: "org_beta", name: "Beta Org", slug: "beta-org" },
+          ],
+        });
+      }
+
+      if (parsedUrl.pathname === "/mission-control/dashboard") {
+        return jsonResponse({
+          approval_count: orgId === "org_beta" ? 2 : orgId === "org_alpha" ? 1 : 0,
+          active_run_count: 1,
+          failed_run_count: 0,
+          active_agent_count: 1,
+          unread_conversation_count: 1,
+          busy_channel_count: 1,
+          recent_completed_count: 1,
+          system_status: "healthy",
+          updated_at: "2026-04-22T12:00:00+00:00",
+        });
+      }
+
+      if (parsedUrl.pathname === "/mission-control/inbox") {
+        if (orgId === "org_alpha") {
+          return jsonResponse({
+            summary: { thread_count: 1, unread_count: 1, approval_required_count: 0 },
+            threads: [
+              {
+                thread_id: "thread-alpha",
+                channel: "sms",
+                status: "open",
+                unread_count: 1,
+                last_message_preview: "Alpha preview",
+                last_message_at: "2026-04-22T12:01:00+00:00",
+                requires_approval: false,
+                related_run_id: null,
+                related_approval_id: null,
+                contact: { display_name: "Alpha Lead", phone: "+15551230001" },
+                context: { org_id: "org_alpha" },
+              },
+            ],
+            selected_thread_id: "thread-alpha",
+            selected_thread: {
+              thread_id: "thread-alpha",
+              channel: "sms",
+              status: "open",
+              unread_count: 1,
+              requires_approval: false,
+              related_run_id: null,
+              related_approval_id: null,
+              contact: { display_name: "Alpha Lead", phone: "+15551230001" },
+              messages: [
+                {
+                  id: "msg-alpha",
+                  direction: "inbound",
+                  channel: "sms",
+                  body: "Alpha detail from API",
+                  created_at: "2026-04-22T12:01:00+00:00",
+                  message_type: "received",
+                },
+              ],
+              context: { stage: "Qualified", next_best_action: "Call alpha lead." },
+            },
+          });
+        }
+
+        if (orgId === "org_internal") {
+          return jsonResponse({
+            summary: { thread_count: 0, unread_count: 0, approval_required_count: 0 },
+            threads: [],
+            selected_thread_id: null,
+            selected_thread: null,
+          });
+        }
+
+        return jsonResponse({
+          summary: { thread_count: 1, unread_count: 1, approval_required_count: 0 },
+          threads: [
+            {
+              thread_id: "thread-beta",
+              channel: "email",
+              status: "open",
+              unread_count: 1,
+              last_message_preview: "Beta preview",
+              last_message_at: "2026-04-22T12:02:00+00:00",
+              requires_approval: false,
+              related_run_id: null,
+              related_approval_id: null,
+              contact: { display_name: "Beta Lead", email: "beta@example.com" },
+              context: { org_id: "org_beta" },
+            },
+          ],
+          selected_thread_id: "thread-beta",
+          selected_thread: {
+            thread_id: "thread-beta",
+            channel: "email",
+            status: "open",
+            unread_count: 1,
+            requires_approval: false,
+            related_run_id: null,
+            related_approval_id: null,
+            contact: { display_name: "Beta Lead", email: "beta@example.com" },
+            messages: [
+              {
+                id: "msg-beta",
+                direction: "inbound",
+                channel: "email",
+                body: "Beta detail from API",
+                created_at: "2026-04-22T12:02:00+00:00",
+                message_type: "received",
+              },
+            ],
+            context: { stage: "New", next_best_action: "Review beta lead." },
+          },
+        });
+      }
+
+      if (parsedUrl.pathname === "/mission-control/tasks") {
+        return jsonResponse({ due_count: 0, tasks: [] });
+      }
+
+      if (parsedUrl.pathname === "/mission-control/approvals") {
+        return jsonResponse({ approvals: [] });
+      }
+
+      if (parsedUrl.pathname === "/mission-control/runs") {
+        return jsonResponse({ runs: [] });
+      }
+
+      if (parsedUrl.pathname === "/mission-control/agents") {
+        if (orgId === "org_alpha") {
+          return jsonResponse({
+            agents: [
+              {
+                id: "agt-alpha",
+                business_id: "limitless",
+                description: "Alpha scoped agent",
+                name: "Alpha Agent",
+                environment: "dev",
+                active_revision_id: "rev-alpha",
+                active_revision_state: "published",
+                live_session_count: 1,
+                delegated_work_count: 1,
+              },
+            ],
+          });
+        }
+
+        if (orgId === "org_internal") {
+          return jsonResponse({ agents: [] });
+        }
+
+        return jsonResponse({
+          agents: [
+            {
+              id: "agt-beta",
+              business_id: "otherco",
+              description: "Beta scoped agent",
+              name: "Beta Agent",
+              environment: "prod",
+              active_revision_id: "rev-beta",
+              active_revision_state: "published",
+              live_session_count: 1,
+              delegated_work_count: 1,
+            },
+          ],
+        });
+      }
+
+      if (parsedUrl.pathname === "/mission-control/settings/governance") {
+        expect(parsedUrl.searchParams.get("business_id")).toBeNull();
+        expect(parsedUrl.searchParams.get("environment")).toBeNull();
+        return jsonResponse({
+          org_id: orgId ?? "org_alpha",
+          pending_approvals: [],
+          secrets_health: {
+            active_revision_count: 0,
+            healthy_revision_count: 0,
+            attention_revision_count: 0,
+            required_secret_count: 0,
+            configured_secret_count: 0,
+            missing_secret_count: 0,
+            revisions: [],
+          },
+          recent_audit: [],
+          usage_summary: {
+            total_count: 0,
+            by_kind: {},
+            by_source_kind: [],
+            by_agent: [],
+            updated_at: "2026-04-22T12:00:00+00:00",
+          },
+          recent_usage: [],
+        });
+      }
+
+      if (parsedUrl.pathname === "/mission-control/settings/assets") {
+        expect(parsedUrl.searchParams.get("business_id")).toBeNull();
+        expect(parsedUrl.searchParams.get("environment")).toBeNull();
+        return jsonResponse({ assets: [] });
+      }
+
+      if (parsedUrl.pathname === "/agents/agt-alpha") {
+        return jsonResponse({
+          agent: {
+            id: "agt-alpha",
+            name: "Alpha Agent",
+            slug: "alpha-agent",
+            business_id: "limitless",
+            environment: "dev",
+            lifecycle_status: "active",
+            active_revision_id: "rev-alpha",
+            active_revision_state: "published",
+          },
+          revisions: [],
+        });
+      }
+
+      if (parsedUrl.pathname === "/agents/agt-beta") {
+        return jsonResponse({
+          agent: {
+            id: "agt-beta",
+            name: "Beta Agent",
+            slug: "beta-agent",
+            business_id: "otherco",
+            environment: "prod",
+            lifecycle_status: "active",
+            active_revision_id: "rev-beta",
+            active_revision_state: "published",
+          },
+          revisions: [],
+        });
+      }
+
+      if (parsedUrl.pathname === "/mission-control/turns") {
+        return jsonResponse({ turns: [] });
+      }
+
+      if (parsedUrl.pathname.startsWith("/release-management/agents/")) {
+        return jsonResponse({ events: [] });
+      }
+
+      if (parsedUrl.pathname === "/mission-control/audit" || parsedUrl.pathname === "/usage") {
+        return jsonResponse({
+          events: [],
+          summary: {
+            total_count: 0,
+            by_kind: {},
+            by_source_kind: [],
+            by_agent: [],
+            updated_at: "2026-04-22T12:00:00+00:00",
+          },
+        });
+      }
+
+      if (parsedUrl.pathname.startsWith("/mission-control/settings/secrets/revisions/")) {
+        return jsonResponse({ bindings: [] });
+      }
+
+      throw new Error(`Unexpected fetch URL: ${url}`);
+    });
+
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<App />);
+
+    await screen.findByRole("tab", { name: "Alpha Org" });
+    await screen.findByRole("button", { name: /view lifecycle for alpha agent/i });
+    fireEvent.click(within(screen.getByRole("group", { name: "Business filter" })).getByRole("button", { name: "limitless" }));
+    fireEvent.click(within(screen.getByRole("group", { name: "Environment filter" })).getByRole("button", { name: "dev" }));
+
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledWith(
+        expect.stringContaining("/mission-control/agents?business_id=limitless&environment=dev"),
+        expect.objectContaining({
+          headers: expect.objectContaining({
+            "X-Ares-Org-Id": "org_alpha",
+          }),
+        }),
+      );
+    });
+
+    fireEvent.click(await screen.findByRole("button", { name: /view lifecycle for alpha agent/i }));
+    expect(await screen.findByRole("heading", { name: "Agent lifecycle" })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /replies/i }));
+    expect(await screen.findByText("Alpha detail from API")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("tab", { name: "Beta Org" }));
+
+    expect(await screen.findByText("Beta detail from API")).toBeInTheDocument();
+    expect(screen.queryByText("Alpha detail from API")).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getAllByRole("button", { name: /agents/i })[0]);
+    expect(await screen.findByRole("button", { name: /view lifecycle for beta agent/i })).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Agent lifecycle" })).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /settings/i }));
+    expect(await screen.findByText("org_beta")).toBeInTheDocument();
+
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledWith(
+        expect.stringContaining("/mission-control/settings/governance"),
+        expect.objectContaining({
+          headers: expect.objectContaining({
+            "X-Ares-Org-Id": "org_beta",
+          }),
+        }),
+      );
+    });
+  });
+
+  it("hides prior-scope inbox detail while the next org reload is still in flight", async () => {
+    const betaInbox = createDeferred<unknown>();
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = typeof input === "string" ? input : input instanceof URL ? input.toString() : input.url;
+      const parsedUrl = new URL(url, "http://localhost");
+      const headers = init?.headers as Record<string, string> | undefined;
+      const orgId = headers?.["X-Ares-Org-Id"] ?? "org_internal";
+
+      if (parsedUrl.pathname === "/organizations") {
+        return jsonResponse({
+          organizations: [
+            { id: "org_alpha", name: "Alpha Org", slug: "alpha-org" },
+            { id: "org_beta", name: "Beta Org", slug: "beta-org" },
+          ],
+        });
+      }
+
+      if (parsedUrl.pathname === "/mission-control/dashboard") {
+        return jsonResponse({
+          approval_count: 0,
+          active_run_count: 0,
+          failed_run_count: 0,
+          active_agent_count: 0,
+          unread_conversation_count: 1,
+          busy_channel_count: 0,
+          recent_completed_count: 0,
+          system_status: "healthy",
+          updated_at: "2026-04-22T12:00:00+00:00",
+        });
+      }
+
+      if (parsedUrl.pathname === "/mission-control/inbox") {
+        if (orgId === "org_alpha") {
+          return jsonResponse({
+            summary: { thread_count: 1, unread_count: 1, approval_required_count: 0 },
+            threads: [
+              {
+                thread_id: "thread-alpha",
+                channel: "sms",
+                status: "open",
+                unread_count: 1,
+                last_message_preview: "Alpha preview",
+                last_message_at: "2026-04-22T12:01:00+00:00",
+                requires_approval: false,
+                related_run_id: null,
+                related_approval_id: null,
+                contact: { display_name: "Alpha Lead", phone: "+15551230001" },
+              },
+            ],
+            selected_thread_id: "thread-alpha",
+            selected_thread: {
+              thread_id: "thread-alpha",
+              channel: "sms",
+              status: "open",
+              unread_count: 1,
+              requires_approval: false,
+              related_run_id: null,
+              related_approval_id: null,
+              contact: { display_name: "Alpha Lead", phone: "+15551230001" },
+              messages: [
+                {
+                  id: "msg-alpha",
+                  direction: "inbound",
+                  channel: "sms",
+                  body: "Alpha detail from API",
+                  created_at: "2026-04-22T12:01:00+00:00",
+                  message_type: "received",
+                },
+              ],
+              context: { stage: "Qualified", next_best_action: "Call alpha lead." },
+            },
+          });
+        }
+
+        if (orgId === "org_beta") {
+          return betaInbox.promise.then((payload) => jsonResponse(payload));
+        }
+
+        return jsonResponse({
+          summary: { thread_count: 0, unread_count: 0, approval_required_count: 0 },
+          threads: [],
+          selected_thread_id: null,
+          selected_thread: null,
+        });
+      }
+
+      if (parsedUrl.pathname === "/mission-control/tasks") {
+        return jsonResponse({ due_count: 0, tasks: [] });
+      }
+
+      if (parsedUrl.pathname === "/mission-control/approvals") {
+        return jsonResponse({ approvals: [] });
+      }
+
+      if (parsedUrl.pathname === "/mission-control/runs") {
+        return jsonResponse({ runs: [] });
+      }
+
+      if (parsedUrl.pathname === "/mission-control/agents") {
+        return jsonResponse({ agents: [] });
+      }
+
+      if (parsedUrl.pathname === "/mission-control/settings/governance") {
+        return jsonResponse({
+          org_id: orgId,
+          pending_approvals: [],
+          secrets_health: {
+            active_revision_count: 0,
+            healthy_revision_count: 0,
+            attention_revision_count: 0,
+            required_secret_count: 0,
+            configured_secret_count: 0,
+            missing_secret_count: 0,
+            revisions: [],
+          },
+          recent_audit: [],
+          usage_summary: {
+            total_count: 0,
+            by_kind: {},
+            by_source_kind: [],
+            by_agent: [],
+            updated_at: "2026-04-22T12:00:00+00:00",
+          },
+          recent_usage: [],
+        });
+      }
+
+      if (parsedUrl.pathname === "/mission-control/settings/assets") {
+        return jsonResponse({ assets: [] });
+      }
+
+      throw new Error(`Unexpected fetch URL: ${url}`);
+    });
+
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<App />);
+
+    fireEvent.click(await screen.findByRole("button", { name: /replies/i }));
+    expect(await screen.findByText("Alpha detail from API")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("tab", { name: "Beta Org" }));
+
+    expect(screen.queryByText("Alpha detail from API")).not.toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "Loading conversations" })).toBeInTheDocument();
+    expect(screen.getByText(/prior-scope inbox content stays hidden until the reload settles/i)).toBeInTheDocument();
+
+    betaInbox.resolve({
+        summary: { thread_count: 1, unread_count: 1, approval_required_count: 0 },
+        threads: [
+          {
+            thread_id: "thread-beta",
+            channel: "email",
+            status: "open",
+            unread_count: 1,
+            last_message_preview: "Beta preview",
+            last_message_at: "2026-04-22T12:02:00+00:00",
+            requires_approval: false,
+            related_run_id: null,
+            related_approval_id: null,
+            contact: { display_name: "Beta Lead", email: "beta@example.com" },
+          },
+        ],
+        selected_thread_id: "thread-beta",
+        selected_thread: {
+          thread_id: "thread-beta",
+          channel: "email",
+          status: "open",
+          unread_count: 1,
+          requires_approval: false,
+          related_run_id: null,
+          related_approval_id: null,
+          contact: { display_name: "Beta Lead", email: "beta@example.com" },
+          messages: [
+            {
+              id: "msg-beta",
+              direction: "inbound",
+              channel: "email",
+              body: "Beta detail from API",
+              created_at: "2026-04-22T12:02:00+00:00",
+              message_type: "received",
+            },
+          ],
+          context: { stage: "New", next_best_action: "Review beta lead." },
+        },
+      });
+
+    expect(await screen.findByText("Beta detail from API")).toBeInTheDocument();
+  });
+
+  it("keeps fallback agents scoped to the selected business and environment", async () => {
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = typeof input === "string" ? input : input instanceof URL ? input.toString() : input.url;
+      const parsedUrl = new URL(url, "http://localhost");
+
+      if (parsedUrl.pathname === "/organizations") {
+        return jsonResponse({
+          organizations: [{ id: "org_internal", name: "Internal Org", slug: "internal-org" }],
+        });
+      }
+
+      if (parsedUrl.pathname === "/mission-control/dashboard") {
+        return jsonResponse({
+          approval_count: 0,
+          active_run_count: 0,
+          failed_run_count: 0,
+          active_agent_count: 0,
+          unread_conversation_count: 0,
+          busy_channel_count: 0,
+          recent_completed_count: 0,
+          system_status: "healthy",
+          updated_at: "2026-04-22T12:00:00+00:00",
+        });
+      }
+
+      if (parsedUrl.pathname === "/mission-control/inbox") {
+        return jsonResponse({
+          summary: { thread_count: 0, unread_count: 0, approval_required_count: 0 },
+          threads: [],
+          selected_thread_id: null,
+          selected_thread: null,
+        });
+      }
+
+      if (parsedUrl.pathname === "/mission-control/tasks") {
+        return jsonResponse({ due_count: 0, tasks: [] });
+      }
+
+      if (parsedUrl.pathname === "/mission-control/approvals") {
+        return jsonResponse({ approvals: [] });
+      }
+
+      if (parsedUrl.pathname === "/mission-control/runs") {
+        return jsonResponse({ runs: [] });
+      }
+
+      if (parsedUrl.pathname === "/mission-control/agents") {
+        throw new Error("agents unavailable");
+      }
+
+      if (parsedUrl.pathname === "/mission-control/settings/governance") {
+        expect(parsedUrl.searchParams.get("business_id")).toBeNull();
+        expect(parsedUrl.searchParams.get("environment")).toBeNull();
+        return jsonResponse({
+          org_id: (init?.headers as Record<string, string> | undefined)?.["X-Ares-Org-Id"] ?? "org_internal",
+          pending_approvals: [],
+          secrets_health: {
+            active_revision_count: 0,
+            healthy_revision_count: 0,
+            attention_revision_count: 0,
+            required_secret_count: 0,
+            configured_secret_count: 0,
+            missing_secret_count: 0,
+            revisions: [],
+          },
+          recent_audit: [],
+          usage_summary: {
+            total_count: 0,
+            by_kind: {},
+            by_source_kind: [],
+            by_agent: [],
+            updated_at: "2026-04-22T12:00:00+00:00",
+          },
+          recent_usage: [],
+        });
+      }
+
+      if (parsedUrl.pathname === "/mission-control/settings/assets") {
+        expect(parsedUrl.searchParams.get("business_id")).toBeNull();
+        expect(parsedUrl.searchParams.get("environment")).toBeNull();
+        return jsonResponse({ assets: [] });
+      }
+
+      throw new Error(`Unexpected fetch URL: ${url}`);
+    });
+
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<App />);
+
+    expect(await screen.findByText("Fixture fallback / no Supabase wiring")).toBeInTheDocument();
+
+    fireEvent.click(within(screen.getByRole("group", { name: "Business filter" })).getByRole("button", { name: "limitless" }));
+    fireEvent.click(within(screen.getByRole("group", { name: "Environment filter" })).getByRole("button", { name: "production" }));
+
+    await waitFor(() => {
+        expect(fetchMock).toHaveBeenCalledWith(
+          expect.stringContaining("/mission-control/agents?business_id=limitless&environment=production"),
+          expect.objectContaining({
+            headers: expect.objectContaining({
+              "X-Ares-Org-Id": "org_internal",
+            }),
+          }),
+        );
+    });
+
+    expect((await screen.findAllByText("Sierra Inbox Agent")).length).toBeGreaterThan(0);
+    expect(screen.queryByText("Atlas Research Agent")).not.toBeInTheDocument();
+    expect(screen.getByText("1 agents in scope")).toBeInTheDocument();
+  });
+
+  it("neutralizes org-only fixture fallback instead of relabeling internal fixtures under another org", async () => {
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = typeof input === "string" ? input : input instanceof URL ? input.toString() : input.url;
+      const parsedUrl = new URL(url, "http://localhost");
+      const headers = init?.headers as Record<string, string> | undefined;
+      const orgId = headers?.["X-Ares-Org-Id"] ?? "org_internal";
+
+      if (parsedUrl.pathname === "/organizations") {
+        return jsonResponse({
+          organizations: [
+            { id: "org_internal", name: "Internal Org", slug: "internal-org" },
+            { id: "org_beta", name: "Beta Org", slug: "beta-org" },
+          ],
+        });
+      }
+
+      if (
+        orgId === "org_beta" &&
+        [
+          "/mission-control/dashboard",
+          "/mission-control/inbox",
+          "/mission-control/tasks",
+          "/mission-control/approvals",
+          "/mission-control/runs",
+          "/mission-control/settings/governance",
+          "/mission-control/settings/assets",
+        ].includes(parsedUrl.pathname)
+      ) {
+        throw new Error("beta fallback");
+      }
+
+      if (parsedUrl.pathname === "/mission-control/dashboard") {
+        return jsonResponse({
+          approval_count: 0,
+          active_run_count: 0,
+          failed_run_count: 0,
+          active_agent_count: 0,
+          unread_conversation_count: 0,
+          busy_channel_count: 0,
+          recent_completed_count: 0,
+          system_status: "healthy",
+          updated_at: "2026-04-22T12:00:00+00:00",
+        });
+      }
+
+      if (parsedUrl.pathname === "/mission-control/inbox") {
+        return jsonResponse({
+          summary: { thread_count: 0, unread_count: 0, approval_required_count: 0 },
+          threads: [],
+          selected_thread_id: null,
+          selected_thread: null,
+        });
+      }
+
+      if (parsedUrl.pathname === "/mission-control/tasks") {
+        return jsonResponse({ due_count: 0, tasks: [] });
+      }
+
+      if (parsedUrl.pathname === "/mission-control/approvals") {
+        return jsonResponse({ approvals: [] });
+      }
+
+      if (parsedUrl.pathname === "/mission-control/runs") {
+        return jsonResponse({ runs: [] });
+      }
+
+      if (parsedUrl.pathname === "/mission-control/agents") {
+        throw new Error("agents unavailable");
+      }
+
+      if (parsedUrl.pathname === "/mission-control/settings/governance") {
+        return jsonResponse({
+          org_id: orgId,
+          pending_approvals: [],
+          secrets_health: {
+            active_revision_count: 0,
+            healthy_revision_count: 0,
+            attention_revision_count: 0,
+            required_secret_count: 0,
+            configured_secret_count: 0,
+            missing_secret_count: 0,
+            revisions: [],
+          },
+          recent_audit: [],
+          usage_summary: {
+            total_count: 0,
+            by_kind: {},
+            by_source_kind: [],
+            by_agent: [],
+            updated_at: "2026-04-22T12:00:00+00:00",
+          },
+          recent_usage: [],
+        });
+      }
+
+      if (parsedUrl.pathname === "/mission-control/settings/assets") {
+        return jsonResponse({ assets: [] });
+      }
+
+      throw new Error(`Unexpected fetch URL: ${url}`);
+    });
+
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<App />);
+
+    fireEvent.click(await screen.findByRole("tab", { name: "Beta Org" }));
+
+    expect(await screen.findByText("0 agents in scope")).toBeInTheDocument();
+    expect(screen.queryByText("Sierra Inbox Agent")).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /replies/i }));
+
+    expect(await screen.findByRole("heading", { name: "No conversations in scope" })).toBeInTheDocument();
+    expect(screen.getByText("org_beta")).toBeInTheDocument();
+    expect(screen.queryByText("Taylor Brooks")).not.toBeInTheDocument();
+    expect(screen.queryByText("Taylor detail from API")).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /settings/i }));
+
+    expect(await screen.findByText("0 bindings")).toBeInTheDocument();
+    expect(screen.getByText("org_beta")).toBeInTheDocument();
+    expect(screen.queryByText("Twilio voice line")).not.toBeInTheDocument();
+  });
+
+  it("refetches settings assets when business and environment filters change inside the same org", async () => {
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = typeof input === "string" ? input : input instanceof URL ? input.toString() : input.url;
+      const parsedUrl = new URL(url, "http://localhost");
+      const headers = init?.headers as Record<string, string> | undefined;
+      const orgId = headers?.["X-Ares-Org-Id"] ?? "org_internal";
+
+      if (parsedUrl.pathname === "/organizations") {
+        return jsonResponse({
+          organizations: [{ id: "org_internal", name: "Internal Org", slug: "internal-org" }],
+        });
+      }
+
+      if (parsedUrl.pathname === "/mission-control/dashboard") {
+        return jsonResponse({
+          approval_count: 0,
+          active_run_count: 0,
+          failed_run_count: 0,
+          active_agent_count: 2,
+          unread_conversation_count: 0,
+          busy_channel_count: 0,
+          recent_completed_count: 0,
+          system_status: "healthy",
+          updated_at: "2026-04-22T12:00:00+00:00",
+        });
+      }
+
+      if (parsedUrl.pathname === "/mission-control/inbox") {
+        return jsonResponse({
+          summary: { thread_count: 0, unread_count: 0, approval_required_count: 0 },
+          threads: [],
+          selected_thread_id: null,
+          selected_thread: null,
+        });
+      }
+
+      if (parsedUrl.pathname === "/mission-control/tasks") {
+        return jsonResponse({ due_count: 0, tasks: [] });
+      }
+
+      if (parsedUrl.pathname === "/mission-control/approvals") {
+        return jsonResponse({ approvals: [] });
+      }
+
+      if (parsedUrl.pathname === "/mission-control/runs") {
+        return jsonResponse({ runs: [] });
+      }
+
+      if (parsedUrl.pathname === "/mission-control/agents") {
+        return jsonResponse({
+          agents: [
+            {
+              id: "agt-prod",
+              name: "Prod Agent",
+              slug: "prod-agent",
+              description: "Production agent",
+              business_id: "limitless",
+              environment: "production",
+              lifecycle_status: "active",
+              active_revision_id: "rev-prod",
+              active_revision_state: "published",
+              live_session_count: 1,
+              delegated_work_count: 0,
+            },
+            {
+              id: "agt-dev",
+              name: "Dev Agent",
+              slug: "dev-agent",
+              description: "Development agent",
+              business_id: "limitless",
+              environment: "dev",
+              lifecycle_status: "active",
+              active_revision_id: "rev-dev",
+              active_revision_state: "published",
+              live_session_count: 0,
+              delegated_work_count: 0,
+            },
+          ],
+        });
+      }
+
+      if (parsedUrl.pathname === "/mission-control/settings/governance") {
+        expect(parsedUrl.searchParams.get("business_id")).toBeNull();
+        expect(parsedUrl.searchParams.get("environment")).toBeNull();
+        return jsonResponse({
+          org_id: orgId,
+          pending_approvals: [],
+          secrets_health: {
+            active_revision_count: 0,
+            healthy_revision_count: 0,
+            attention_revision_count: 0,
+            required_secret_count: 0,
+            configured_secret_count: 0,
+            missing_secret_count: 0,
+            revisions: [],
+          },
+          recent_audit: [],
+          usage_summary: {
+            total_count: 0,
+            by_kind: {},
+            by_source_kind: [],
+            by_agent: [],
+            updated_at: "2026-04-22T12:00:00+00:00",
+          },
+          recent_usage: [],
+        });
+      }
+
+      if (parsedUrl.pathname === "/mission-control/settings/assets") {
+        const businessId = parsedUrl.searchParams.get("business_id");
+        const environment = parsedUrl.searchParams.get("environment");
+        const name =
+          businessId === "limitless" && environment === "production"
+            ? "Limitless production asset"
+            : businessId === "limitless" && environment === "dev"
+              ? "Limitless dev asset"
+              : "Shared asset";
+
+        return jsonResponse({
+          assets: [
+            {
+              id: `${businessId ?? "all"}-${environment ?? "all"}`,
+              name,
+              category: "integration",
+              binding_target: "settings",
+              status: "healthy",
+              updated_at: "2026-04-22T12:00:00+00:00",
+            },
+          ],
+        });
+      }
+
+      throw new Error(`Unexpected fetch URL: ${url}`);
+    });
+
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<App />);
+
+    fireEvent.click(await screen.findByRole("button", { name: /settings/i }));
+
+    expect(await screen.findByText("Shared asset")).toBeInTheDocument();
+
+    fireEvent.click(within(screen.getByRole("group", { name: "Business filter" })).getByRole("button", { name: "limitless" }));
+    fireEvent.click(within(screen.getByRole("group", { name: "Environment filter" })).getByRole("button", { name: "production" }));
+
+    expect(await screen.findByText("Limitless production asset")).toBeInTheDocument();
+    expect(screen.queryByText("Shared asset")).not.toBeInTheDocument();
+
+    fireEvent.click(within(screen.getByRole("group", { name: "Environment filter" })).getByRole("button", { name: "dev" }));
+
+    expect(await screen.findByText("Limitless dev asset")).toBeInTheDocument();
+    expect(screen.queryByText("Limitless production asset")).not.toBeInTheDocument();
+
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledWith(
+        expect.stringContaining("/mission-control/settings/assets?business_id=limitless&environment=dev"),
+        expect.objectContaining({
+          headers: expect.objectContaining({
+            "X-Ares-Org-Id": "org_internal",
+          }),
+        }),
+      );
+    });
   });
 });
-

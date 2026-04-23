@@ -6,12 +6,14 @@ import {
   type ShellNavSection,
   type ShellWorkspace,
 } from "./components/MissionControlShell";
+import { OrgSwitcher } from "./components/OrgSwitcher";
 import {
   createMissionControlApi,
   type AgentDetailData,
   type MissionControlDataSource,
   type MissionControlSnapshot,
   type MissionControlView,
+  type OrganizationSummary,
   type OutboundSendResponse,
 } from "./lib/api";
 import { missionControlAgentDetailFixtures, missionControlFixtures } from "./lib/fixtures";
@@ -26,8 +28,6 @@ import { RunsPage } from "./pages/RunsPage";
 import { SettingsPage } from "./pages/SettingsPage";
 import { SuppressionPage } from "./pages/SuppressionPage";
 import { TasksPage } from "./pages/TasksPage";
-
-const api = createMissionControlApi();
 
 async function unsupportedSend(): Promise<OutboundSendResponse> {
   return {
@@ -53,6 +53,217 @@ interface WorkspaceDefinition {
   pages: Partial<Record<MissionControlView, WorkspacePage>>;
 }
 
+interface ScopeFilterOption {
+  value: string;
+  label: string;
+}
+
+interface MissionControlScopeState {
+  orgId: string | null;
+  businessId: string | null;
+  environment: string | null;
+}
+
+function collectScopeOptionValues(snapshot: MissionControlSnapshot): { businesses: string[]; environments: string[] } {
+  const businessValues = new Set<string>();
+  const environmentValues = new Set<string>();
+
+  for (const agent of snapshot.agents) {
+    if (agent.businessId) {
+      businessValues.add(agent.businessId);
+    }
+    if (agent.environment) {
+      environmentValues.add(agent.environment);
+    }
+  }
+
+  for (const run of snapshot.runs) {
+    if (run.businessId) {
+      businessValues.add(run.businessId);
+    }
+    if (run.environment) {
+      environmentValues.add(run.environment);
+    }
+  }
+
+  for (const revision of snapshot.governance.secretsHealth.revisions) {
+    if (revision.businessId) {
+      businessValues.add(revision.businessId);
+    }
+    if (revision.environment) {
+      environmentValues.add(revision.environment);
+    }
+  }
+
+  return {
+    businesses: Array.from(businessValues).sort((left, right) => left.localeCompare(right)),
+    environments: Array.from(environmentValues).sort((left, right) => left.localeCompare(right)),
+  };
+}
+
+function toFilterOptions(values: string[], emptyLabel: string, selectedValue: string | null): ScopeFilterOption[] {
+  const normalizedValues = selectedValue && !values.includes(selectedValue) ? [...values, selectedValue] : values;
+  return [{ value: "", label: emptyLabel }, ...normalizedValues.map((value) => ({ value, label: value }))];
+}
+
+function matchesSecondaryScope(
+  businessId: string | null | undefined,
+  environment: string | null | undefined,
+  scope: MissionControlScopeState,
+): boolean {
+  if (scope.businessId && businessId !== scope.businessId) {
+    return false;
+  }
+
+  if (scope.environment && environment !== scope.environment) {
+    return false;
+  }
+
+  return true;
+}
+
+function buildPendingScopeSnapshot(scope: MissionControlScopeState): MissionControlSnapshot {
+  return {
+    dashboard: {
+      ...missionControlFixtures.dashboard,
+      approvalCount: 0,
+      activeRunCount: 0,
+      failedRunCount: 0,
+      activeAgentCount: 0,
+      unreadConversationCount: 0,
+      busyChannelCount: 0,
+      recentCompletedCount: 0,
+      pendingLeadCount: 0,
+      bookedLeadCount: 0,
+      activeNonBookerEnrollmentCount: 0,
+      dueManualCallCount: 0,
+      repliesNeedingReviewCount: 0,
+      opportunityCount: 0,
+      opportunityStageSummaries: [],
+      outboundProbateSummary: {
+        activeCampaignCount: 0,
+        readyLeadCount: 0,
+        activeLeadCount: 0,
+        interestedLeadCount: 0,
+        suppressedLeadCount: 0,
+        openTaskCount: 0,
+      },
+      inboundLeaseOptionSummary: {
+        pendingLeadCount: 0,
+        bookedLeadCount: 0,
+        activeNonBookerEnrollmentCount: 0,
+        dueManualCallCount: 0,
+        repliesNeedingReviewCount: 0,
+      },
+      opportunityPipelineSummary: {
+        totalOpportunityCount: 0,
+        laneStageSummaries: [],
+      },
+      updatedAt: "Loading scope...",
+    },
+    inbox: {
+      conversations: [],
+      selectedConversationId: "",
+      threadsById: {},
+    },
+    tasks: {
+      dueCount: 0,
+      tasks: [],
+    },
+    approvals: [],
+    runs: [],
+    turns: [],
+    agents: [],
+    assets: [],
+    governance: {
+      ...missionControlFixtures.governance,
+      orgId: scope.orgId ?? missionControlFixtures.governance.orgId,
+      pendingApprovals: [],
+      secretsHealth: {
+        activeRevisionCount: 0,
+        healthyRevisionCount: 0,
+        attentionRevisionCount: 0,
+        requiredSecretCount: 0,
+        configuredSecretCount: 0,
+        missingSecretCount: 0,
+        revisions: [],
+      },
+      recentAudit: [],
+      usageSummary: {
+        totalCount: 0,
+        byKind: {},
+        bySourceKind: [],
+        byAgent: [],
+        updatedAt: "Loading scope...",
+      },
+      recentUsage: [],
+    },
+  };
+}
+
+function normalizeSnapshotForScope(
+  snapshot: MissionControlSnapshot,
+  scope: MissionControlScopeState,
+  fallbackViews: MissionControlView[],
+): MissionControlSnapshot {
+  const pendingSnapshot = buildPendingScopeSnapshot(scope);
+  const isFixtureOrgMismatch = Boolean(scope.orgId && scope.orgId !== missionControlFixtures.governance.orgId);
+  const hasSecondaryScope = Boolean(scope.businessId || scope.environment);
+  const fallbackIncludes = (viewId: MissionControlView) => fallbackViews.includes(viewId);
+  const shouldNeutralizeForOrgFallback = (viewId: MissionControlView) => isFixtureOrgMismatch && fallbackIncludes(viewId);
+  const shouldNeutralizeListForOrgFallback = (viewId: MissionControlView) =>
+    shouldNeutralizeForOrgFallback(viewId) && !hasSecondaryScope;
+  const shouldNeutralizeForSecondaryScope = (viewId: MissionControlView) => hasSecondaryScope && fallbackIncludes(viewId);
+
+  return {
+    dashboard:
+      shouldNeutralizeForOrgFallback("dashboard") || shouldNeutralizeForSecondaryScope("dashboard")
+        ? pendingSnapshot.dashboard
+        : snapshot.dashboard,
+    inbox:
+      shouldNeutralizeForOrgFallback("inbox") || shouldNeutralizeForSecondaryScope("inbox")
+        ? pendingSnapshot.inbox
+        : snapshot.inbox,
+    tasks:
+      shouldNeutralizeForOrgFallback("tasks") || shouldNeutralizeForSecondaryScope("tasks")
+        ? pendingSnapshot.tasks
+        : snapshot.tasks,
+    approvals:
+      shouldNeutralizeForOrgFallback("approvals") || shouldNeutralizeForSecondaryScope("approvals")
+        ? pendingSnapshot.approvals
+        : snapshot.approvals,
+    runs:
+      shouldNeutralizeListForOrgFallback("runs")
+        ? pendingSnapshot.runs
+        : snapshot.runs.filter((run) => matchesSecondaryScope(run.businessId, run.environment, scope)),
+    turns:
+      shouldNeutralizeListForOrgFallback("runs")
+        ? pendingSnapshot.turns
+        : snapshot.turns.filter((turn) => matchesSecondaryScope(turn.businessId, turn.environment, scope)),
+    agents:
+      shouldNeutralizeListForOrgFallback("agents")
+        ? pendingSnapshot.agents
+        : snapshot.agents.filter((agent) => matchesSecondaryScope(agent.businessId, agent.environment, scope)),
+    assets:
+      shouldNeutralizeForOrgFallback("settings") || shouldNeutralizeForSecondaryScope("settings")
+        ? pendingSnapshot.assets
+        : snapshot.assets,
+    governance:
+      shouldNeutralizeForOrgFallback("settings")
+        ? pendingSnapshot.governance
+        : {
+            ...snapshot.governance,
+            orgId: scope.orgId ?? snapshot.governance.orgId,
+            secretsHealth: {
+              ...snapshot.governance.secretsHealth,
+              revisions: snapshot.governance.secretsHealth.revisions.filter((revision) =>
+                matchesSecondaryScope(revision.businessId, revision.environment, scope),
+              ),
+            },
+          },
+  };
+}
+
 function includesSearch(haystack: Array<string | number | null | undefined>, searchValue: string): boolean {
   if (!searchValue) {
     return true;
@@ -63,6 +274,10 @@ function includesSearch(haystack: Array<string | number | null | undefined>, sea
     .join(" ")
     .toLowerCase()
     .includes(searchValue);
+}
+
+function deriveShellDataSource(fallbackViews: MissionControlView[]): MissionControlDataSource {
+  return fallbackViews.length > 0 ? "fixture" : "api";
 }
 
 function fallbackAgentDetailForSnapshot(
@@ -81,11 +296,11 @@ function fallbackAgentDetailForSnapshot(
     agent: {
       id: agentId,
       name: summaryAgent?.name ?? "Unknown agent",
-      slug: agentId,
-      description: null,
-      businessId: "unavailable",
+      slug: summaryAgent?.slug ?? agentId,
+      description: summaryAgent?.description ?? null,
+      businessId: summaryAgent?.businessId ?? "unknown",
       environment: summaryAgent?.environment ?? "unknown",
-      lifecycleStatus: "unavailable",
+      lifecycleStatus: summaryAgent?.lifecycleStatus ?? "unavailable",
       activeRevisionId: summaryAgent?.activeRevisionId ?? null,
       activeRevisionState: summaryAgent?.activeRevisionState ?? "unknown",
     },
@@ -105,6 +320,11 @@ export default function App() {
   const [activeView, setActiveView] = useState<MissionControlView>("agents");
   const [searchValue, setSearchValue] = useState("");
   const [snapshot, setSnapshot] = useState<MissionControlSnapshot>(missionControlFixtures);
+  const [scopeOptionValues, setScopeOptionValues] = useState(() => collectScopeOptionValues(missionControlFixtures));
+  const [organizations, setOrganizations] = useState<OrganizationSummary[]>([]);
+  const [selectedOrgId, setSelectedOrgId] = useState<string | null>(missionControlFixtures.governance.orgId ?? null);
+  const [selectedBusinessId, setSelectedBusinessId] = useState<string | null>(null);
+  const [selectedEnvironment, setSelectedEnvironment] = useState<string | null>(null);
   const [selectedConversationId, setSelectedConversationId] = useState("");
   const [dataSource, setDataSource] = useState<MissionControlDataSource>("fixture");
   const [agentsDataSource, setAgentsDataSource] = useState<MissionControlDataSource>("fixture");
@@ -114,6 +334,95 @@ export default function App() {
   const [isAgentDetailLoading, setIsAgentDetailLoading] = useState(false);
   const [fallbackViews, setFallbackViews] = useState<MissionControlView[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const scope = useMemo<MissionControlScopeState>(
+    () => ({
+      orgId: selectedOrgId,
+      businessId: selectedBusinessId,
+      environment: selectedEnvironment,
+    }),
+    [selectedBusinessId, selectedEnvironment, selectedOrgId],
+  );
+
+  const bootstrapApi = useMemo(() => createMissionControlApi(), []);
+  const api = useMemo(
+    () =>
+      createMissionControlApi({
+        orgId: selectedOrgId ?? undefined,
+        businessId: selectedBusinessId ?? undefined,
+        environment: selectedEnvironment ?? undefined,
+      }),
+    [selectedBusinessId, selectedEnvironment, selectedOrgId],
+  );
+
+  useEffect(() => {
+    let isMounted = true;
+
+    async function loadOrganizations() {
+      try {
+        const liveOrganizations = await bootstrapApi.getOrganizations();
+        if (!isMounted || liveOrganizations.length === 0) {
+          return;
+        }
+        setOrganizations(liveOrganizations);
+        setSelectedOrgId((currentOrgId) =>
+          currentOrgId && liveOrganizations.some((organization) => organization.id === currentOrgId)
+            ? currentOrgId
+            : liveOrganizations[0].id,
+        );
+      } catch {
+        if (!isMounted) {
+          return;
+        }
+        const fallbackOrgId = snapshot.governance.orgId || missionControlFixtures.governance.orgId;
+        const fallbackOrganizations = fallbackOrgId
+          ? [{
+              id: fallbackOrgId,
+              name: fallbackOrgId,
+              slug: null,
+              metadata: {},
+              isInternal: fallbackOrgId === "org_internal",
+              createdAt: "Unknown",
+              updatedAt: "Unknown",
+            }]
+          : [];
+        setOrganizations(fallbackOrganizations);
+        setSelectedOrgId((currentOrgId) => currentOrgId ?? fallbackOrgId ?? null);
+      }
+    }
+
+    void loadOrganizations();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [bootstrapApi, snapshot.governance.orgId]);
+
+  useEffect(() => {
+    setSnapshot(buildPendingScopeSnapshot(scope));
+    setSelectedConversationId("");
+    setSelectedAgentId(null);
+  }, [scope]);
+
+  useEffect(() => {
+    if (!selectedConversationId) {
+      return;
+    }
+
+    setSnapshot((current) => {
+      if (current.inbox.selectedConversationId === selectedConversationId) {
+        return current;
+      }
+
+      return {
+        ...current,
+        inbox: {
+          conversations: current.inbox.conversations,
+          selectedConversationId: "",
+          threadsById: {},
+        },
+      };
+    });
+  }, [selectedConversationId]);
 
   useEffect(() => {
     let isMounted = true;
@@ -122,17 +431,41 @@ export default function App() {
       setIsLoading(true);
 
       const [dashboard, inbox, tasks, approvals, runs, assets, governance] = await Promise.all([
-        queryClient.fetch("dashboard", api.getDashboard, missionControlFixtures.dashboard),
         queryClient.fetch(
-          `inbox:${selectedConversationId || "default"}`,
+          `dashboard:${selectedOrgId ?? "default"}:${selectedBusinessId ?? "all"}:${selectedEnvironment ?? "all"}`,
+          api.getDashboard,
+          missionControlFixtures.dashboard,
+        ),
+        queryClient.fetch(
+          `inbox:${selectedOrgId ?? "default"}:${selectedBusinessId ?? "all"}:${selectedEnvironment ?? "all"}:${selectedConversationId || "default"}`,
           () => api.getInbox(selectedConversationId || undefined),
           missionControlFixtures.inbox,
         ),
-        queryClient.fetch("tasks", api.getTasks, missionControlFixtures.tasks),
-        queryClient.fetch("approvals", api.getApprovals, missionControlFixtures.approvals),
-        queryClient.fetch("runs", api.getRuns, missionControlFixtures.runs),
-        queryClient.fetch("assets", api.getAssets, missionControlFixtures.assets),
-        queryClient.fetch("governance", api.getGovernance, missionControlFixtures.governance),
+        queryClient.fetch(
+          `tasks:${selectedOrgId ?? "default"}:${selectedBusinessId ?? "all"}:${selectedEnvironment ?? "all"}`,
+          api.getTasks,
+          missionControlFixtures.tasks,
+        ),
+        queryClient.fetch(
+          `approvals:${selectedOrgId ?? "default"}:${selectedBusinessId ?? "all"}:${selectedEnvironment ?? "all"}`,
+          api.getApprovals,
+          missionControlFixtures.approvals,
+        ),
+        queryClient.fetch(
+          `runs:${selectedOrgId ?? "default"}:${selectedBusinessId ?? "all"}:${selectedEnvironment ?? "all"}`,
+          api.getRuns,
+          missionControlFixtures.runs,
+        ),
+        queryClient.fetch(
+          `assets:${selectedOrgId ?? "default"}:${selectedBusinessId ?? "all"}:${selectedEnvironment ?? "all"}`,
+          api.getAssets,
+          missionControlFixtures.assets,
+        ),
+        queryClient.fetch(
+          `governance:${selectedOrgId ?? "default"}`,
+          api.getGovernance,
+          missionControlFixtures.governance,
+        ),
       ]);
       let agents: { data: MissionControlSnapshot["agents"]; source: MissionControlDataSource };
       try {
@@ -145,9 +478,24 @@ export default function App() {
         return;
       }
 
-      setSnapshot({
+      const nextFallbackViews = (
+        [
+          ["dashboard", dashboard.source],
+          ["inbox", inbox.source],
+          ["tasks", tasks.source],
+          ["approvals", approvals.source],
+          ["runs", runs.source],
+          ["agents", agents.source],
+          ["settings", governance.source === "fixture" || assets.source === "fixture" ? "fixture" : "api"],
+          ["suppression", dashboard.source],
+        ] as const
+      )
+        .filter(([, source]) => source === "fixture")
+        .map(([viewId]) => viewId);
+      const pendingSnapshot = buildPendingScopeSnapshot(scope);
+      const loadedSnapshot = {
         dashboard: dashboard.data,
-        inbox: inbox.data,
+        inbox: inbox.source === "fixture" && selectedConversationId ? pendingSnapshot.inbox : inbox.data,
         tasks: tasks.data,
         approvals: approvals.data,
         runs: runs.data,
@@ -155,34 +503,17 @@ export default function App() {
         agents: agents.data,
         assets: assets.data,
         governance: governance.data,
-      });
-      setDataSource(
-        [dashboard, inbox, tasks, approvals, runs, agents, assets, governance].some((result) => result.source === "fixture")
-          ? "fixture"
-          : "api",
+      };
+      const nextSnapshot = normalizeSnapshotForScope(
+        loadedSnapshot,
+        scope,
+        nextFallbackViews,
       );
+      setSnapshot(nextSnapshot);
+      setScopeOptionValues(collectScopeOptionValues(loadedSnapshot));
+      setDataSource(deriveShellDataSource(nextFallbackViews));
       setAgentsDataSource(agents.source);
-      setFallbackViews(
-        (
-          [
-            ["dashboard", dashboard.source],
-            ["inbox", inbox.source],
-            ["tasks", tasks.source],
-            ["approvals", approvals.source],
-            ["runs", runs.source],
-            ["agents", agents.source],
-            ["settings", governance.source === "fixture" || assets.source === "fixture" ? "fixture" : "api"],
-            ["suppression", dashboard.source],
-          ] as const
-        )
-          .filter(([, source]) => source === "fixture")
-          .map(([viewId]) => viewId),
-      );
-      setSelectedConversationId((currentId) =>
-        inbox.data.conversations.some((conversation) => conversation.id === currentId)
-          ? currentId
-          : inbox.data.selectedConversationId,
-      );
+      setFallbackViews(nextFallbackViews);
       setIsLoading(false);
     }
 
@@ -191,7 +522,7 @@ export default function App() {
     return () => {
       isMounted = false;
     };
-  }, [selectedConversationId]);
+  }, [api, scope, selectedConversationId]);
 
   useEffect(() => {
     if (!selectedAgentId) {
@@ -206,6 +537,8 @@ export default function App() {
 
     async function loadAgentDetail() {
       setIsAgentDetailLoading(true);
+      setSelectedAgentDetail(null);
+      setSelectedAgentDetailSource("fixture");
       try {
         const detail = await api.getAgentDetail(agentId);
         if (!isMounted) {
@@ -248,6 +581,11 @@ export default function App() {
         }
         setSnapshot((current) => ({ ...current, agents: liveAgents }));
         setAgentsDataSource("api");
+        setFallbackViews((current) => {
+          const next = current.filter((viewId) => viewId !== "agents");
+          setDataSource(deriveShellDataSource(next));
+          return next;
+        });
       } catch {
         // Keep the current fixture-backed agents surface until the next explicit retry opportunity.
       }
@@ -258,9 +596,35 @@ export default function App() {
     return () => {
       isMounted = false;
     };
-  }, [activeView, agentsDataSource]);
+  }, [activeView, agentsDataSource, api]);
 
   const normalizedSearchValue = searchValue.trim().toLowerCase();
+  const businessFilterOptions = useMemo(
+    () => toFilterOptions(scopeOptionValues.businesses, "All businesses", selectedBusinessId),
+    [scopeOptionValues.businesses, selectedBusinessId],
+  );
+  const environmentFilterOptions = useMemo(
+    () => toFilterOptions(scopeOptionValues.environments, "All environments", selectedEnvironment),
+    [scopeOptionValues.environments, selectedEnvironment],
+  );
+  const organizationOptions = useMemo(() => {
+    if (organizations.length > 0) {
+      return organizations;
+    }
+
+    const fallbackOrgId = selectedOrgId ?? snapshot.governance.orgId;
+    return fallbackOrgId
+      ? [{
+          id: fallbackOrgId,
+          name: fallbackOrgId,
+          slug: null,
+          metadata: {},
+          isInternal: fallbackOrgId === "org_internal",
+          createdAt: "Unknown",
+          updatedAt: "Unknown",
+        }]
+      : [];
+  }, [organizations, selectedOrgId, snapshot.governance.orgId]);
 
   const filteredConversations = useMemo(
     () =>
@@ -304,13 +668,34 @@ export default function App() {
 
   const visibleThread =
     snapshot.inbox.threadsById[visibleConversationId] ??
-    snapshot.inbox.threadsById[snapshot.inbox.selectedConversationId];
+    (selectedConversationId ? undefined : snapshot.inbox.threadsById[snapshot.inbox.selectedConversationId]);
   const contextThread = visibleThread ?? {
     nextBestAction: "Select a thread to inspect context.",
     stage: "No thread selected",
     tags: [] as string[],
     notes: ["No conversation detail is currently available."],
   };
+  const inboxMainContent = visibleThread ? (
+    <InboxPage
+      data={{ ...snapshot.inbox, conversations: filteredConversations }}
+      selectedConversationId={visibleConversationId}
+      onSelectConversation={setSelectedConversationId}
+      onSendSmsTest={unsupportedSend}
+      onSendEmailTest={unsupportedSend}
+    />
+  ) : (
+    <section className="panel-stack">
+      <div className="section-heading">
+        <h3>{isLoading ? "Loading conversations" : "No conversations in scope"}</h3>
+        <span>{selectedOrgId ?? "No organization selected"}</span>
+      </div>
+      <p className="panel-copy">
+        {isLoading
+          ? "Refreshing the selected scope. Prior-scope inbox content stays hidden until the reload settles."
+          : "No conversation detail is available for the selected organization, business, and environment."}
+      </p>
+    </section>
+  );
 
   const filteredRuns = useMemo(
     () =>
@@ -353,6 +738,17 @@ export default function App() {
       selectedAgentDetail &&
       selectedAgentDetail.agent.id === selectedAgentId,
   );
+  const selectedAgentMatchedApiSummary =
+    agentsDataSource === "api" &&
+    selectedAgentDetailSource === "api" &&
+    selectedAgentSummary &&
+    selectedAgentDetail &&
+    selectedAgentDetail.agent.id === selectedAgentSummary.id &&
+    selectedAgentDetail.agent.activeRevisionId === selectedAgentSummary.activeRevisionId &&
+    selectedAgentDetail.agent.activeRevisionState === selectedAgentSummary.activeRevisionState
+      ? selectedAgentSummary
+      : null;
+  const selectedAgentHostAdapter = selectedAgentMatchedApiSummary?.hostAdapter;
 
   useEffect(() => {
     if (!selectedAgentId) {
@@ -365,7 +761,8 @@ export default function App() {
   }, [selectedAgentIsVisible, selectedAgentId]);
 
   const selectedAgentContextItems = selectedAgentDetail
-    ? [
+    ? canRenderSelectedAgentDetail
+      ? [
         selectedAgentDetail.degradedSections.includes("revisions")
           ? "Revision data is temporarily unavailable from the current live read models"
           : `${selectedAgentDetail.revisions.length} revisions are tracked for this agent`,
@@ -378,7 +775,10 @@ export default function App() {
             ? `${selectedAgentDetail.secretsHealth.missingSecretCount} missing secrets on the active revision`
             : "No active revision secrets posture is available",
       ]
-    : ["Select an agent to inspect runtime lifecycle detail."];
+      : ["Fetching runtime lifecycle context for the selected agent."]
+    : selectedAgentId && selectedAgentIsVisible
+      ? ["Fetching runtime lifecycle context for the selected agent."]
+      : ["Select an agent to inspect runtime lifecycle detail."];
 
   const filteredApprovals = useMemo(
     () =>
@@ -543,6 +943,8 @@ export default function App() {
                 dataSource={selectedAgentDetailSource}
                 detail={selectedAgentDetail!}
                 onBack={() => setSelectedAgentId(null)}
+                selectedAgentHostAdapter={selectedAgentHostAdapter}
+                selectedAgentSummary={selectedAgentMatchedApiSummary}
               />
             )
           ) : (
@@ -592,15 +994,7 @@ export default function App() {
         inbox: {
           title: "Lead Machine / Replies",
           subtitle: "Review reply context, suppression signals, and next actions without leaving the agent-centered workspace.",
-          mainContent: (
-            <InboxPage
-              data={{ ...snapshot.inbox, conversations: filteredConversations }}
-              selectedConversationId={visibleConversationId}
-              onSelectConversation={setSelectedConversationId}
-              onSendSmsTest={unsupportedSend}
-              onSendEmailTest={unsupportedSend}
-            />
-          ),
+          mainContent: inboxMainContent,
           contextContent: (
             <ContextPanel
               eyebrow="Selected reply"
@@ -740,6 +1134,8 @@ export default function App() {
                 dataSource={selectedAgentDetailSource}
                 detail={selectedAgentDetail!}
                 onBack={() => setSelectedAgentId(null)}
+                selectedAgentHostAdapter={selectedAgentHostAdapter}
+                selectedAgentSummary={selectedAgentMatchedApiSummary}
               />
             )
           ) : (
@@ -789,15 +1185,7 @@ export default function App() {
         inbox: {
           title: "Marketing / Submissions",
           subtitle: "Work new lease-option submissions and inbound replies in a dedicated operator workspace.",
-          mainContent: (
-            <InboxPage
-              data={{ ...snapshot.inbox, conversations: filteredConversations }}
-              selectedConversationId={visibleConversationId}
-              onSelectConversation={setSelectedConversationId}
-              onSendSmsTest={unsupportedSend}
-              onSendEmailTest={unsupportedSend}
-            />
-          ),
+          mainContent: inboxMainContent,
           contextContent: (
             <ContextPanel
               eyebrow="Submission context"
@@ -935,6 +1323,26 @@ export default function App() {
       : isFullFixtureMode
         ? "Using local fixtures until the native read-model endpoints are wired."
         : `Using fixture fallback for: ${fallbackViews.join(", ")}.`;
+  const scopeControls = (
+    <OrgSwitcher
+      orgs={organizationOptions.map((organization) => ({
+        id: organization.id,
+        label: organization.name,
+      }))}
+      activeOrgId={selectedOrgId ?? organizationOptions[0]?.id ?? ""}
+      onSelectOrg={(orgId) => {
+        setSelectedBusinessId(null);
+        setSelectedEnvironment(null);
+        setSelectedOrgId(orgId || null);
+      }}
+      businessOptions={businessFilterOptions.map((option) => ({ id: option.value, label: option.label }))}
+      activeBusinessId={selectedBusinessId ?? ""}
+      onSelectBusiness={(businessId) => setSelectedBusinessId(businessId || null)}
+      environmentOptions={environmentFilterOptions.map((option) => ({ id: option.value, label: option.label }))}
+      activeEnvironment={selectedEnvironment ?? ""}
+      onSelectEnvironment={(environment) => setSelectedEnvironment(environment || null)}
+    />
+  );
 
   return (
     <MissionControlShell
@@ -960,6 +1368,7 @@ export default function App() {
       workspaceSubtitle={activePage.subtitle}
       statusBadge={statusBadge}
       footerNote={footerNote}
+      headerSlot={scopeControls}
       mainContent={activePage.mainContent}
       contextContent={activePage.contextContent}
     />

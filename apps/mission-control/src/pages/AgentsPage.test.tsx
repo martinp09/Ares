@@ -59,6 +59,13 @@ describe("AgentsPage", () => {
     expect(screen.getByText("2 pending decisions")).toBeInTheDocument();
     expect(screen.getByText("Campaign State")).toBeInTheDocument();
     expect(screen.getByText("3 tracked runs")).toBeInTheDocument();
+    expect(screen.getAllByText("Runtime owns publish and rollback. Mission Control is read-only in this slice.")).toHaveLength(2);
+    expect(screen.getByText("Trigger.dev enabled")).toBeInTheDocument();
+    expect(screen.getByText("Trigger.dev disabled")).toBeInTheDocument();
+    expect(screen.getByText("Trigger.dev is disabled for staging dispatches.")).toBeInTheDocument();
+    expect(screen.getByText("Channel internal · release posture unavailable until runtime history reconciles")).toBeInTheDocument();
+    expect(screen.queryByText("Channel internal · no release events recorded yet")).not.toBeInTheDocument();
+    expect(screen.getByText("Latest release evaluation failed.")).toBeInTheDocument();
 
     const publishedCard = screen.getByText("Published revisions").closest("article") ?? screen.getByRole("main");
     expect(within(publishedCard).getByText("Published revisions")).toBeInTheDocument();
@@ -80,5 +87,26 @@ describe("AgentsPage", () => {
     expect(screen.getByRole("button", { name: /view lifecycle for sierra inbox agent/i })).toBeInTheDocument();
     expect(screen.getByText("Agent registry")).toBeInTheDocument();
     expect(screen.getByText("2 tracked")).toBeInTheDocument();
+  });
+
+  it("keeps the featured-agent summary neutral when release posture is withheld", () => {
+    render(
+      <AgentsPage
+        agents={[
+          {
+            ...missionControlFixtures.agents[1],
+            name: "Neutral Release Agent",
+          },
+        ]}
+        dataSource="api"
+        workspaceLabel="Lead Machine"
+        operatorViews={[]}
+      />,
+    );
+
+    const featuredSummary = screen.getByText(/featured agent: neutral release agent/i);
+    expect(featuredSummary).toBeInTheDocument();
+    expect(featuredSummary).toHaveTextContent(/release posture unavailable until runtime history reconciles/i);
+    expect(screen.queryByText(/no release events yet/i)).not.toBeInTheDocument();
   });
 });

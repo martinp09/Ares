@@ -221,12 +221,33 @@ export interface OutboundSendResponse {
 export interface AgentSummary {
   id: string;
   name: string;
+  slug: string;
+  description: string | null;
+  businessId: string;
+  lifecycleStatus: string;
   activeRevisionId: string | null;
   activeRevisionState: string;
   environment: string;
   liveSessionCount: number;
   delegatedWorkCount: number;
+  hostAdapter?: AgentHostAdapterSummary;
   release?: AgentReleaseState;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface AgentHostAdapterSummary {
+  kind: string;
+  enabled: boolean;
+  displayName: string;
+  adapterDetailsLabel: string;
+  capabilities: {
+    dispatch: boolean;
+    statusCorrelation: boolean;
+    artifactReporting: boolean;
+    cancellation: boolean;
+  };
+  disabledReason: string | null;
 }
 
 export interface AgentRecordState {
@@ -365,6 +386,16 @@ export interface GovernanceUsageEvent {
   createdAt: string;
 }
 
+export interface OrganizationSummary {
+  id: string;
+  name: string;
+  slug: string | null;
+  metadata: Record<string, unknown>;
+  isInternal: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface GovernanceData {
   orgId: string;
   pendingApprovals: ApprovalItem[];
@@ -387,6 +418,7 @@ export interface MissionControlSnapshot {
 }
 
 export interface MissionControlApi {
+  getOrganizations(): Promise<OrganizationSummary[]>;
   getDashboard(): Promise<DashboardSummaryData>;
   getInbox(selectedThreadId?: string): Promise<InboxData>;
   getTasks(): Promise<TasksData>;
@@ -402,6 +434,9 @@ export interface MissionControlApiOptions {
   baseUrl?: string;
   runtimeApiKey?: string;
   fetchImpl?: typeof fetch;
+  orgId?: string;
+  businessId?: string;
+  environment?: string;
 }
 
 type JsonRecord = Record<string, unknown>;
@@ -648,7 +683,22 @@ interface AgentPayload {
   active_revision_state?: string;
   live_session_count?: number;
   delegated_work_count?: number;
+  host_adapter?: {
+    kind?: string;
+    enabled?: boolean;
+    display_name?: string;
+    adapter_details_label?: string;
+    capabilities?: {
+      dispatch?: boolean;
+      status_correlation?: boolean;
+      artifact_reporting?: boolean;
+      cancellation?: boolean;
+    } | null;
+    disabled_reason?: string | null;
+  } | null;
   release?: AgentReleasePayload | null;
+  created_at?: string;
+  updated_at?: string;
 }
 
 interface AgentRevisionPayload {
@@ -842,6 +892,20 @@ interface GovernancePayload {
   }>;
 }
 
+interface OrganizationPayload {
+  id?: string;
+  name?: string;
+  slug?: string | null;
+  metadata?: Record<string, unknown>;
+  is_internal?: boolean;
+  created_at?: string;
+  updated_at?: string;
+}
+
+interface OrganizationListPayload {
+  organizations?: OrganizationPayload[];
+}
+
 const defaultBaseUrl = import.meta.env.VITE_RUNTIME_API_BASE_URL ?? "";
 const defaultRuntimeApiKey = import.meta.env.VITE_RUNTIME_API_KEY;
 
@@ -852,6 +916,20 @@ function trimTrailingSlash(value: string): string {
 function buildUrl(baseUrl: string, path: string): string {
   const normalizedBaseUrl = trimTrailingSlash(baseUrl);
   return normalizedBaseUrl ? `${normalizedBaseUrl}${path}` : path;
+}
+
+function withQueryParams(path: string, params: Record<string, string | undefined>): string {
+  const [pathname, search = ""] = path.split("?", 2);
+  const searchParams = new URLSearchParams(search);
+
+  Object.entries(params).forEach(([key, value]) => {
+    if (value) {
+      searchParams.set(key, value);
+    }
+  });
+
+  const nextSearch = searchParams.toString();
+  return nextSearch ? `${pathname}?${nextSearch}` : pathname;
 }
 
 function isRecord(value: unknown): value is JsonRecord {
@@ -1026,6 +1104,32 @@ function mapAgentRelease(payload?: AgentReleasePayload | null): AgentReleaseStat
     resultingActiveRevisionId: asString(payload.resulting_active_revision_id),
     rollbackSourceRevisionId: asNullableString(payload.rollback_source_revision_id),
     evaluation: mapReleaseEvaluation(payload.evaluation),
+  };
+}
+
+function mapAgentHostAdapter(payload: AgentPayload["host_adapter"]): AgentHostAdapterSummary | undefined {
+  if (!payload || !isRecord(payload)) {
+    return undefined;
+  }
+
+  const kind = asString(payload.kind);
+  const displayName = asString(payload.display_name, kind ? titleCase(kind) : "Host adapter");
+  if (!kind && !displayName) {
+    return undefined;
+  }
+
+  return {
+    kind: kind || displayName.toLowerCase().replace(/\s+/g, "_"),
+    enabled: asBoolean(payload.enabled, false),
+    displayName,
+    adapterDetailsLabel: asString(payload.adapter_details_label, "Adapter details"),
+    capabilities: {
+      dispatch: asBoolean(payload.capabilities?.dispatch, false),
+      statusCorrelation: asBoolean(payload.capabilities?.status_correlation, false),
+      artifactReporting: asBoolean(payload.capabilities?.artifact_reporting, false),
+      cancellation: asBoolean(payload.capabilities?.cancellation, false),
+    },
+    disabledReason: asNullableString(payload.disabled_reason),
   };
 }
 
@@ -1350,12 +1454,19 @@ function mapAgents(payload: MissionControlAgentsPayload | AgentPayload[] | Agent
     return {
       id: asString(agent.id, `agent-${index}`),
       name: asString(agent.name, "Unknown agent"),
+      slug: asString(agent.slug, asString(agent.id, `agent-${index}`)),
+      description: asNullableString(agent.description),
+      businessId: asString(agent.business_id, "default"),
+      lifecycleStatus: asString(agent.lifecycle_status, "unavailable"),
       activeRevisionId,
       activeRevisionState,
       environment: asString(agent.environment, "unknown"),
       liveSessionCount: asNumber(agent.live_session_count),
       delegatedWorkCount: asNumber(agent.delegated_work_count),
+      hostAdapter: mapAgentHostAdapter(agent.host_adapter),
       release: mapAgentRelease(agent.release),
+      createdAt: asString(agent.created_at, "Unknown"),
+      updatedAt: asString(agent.updated_at, "Unknown"),
     };
   });
 }
@@ -1649,9 +1760,40 @@ function mapGovernance(payload: GovernancePayload): GovernanceData {
   };
 }
 
+function mapOrganizations(payload: OrganizationListPayload | OrganizationPayload[]): OrganizationSummary[] {
+  const organizations = Array.isArray(payload) ? payload : asArray<OrganizationPayload>(payload.organizations);
+  return organizations.map((organization, index) => ({
+    id: asString(organization.id, `org-${index}`),
+    name: asString(organization.name, "Unknown organization"),
+    slug: asNullableString(organization.slug),
+    metadata: isRecord(organization.metadata) ? organization.metadata : {},
+    isInternal: asBoolean(organization.is_internal, false),
+    createdAt: asString(organization.created_at, "Unknown"),
+    updatedAt: asString(organization.updated_at, "Unknown"),
+  }));
+}
+
+type RequestScope = "none" | "mission-control" | "governance";
+
+function buildRequestPath(
+  path: string,
+  options: MissionControlApiOptions,
+  scope: RequestScope = "none",
+): string {
+  if (scope !== "mission-control") {
+    return path;
+  }
+
+  return withQueryParams(path, {
+    business_id: options.businessId,
+    environment: options.environment,
+  });
+}
+
 async function requestJson<T>(
   path: string,
   options: MissionControlApiOptions,
+  scope: RequestScope = "none",
 ): Promise<T> {
   const fetchImpl = options.fetchImpl ?? fetch;
   const headers: Record<string, string> = {
@@ -1662,7 +1804,11 @@ async function requestJson<T>(
     headers.Authorization = `Bearer ${options.runtimeApiKey}`;
   }
 
-  const response = await fetchImpl(buildUrl(options.baseUrl ?? defaultBaseUrl, path), {
+  if (options.orgId) {
+    headers["X-Ares-Org-Id"] = options.orgId;
+  }
+
+  const response = await fetchImpl(buildUrl(options.baseUrl ?? defaultBaseUrl, buildRequestPath(path, options, scope)), {
     headers,
   });
 
@@ -1680,30 +1826,38 @@ export function createMissionControlApi(
     baseUrl: options.baseUrl ?? defaultBaseUrl,
     runtimeApiKey: options.runtimeApiKey ?? defaultRuntimeApiKey,
     fetchImpl: options.fetchImpl,
+    orgId: options.orgId,
+    businessId: options.businessId,
+    environment: options.environment,
   };
 
   return {
-    getDashboard: async () => mapDashboard(await requestJson<DashboardPayload>("/mission-control/dashboard", resolvedOptions)),
+    getOrganizations: async () =>
+      mapOrganizations(await requestJson<OrganizationListPayload | OrganizationPayload[]>("/organizations", resolvedOptions)),
+    getDashboard: async () =>
+      mapDashboard(await requestJson<DashboardPayload>("/mission-control/dashboard", resolvedOptions, "mission-control")),
     getInbox: async (selectedThreadId?: string) => {
       const inboxPath = selectedThreadId
         ? `/mission-control/inbox?selected_thread_id=${encodeURIComponent(selectedThreadId)}`
         : "/mission-control/inbox";
-      return mapInbox(await requestJson<InboxPayload>(inboxPath, resolvedOptions));
+      return mapInbox(await requestJson<InboxPayload>(inboxPath, resolvedOptions, "mission-control"));
     },
-    getTasks: async () => mapTasks(await requestJson<TasksPayload>("/mission-control/tasks", resolvedOptions)),
+    getTasks: async () => mapTasks(await requestJson<TasksPayload>("/mission-control/tasks", resolvedOptions, "mission-control")),
     getApprovals: async () =>
       mapApprovals(
         await requestJson<MissionControlApprovalsPayload | ApprovalPayload[]>(
           "/mission-control/approvals",
           resolvedOptions,
+          "mission-control",
         ),
       ),
-    getRuns: async () => mapRuns(await requestJson<RunsPayload>("/mission-control/runs", resolvedOptions)),
+    getRuns: async () => mapRuns(await requestJson<RunsPayload>("/mission-control/runs", resolvedOptions, "mission-control")),
     getAgents: async () =>
       mapAgents(
         await requestJson<MissionControlAgentsPayload | AgentPayload[] | AgentResponsePayload[]>(
           "/mission-control/agents",
           resolvedOptions,
+          "mission-control",
         ),
       ),
     getAgentDetail: async (agentId: string) => {
@@ -1717,9 +1871,9 @@ export function createMissionControlApi(
       const degradedSections: AgentDetailDegradedSection[] = [];
       const [releaseHistoryResult, auditResult, usageResult, turnsResult] = await Promise.allSettled([
         requestJson<ReleaseEventListPayload>(releasePath, resolvedOptions),
-        requestJson<AuditListPayload>(auditPath, resolvedOptions),
+        requestJson<AuditListPayload>(auditPath, resolvedOptions, "mission-control"),
         requestJson<UsageResponsePayload>(usagePath, resolvedOptions),
-        requestJson<TurnsPayload>(turnsPath, resolvedOptions),
+        requestJson<TurnsPayload>(turnsPath, resolvedOptions, "mission-control"),
       ]);
 
       const releaseHistoryPayload = releaseHistoryResult.status === "fulfilled" ? releaseHistoryResult.value : (degradedSections.push("releaseHistory"), { events: [] });
@@ -1736,6 +1890,7 @@ export function createMissionControlApi(
           bindingsPayload = await requestJson<SecretBindingListPayload>(
             `/mission-control/settings/secrets/revisions/${encodeURIComponent(activeRevisionId)}`,
             resolvedOptions,
+            "mission-control",
           );
         } catch {
           degradedSections.push("secretsHealth");
@@ -1749,6 +1904,7 @@ export function createMissionControlApi(
         await requestJson<MissionControlAssetsPayload | AssetPayload[]>(
           "/mission-control/settings/assets",
           resolvedOptions,
+          "mission-control",
         ),
       ),
     getGovernance: async () =>
@@ -1756,6 +1912,7 @@ export function createMissionControlApi(
         await requestJson<GovernancePayload>(
           "/mission-control/settings/governance",
           resolvedOptions,
+          "governance",
         ),
       ),
   };

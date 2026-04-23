@@ -166,26 +166,46 @@
 
 ## Open Work
 
-1. finish Phase 6 slice `P6.2` on the active non-Supabase path and do not advance until QC signs it off
-2. close the remaining P6.2 truthfulness blockers in Mission Control:
-   - stale side context-panel detail during agent-to-agent switches
-   - degraded root-detail fallback dropping summary identity/business truth already known from agent summaries
-   - shell-level fallback/source labels lagging after the agents surface recovers from fixture fallback
-3. continue bounded Mission Control productization slices only after `P6.2` is verified + QC-approved
-4. keep browser acquisition and ambiguous research in Hermes or other driver agents, not inside Ares
-5. add durable Trigger lead-machine jobs only where sync paths become operationally risky
-6. execute the combined Mission Control + enterprise backlog master plan for org tenancy, host adapters, enterprise controls, release lifecycle, and Mission Control productization
-7. keep `docs/superpowers/plans/2026-04-13-hermes-mission-control-orchestration-plan.md` and `docs/superpowers/plans/2026-04-15-ares-enterprise-agent-platform-implementation-plan.md` as live source inputs for that branch scope
+1. keep Phase 6 closed through `P6.5` unless a fresh blocker appears
+2. start any post-Phase-6 work only with a fresh bounded handoff from the master plan
+3. keep browser acquisition and ambiguous research in Hermes or other driver agents, not inside Ares
+4. add durable Trigger lead-machine jobs only where sync paths become operationally risky
+5. keep `docs/superpowers/plans/2026-04-13-hermes-mission-control-orchestration-plan.md` and `docs/superpowers/plans/2026-04-15-ares-enterprise-agent-platform-implementation-plan.md` as live source inputs for this branch scope
 
 ## Change Log
 
-### 2026-04-23 Phase 6 Slice P6.2 Read-Only Agent Detail Workflow (WIP, not QC-approved)
+### 2026-04-23 Phase 6 Completion Through P6.5 (QC-approved)
+
+- Closed the remaining Phase 6 Mission Control slices on the active non-Supabase path:
+  - `P6.3` added release/host visibility through `AgentReleasePanel`, `HostAdapterBadge`, and the agents-first shell wiring
+  - `P6.4` added read-only governance surfaces for secrets health, audit, usage, and settings
+  - `P6.5` added org-aware navigation/filtering with an `OrgSwitcher`, org-scoped API headers, secondary `business_id` / `environment` request scoping, and bounded fallback truth-gating
+- Updated `app/services/organization_service.py` so the internal/default operator path can enumerate seeded orgs while non-internal actors remain self-scoped, preserving the non-Supabase tenancy seam.
+- Updated the Mission Control frontend (`apps/mission-control/src/App.tsx`, `apps/mission-control/src/lib/api.ts`, `apps/mission-control/src/pages/InboxPage.tsx`, and related tests/components) so:
+  - scope switches neutralize prior-scope inbox/agent content while the next org/business/environment load is in flight
+  - fallback data still respects secondary business/environment filters
+  - org-only fixture fallback now fails neutral for dashboard/inbox/tasks/approvals/settings surfaces instead of relabeling internal fixture truth under another org
+  - settings assets now re-fetch on scoped `business_id` / `environment` changes because the cache key matches the scoped request contract
+- Expanded `tests/api/test_mission_control.py`, `tests/api/test_organizations.py`, `tests/services/test_mission_control_service.py`, `apps/mission-control/src/App.test.tsx`, `apps/mission-control/src/lib/api.test.ts`, `apps/mission-control/src/components/OrgSwitcher.test.tsx`, `apps/mission-control/src/components/MissionControlShell.test.tsx`, and `apps/mission-control/src/pages/InboxPage.test.tsx` with focused regressions for org-aware scope switching, neutral pending states, scoped fallback filtering, and settings asset re-scoping.
+- Verified the final Phase 6 branch state with:
+  - `npm --prefix apps/mission-control run test -- --run` (`19 files passed`, `52 tests passed`)
+  - `npm --prefix apps/mission-control run typecheck`
+  - `npm --prefix apps/mission-control run build`
+  - `/Users/solomartin/Projects/Ares/.venv/bin/python -m pytest tests/api/test_mission_control.py tests/api/test_agents.py tests/api/test_release_management.py tests/api/test_organizations.py tests/services/test_mission_control_service.py -q` (`53 passed`)
+  - `/Users/solomartin/Projects/Ares/.venv/bin/python -m pytest -q` (`458 passed, 5 warnings`)
+- Fresh `gpt-5.4` XHIGH QC approved the current `P6.5` diff with no remaining blocker-level findings.
+
+### 2026-04-23 Phase 6 Slice P6.2 Read-Only Agent Detail Workflow (QC-approved)
 
 - Added the first bounded Mission Control agent-detail surface via `apps/mission-control/src/pages/AgentDetailPage.tsx`, wired from the agents-first workspace through `apps/mission-control/src/App.tsx` and `apps/mission-control/src/components/AgentRegistryTable.tsx`, while keeping the slice strictly read-only with no publish/rollback controls.
 - Expanded the frontend Mission Control data seam in `apps/mission-control/src/lib/api.ts` plus fixtures/tests so the detail page can project revisions, release history, secrets health, recent audit, usage, and turns, and so partial auxiliary failures now mark degraded sections explicitly instead of silently pretending empty-state truth.
-- Hardened the UI truthfulness path partway: latest release posture now derives from timestamps instead of array position, hidden selected agents are cleared when search excludes them, degraded detail can render without collapsing into full fabricated fixture history, and the agents surface now has its own retry path after fixture fallback.
-- Verified the in-progress slice with `npm --prefix apps/mission-control run test -- --run`, `npm --prefix apps/mission-control run typecheck`, `npm --prefix apps/mission-control run build`, `./.venv/bin/python -m pytest tests/api/test_mission_control.py tests/api/test_agents.py tests/api/test_release_management.py -q`, and `./.venv/bin/python -m pytest -q` (`22 frontend tests passed`, `40 targeted backend tests passed`, `452 passed, 5 warnings` full backend suite).
-- Left `P6.2` open because QC still found blocker-level truthfulness seams: the side context panel still needs the same id-match/loading guard as the main detail pane during agent-to-agent switches, degraded root-detail fallback still drops summary identity/business fields already known from the agent summary contract, and shell-level fallback/source labels still need reconciliation after the agents surface recovers from fixture mode.
+- Closed the remaining truthfulness blockers in the final pass:
+  - the side context panel now uses the same loading/id-match truth gate as the main detail pane and no longer risks stale detail during agent switching
+  - degraded root-detail fallback now preserves summary `slug`, `description`, `businessId`, `createdAt`, and `updatedAt`, while leaving lifecycle truth unavailable unless the summary actually provides it
+  - shell-level `statusBadge` / `footerNote` now reconcile after agents-surface recovery instead of lagging behind stale fixture-fallback state
+- Added focused regressions in `apps/mission-control/src/App.test.tsx` and `apps/mission-control/src/lib/api.test.ts` covering context-panel loading neutrality, degraded summary-truth preservation, lifecycle-truth non-fabrication, and shell/source reconciliation after agents recovery.
+- Verified the closed slice with `npm --prefix apps/mission-control run test -- --run`, `npm --prefix apps/mission-control run typecheck`, `npm --prefix apps/mission-control run build`, `/Users/solomartin/Projects/Ares/.venv/bin/python -m pytest tests/api/test_mission_control.py tests/api/test_agents.py tests/api/test_release_management.py -q`, and `/Users/solomartin/Projects/Ares/.venv/bin/python -m pytest -q` (`25 frontend tests passed`, `40 targeted backend tests passed`, `452 passed, 5 warnings` full backend suite).
+- Fresh `gpt-5.4` XHIGH QC approved the current `P6.2` diff with no remaining blocker-level findings.
 
 ### 2026-04-22 Phase 6 Slice P6.1 Agents-First Mission Control Navigation
 

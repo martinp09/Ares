@@ -10,6 +10,10 @@ function jsonResponse(payload: unknown): Response {
   });
 }
 
+function parseUrl(input: RequestInfo | URL): URL {
+  return new URL(input.toString(), "https://example.test");
+}
+
 describe("Mission Control API client", () => {
   it("maps additive pipeline summaries from the dashboard payload", async () => {
     const fetchMock = vi.fn(async () =>
@@ -73,6 +77,151 @@ describe("Mission Control API client", () => {
     ]);
   });
 
+  it("adds org headers, preserves mission-control filters, and keeps governance org-scoped", async () => {
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+      const url = parseUrl(input);
+
+      if (url.pathname === "/organizations") {
+        return jsonResponse({
+          organizations: [
+            {
+              id: "org_alpha",
+              name: "Alpha Org",
+              slug: "alpha-org",
+              metadata: { tier: "enterprise" },
+              is_internal: false,
+              created_at: "2026-04-22T00:00:00+00:00",
+              updated_at: "2026-04-22T00:00:00+00:00",
+            },
+          ],
+        });
+      }
+      if (url.pathname === "/mission-control/dashboard") {
+        return jsonResponse({
+          approval_count: 0,
+          active_run_count: 0,
+          failed_run_count: 0,
+          active_agent_count: 0,
+          system_status: "healthy",
+          updated_at: "2026-04-22T00:00:00+00:00",
+        });
+      }
+      if (url.pathname === "/mission-control/inbox") {
+        return jsonResponse({
+          threads: [],
+          selected_thread_id: null,
+          selected_thread: null,
+        });
+      }
+      if (url.pathname === "/agents/agt-1") {
+        return jsonResponse({
+          agent: {
+            id: "agt-1",
+            name: "Scoped Agent",
+            slug: "scoped-agent",
+            business_id: "limitless",
+            environment: "dev",
+            lifecycle_status: "active",
+            active_revision_id: "rev-1",
+            active_revision_state: "published",
+          },
+          revisions: [],
+        });
+      }
+      if (url.pathname === "/release-management/agents/agt-1/events") {
+        return jsonResponse({ events: [] });
+      }
+      if (url.pathname === "/mission-control/audit") {
+        return jsonResponse({ events: [] });
+      }
+      if (url.pathname === "/usage") {
+        return jsonResponse({
+          summary: { total_count: 0, by_kind: {}, by_source_kind: [], by_agent: [], updated_at: "2026-04-22T00:00:00+00:00" },
+          events: [],
+        });
+      }
+      if (url.pathname === "/mission-control/turns") {
+        return jsonResponse({ turns: [] });
+      }
+      if (url.pathname === "/mission-control/settings/secrets/revisions/rev-1") {
+        return jsonResponse({ bindings: [] });
+      }
+      if (url.pathname === "/mission-control/settings/governance") {
+        return jsonResponse({
+          org_id: "org_alpha",
+          pending_approvals: [],
+          secrets_health: { revisions: [] },
+          recent_audit: [],
+          usage_summary: { total_count: 0, by_kind: {}, by_source_kind: [], by_agent: [], updated_at: "2026-04-22T00:00:00+00:00" },
+          recent_usage: [],
+        });
+      }
+
+      throw new Error(`Unexpected URL ${url.toString()}`);
+    });
+
+    const api = createMissionControlApi({
+      fetchImpl: fetchMock as typeof fetch,
+      orgId: "org_alpha",
+      businessId: "limitless",
+      environment: "dev",
+    });
+
+    const [organizations, governance] = await Promise.all([
+      api.getOrganizations(),
+      api.getGovernance(),
+      api.getDashboard(),
+      api.getInbox("thread-42"),
+      api.getAgentDetail("agt-1"),
+    ]);
+
+    expect(organizations).toEqual([
+      {
+        id: "org_alpha",
+        name: "Alpha Org",
+        slug: "alpha-org",
+        metadata: { tier: "enterprise" },
+        isInternal: false,
+        createdAt: "2026-04-22T00:00:00+00:00",
+        updatedAt: "2026-04-22T00:00:00+00:00",
+      },
+    ]);
+    expect(governance.orgId).toBe("org_alpha");
+
+    const requests = fetchMock.mock.calls.map((call) => {
+      const input = call[0] as RequestInfo | URL;
+      const init = (call as unknown as Array<RequestInfo | URL | RequestInit | undefined>)[1] as RequestInit | undefined;
+      return {
+        url: parseUrl(input),
+        headers: init?.headers as Record<string, string> | undefined,
+      };
+    });
+
+    expect(requests.every(({ headers }) => headers?.["X-Ares-Org-Id"] === "org_alpha")).toBe(true);
+
+    expect(
+      requests.find(({ url }) => url.pathname === "/organizations")?.url.searchParams.toString(),
+    ).toBe("");
+    expect(
+      requests.find(({ url }) => url.pathname === "/mission-control/dashboard")?.url.searchParams.toString(),
+    ).toBe("business_id=limitless&environment=dev");
+    expect(
+      requests.find(({ url }) => url.pathname === "/mission-control/inbox")?.url.searchParams.toString(),
+    ).toBe("selected_thread_id=thread-42&business_id=limitless&environment=dev");
+    expect(
+      requests.find(({ url }) => url.pathname === "/mission-control/audit")?.url.searchParams.toString(),
+    ).toBe("agent_id=agt-1&limit=8&business_id=limitless&environment=dev");
+    expect(
+      requests.find(({ url }) => url.pathname === "/mission-control/turns")?.url.searchParams.toString(),
+    ).toBe("business_id=limitless&environment=dev");
+    expect(
+      requests.find(({ url }) => url.pathname === "/mission-control/settings/secrets/revisions/rev-1")?.url.searchParams.toString(),
+    ).toBe("business_id=limitless&environment=dev");
+    expect(
+      requests.find(({ url }) => url.pathname === "/mission-control/settings/governance")?.url.searchParams.toString(),
+    ).toBe("");
+  });
+
   it("maps release and replay read-model fields for agents and runs", async () => {
     const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
       const url = input.toString();
@@ -127,10 +276,27 @@ describe("Mission Control API client", () => {
           agents: [
             {
               id: "agt-1",
+              business_id: "limitless",
+              description: "Primary rollback-managed agent",
               name: "Release Agent",
               environment: "dev",
               active_revision_id: "rev-3",
               active_revision_state: "published",
+              host_adapter: {
+                kind: "trigger_dev",
+                enabled: false,
+                display_name: "Trigger.dev",
+                adapter_details_label: "Adapter details",
+                capabilities: {
+                  dispatch: false,
+                  status_correlation: false,
+                  artifact_reporting: false,
+                  cancellation: false,
+                },
+                disabled_reason: "Trigger.dev is disabled for this environment.",
+              },
+              created_at: "2026-04-16T21:55:00+00:00",
+              updated_at: "2026-04-16T22:00:00+00:00",
               release: {
                 event_id: "rle-3",
                 event_type: "rollback",
@@ -178,6 +344,25 @@ describe("Mission Control API client", () => {
         status: "failed",
         rollbackReason: "Operator reported a production regression",
       },
+    });
+    expect(agents[0].hostAdapter).toEqual({
+      kind: "trigger_dev",
+      enabled: false,
+      displayName: "Trigger.dev",
+      adapterDetailsLabel: "Adapter details",
+      capabilities: {
+        dispatch: false,
+        statusCorrelation: false,
+        artifactReporting: false,
+        cancellation: false,
+      },
+      disabledReason: "Trigger.dev is disabled for this environment.",
+    });
+    expect(agents[0]).toMatchObject({
+      businessId: "limitless",
+      description: "Primary rollback-managed agent",
+      createdAt: "2026-04-16T21:55:00+00:00",
+      updatedAt: "2026-04-16T22:00:00+00:00",
     });
   });
 

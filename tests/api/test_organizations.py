@@ -16,9 +16,25 @@ def org_actor_headers(*, org_id: str, actor_id: str, actor_type: str = "user") -
 def test_organizations_api_keeps_internal_runtime_api_key_scope_sane(client) -> None:
     reset_control_plane_state()
 
+    alpha_headers = org_actor_headers(org_id="org_alpha", actor_id="actor_alpha")
+    beta_headers = org_actor_headers(org_id="org_beta", actor_id="actor_beta")
+
     seeded = client.get("/organizations", headers=AUTH_HEADERS)
     assert seeded.status_code == 200
     assert [organization["id"] for organization in seeded.json()["organizations"]] == [DEFAULT_INTERNAL_ORG_ID]
+
+    alpha_created = client.post(
+        "/organizations",
+        json={"id": "org_alpha", "name": "Alpha Org", "slug": "alpha-org"},
+        headers=alpha_headers,
+    )
+    beta_created = client.post(
+        "/organizations",
+        json={"id": "org_beta", "name": "Beta Org", "slug": "beta-org"},
+        headers=beta_headers,
+    )
+    assert alpha_created.status_code == 200
+    assert beta_created.status_code == 200
 
     updated = client.post(
         "/organizations",
@@ -39,7 +55,11 @@ def test_organizations_api_keeps_internal_runtime_api_key_scope_sane(client) -> 
 
     listed = client.get("/organizations", headers=AUTH_HEADERS)
     assert listed.status_code == 200
-    assert [organization["id"] for organization in listed.json()["organizations"]] == [DEFAULT_INTERNAL_ORG_ID]
+    assert [organization["id"] for organization in listed.json()["organizations"]] == [
+        DEFAULT_INTERNAL_ORG_ID,
+        "org_alpha",
+        "org_beta",
+    ]
 
 
 def test_organizations_api_is_scoped_to_actor_org_headers(client) -> None:

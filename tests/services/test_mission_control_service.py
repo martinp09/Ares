@@ -1,6 +1,7 @@
 from datetime import UTC, datetime, timedelta
 
 from app.db.automation_runs import AutomationRunsRepository
+from app.db.agents import AgentsRepository
 from app.db.campaign_memberships import CampaignMembershipsRepository
 from app.db.campaigns import CampaignsRepository
 from app.db.client import InMemoryControlPlaneClient, InMemoryControlPlaneStore
@@ -10,13 +11,16 @@ from app.db.leads import LeadsRepository
 from app.db.opportunities import OpportunitiesRepository
 from app.db.tasks import TasksRepository
 from app.models.automation_runs import AutomationRunRecord, AutomationRunStatus
+from app.models.agents import AgentCreateRequest
 from app.models.campaigns import CampaignMembershipRecord, CampaignMembershipStatus, CampaignRecord, CampaignStatus
+from app.models.host_adapters import HostAdapterKind
 from app.models.lead_events import LeadEventRecord
 from app.models.leads import LeadInterestStatus, LeadLifecycleStatus, LeadRecord, LeadSource
 from app.models.marketing_leads import LeadUpsertRequest
 from app.models.mission_control import MissionControlContactRecord, MissionControlMessageRecord, MissionControlThreadRecord
 from app.models.opportunities import OpportunityRecord, OpportunitySourceLane, OpportunityStage
 from app.models.tasks import TaskPriority, TaskRecord, TaskStatus, TaskType
+from app.services.agent_registry_service import AgentRegistryService
 from app.services.mission_control_service import MissionControlService
 
 
@@ -236,6 +240,84 @@ def test_get_dashboard_groups_opportunities_by_lane_and_stage() -> None:
         {"source_lane": "lease_option_inbound", "stage": "qualified_opportunity", "count": 1},
         {"source_lane": "probate", "stage": "qualified_opportunity", "count": 1},
     ]
+
+
+def test_get_agents_does_not_fabricate_host_adapter_without_active_revision() -> None:
+    client = InMemoryControlPlaneClient(InMemoryControlPlaneStore())
+    agents_repository = AgentsRepository(client)
+    agent_registry_service = AgentRegistryService(agents_repository=agents_repository)
+    service = MissionControlService(client=client, agent_registry_service_dependency=agent_registry_service)
+
+    agent_registry_service.create_agent(
+        AgentCreateRequest(
+            business_id="limitless",
+            environment="dev",
+            name="Draft Agent",
+            config={"prompt": "draft"},
+            host_adapter_kind=HostAdapterKind.CODEX,
+        )
+    )
+
+    response = service.get_agents(business_id="limitless", environment="dev")
+
+    assert len(response.agents) == 1
+    assert response.agents[0].active_revision_id is None
+    assert response.agents[0].host_adapter is None
+
+
+def test_get_agents_omits_stale_release_posture_when_active_revision_moves_without_event() -> None:
+    client = InMemoryControlPlaneClient(InMemoryControlPlaneStore())
+    agents_repository = AgentsRepository(client)
+    agent_registry_service = AgentRegistryService(agents_repository=agents_repository)
+    service = MissionControlService(client=client, agent_registry_service_dependency=agent_registry_service)
+
+    created = agent_registry_service.create_agent(
+        AgentCreateRequest(
+            business_id="limitless",
+            environment="dev",
+            name="Release Divergence Agent",
+            config={"prompt": "release divergence"},
+            host_adapter_kind=HostAdapterKind.TRIGGER_DEV,
+        )
+    )
+    assert created is not None
+    agent_id = created.agent.id
+    initial_revision_id = created.revisions[-1].id
+
+    published_initial = agent_registry_service.publish_revision(agent_id, initial_revision_id)
+    assert published_initial is not None
+
+    with client.transaction() as store:
+        store.release_events["rle-stale"] = type(
+            "ReleaseEventRecord",
+            (),
+            {
+                "id": "rle-stale",
+                "agent_id": agent_id,
+                "event_type": "publish",
+                "release_channel": "dogfood",
+                "created_at": datetime(2026, 4, 16, 20, 0, tzinfo=UTC),
+                "updated_at": datetime(2026, 4, 16, 20, 0, tzinfo=UTC),
+                "previous_active_revision_id": None,
+                "target_revision_id": initial_revision_id,
+                "resulting_active_revision_id": initial_revision_id,
+                "evaluation_summary": None,
+            },
+        )()
+        store.release_event_ids_by_agent[agent_id] = ["rle-stale"]
+
+    cloned = agent_registry_service.clone_revision(agent_id, initial_revision_id)
+    assert cloned is not None
+    newer_revision_id = cloned.revisions[-1].id
+
+    published = agent_registry_service.publish_revision(agent_id, newer_revision_id)
+    assert published is not None
+
+    response = service.get_agents(business_id="limitless", environment="dev")
+
+    assert len(response.agents) == 1
+    assert response.agents[0].active_revision_id == newer_revision_id
+    assert response.agents[0].release is None
 
 
 

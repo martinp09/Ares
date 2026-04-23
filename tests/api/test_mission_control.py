@@ -1,6 +1,7 @@
 from datetime import UTC, datetime, timedelta
 
 from app.core.config import get_settings
+from app.models.host_adapters import HostAdapterKind
 from app.models.mission_control import (
     MissionControlContactRecord,
     MissionControlMessageRecord,
@@ -31,6 +32,7 @@ def create_published_agent(
     name: str,
     business_id: str = "limitless",
     environment: str = "dev",
+    host_adapter_kind: str = HostAdapterKind.TRIGGER_DEV.value,
     compatibility_metadata: dict | None = None,
     release_channel: str | None = None,
 ) -> tuple[str, str]:
@@ -39,6 +41,7 @@ def create_published_agent(
         "environment": environment,
         "name": name,
         "config": {"prompt": f"{name} prompt"},
+        "host_adapter_kind": host_adapter_kind,
     }
     if compatibility_metadata is not None:
         payload["compatibility_metadata"] = compatibility_metadata
@@ -303,6 +306,65 @@ def test_dashboard_endpoint_hides_other_org_records_with_same_scope(client) -> N
     assert beta_body["unread_conversation_count"] == 1
 
 
+def test_dashboard_endpoint_changes_with_org_header_even_when_business_and_environment_match(client) -> None:
+    reset_control_plane_state()
+
+    alpha_headers = org_actor_headers(org_id="org_alpha", actor_id="actor_alpha")
+    beta_headers = org_actor_headers(org_id="org_beta", actor_id="actor_beta")
+
+    alpha_run = client.post(
+        "/commands",
+        json={
+            "business_id": "limitless",
+            "environment": "dev",
+            "command_type": "run_market_research",
+            "idempotency_key": "mc-dashboard-header-alpha",
+            "payload": {"topic": "alpha leads", "org_id": "org_alpha"},
+        },
+        headers=AUTH_HEADERS,
+    )
+    assert alpha_run.status_code == 201
+
+    beta_run = client.post(
+        "/commands",
+        json={
+            "business_id": "limitless",
+            "environment": "dev",
+            "command_type": "run_market_research",
+            "idempotency_key": "mc-dashboard-header-beta",
+            "payload": {"topic": "beta leads", "org_id": "org_beta"},
+        },
+        headers=AUTH_HEADERS,
+    )
+    assert beta_run.status_code == 201
+    failed_beta = client.post(
+        f"/trigger/callbacks/runs/{beta_run.json()['run_id']}/failed",
+        json={
+            "trigger_run_id": "trg_header_beta_failed_001",
+            "error_classification": "provider_timeout",
+            "error_message": "worker timed out",
+        },
+        headers=AUTH_HEADERS,
+    )
+    assert failed_beta.status_code == 200
+
+    alpha_response = client.get(
+        "/mission-control/dashboard?business_id=limitless&environment=dev",
+        headers=alpha_headers,
+    )
+    beta_response = client.get(
+        "/mission-control/dashboard?business_id=limitless&environment=dev",
+        headers=beta_headers,
+    )
+
+    assert alpha_response.status_code == 200
+    assert beta_response.status_code == 200
+    assert alpha_response.json()["active_run_count"] == 1
+    assert beta_response.json()["active_run_count"] == 0
+    assert alpha_response.json()["failed_run_count"] == 0
+    assert beta_response.json()["failed_run_count"] == 1
+
+
 def test_agents_endpoint_filters_to_requested_scope(client) -> None:
     reset_control_plane_state()
 
@@ -397,6 +459,61 @@ def test_agents_endpoint_exposes_release_rollback_and_eval_state(client) -> None
             "blocked_promotion": False,
             "rollback_reason": "Operator reported a production regression after promotion",
         },
+    }
+
+
+def test_agents_endpoint_exposes_host_adapter_descriptor_data(client) -> None:
+    reset_control_plane_state()
+
+    enabled_agent_id, enabled_revision_id = create_published_agent(
+        client,
+        headers=AUTH_HEADERS,
+        name="Enabled Host Adapter Agent",
+        host_adapter_kind=HostAdapterKind.TRIGGER_DEV.value,
+    )
+    disabled_agent_id, disabled_revision_id = create_published_agent(
+        client,
+        headers=AUTH_HEADERS,
+        name="Disabled Host Adapter Agent",
+        host_adapter_kind=HostAdapterKind.CODEX.value,
+    )
+
+    response = client.get(
+        "/mission-control/agents?business_id=limitless&environment=dev",
+        headers=AUTH_HEADERS,
+    )
+
+    assert response.status_code == 200
+    agents_by_id = {agent["id"]: agent for agent in response.json()["agents"]}
+
+    assert agents_by_id[enabled_agent_id]["active_revision_id"] == enabled_revision_id
+    assert agents_by_id[enabled_agent_id]["host_adapter"] == {
+        "kind": "trigger_dev",
+        "enabled": True,
+        "display_name": "Trigger.dev",
+        "adapter_details_label": "Adapter details",
+        "capabilities": {
+            "dispatch": True,
+            "status_correlation": True,
+            "artifact_reporting": True,
+            "cancellation": False,
+        },
+        "disabled_reason": None,
+    }
+
+    assert agents_by_id[disabled_agent_id]["active_revision_id"] == disabled_revision_id
+    assert agents_by_id[disabled_agent_id]["host_adapter"] == {
+        "kind": "codex",
+        "enabled": False,
+        "display_name": "Codex",
+        "adapter_details_label": "Adapter details",
+        "capabilities": {
+            "dispatch": False,
+            "status_correlation": False,
+            "artifact_reporting": False,
+            "cancellation": False,
+        },
+        "disabled_reason": "codex adapter is disabled in this environment",
     }
 
 
@@ -962,6 +1079,63 @@ def test_agents_endpoint_projects_release_event_without_false_rollback_source(cl
     agents_by_id = {agent["id"]: agent for agent in response.json()["agents"]}
     assert agents_by_id[agent_id]["release"]["event_type"] == "publish"
     assert agents_by_id[agent_id]["release"]["rollback_source_revision_id"] is None
+
+
+def test_agents_endpoint_omits_stale_release_posture_when_active_revision_moves_without_event(client) -> None:
+    reset_control_plane_state()
+    agent_id, revision_id = create_published_agent(
+        client,
+        headers=AUTH_HEADERS,
+        name="Mission Control Diverged Release Agent",
+        release_channel="dogfood",
+    )
+
+    clone_response = client.post(
+        f"/agents/{agent_id}/revisions/{revision_id}/clone",
+        headers=AUTH_HEADERS,
+    )
+    assert clone_response.status_code == 200
+    newer_revision_id = clone_response.json()["revisions"][-1]["id"]
+
+    registry_response = mission_control_service.agent_registry_service.publish_revision(agent_id, newer_revision_id)
+    assert registry_response is not None
+
+    response = client.get(
+        "/mission-control/agents?business_id=limitless&environment=dev",
+        headers=AUTH_HEADERS,
+    )
+
+    assert response.status_code == 200
+    agents_by_id = {agent["id"]: agent for agent in response.json()["agents"]}
+    assert agents_by_id[agent_id]["active_revision_id"] == newer_revision_id
+    assert agents_by_id[agent_id]["release"] is None
+
+
+def test_agents_endpoint_does_not_fabricate_host_adapter_without_active_revision(client) -> None:
+    reset_control_plane_state()
+
+    created = client.post(
+        "/agents",
+        json={
+            "business_id": "limitless",
+            "environment": "dev",
+            "name": "Draft Only Agent",
+            "config": {"prompt": "draft prompt"},
+        },
+        headers=AUTH_HEADERS,
+    )
+    assert created.status_code == 200
+    agent_id = created.json()["agent"]["id"]
+
+    response = client.get(
+        "/mission-control/agents?business_id=limitless&environment=dev",
+        headers=AUTH_HEADERS,
+    )
+
+    assert response.status_code == 200
+    agents_by_id = {agent["id"]: agent for agent in response.json()["agents"]}
+    assert agents_by_id[agent_id]["active_revision_id"] is None
+    assert agents_by_id[agent_id]["host_adapter"] is None
 
 
 def test_runs_endpoint_returns_replay_release_state(client) -> None:
