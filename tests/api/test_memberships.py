@@ -1,4 +1,4 @@
-from app.core.config import DEFAULT_INTERNAL_ACTOR_ID, DEFAULT_INTERNAL_ORG_ID, get_settings
+from app.core.config import DEFAULT_INTERNAL_ACTOR_ID, DEFAULT_INTERNAL_ORG_ID
 from app.services.run_service import reset_control_plane_state
 
 AUTH_HEADERS = {"Authorization": "Bearer dev-runtime-key"}
@@ -11,60 +11,6 @@ def org_actor_headers(*, org_id: str, actor_id: str, actor_type: str = "user") -
         "X-Ares-Actor-Id": actor_id,
         "X-Ares-Actor-Type": actor_type,
     }
-
-
-def _configure_supabase_backend(monkeypatch) -> dict[str, dict[str, dict]]:
-    monkeypatch.setenv("CONTROL_PLANE_BACKEND", "supabase")
-    monkeypatch.setenv("SUPABASE_URL", "https://example.supabase.co")
-    monkeypatch.setenv("SUPABASE_SERVICE_ROLE_KEY", "service-role")
-    get_settings.cache_clear()
-    rows_by_table: dict[str, dict[str, dict]] = {}
-
-    def fake_fetch_rows(table: str, *, params: dict[str, str], settings=None):
-        table_rows = list(rows_by_table.get(table, {}).values())
-        filtered: list[dict] = []
-        for row in table_rows:
-            matches = True
-            for key, value in params.items():
-                if key in {"select", "order", "limit", "offset"}:
-                    continue
-                if isinstance(value, str) and value.startswith("eq.") and str(row.get(key)) != value[3:]:
-                    matches = False
-                    break
-            if matches:
-                filtered.append(dict(row))
-        order = params.get("order")
-        if isinstance(order, str) and order.endswith(".asc"):
-            sort_key = order[:-4]
-            filtered.sort(key=lambda row: str(row.get(sort_key) or ""))
-        return filtered
-
-    def fake_insert_rows(table: str, rows: list[dict], *, select=None, prefer="return=representation", settings=None):
-        table_rows = rows_by_table.setdefault(table, {})
-        inserted = []
-        for row in rows:
-            payload = dict(row)
-            row_id = str(payload.get("id", len(table_rows) + 1))
-            payload["id"] = row_id
-            table_rows[row_id] = payload
-            inserted.append(payload)
-        return inserted
-
-    def fake_patch_rows(table: str, *, params: dict[str, str], row: dict, select=None, settings=None):
-        table_rows = rows_by_table.setdefault(table, {})
-        row_id = params.get("id", "")
-        existing_id = row_id[3:] if row_id.startswith("eq.") else str(row.get("id", len(table_rows) + 1))
-        payload = dict(table_rows.get(existing_id, {}))
-        payload.update(row)
-        payload["id"] = existing_id
-        table_rows[existing_id] = payload
-        return [payload]
-
-    monkeypatch.setattr("app.db.control_plane_store_supabase.fetch_rows", fake_fetch_rows)
-    monkeypatch.setattr("app.db.control_plane_store_supabase.insert_rows", fake_insert_rows)
-    monkeypatch.setattr("app.db.control_plane_store_supabase.patch_rows", fake_patch_rows)
-    return rows_by_table
-
 
 def create_org(client, *, headers: dict[str, str], org_id: str, name: str) -> None:
     response = client.post(
@@ -213,9 +159,9 @@ def test_memberships_api_is_scoped_to_actor_org_headers(client) -> None:
     assert leaked_write.status_code == 422
 
 
-def test_memberships_api_persists_across_supabase_transaction_boundary(client, monkeypatch) -> None:
+def test_memberships_api_persists_across_supabase_transaction_boundary(client, fake_supabase_control_plane) -> None:
     reset_control_plane_state()
-    _configure_supabase_backend(monkeypatch)
+    fake_supabase_control_plane()
 
     alpha_headers = org_actor_headers(org_id="org_alpha", actor_id="actor_alpha")
     create_org(client, headers=alpha_headers, org_id="org_alpha", name="Alpha Org")
