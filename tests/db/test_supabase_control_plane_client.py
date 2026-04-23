@@ -285,6 +285,23 @@ def test_supabase_control_plane_client_persists_enterprise_tables(monkeypatch) -
             updated_at="2026-04-20T00:00:00Z",
         )
 
+    organization_row = rows_by_table["organizations_runtime"]["org_alpha"]
+    assert organization_row["name"] == "Alpha Org"
+    assert organization_row["slug"] == "alpha-org"
+    assert organization_row["is_internal"] is False
+
+    membership_row = rows_by_table["memberships_runtime"]["mbr_alpha_actor"]
+    assert membership_row["org_id"] == "org_alpha"
+    assert membership_row["actor_id"] == "actor_alpha"
+
+    catalog_row = rows_by_table["catalog_entries_runtime"]["cat_alpha"]
+    assert catalog_row["org_id"] == "org_alpha"
+    assert catalog_row["slug"] == "alpha-runtime"
+
+    install_row = rows_by_table["agent_installs_runtime"]["ins_alpha"]
+    assert install_row["catalog_entry_id"] == "cat_alpha"
+    assert install_row["installed_agent_id"] == "agt_2"
+
     with client.transaction() as reloaded_store:
         org = reloaded_store.organizations.get("org_alpha")
         assert org is not None

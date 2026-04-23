@@ -54,6 +54,30 @@ TEXT_TABLES: dict[str, tuple[str, object]] = {
     "host_adapter_dispatches_runtime": ("host_adapter_dispatches", HostAdapterDispatchRecord),
 }
 
+COMMON_NORMALIZED_FIELDS = (
+    "org_id",
+    "business_id",
+    "environment",
+    "agent_id",
+    "agent_revision_id",
+    "session_id",
+    "turn_id",
+    "tool_name",
+    "name",
+    "role_id",
+    "binding_name",
+    "status",
+    "event_type",
+    "kind",
+)
+
+TABLE_NORMALIZED_FIELDS: dict[str, tuple[str, ...]] = {
+    "organizations_runtime": ("slug", "is_internal"),
+    "memberships_runtime": ("actor_id", "actor_type", "role_name"),
+    "catalog_entries_runtime": ("slug",),
+    "agent_installs_runtime": ("catalog_entry_id", "installed_agent_id"),
+}
+
 
 def hydrate_control_plane_store(settings: Settings) -> InMemoryControlPlaneStore:
     from app.db.client import InMemoryControlPlaneStore
@@ -213,22 +237,8 @@ def _persist_rows(table: str, rows: Iterable, settings: Settings) -> None:
             "created_at": payload.get("created_at") or payload.get("updated_at"),
             "updated_at": payload.get("updated_at") or payload.get("created_at"),
         }
-        for field in (
-            "org_id",
-            "business_id",
-            "environment",
-            "agent_id",
-            "agent_revision_id",
-            "session_id",
-            "turn_id",
-            "tool_name",
-            "name",
-            "role_id",
-            "binding_name",
-            "status",
-            "event_type",
-            "kind",
-        ):
+        normalized_fields = (*COMMON_NORMALIZED_FIELDS, *TABLE_NORMALIZED_FIELDS.get(table, ()))
+        for field in normalized_fields:
             if field in payload and payload[field] is not None:
                 row[field] = payload[field]
         if row["id"] in existing:
