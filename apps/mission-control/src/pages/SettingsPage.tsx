@@ -20,6 +20,7 @@ function GovernanceOverviewSection({ governance }: Pick<SettingsPageProps, "gove
         <h3>Governance overview</h3>
         <span>{governance.orgId}</span>
       </div>
+      <p className="panel-copy">Governance stays org-scoped. Runtime asset bindings honor the selected business and environment filters.</p>
       <div className="list-stack">
         <article className="list-card">
           <div className="list-card__row">

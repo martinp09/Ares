@@ -277,12 +277,6 @@ function normalizeSnapshotForScope(
         : {
             ...snapshot.governance,
             orgId: scope.orgId ?? snapshot.governance.orgId,
-            secretsHealth: {
-              ...snapshot.governance.secretsHealth,
-              revisions: snapshot.governance.secretsHealth.revisions.filter((revision) =>
-                matchesSecondaryScope(revision.businessId, revision.environment, scope),
-              ),
-            },
           },
   };
 }

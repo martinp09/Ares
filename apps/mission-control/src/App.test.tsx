@@ -2115,6 +2115,145 @@ describe("App", () => {
     expect(within(screen.getByRole("region", { name: "Usage summary" })).getByText(/tool_call: 3/i)).toBeInTheDocument();
   });
 
+  it("keeps governance org-scoped when secondary business filters change in settings", async () => {
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+      const url = typeof input === "string" ? input : input instanceof URL ? input.toString() : input.url;
+
+      if (url.includes("/mission-control/dashboard")) {
+        return jsonResponse({
+          approval_count: 1,
+          active_run_count: 1,
+          failed_run_count: 0,
+          active_agent_count: 1,
+          unread_conversation_count: 1,
+          busy_channel_count: 1,
+          recent_completed_count: 1,
+          system_status: "watch",
+          updated_at: "2026-04-16T22:00:00+00:00",
+        });
+      }
+      if (url.includes("/mission-control/inbox")) {
+        return jsonResponse({
+          summary: { thread_count: 0, unread_count: 0, approval_required_count: 0 },
+          threads: [],
+          selected_thread_id: null,
+          selected_thread: null,
+        });
+      }
+      if (url.includes("/mission-control/tasks")) {
+        return jsonResponse({ due_count: 0, tasks: [] });
+      }
+      if (url.includes("/mission-control/approvals")) {
+        return jsonResponse({ approvals: [] });
+      }
+      if (url.includes("/mission-control/runs")) {
+        return jsonResponse({ runs: [] });
+      }
+      if (url.includes("/mission-control/agents")) {
+        return jsonResponse({
+          agents: [
+            {
+              id: "agt-filtered-1",
+              name: "Filtered Agent",
+              business_id: "default",
+              environment: "dev",
+              active_revision_id: "rev-filtered-1",
+              active_revision_state: "draft",
+              live_session_count: 0,
+              delegated_work_count: 0,
+            },
+          ],
+        });
+      }
+      if (url.includes("/mission-control/settings/governance")) {
+        return jsonResponse({
+          org_id: "org_alpha",
+          pending_approvals: [],
+          secrets_health: {
+            active_revision_count: 2,
+            healthy_revision_count: 1,
+            attention_revision_count: 1,
+            required_secret_count: 2,
+            configured_secret_count: 1,
+            missing_secret_count: 1,
+            revisions: [
+              {
+                agent_id: "agt-1",
+                agent_name: "Sierra Inbox Agent",
+                agent_revision_id: "rev-1",
+                business_id: "limitless",
+                environment: "dev",
+                status: "healthy",
+                required_secret_count: 1,
+                configured_secret_count: 1,
+                missing_secret_count: 0,
+                required_secrets: ["textgrid_auth_token"],
+                configured_secrets: ["textgrid_auth_token"],
+                missing_secrets: [],
+              },
+              {
+                agent_id: "agt-2",
+                agent_name: "Atlas Research Agent",
+                agent_revision_id: "rev-2",
+                business_id: "limitless",
+                environment: "dev",
+                status: "attention",
+                required_secret_count: 1,
+                configured_secret_count: 0,
+                missing_secret_count: 1,
+                required_secrets: ["provider_api_key"],
+                configured_secrets: [],
+                missing_secrets: ["provider_api_key"],
+              },
+            ],
+          },
+          recent_audit: [
+            {
+              id: "audit-1",
+              event_type: "approval_granted",
+              summary: "Governance review approved the current release posture.",
+              created_at: "2026-04-16T22:05:00+00:00",
+            },
+          ],
+          usage_summary: {
+            total_count: 3,
+            by_kind: { tool_call: 3 },
+            by_source_kind: [],
+            by_agent: [],
+            updated_at: "2026-04-16T22:06:00+00:00",
+          },
+          recent_usage: [
+            {
+              id: "usage-1",
+              kind: "tool_call",
+              count: 3,
+              source_kind: "hermes",
+              created_at: "2026-04-16T22:06:00+00:00",
+            },
+          ],
+        });
+      }
+      if (url.includes("/mission-control/settings/assets")) {
+        return jsonResponse({ assets: [] });
+      }
+
+      throw new Error(`Unexpected fetch URL: ${url}`);
+    });
+
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<App />);
+
+    fireEvent.click(await screen.findByRole("button", { name: /settings/i }));
+    await screen.findByRole("heading", { name: "Settings / Governance", level: 2 });
+
+    fireEvent.click(within(screen.getByRole("group", { name: "Business filter" })).getByRole("button", { name: "default" }));
+
+    expect(await screen.findByText("Atlas Research Agent")).toBeInTheDocument();
+    expect(screen.getByText(/governance stays org-scoped/i)).toBeInTheDocument();
+    expect(within(screen.getByRole("region", { name: "Usage summary" })).getByText(/tool_call: 3/i)).toBeInTheDocument();
+  });
+
   it("applies org scope first, keeps business and environment as secondary filters, and clears stale selections on scope changes", async () => {
     const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
       const url = typeof input === "string" ? input : input instanceof URL ? input.toString() : input.url;

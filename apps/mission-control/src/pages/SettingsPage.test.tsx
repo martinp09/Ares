@@ -15,6 +15,7 @@ describe("SettingsPage", () => {
       />,
     );
 
+    expect(screen.getByText(/governance stays org-scoped/i)).toBeInTheDocument();
     const pendingApprovalsCard = screen.getByText("Pending approvals").closest("article");
     expect(pendingApprovalsCard).not.toBeNull();
     const pendingApprovalsBadge = within(pendingApprovalsCard as HTMLElement).getByText("0");

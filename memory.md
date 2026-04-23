@@ -167,12 +167,19 @@
 ## Open Work
 
 1. keep Phase 6 closed through `P6.5` unless a fresh blocker appears
-2. treat Phase 7 (`P7.1` + `P7.2` + `P7.3`) as implemented, QC-fixed, and locally verified; the next step is merge-to-main once the final review signs off
+2. treat Phase 7 (`P7.1` + `P7.2` + `P7.3`) as implemented, QC-fixed, locally verified, and ready to merge to `main`
 3. keep browser acquisition and ambiguous research in Hermes or other driver agents, not inside Ares
 4. add durable Trigger lead-machine jobs only where sync paths become operationally risky
 5. keep `docs/superpowers/plans/2026-04-13-hermes-mission-control-orchestration-plan.md` and `docs/superpowers/plans/2026-04-15-ares-enterprise-agent-platform-implementation-plan.md` as live source inputs for this branch scope
 
 ## Change Log
+
+### 2026-04-23 Governance Scope Truth Fix Follow-up
+
+- Fixed the last merge warning in Mission Control settings/governance by keeping governance data org-scoped under secondary business/environment filters instead of half-filtering only `secretsHealth.revisions` while leaving org-wide aggregates, audit, and usage intact.
+- Updated `apps/mission-control/src/App.tsx` so secondary filters no longer mutate governance read models, and updated `apps/mission-control/src/pages/SettingsPage.tsx` to state the contract explicitly: governance stays org-scoped while asset bindings honor the selected runtime filters.
+- Added regressions in `apps/mission-control/src/App.test.tsx` and `apps/mission-control/src/pages/SettingsPage.test.tsx`.
+- Verified with `npm --prefix apps/mission-control run test -- --run src/App.test.tsx src/pages/SettingsPage.test.tsx` (`24 passed`), `npm --prefix apps/mission-control run test -- --run` (`20 files passed`, `60 tests passed`), `npm --prefix apps/mission-control run typecheck`, `npm --prefix apps/mission-control run build`, and `./.venv/bin/python -m pytest -q` (`471 passed, 5 warnings`).
 
 ### 2026-04-23 Release-Managed Agent Deactivation Follow-up
 

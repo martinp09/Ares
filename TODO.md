@@ -93,15 +93,16 @@ Known warnings:
 
 ### Phase 7 merge pass
 
-`P7.1`, `P7.2`, and `P7.3` are implemented, QC-reviewed, locally verified, and now include the post-review release-managed deactivation fix.
+`P7.1`, `P7.2`, and `P7.3` are implemented, QC-reviewed, locally verified, and now include the post-review release-managed deactivation fix plus the final governance-scope truth fix.
 
 The Phase 7 merge blockers are closed:
 - `marketplace_publication_enabled` is derived live instead of persisted as stale point-in-time truth
 - catalog install UX now speaks in terms of selected target scope and explicitly reports when an install landed outside the current filtered view
 - active-agent retirement now has a first-class release-management deactivation path, and the legacy `/agents/.../archive` active path delegates into it instead of regressing `origin/main`
+- settings/governance stays explicitly org-scoped under secondary business/environment filters instead of half-filtering secrets posture while leaving aggregates org-wide
 
 Next up:
-- merge the branch to `main` if the final review verdict is approved
+- merge the branch to `main`
 
 ## Repo cleanup check already performed
 
