@@ -27,6 +27,7 @@
 
 ## Current Direction
 
+- `fix/origin-main-supabase-persistence-wiring` is the current merge branch for finishing the remaining `origin/main` Supabase persistence work before taking more product surface.
 - Hermes is the current primary control shell and browser-capable driver
 - This repo should become the reusable real-estate operating runtime those drivers call into
 - Generalist runtime first, lanes and strategies second
@@ -166,13 +167,22 @@
 
 ## Open Work
 
-1. keep Phase 6 closed through `P6.5` unless a fresh blocker appears
-2. treat Phase 7 (`P7.1` + `P7.2` + `P7.3`) as implemented, QC-fixed, locally verified, and ready to merge to `main`
+1. merge `fix/origin-main-supabase-persistence-wiring` to `main`
+2. keep post-merge follow-up scope narrow to Supabase persistence regressions and real hosted smoke only
 3. keep browser acquisition and ambiguous research in Hermes or other driver agents, not inside Ares
 4. add durable Trigger lead-machine jobs only where sync paths become operationally risky
-5. keep `docs/superpowers/plans/2026-04-13-hermes-mission-control-orchestration-plan.md` and `docs/superpowers/plans/2026-04-15-ares-enterprise-agent-platform-implementation-plan.md` as live source inputs for this branch scope
+5. keep using `supabase start -x vector` on this machine until the Colima mount issue is fixed
 
 ## Change Log
+
+### 2026-04-23 Origin Main Supabase Persistence Wiring
+
+- Finished the remaining `origin/main` Supabase persistence cut on `fix/origin-main-supabase-persistence-wiring`.
+- Added Supabase hydration/persistence coverage for the missing enterprise runtime collections (`organizations`, `memberships`, `catalog_entries`, `agent_installs`, `release_events`) and the Ares scope snapshots (`ares_plans_runtime`, `ares_execution_runs_runtime`, `ares_operator_runs_runtime`).
+- Aligned task persistence with the live Supabase contract and fixed runtime backend rebinding so enterprise singleton services resolve against the active backend instead of stale import-time memory wiring.
+- Hardened the Supabase transaction seam so failed flushes restore only rows touched by the failing request, tolerate PostgREST timestamp canonicalization / extra DB fields, and do not clobber newer same-row commits.
+- Added regression coverage for enterprise runtime persistence, autonomy visibility hydration, task contract alignment, transaction-boundary rollback, flush-failure restore, and same-row concurrency protection.
+- Verified with `uv run pytest tests/db/test_supabase_control_plane_client.py tests/db/test_supabase_persistence_wiring_schema.py tests/db/test_catalog_repository.py tests/db/test_organizations_repository.py tests/api/test_ares_plans.py tests/api/test_ares_runtime.py tests/api/test_mission_control.py tests/db/test_tasks_supabase_adapter.py tests/db/test_tasks_repository.py tests/db/test_marketing_repositories.py tests/api/test_organizations.py tests/api/test_memberships.py tests/api/test_catalog.py tests/api/test_agent_installs.py tests/api/test_release_management.py -q` (`86 passed`), `uv run pytest -q` (`496 passed, 5 warnings`), `npm --prefix apps/mission-control run test -- --run`, `npm --prefix apps/mission-control run typecheck`, `npm --prefix apps/mission-control run build`, and `supabase db reset --local` after `supabase start -x vector`.
 
 ### 2026-04-23 Governance Scope Truth Fix Follow-up
 

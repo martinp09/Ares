@@ -249,7 +249,9 @@ class SupabaseControlPlaneClient:
         store = hydrate_control_plane_store(self.settings)
         try:
             yield store
-        finally:
+        except Exception:
+            raise
+        else:
             persist_control_plane_store(store, self.settings)
 
 

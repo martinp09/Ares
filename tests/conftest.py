@@ -74,16 +74,26 @@ def fake_supabase_control_plane(monkeypatch: pytest.MonkeyPatch):
         table_rows[existing_id] = payload
         return [payload]
 
+    def fake_delete_rows(table: str, *, params: dict[str, str], settings=None):
+        table_rows = rows_by_table.setdefault(table, {})
+        row_id = params.get("id", "")
+        if row_id.startswith("eq."):
+            table_rows.pop(row_id[3:], None)
+        return []
+
     monkeypatch.setattr("app.db.control_plane_store_supabase.fetch_rows", fake_fetch_rows)
     monkeypatch.setattr("app.db.control_plane_store_supabase.insert_rows", fake_insert_rows)
     monkeypatch.setattr("app.db.control_plane_store_supabase.patch_rows", fake_patch_rows)
+    monkeypatch.setattr("app.db.control_plane_store_supabase.delete_rows", fake_delete_rows)
 
     def configure(
         *,
+        reset: bool = True,
         fail_on_insert: dict[str, int] | None = None,
         fail_on_patch: dict[str, int] | None = None,
     ) -> dict[str, dict[str, dict]]:
-        rows_by_table.clear()
+        if reset:
+            rows_by_table.clear()
         insert_failures.clear()
         patch_failures.clear()
         if fail_on_insert is not None:

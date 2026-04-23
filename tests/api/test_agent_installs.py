@@ -1,6 +1,5 @@
 import pytest
 
-from app.core.config import get_settings
 from app.db.agent_installs import AgentInstallsRepository
 from app.services.run_service import reset_control_plane_state
 
@@ -14,60 +13,6 @@ def org_actor_headers(*, org_id: str, actor_id: str, actor_type: str = "user") -
         "X-Ares-Actor-Id": actor_id,
         "X-Ares-Actor-Type": actor_type,
     }
-
-
-def _configure_supabase_backend(monkeypatch) -> dict[str, dict[str, dict]]:
-    monkeypatch.setenv("CONTROL_PLANE_BACKEND", "supabase")
-    monkeypatch.setenv("SUPABASE_URL", "https://example.supabase.co")
-    monkeypatch.setenv("SUPABASE_SERVICE_ROLE_KEY", "service-role")
-    get_settings.cache_clear()
-    rows_by_table: dict[str, dict[str, dict]] = {}
-
-    def fake_fetch_rows(table: str, *, params: dict[str, str], settings=None):
-        table_rows = list(rows_by_table.get(table, {}).values())
-        filtered: list[dict] = []
-        for row in table_rows:
-            matches = True
-            for key, value in params.items():
-                if key in {"select", "order", "limit", "offset"}:
-                    continue
-                if isinstance(value, str) and value.startswith("eq.") and str(row.get(key)) != value[3:]:
-                    matches = False
-                    break
-            if matches:
-                filtered.append(dict(row))
-        order = params.get("order")
-        if isinstance(order, str) and order.endswith(".asc"):
-            sort_key = order[:-4]
-            filtered.sort(key=lambda row: str(row.get(sort_key) or ""))
-        return filtered
-
-    def fake_insert_rows(table: str, rows: list[dict], *, select=None, prefer="return=representation", settings=None):
-        table_rows = rows_by_table.setdefault(table, {})
-        inserted = []
-        for row in rows:
-            payload = dict(row)
-            row_id = str(payload.get("id", len(table_rows) + 1))
-            payload["id"] = row_id
-            table_rows[row_id] = payload
-            inserted.append(payload)
-        return inserted
-
-    def fake_patch_rows(table: str, *, params: dict[str, str], row: dict, select=None, settings=None):
-        table_rows = rows_by_table.setdefault(table, {})
-        row_id = params.get("id", "")
-        existing_id = row_id[3:] if row_id.startswith("eq.") else str(row.get("id", len(table_rows) + 1))
-        payload = dict(table_rows.get(existing_id, {}))
-        payload.update(row)
-        payload["id"] = existing_id
-        table_rows[existing_id] = payload
-        return [payload]
-
-    monkeypatch.setattr("app.db.control_plane_store_supabase.fetch_rows", fake_fetch_rows)
-    monkeypatch.setattr("app.db.control_plane_store_supabase.insert_rows", fake_insert_rows)
-    monkeypatch.setattr("app.db.control_plane_store_supabase.patch_rows", fake_patch_rows)
-    return rows_by_table
-
 
 def create_agent(client, *, headers: dict[str, str], name: str) -> tuple[str, str]:
     response = client.post(
@@ -221,9 +166,9 @@ def test_agent_installs_api_rejects_missing_catalog_entries(client) -> None:
     assert response.json()["detail"] == "Catalog entry not found"
 
 
-def test_agent_installs_api_persists_across_supabase_transaction_boundary(client, monkeypatch) -> None:
+def test_agent_installs_api_persists_across_supabase_transaction_boundary(client, fake_supabase_control_plane) -> None:
     reset_control_plane_state()
-    _configure_supabase_backend(monkeypatch)
+    rows_by_table = fake_supabase_control_plane()
 
     alpha_headers = org_actor_headers(org_id="org_alpha", actor_id="actor_alpha")
     source_agent_id, source_revision_id = create_agent(client, headers=alpha_headers, name="Persistent Install Agent")
@@ -254,11 +199,14 @@ def test_agent_installs_api_persists_across_supabase_transaction_boundary(client
     detail = client.get(f"/agent-installs/{install_id}", headers=alpha_headers)
     assert detail.status_code == 200
     assert detail.json()["install"]["catalog_entry_id"] == catalog_entry_id
+    assert len(rows_by_table.get("agent_installs_runtime", {})) == 1
+    assert len(rows_by_table.get("agents_runtime", {})) == 2
+    assert len(rows_by_table.get("agent_revisions_runtime", {})) == 2
 
 
-def test_agent_installs_rollback_created_agent_when_install_record_write_fails(client, monkeypatch) -> None:
+def test_agent_installs_rollback_created_agent_when_install_record_write_fails(client, monkeypatch, fake_supabase_control_plane) -> None:
     reset_control_plane_state()
-    rows_by_table = _configure_supabase_backend(monkeypatch)
+    rows_by_table = fake_supabase_control_plane()
 
     alpha_headers = org_actor_headers(org_id="org_alpha", actor_id="actor_alpha")
     source_agent_id, source_revision_id = create_agent(client, headers=alpha_headers, name="Rollback Source Agent")
@@ -282,6 +230,38 @@ def test_agent_installs_rollback_created_agent_when_install_record_write_fails(c
                 "business_id": "limitless",
                 "environment": "prod",
                 "name": "Should Roll Back",
+            },
+            headers=alpha_headers,
+        )
+
+    assert len(rows_by_table.get("agent_installs_runtime", {})) == 0
+    assert len(rows_by_table.get("agents_runtime", {})) == 1
+    assert len(rows_by_table.get("agent_revisions_runtime", {})) == 1
+
+
+def test_agent_installs_restore_supabase_rows_when_runtime_flush_fails(client, fake_supabase_control_plane) -> None:
+    reset_control_plane_state()
+    rows_by_table = fake_supabase_control_plane()
+
+    alpha_headers = org_actor_headers(org_id="org_alpha", actor_id="actor_alpha")
+    source_agent_id, source_revision_id = create_agent(client, headers=alpha_headers, name="Flush Failure Source Agent")
+    catalog_entry_id = create_catalog_entry(
+        client,
+        headers=alpha_headers,
+        agent_id=source_agent_id,
+        revision_id=source_revision_id,
+    )
+
+    fake_supabase_control_plane(reset=False, fail_on_insert={"agent_installs_runtime": 1})
+
+    with pytest.raises(RuntimeError, match="agent_installs_runtime insert failure"):
+        client.post(
+            "/agent-installs",
+            json={
+                "catalog_entry_id": catalog_entry_id,
+                "business_id": "limitless",
+                "environment": "prod",
+                "name": "Flush Failure Install",
             },
             headers=alpha_headers,
         )

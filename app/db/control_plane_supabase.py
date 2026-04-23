@@ -95,6 +95,24 @@ def patch_rows(
         return json.loads(response.read().decode("utf-8"))
 
 
+def delete_rows(
+    table: str,
+    *,
+    params: dict[str, str],
+    settings: Settings | None = None,
+) -> list[dict]:
+    active = settings or get_settings()
+    query = parse.urlencode(params)
+    req = request.Request(
+        f"{_endpoint(table, active)}?{query}",
+        headers=_headers(active, prefer="return=representation"),
+        method="DELETE",
+    )
+    with request.urlopen(req, timeout=5) as response:
+        body = response.read().decode("utf-8")
+        return json.loads(body) if body else []
+
+
 def resolve_tenant(
     business_id: str,
     environment: str,

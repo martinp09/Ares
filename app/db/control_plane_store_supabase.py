@@ -1,10 +1,11 @@
 from __future__ import annotations
 
 from collections.abc import Iterable
+from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
 from app.core.config import Settings
-from app.db.control_plane_supabase import fetch_rows, insert_rows, patch_rows
+from app.db.control_plane_supabase import delete_rows, fetch_rows, insert_rows, patch_rows
 from app.models.agent_installs import AgentInstallRecord
 from app.models.agent_assets import AgentAssetRecord
 from app.models.agents import AgentRecord, AgentRevisionRecord
@@ -77,6 +78,40 @@ TABLE_NORMALIZED_FIELDS: dict[str, tuple[str, ...]] = {
     "catalog_entries_runtime": ("slug",),
     "agent_installs_runtime": ("catalog_entry_id", "installed_agent_id"),
 }
+
+PERSISTED_TEXT_TABLES = (
+    ("agents_runtime", lambda store: store.agents.values()),
+    ("agent_revisions_runtime", lambda store: store.agent_revisions.values()),
+    ("organizations_runtime", lambda store: store.organizations.values()),
+    ("memberships_runtime", lambda store: store.memberships.values()),
+    ("catalog_entries_runtime", lambda store: store.catalog_entries.values()),
+    ("agent_installs_runtime", lambda store: store.agent_installs.values()),
+    ("release_events_runtime", lambda store: store.release_events.values()),
+    ("sessions_runtime", lambda store: store.sessions.values()),
+    ("session_memory_summaries_runtime", lambda store: store.session_memory_summaries.values()),
+    ("turns_runtime", lambda store: store.turns.values()),
+    ("permissions_runtime", lambda store: store.permissions.values()),
+    ("org_roles_runtime", lambda store: store.roles.values()),
+    ("org_role_grants_runtime", lambda store: store.role_grants.values()),
+    ("org_role_assignments_runtime", lambda store: store.role_assignments.values()),
+    ("org_policies_runtime", lambda store: store.org_policies.values()),
+    ("secrets_runtime", lambda store: store.secrets.values()),
+    ("secret_bindings_runtime", lambda store: store.secret_bindings.values()),
+    ("audit_events_runtime", lambda store: store.audit_events.values()),
+    ("usage_events_runtime", lambda store: store.usage_events.values()),
+    ("outcomes_runtime", lambda store: store.outcomes.values()),
+    ("agent_assets_runtime", lambda store: store.agent_assets.values()),
+    ("mission_control_threads_runtime", lambda store: store.mission_control_threads.values()),
+    ("skills_runtime", lambda store: store.skills.values()),
+    ("host_adapter_dispatches_runtime", lambda store: store.host_adapter_dispatches.values()),
+    ("turn_events_runtime", lambda store: [event for events in store.turn_events.values() for event in events]),
+)
+
+PERSISTED_SCOPE_TABLES = (
+    ("ares_plans_runtime", lambda store: store.ares_plans_by_scope),
+    ("ares_execution_runs_runtime", lambda store: store.ares_execution_runs_by_scope),
+    ("ares_operator_runs_runtime", lambda store: store.ares_operator_runs_by_scope),
+)
 
 
 def hydrate_control_plane_store(settings: Settings) -> InMemoryControlPlaneStore:
@@ -174,41 +209,23 @@ def hydrate_control_plane_store(settings: Settings) -> InMemoryControlPlaneStore
 
 
 def persist_control_plane_store(store: InMemoryControlPlaneStore, settings: Settings) -> None:
-    for table, rows in (
-        ("agents_runtime", store.agents.values()),
-        ("agent_revisions_runtime", store.agent_revisions.values()),
-        ("organizations_runtime", store.organizations.values()),
-        ("memberships_runtime", store.memberships.values()),
-        ("catalog_entries_runtime", store.catalog_entries.values()),
-        ("agent_installs_runtime", store.agent_installs.values()),
-        ("release_events_runtime", store.release_events.values()),
-        ("sessions_runtime", store.sessions.values()),
-        ("session_memory_summaries_runtime", store.session_memory_summaries.values()),
-        ("turns_runtime", store.turns.values()),
-        ("permissions_runtime", store.permissions.values()),
-        ("org_roles_runtime", store.roles.values()),
-        ("org_role_grants_runtime", store.role_grants.values()),
-        ("org_role_assignments_runtime", store.role_assignments.values()),
-        ("org_policies_runtime", store.org_policies.values()),
-        ("secrets_runtime", store.secrets.values()),
-        ("secret_bindings_runtime", store.secret_bindings.values()),
-        ("audit_events_runtime", store.audit_events.values()),
-        ("usage_events_runtime", store.usage_events.values()),
-        ("outcomes_runtime", store.outcomes.values()),
-        ("agent_assets_runtime", store.agent_assets.values()),
-        ("mission_control_threads_runtime", store.mission_control_threads.values()),
-        ("skills_runtime", store.skills.values()),
-        ("host_adapter_dispatches_runtime", store.host_adapter_dispatches.values()),
-    ):
-        _persist_rows(table, rows, settings)
-    _persist_scope_snapshots("ares_plans_runtime", store.ares_plans_by_scope, settings)
-    _persist_scope_snapshots("ares_execution_runs_runtime", store.ares_execution_runs_by_scope, settings)
-    _persist_scope_snapshots("ares_operator_runs_runtime", store.ares_operator_runs_by_scope, settings)
-    _persist_rows(
-        "turn_events_runtime",
-        [event for events in store.turn_events.values() for event in events],
-        settings,
+    snapshots = _capture_runtime_table_snapshots(settings)
+    desired_rows = {
+        table: _prepare_text_rows(table, accessor(store))
+        for table, accessor in PERSISTED_TEXT_TABLES
+    }
+    desired_rows.update(
+        {
+            table: _prepare_scope_rows(accessor(store))
+            for table, accessor in PERSISTED_SCOPE_TABLES
+        }
     )
+    try:
+        for table, rows in desired_rows.items():
+            _persist_prepared_rows(table, rows, settings)
+    except Exception:
+        _restore_runtime_table_snapshots(snapshots, desired_rows, settings)
+        raise
 
 
 def _hydrate_text_table(target: dict, table: str, model_cls, settings: Settings, *, grouped: bool = False) -> None:
@@ -225,14 +242,28 @@ def _hydrate_text_table(target: dict, table: str, model_cls, settings: Settings,
 
 
 def _persist_rows(table: str, rows: Iterable, settings: Settings) -> None:
+    _persist_prepared_rows(table, _prepare_text_rows(table, rows), settings)
+
+
+def _persist_prepared_rows(table: str, rows: dict[str, dict], settings: Settings) -> None:
     existing = {
         row["id"]: row
         for row in fetch_rows(table, params={"select": "id", "order": "id.asc"}, settings=settings)
     }
+    for row in rows.values():
+        if row["id"] in existing:
+            patch_rows(table, params={"id": f"eq.{row['id']}"}, row=row, select="id", settings=settings)
+        else:
+            insert_rows(table, [row], select="id", settings=settings)
+
+
+def _prepare_text_rows(table: str, rows: Iterable) -> dict[str, dict]:
+    prepared: dict[str, dict] = {}
     for record in rows:
         payload = record.model_dump(mode="json", exclude_computed_fields=True)
+        row_id = str(payload["id"] if "id" in payload else payload["session_id"])
         row = {
-            "id": payload["id"] if "id" in payload else payload["session_id"],
+            "id": row_id,
             "payload_json": payload,
             "created_at": payload.get("created_at") or payload.get("updated_at"),
             "updated_at": payload.get("updated_at") or payload.get("created_at"),
@@ -241,11 +272,121 @@ def _persist_rows(table: str, rows: Iterable, settings: Settings) -> None:
         for field in normalized_fields:
             if field in payload and payload[field] is not None:
                 row[field] = payload[field]
-        if row["id"] in existing:
-            patch_rows(table, params={"id": f"eq.{row['id']}"}, row=row, select="id", settings=settings)
-        else:
-            insert_rows(table, [row], select="id", settings=settings)
+        prepared[row_id] = row
+    return prepared
 
+
+def _capture_runtime_table_snapshots(settings: Settings) -> dict[str, dict[str, dict]]:
+    return {
+        table: _snapshot_rows(table, settings)
+        for table in (*[name for name, _ in PERSISTED_TEXT_TABLES], *[name for name, _ in PERSISTED_SCOPE_TABLES])
+    }
+
+
+def _snapshot_rows(table: str, settings: Settings) -> dict[str, dict]:
+    return {
+        str(row["id"]): dict(row)
+        for row in fetch_rows(table, params={"select": "*", "order": "id.asc"}, settings=settings)
+    }
+
+
+def _restore_runtime_table_snapshots(
+    snapshots: dict[str, dict[str, dict]],
+    desired_rows: dict[str, dict[str, dict]],
+    settings: Settings,
+) -> None:
+    for table, snapshot_rows in snapshots.items():
+        pending_rows = desired_rows.get(table, {})
+        touched_ids = {
+            row_id
+            for row_id in set(snapshot_rows) | set(pending_rows)
+            if snapshot_rows.get(row_id) != pending_rows.get(row_id)
+        }
+        _restore_rows(table, snapshot_rows, pending_rows, touched_ids, settings)
+
+
+def _restore_rows(
+    table: str,
+    snapshot_rows: dict[str, dict],
+    pending_rows: dict[str, dict],
+    row_ids: set[str],
+    settings: Settings,
+) -> None:
+    if not row_ids:
+        return
+    current_rows = {
+        str(row["id"]): dict(row)
+        for row in fetch_rows(table, params={"select": "*", "order": "id.asc"}, settings=settings)
+    }
+    for row_id in row_ids:
+        current_row = current_rows.get(row_id)
+        snapshot_row = snapshot_rows.get(row_id)
+        pending_row = pending_rows.get(row_id)
+        if snapshot_row is not None:
+            if not _row_matches_expected(current_row, pending_row):
+                continue
+            if current_row is None:
+                continue
+            patch_rows(table, params={"id": f"eq.{row_id}"}, row=snapshot_row, select="id", settings=settings)
+        elif current_row is not None and _row_matches_expected(current_row, pending_row):
+            delete_rows(table, params={"id": f"eq.{row_id}"}, settings=settings)
+
+
+def _row_matches_expected(current_row: dict | None, expected_row: dict | None) -> bool:
+    if current_row is None or expected_row is None:
+        return False
+    for key, expected_value in expected_row.items():
+        if _canonicalize_row_value(current_row.get(key)) != _canonicalize_row_value(expected_value):
+            return False
+    return True
+
+
+def _canonicalize_row_value(value):
+    if isinstance(value, dict):
+        return {key: _canonicalize_row_value(item) for key, item in value.items()}
+    if isinstance(value, list):
+        return [_canonicalize_row_value(item) for item in value]
+    if isinstance(value, str):
+        candidate = value.strip()
+        if candidate.endswith("Z"):
+            candidate = f"{candidate[:-1]}+00:00"
+        try:
+            parsed = datetime.fromisoformat(candidate)
+        except ValueError:
+            return value
+        if parsed.tzinfo is not None:
+            return parsed.astimezone(UTC).isoformat()
+        return parsed.isoformat()
+    return value
+
+
+def _prepare_scope_rows(snapshots: dict[tuple[str, str], object]) -> dict[str, dict]:
+    prepared: dict[str, dict] = {}
+    for (business_id, environment), snapshot in snapshots.items():
+        payload: dict[str, object]
+        if hasattr(snapshot, "model_dump"):
+            payload = snapshot.model_dump(mode="json")
+        elif isinstance(snapshot, dict):
+            payload = dict(snapshot)
+        else:
+            continue
+        payload.setdefault("business_id", business_id)
+        payload.setdefault("environment", environment)
+        row_id = f"{business_id}:{environment}"
+        row = {
+            "id": row_id,
+            "business_id": business_id,
+            "environment": environment,
+            "payload_json": payload,
+        }
+        created_at = payload.get("created_at") or payload.get("updated_at") or payload.get("generated_at")
+        updated_at = payload.get("updated_at") or payload.get("created_at") or payload.get("generated_at")
+        if created_at is not None:
+            row["created_at"] = created_at
+        if updated_at is not None:
+            row["updated_at"] = updated_at
+        prepared[row_id] = row
+    return prepared
 
 def _hydrate_scope_snapshots(target: dict[tuple[str, str], dict[str, object]], table: str, settings: Settings) -> None:
     rows = fetch_rows(
@@ -270,37 +411,7 @@ def _hydrate_scope_snapshots(target: dict[tuple[str, str], dict[str, object]], t
 
 
 def _persist_scope_snapshots(table: str, snapshots: dict[tuple[str, str], object], settings: Settings) -> None:
-    existing = {
-        row["id"]: row
-        for row in fetch_rows(table, params={"select": "id", "order": "id.asc"}, settings=settings)
-    }
-    for (business_id, environment), snapshot in snapshots.items():
-        payload: dict[str, object]
-        if hasattr(snapshot, "model_dump"):
-            payload = snapshot.model_dump(mode="json")
-        elif isinstance(snapshot, dict):
-            payload = dict(snapshot)
-        else:
-            continue
-        payload.setdefault("business_id", business_id)
-        payload.setdefault("environment", environment)
-        row_id = f"{business_id}:{environment}"
-        row = {
-            "id": row_id,
-            "business_id": business_id,
-            "environment": environment,
-            "payload_json": payload,
-        }
-        created_at = payload.get("created_at") or payload.get("updated_at") or payload.get("generated_at")
-        updated_at = payload.get("updated_at") or payload.get("created_at") or payload.get("generated_at")
-        if created_at is not None:
-            row["created_at"] = created_at
-        if updated_at is not None:
-            row["updated_at"] = updated_at
-        if row_id in existing:
-            patch_rows(table, params={"id": f"eq.{row_id}"}, row=row, select="id", settings=settings)
-        else:
-            insert_rows(table, [row], select="id", settings=settings)
+    _persist_prepared_rows(table, _prepare_scope_rows(snapshots), settings)
 
 
 def _hydrate_core_commands(store: InMemoryControlPlaneStore, settings: Settings) -> None:
