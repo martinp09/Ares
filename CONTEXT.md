@@ -19,10 +19,10 @@
 ## Current TODO
 1. Keep Phase 6 closed unless a fresh blocker appears.
 2. Treat Phase 7 (`P7.1` + `P7.2` + `P7.3`) as implemented, QC-fixed, and green locally on the active branch.
-3. Next move is commit/push for the combined Phase 7 diff.
+3. Next move is merge-to-main review/merge after the release-managed deactivation follow-up.
 
 ## Recent Change
-- 2026-04-23: `P7.3` is now implemented locally on top of the already-landed `P7.1`/`P7.2` work. Agent/catalog visibility now carries marketplace-readiness metadata through the backend and Mission Control UI, `marketplace_published` is blocked by default behind `marketplace_publish_enabled`, catalog entries expose visibility + publication-enabled state, and installs preserve the source visibility without implying public launch. The QC follow-up fixes are now in too: `marketplace_publication_enabled` is derived live instead of stored as stale truth, and catalog install messaging now explicitly distinguishes selected target scope from the current filtered view. Fresh verification shows `npm --prefix apps/mission-control run test -- --run` = `20 files passed`, `59 tests passed`, `npm --prefix apps/mission-control run typecheck` = pass, `npm --prefix apps/mission-control run build` = pass, and `./.venv/bin/python -m pytest -q` = `469 passed, 5 warnings`.
+- 2026-04-23: `P7.3` is now implemented locally on top of the already-landed `P7.1`/`P7.2` work. Agent/catalog visibility now carries marketplace-readiness metadata through the backend and Mission Control UI, `marketplace_published` is blocked by default behind `marketplace_publish_enabled`, catalog entries expose visibility + publication-enabled state, and installs preserve the source visibility without implying public launch. The QC follow-up fixes are now in too: `marketplace_publication_enabled` is derived live instead of stored as stale truth, catalog install messaging now explicitly distinguishes selected target scope from the current filtered view, and release management now includes a first-class deactivation transition so active agents can be retired without regressing the legacy archive contract. Fresh verification shows `npm --prefix apps/mission-control run test -- --run` = `20 files passed`, `59 tests passed`, `npm --prefix apps/mission-control run typecheck` = pass, `npm --prefix apps/mission-control run build` = pass, and `./.venv/bin/python -m pytest -q` = `471 passed, 5 warnings`.
 
 ## Read These Sections In `memory.md`
 1. `## Current Direction`

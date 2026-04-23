@@ -3,6 +3,7 @@ from __future__ import annotations
 from copy import deepcopy
 
 from app.db.client import ControlPlaneClient, get_control_plane_client, utc_now
+from app.db.agents import _derive_agent_lifecycle_status
 from app.models.actors import ActorType
 from app.models.agents import AgentLifecycleStatus, AgentRecord, AgentRevisionRecord, AgentRevisionState
 from app.models.commands import generate_id
@@ -182,3 +183,70 @@ class ReleaseManagementRepository:
             store.release_events[event.id] = event
             store.release_event_ids_by_agent.setdefault(agent_id, []).append(event.id)
             return updated_agent, rolled_back_revision, event
+
+    def deactivate_revision(
+        self,
+        agent_id: str,
+        revision_id: str,
+        *,
+        actor_id: str,
+        actor_type: str | ActorType,
+        notes: str | None = None,
+    ) -> tuple[AgentRecord, AgentRevisionRecord, ReleaseEventRecord] | None:
+        with self.client.transaction() as store:
+            agent = store.agents.get(agent_id)
+            revision = store.agent_revisions.get(revision_id)
+            if agent is None or revision is None or revision.agent_id != agent_id:
+                return None
+            if agent.active_revision_id is None:
+                raise ValueError("No active revision to deactivate")
+            if agent.active_revision_id != revision_id:
+                raise ValueError("Only the active revision can be deactivated")
+            if revision.state != AgentRevisionState.PUBLISHED:
+                raise ValueError("Only active published revisions can be deactivated")
+
+            now = utc_now()
+            archived_revision = revision.model_copy(
+                update={
+                    "state": AgentRevisionState.ARCHIVED,
+                    "archived_at": now,
+                    "updated_at": now,
+                }
+            )
+            store.agent_revisions[revision_id] = archived_revision
+            remaining_non_archived = [
+                candidate
+                for candidate_id in store.agent_revision_ids_by_agent.get(agent_id, [])
+                if candidate_id != revision_id
+                if (candidate := store.agent_revisions[candidate_id]).state != AgentRevisionState.ARCHIVED
+            ]
+            updated_agent = agent.model_copy(
+                update={
+                    "active_revision_id": None,
+                    "lifecycle_status": _derive_agent_lifecycle_status(
+                        remaining_non_archived,
+                        active_revision_id=None,
+                    ),
+                    "updated_at": now,
+                }
+            )
+            event = ReleaseEventRecord(
+                id=generate_id("rle"),
+                org_id=agent.org_id,
+                agent_id=agent.id,
+                event_type=ReleaseEventType.DEACTIVATE,
+                actor_id=actor_id,
+                actor_type=ActorType(actor_type),
+                previous_active_revision_id=revision_id,
+                target_revision_id=revision_id,
+                resulting_active_revision_id=None,
+                release_channel=archived_revision.release_channel,
+                notes=notes,
+                evaluation_summary=None,
+                created_at=now,
+                updated_at=now,
+            )
+            store.agents[agent_id] = updated_agent
+            store.release_events[event.id] = event
+            store.release_event_ids_by_agent.setdefault(agent_id, []).append(event.id)
+            return updated_agent, archived_revision, event

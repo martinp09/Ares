@@ -15,7 +15,7 @@ export type ApprovalRisk = "low" | "medium" | "high";
 export type ApprovalStatus = "pending" | "approved" | "rejected";
 export type RunStatus = "queued" | "in_progress" | "completed" | "failed";
 export type AssetStatus = "connected" | "attention" | "unbound";
-export type ReleaseEventType = "publish" | "rollback";
+export type ReleaseEventType = "publish" | "rollback" | "deactivate";
 export type OutcomeStatus = "satisfied" | "failed";
 export type ReplayRole = "parent" | "child";
 
@@ -151,7 +151,7 @@ export interface AgentReleaseState {
   createdAt: string;
   previousActiveRevisionId?: string | null;
   targetRevisionId: string;
-  resultingActiveRevisionId: string;
+  resultingActiveRevisionId: string | null;
   rollbackSourceRevisionId?: string | null;
   evaluation?: ReleaseEvaluationState;
 }
@@ -289,7 +289,7 @@ export interface AgentReleaseEvent {
   actorType: string;
   previousActiveRevisionId: string | null;
   targetRevisionId: string;
-  resultingActiveRevisionId: string;
+  resultingActiveRevisionId: string | null;
   releaseChannel: string | null;
   notes: string | null;
   createdAt: string;
@@ -1127,7 +1127,13 @@ function normalizeAssetStatus(value: unknown, connectLater: boolean): AssetStatu
 }
 
 function normalizeReleaseEventType(value: unknown): ReleaseEventType {
-  return value === "rollback" ? "rollback" : "publish";
+  if (value === "rollback") {
+    return "rollback";
+  }
+  if (value === "deactivate") {
+    return "deactivate";
+  }
+  return "publish";
 }
 
 function normalizeOutcomeStatus(value: unknown): OutcomeStatus {
@@ -1214,7 +1220,7 @@ function mapAgentRelease(payload?: AgentReleasePayload | null): AgentReleaseStat
     createdAt: asString(payload.created_at),
     previousActiveRevisionId: asNullableString(payload.previous_active_revision_id),
     targetRevisionId: asString(payload.target_revision_id),
-    resultingActiveRevisionId: asString(payload.resulting_active_revision_id),
+    resultingActiveRevisionId: asNullableString(payload.resulting_active_revision_id),
     rollbackSourceRevisionId: asNullableString(payload.rollback_source_revision_id),
     evaluation: mapReleaseEvaluation(payload.evaluation),
   };

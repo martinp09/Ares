@@ -182,5 +182,49 @@ class ReleaseManagementService:
         if revision.published_at is None:
             raise ValueError("Only previously published revisions can be rolled back")
 
+    def deactivate_revision(
+        self,
+        agent_id: str,
+        revision_id: str,
+        *,
+        actor_context: ActorContext,
+        notes: str | None = None,
+    ) -> ReleaseTransitionResponse | None:
+        agent = self.agents_repository.get_agent(agent_id)
+        if agent is None or agent.org_id != actor_context.org_id:
+            return None
+        revision = self.agents_repository.get_revision(revision_id)
+        if revision is None or revision.agent_id != agent_id:
+            return None
+
+        result = self.release_management_repository.deactivate_revision(
+            agent_id,
+            revision_id,
+            actor_id=actor_context.actor_id,
+            actor_type=actor_context.actor_type,
+            notes=notes,
+        )
+        if result is None:
+            return None
+        updated_agent, _, event = result
+        audit_service.append_event(
+            event_type="agent_release_deactivated",
+            summary=f"Deactivated release event {event.id}",
+            resource_type="agent_release_event",
+            resource_id=event.id,
+            agent_id=updated_agent.id,
+            agent_revision_id=event.target_revision_id,
+            actor_context=actor_context,
+            metadata={
+                "previous_active_revision_id": event.previous_active_revision_id,
+                "resulting_active_revision_id": event.resulting_active_revision_id,
+            },
+        )
+        return ReleaseTransitionResponse(
+            agent=updated_agent,
+            revisions=self.agents_repository.list_revisions(agent_id),
+            event=event,
+        )
+
 
 release_management_service = ReleaseManagementService()

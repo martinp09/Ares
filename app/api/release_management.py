@@ -67,3 +67,24 @@ def rollback_revision(
     if response is None:
         raise HTTPException(status_code=404, detail="Agent revision not found")
     return response
+
+
+@router.post("/agents/{agent_id}/revisions/{revision_id}/deactivate", response_model=ReleaseTransitionResponse)
+def deactivate_revision(
+    agent_id: str,
+    revision_id: str,
+    request: ReleaseTransitionRequest | None = None,
+    actor_context: ActorContext = Depends(actor_context_dependency),
+) -> ReleaseTransitionResponse:
+    try:
+        response = release_management_service.deactivate_revision(
+            agent_id,
+            revision_id,
+            actor_context=actor_context,
+            notes=request.notes if request is not None else None,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+    if response is None:
+        raise HTTPException(status_code=404, detail="Agent revision not found")
+    return response

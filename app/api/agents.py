@@ -60,10 +60,17 @@ def archive_revision(
     if current_agent is None:
         raise HTTPException(status_code=404, detail="Agent revision not found")
     if current_agent.agent.active_revision_id == revision_id:
-        raise HTTPException(
-            status_code=409,
-            detail="Archiving the active revision is deferred until a release event exists for that transition",
-        )
+        try:
+            response = release_management_service.deactivate_revision(
+                agent_id,
+                revision_id,
+                actor_context=actor_context,
+            )
+        except ValueError as exc:
+            raise HTTPException(status_code=409, detail=str(exc)) from exc
+        if response is None:
+            raise HTTPException(status_code=404, detail="Agent revision not found")
+        return AgentResponse(agent=response.agent, revisions=response.revisions)
 
     response = agent_registry_service.archive_revision(agent_id, revision_id, org_id=actor_context.org_id)
     if response is None:

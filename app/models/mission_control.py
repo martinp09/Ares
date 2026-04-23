@@ -411,7 +411,7 @@ class MissionControlAgentReleaseSummary(BaseModel):
     created_at: datetime
     previous_active_revision_id: str | None = None
     target_revision_id: str
-    resulting_active_revision_id: str
+    resulting_active_revision_id: str | None = None
     rollback_source_revision_id: str | None = None
     evaluation: MissionControlReleaseEvaluationSummary | None = None
 

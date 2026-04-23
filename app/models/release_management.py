@@ -14,6 +14,7 @@ from app.models.outcomes import OutcomeEvaluationPayload, ReleaseDecisionEvaluat
 class ReleaseEventType(StrEnum):
     PUBLISH = "publish"
     ROLLBACK = "rollback"
+    DEACTIVATE = "deactivate"
 
 
 class ReleaseTransitionRequest(BaseModel):
@@ -36,7 +37,7 @@ class ReleaseEventRecord(BaseModel):
     actor_type: ActorType
     previous_active_revision_id: str | None = None
     target_revision_id: str = Field(min_length=1)
-    resulting_active_revision_id: str = Field(min_length=1)
+    resulting_active_revision_id: str | None = None
     release_channel: str | None = None
     notes: str | None = None
     evaluation_summary: ReleaseDecisionEvaluationSummary | None = None

@@ -157,6 +157,58 @@ def test_release_management_publish_rollback_and_list_events(client) -> None:
     assert events[-1]["resulting_active_revision_id"] == rollback_active_revision_id
 
 
+def test_release_management_deactivate_clears_active_pointer_and_appends_event(client) -> None:
+    reset_control_plane_state()
+
+    create_response = client.post(
+        "/agents",
+        json={
+            "name": "Retired Release Agent",
+            "business_id": "limitless",
+            "environment": "prod",
+            "config": {"prompt": "Retire release cleanly"},
+            "release_channel": "dogfood",
+        },
+        headers=org_actor_headers(org_id="org_release", actor_id="usr_release"),
+    )
+    assert create_response.status_code == 200
+    created = create_response.json()
+    agent_id = created["agent"]["id"]
+    first_revision_id = created["revisions"][0]["id"]
+
+    publish_response = client.post(
+        f"/release-management/agents/{agent_id}/revisions/{first_revision_id}/publish",
+        headers=org_actor_headers(org_id="org_release", actor_id="usr_release"),
+    )
+    assert publish_response.status_code == 200
+
+    deactivate_response = client.post(
+        f"/release-management/agents/{agent_id}/revisions/{first_revision_id}/deactivate",
+        json={"notes": "Retire the current production release"},
+        headers=org_actor_headers(org_id="org_release", actor_id="usr_release"),
+    )
+    assert deactivate_response.status_code == 200
+    body = deactivate_response.json()
+    revisions = {revision["id"]: revision for revision in body["revisions"]}
+    assert body["agent"]["active_revision_id"] is None
+    assert body["agent"]["lifecycle_status"] == "archived"
+    assert revisions[first_revision_id]["state"] == "archived"
+    assert body["event"]["event_type"] == "deactivate"
+    assert body["event"]["previous_active_revision_id"] == first_revision_id
+    assert body["event"]["target_revision_id"] == first_revision_id
+    assert body["event"]["resulting_active_revision_id"] is None
+    assert body["event"]["release_channel"] == "dogfood"
+
+    events_response = client.get(
+        f"/release-management/agents/{agent_id}/events",
+        headers=org_actor_headers(org_id="org_release", actor_id="usr_release"),
+    )
+    assert events_response.status_code == 200
+    events = events_response.json()["events"]
+    assert [event["event_type"] for event in events] == ["publish", "deactivate"]
+    assert events[-1]["resulting_active_revision_id"] is None
+
+
 def test_release_management_is_org_scoped_and_rejects_never_published_rollback(client) -> None:
     reset_control_plane_state()
 

@@ -135,7 +135,9 @@ export function AgentDetailPage({
                   ? "Release history is temporarily unavailable from the current live read models."
                   : latestRelease
                     ? latestReleaseMatchesActiveRevision
-                      ? `Latest event ${latestRelease.id} moved ${latestRelease.targetRevisionId} to ${latestRelease.resultingActiveRevisionId}.`
+                      ? latestRelease.resultingActiveRevisionId
+                        ? `Latest event ${latestRelease.id} moved ${latestRelease.targetRevisionId} to ${latestRelease.resultingActiveRevisionId}.`
+                        : `Latest event ${latestRelease.id} retired ${latestRelease.targetRevisionId} from active service.`
                       : "Release history is newer than the fetched agent snapshot. Refresh detail to reconcile active revision posture."
                     : "No release events are recorded for this agent yet."}
               </p>
@@ -265,7 +267,7 @@ export function AgentDetailPage({
                   <span>{event.createdAt}</span>
                 </div>
                 <p className="list-card__body">
-                  Target {event.targetRevisionId} · active {event.resultingActiveRevisionId}
+                  Target {event.targetRevisionId} · active {event.resultingActiveRevisionId ?? "none"}
                 </p>
                 <div className="list-card__row list-card__row--muted">
                   <span>{event.releaseChannel ?? "internal"}</span>

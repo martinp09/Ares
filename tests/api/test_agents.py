@@ -450,7 +450,7 @@ def test_cloning_archived_revision_reopens_agent_in_draft_state(client) -> None:
     assert cloned_revision["cloned_from_revision_id"] == revision_id
 
 
-def test_archiving_active_revision_via_legacy_agents_path_is_fail_closed_until_release_event_support_exists(client) -> None:
+def test_archiving_active_revision_via_legacy_agents_path_appends_release_deactivation_event(client) -> None:
     reset_control_plane_state()
 
     created = client.post(
@@ -473,17 +473,20 @@ def test_archiving_active_revision_via_legacy_agents_path_is_fail_closed_until_r
         headers=AUTH_HEADERS,
     )
 
-    assert archive_response.status_code == 409
-    assert "release event" in archive_response.json()["detail"]
-
-    get_response = client.get(f"/agents/{agent_id}", headers=AUTH_HEADERS)
-    assert get_response.status_code == 200
-    body = get_response.json()
+    assert archive_response.status_code == 200
+    body = archive_response.json()
     revisions = {revision["id"]: revision for revision in body["revisions"]}
-    assert body["agent"]["active_revision_id"] == revision_id
-    assert body["agent"]["lifecycle_status"] == "active"
-    assert revisions[revision_id]["state"] == "published"
+    assert body["agent"]["active_revision_id"] is None
+    assert body["agent"]["lifecycle_status"] == "draft"
+    assert revisions[revision_id]["state"] == "archived"
     assert revisions[cloned_revision["id"]]["state"] == "draft"
+
+    events_response = client.get(f"/release-management/agents/{agent_id}/events", headers=AUTH_HEADERS)
+    assert events_response.status_code == 200
+    events = events_response.json()["events"]
+    assert [event["event_type"] for event in events] == ["publish", "deactivate"]
+    assert events[-1]["target_revision_id"] == revision_id
+    assert events[-1]["resulting_active_revision_id"] is None
 
 
 def test_archived_non_active_revisions_remain_queryable_but_cannot_be_published_again(client) -> None:

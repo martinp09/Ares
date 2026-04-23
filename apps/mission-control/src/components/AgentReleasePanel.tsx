@@ -14,7 +14,13 @@ function getReleaseStatus(activeRevisionState: string, release?: AgentReleaseSta
   if (!release) {
     return activeRevisionState;
   }
-  return release.eventType === "rollback" ? "rollback live" : `${release.eventType} live`;
+  if (release.eventType === "rollback") {
+    return "rollback live";
+  }
+  if (release.eventType === "deactivate") {
+    return "inactive";
+  }
+  return `${release.eventType} live`;
 }
 
 export function AgentReleasePanel({
@@ -29,7 +35,7 @@ export function AgentReleasePanel({
   const releaseChannel = release?.releaseChannel ?? activeRevision?.releaseChannel ?? "internal";
   const releaseTimestamp = release?.createdAt ?? activeRevision?.updatedAt ?? "Unknown";
   const revisionBody = release
-    ? `Channel ${releaseChannel} · target ${release.targetRevisionId} · active ${release.resultingActiveRevisionId}`
+    ? `Channel ${releaseChannel} · target ${release.targetRevisionId} · active ${release.resultingActiveRevisionId ?? "none"}`
     : activeRevision
       ? `Channel ${releaseChannel} · revision ${activeRevision.id} · state ${activeRevision.state}`
       : `Channel ${releaseChannel} · release posture unavailable until runtime history reconciles`;

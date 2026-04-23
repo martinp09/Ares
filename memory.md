@@ -167,12 +167,22 @@
 ## Open Work
 
 1. keep Phase 6 closed through `P6.5` unless a fresh blocker appears
-2. treat Phase 7 (`P7.1` + `P7.2` + `P7.3`) as implemented, QC-fixed, and locally verified; the next step is commit/push for the combined diff
+2. treat Phase 7 (`P7.1` + `P7.2` + `P7.3`) as implemented, QC-fixed, and locally verified; the next step is merge-to-main once the final review signs off
 3. keep browser acquisition and ambiguous research in Hermes or other driver agents, not inside Ares
 4. add durable Trigger lead-machine jobs only where sync paths become operationally risky
 5. keep `docs/superpowers/plans/2026-04-13-hermes-mission-control-orchestration-plan.md` and `docs/superpowers/plans/2026-04-15-ares-enterprise-agent-platform-implementation-plan.md` as live source inputs for this branch scope
 
 ## Change Log
+
+### 2026-04-23 Release-Managed Agent Deactivation Follow-up
+
+- Added a first-class release-management `deactivate` transition so active published revisions can be retired intentionally with an immutable release event instead of regressing the legacy archive path.
+- Updated `app/db/release_management.py`, `app/services/release_management_service.py`, `app/api/release_management.py`, and `app/api/agents.py` so:
+  - `POST /release-management/agents/{agent_id}/revisions/{revision_id}/deactivate` archives the active published revision, clears `active_revision_id`, appends a `deactivate` release event, and preserves lifecycle truth based on remaining non-archived revisions
+  - legacy `/agents/{agent_id}/revisions/{revision_id}/archive` delegates active-revision retirement into that release-managed path while non-active archive behavior stays unchanged
+- Updated release-event models/read models/UI types to allow `resulting_active_revision_id = null` for real retirement and kept Mission Control release copy truthful when the latest event retires an agent from active service.
+- Added regressions in `tests/db/test_release_management_repository.py`, `tests/api/test_release_management.py`, `tests/api/test_agents.py`, and `apps/mission-control/src/pages/AgentDetailPage.test.tsx`.
+- Verified with `npm --prefix apps/mission-control run test -- --run src/pages/AgentDetailPage.test.tsx src/lib/api.test.ts` (`11 passed`), `./.venv/bin/python -m pytest tests/db/test_release_management_repository.py tests/api/test_release_management.py tests/api/test_agents.py tests/api/test_mission_control.py tests/api/test_replays.py tests/services/test_mission_control_service.py -q` (`66 passed`), `npm --prefix apps/mission-control run test -- --run` (`20 files passed`, `59 tests passed`), `npm --prefix apps/mission-control run typecheck`, `npm --prefix apps/mission-control run build`, and `./.venv/bin/python -m pytest -q` (`471 passed, 5 warnings`).
 
 ### 2026-04-23 Phase 7 QC Fix Follow-up
 

@@ -92,6 +92,54 @@ def test_publish_and_rollback_append_immutable_release_events_and_move_active_po
     assert events[2].resulting_active_revision_id == rolled_back_revision.id
 
 
+def test_deactivate_revision_appends_event_and_clears_active_pointer() -> None:
+    agents_repository, release_repository = build_repositories()
+
+    agent, first_revision = agents_repository.create_agent(
+        business_id="limitless",
+        environment="prod",
+        name="Release Retirement Agent",
+        description=None,
+        config={"prompt": "Retire active releases cleanly"},
+        release_channel="canary",
+    )
+    published_agent, published_revision, publish_event = release_repository.publish_revision(
+        agent.id,
+        first_revision.id,
+        actor_id="usr_release",
+        actor_type="user",
+        notes="Initial production publish",
+    )
+
+    assert published_agent.active_revision_id == first_revision.id
+    assert published_revision.state == AgentRevisionState.PUBLISHED
+    assert publish_event.event_type == ReleaseEventType.PUBLISH
+
+    deactivated_agent, deactivated_revision, deactivate_event = release_repository.deactivate_revision(
+        agent.id,
+        first_revision.id,
+        actor_id="usr_release",
+        actor_type="user",
+        notes="Retire the current production release",
+    )
+
+    assert deactivated_agent.active_revision_id is None
+    assert deactivated_agent.lifecycle_status == "archived"
+    assert deactivated_revision.state == AgentRevisionState.ARCHIVED
+    assert deactivate_event.event_type == ReleaseEventType.DEACTIVATE
+    assert deactivate_event.previous_active_revision_id == first_revision.id
+    assert deactivate_event.target_revision_id == first_revision.id
+    assert deactivate_event.resulting_active_revision_id is None
+    assert deactivate_event.release_channel == "canary"
+
+    events = release_repository.list_events(agent.id)
+    assert [event.event_type for event in events] == [
+        ReleaseEventType.PUBLISH,
+        ReleaseEventType.DEACTIVATE,
+    ]
+    assert events[-1].resulting_active_revision_id is None
+
+
 def test_rollback_rejects_revisions_that_were_never_published() -> None:
     agents_repository, release_repository = build_repositories()
 

@@ -79,30 +79,49 @@ describe("AgentDetailPage", () => {
     expect(screen.queryByText("Channel dogfood · target rev-stale · active rev-stale-live")).not.toBeInTheDocument();
   });
 
-  it("keeps release posture unavailable when release history outruns the fetched active revision", () => {
+  it("renders deactivation release posture without inventing an active revision", () => {
     render(
       <AgentDetailPage
         detail={{
           ...missionControlAgentDetailFixtures["agt-1001"],
+          agent: {
+            ...missionControlAgentDetailFixtures["agt-1001"].agent,
+            activeRevisionId: null,
+            activeRevisionState: "archived",
+            lifecycleStatus: "archived",
+          },
           releaseHistory: [
             {
               ...missionControlAgentDetailFixtures["agt-1001"].releaseHistory[0],
-              id: "rle-newer",
-              targetRevisionId: "rev-999",
-              resultingActiveRevisionId: "rev-999",
-              createdAt: "2026-04-16T23:00:00+00:00",
+              id: "rle-deactivate",
+              eventType: "deactivate",
+              targetRevisionId: "rev-201",
+              resultingActiveRevisionId: null,
+              createdAt: "2026-04-17T12:00:00+00:00",
             },
           ],
         }}
         dataSource="api"
         onBack={() => {}}
         selectedAgentHostAdapter={missionControlFixtures.agents[0].hostAdapter}
-        selectedAgentSummary={missionControlFixtures.agents[0]}
+        selectedAgentSummary={{
+          ...missionControlFixtures.agents[0],
+          activeRevisionId: null,
+          activeRevisionState: "archived",
+          lifecycleStatus: "archived",
+          release: {
+            ...missionControlFixtures.agents[0].release!,
+            eventType: "deactivate",
+            targetRevisionId: "rev-201",
+            resultingActiveRevisionId: null,
+            createdAt: "2026-04-17T12:00:00+00:00",
+          },
+        }}
       />,
     );
 
-    expect(screen.getByText("Channel dogfood · revision rev-201 · state published")).toBeInTheDocument();
-    expect(screen.queryByText("Channel dogfood · target rev-999 · active rev-999")).not.toBeInTheDocument();
-    expect(screen.getByText("Release history is newer than the fetched agent snapshot. Refresh detail to reconcile active revision posture.")).toBeInTheDocument();
+    expect(screen.getByText("Channel dogfood · target rev-201 · active none")).toBeInTheDocument();
+    expect(screen.getByText("Latest event rle-deactivate retired rev-201 from active service.")).toBeInTheDocument();
+    expect(screen.getByText("inactive")).toBeInTheDocument();
   });
 });
