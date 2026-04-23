@@ -29,7 +29,7 @@ class CatalogRepository:
         metadata: dict[str, object] | None = None,
     ) -> CatalogEntryRecord:
         now = utc_now()
-        normalized_slug = slug.strip().casefold()
+        normalized_slug = slug.strip().lower()
         with self.client.transaction() as store:
             key = (org_id, normalized_slug)
             if key in store.catalog_entry_keys:

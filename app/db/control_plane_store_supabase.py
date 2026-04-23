@@ -103,7 +103,7 @@ def hydrate_control_plane_store(settings: Settings) -> InMemoryControlPlaneStore
     store.organization_keys.clear()
     for record in store.organizations.values():
         if record.slug:
-            store.organization_keys[record.slug.strip().casefold()] = record.id
+            store.organization_keys[record.slug.strip().lower()] = record.id
     _hydrate_text_table(store.memberships, "memberships_runtime", MembershipRecord, settings)
     store.membership_keys.clear()
     store.membership_ids_by_org.clear()
@@ -120,7 +120,7 @@ def hydrate_control_plane_store(settings: Settings) -> InMemoryControlPlaneStore
     store.catalog_entry_keys.clear()
     store.catalog_entry_ids_by_org.clear()
     for record in store.catalog_entries.values():
-        store.catalog_entry_keys[(record.org_id, record.slug.strip().casefold())] = record.id
+        store.catalog_entry_keys[(record.org_id, record.slug.strip().lower())] = record.id
         store.catalog_entry_ids_by_org.setdefault(record.org_id, []).append(record.id)
     for entry_ids in store.catalog_entry_ids_by_org.values():
         entry_ids.sort(key=lambda entry_id: (store.catalog_entries[entry_id].created_at, entry_id))

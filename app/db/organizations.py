@@ -104,4 +104,4 @@ class OrganizationsRepository:
 
     @staticmethod
     def _normalize_key(value: str) -> str:
-        return value.strip().casefold()
+        return value.strip().lower()

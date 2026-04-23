@@ -83,3 +83,37 @@ def test_catalog_repository_rejects_duplicate_slugs_within_an_org() -> None:
         assert "slug already exists" in str(exc).lower()
     else:
         raise AssertionError("Expected duplicate catalog slug to raise ValueError")
+
+
+def test_catalog_repository_matches_database_slug_lowering_for_unicode_inputs() -> None:
+    reset_control_plane_store()
+    repository = CatalogRepository()
+
+    first = repository.create(
+        org_id="org_alpha",
+        agent_id="agt_alpha",
+        agent_revision_id="rev_alpha",
+        slug="Straße",
+        name="Street Ops",
+        summary="Unicode slug",
+        description=None,
+        visibility="private_catalog",
+        host_adapter_kind=HostAdapterKind.TRIGGER_DEV,
+        provider_kind=ProviderKind.ANTHROPIC,
+        provider_capabilities=[],
+    )
+    second = repository.create(
+        org_id="org_alpha",
+        agent_id="agt_alpha_2",
+        agent_revision_id="rev_alpha_2",
+        slug="STRASSE",
+        name="Street Ops ASCII",
+        summary="ASCII slug",
+        description=None,
+        visibility="private_catalog",
+        host_adapter_kind=HostAdapterKind.TRIGGER_DEV,
+        provider_kind=ProviderKind.ANTHROPIC,
+        provider_capabilities=[],
+    )
+
+    assert first.id != second.id

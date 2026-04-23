@@ -56,3 +56,13 @@ def test_updating_slug_releases_the_old_slug_for_reuse() -> None:
     assert updated.slug == "beta-org"
     assert created.id == "org_gamma"
     assert created.slug == "alpha-org"
+
+
+def test_organization_slug_normalization_matches_database_lowering() -> None:
+    repository = build_repository()
+
+    created = repository.create(id="org_alpha", name="Alpha Org", slug="Straße")
+    duplicate = repository.create(id="org_beta", name="Beta Org", slug="STRASSE")
+
+    assert created.slug == "Straße"
+    assert duplicate.slug == "STRASSE"
