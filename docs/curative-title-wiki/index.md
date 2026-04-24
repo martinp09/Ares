@@ -51,19 +51,27 @@ Core doctrine:
    - Perkins/Otis Williams estate thread
    - image-access boundary
 
+7. [[Contact Candidate Packet Test]]
+   - normalizes probate/land-record evidence into paid-skiptrace-ready inputs
+   - excludes decedents as live targets
+   - preserves candidate roles, addresses, confidence, and source lineage
+
 ## Source evidence
 
 - [[../curative-title-data-pipeline|Curative Title Data Pipeline]]
 - [[../production-readiness-handoff|Production Readiness Handoff]]
 - [[../rollout-evidence/land-records-recon-2026-04-24/REPORT|Tangie Williams Land-Records Recon Report]]
+- [[../rollout-evidence/contact-candidate-packets-2026-04-24/REPORT|Contact Candidate Packet Test]]
 - `docs/rollout-evidence/land-records-recon-2026-04-24/tangie-williams-field-test.json`
 - `docs/rollout-evidence/probate-smoke-2026-04-24/priority_keep_now_enriched.json`
+- `docs/rollout-evidence/contact-candidate-packets-2026-04-24/contact_candidate_packets.json`
 
 ## Current open gates
 
 - Harris Clerk document images require authorized login; do not bypass CAPTCHA/login.
 - HCAD account/property matching still needs to resolve legal descriptions like `FALLBROOK Sec 3 Lot 1181 Block 24`.
 - Free people-search sites may block cloud/browser-automation environments; treat this as an access gate.
+- Paid skiptrace should receive normalized contact-candidate packets, not raw probate rows.
 - Ares needs first-class evidence graph models before this becomes a repeatable operator workflow.
 
 ## Links
@@ -74,3 +82,4 @@ Core doctrine:
 - [[Evidence Graph Data Model]]
 - [[Skiptrace Workflow]]
 - [[Tangie Williams Field Test]]
+- [[Contact Candidate Packet Test]]

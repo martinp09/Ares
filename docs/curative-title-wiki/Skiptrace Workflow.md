@@ -52,7 +52,9 @@ Interpretation:
 
 ## Paid skiptrace later
 
-Paid skiptrace should receive living candidate contacts, not raw property rows.
+Paid skiptrace should receive living candidate contacts, not raw property/probate rows.
+
+The current tested input layer is the [[Contact Candidate Packet Test]]. Build that packet first, then send only the candidate-contact fields to a provider.
 
 Inputs:
 
@@ -60,9 +62,11 @@ Inputs:
 - aliases;
 - role in evidence graph;
 - last known address;
-- associated property address;
+- associated property address or legal description;
 - source document IDs;
-- confidence basis.
+- decedent/estate context for disambiguation;
+- confidence basis;
+- explicit `do_not_skiptrace` decedent list.
 
 Outputs should normalize into Ares-owned contact models, not raw vendor payload dependencies.
 
@@ -95,3 +99,4 @@ A contact is ready only when Ares can explain:
 - [[Evidence Graph Data Model]]
 - [[Browser Harness Research Workflow]]
 - [[Tangie Williams Field Test]]
+- [[Contact Candidate Packet Test]]

@@ -184,6 +184,13 @@
 
 ## Change Log
 
+### 2026-04-24 Contact Candidate Packet Test
+
+- Generated 12 contact-candidate packets from the enriched Harris probate keep-now set under `docs/rollout-evidence/contact-candidate-packets-2026-04-24/`.
+- Added `docs/curative-title-wiki/Contact Candidate Packet Test.md` and linked it from the curative-title wiki hub and skiptrace workflow.
+- Top packets: Tangie Renee Williams (`543678`, score 100), Daniel R. Montoya (`525833-401`, score 85), Janet Marie Mcmahan (`543652`, score 65).
+- Paid skiptrace boundary: provider inputs should be normalized living candidate contacts with source lineage and explicit decedent exclusion, not raw probate rows.
+
 ### 2026-04-24 Curative Title Wiki Consolidation
 
 - Added `docs/curative-title-wiki/index.md` as the single hub for curative-title process docs.

@@ -24,6 +24,14 @@ Execution plan:
 
 - `docs/superpowers/plans/2026-04-24-ares-production-readiness-test-branch-plan.md`
 
+Curative-title workflow hub:
+
+- `docs/curative-title-wiki/index.md`
+
+Latest curative-title packet test:
+
+- `docs/rollout-evidence/contact-candidate-packets-2026-04-24/REPORT.md`
+
 Existing source plans remain background:
 
 - `docs/superpowers/plans/2026-04-24-ares-full-stack-cohesion-mega-plan.md`

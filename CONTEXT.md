@@ -23,7 +23,8 @@
 4. Do not call Ares fully production-ready until the final acceptance gate and production evidence are complete.
 
 ## Recent Change
-- 2026-04-24: Consolidated curative-title process docs into `docs/curative-title-wiki/index.md` with separate linked pages for operating model, browser-harness workflow, county land records, evidence graph, skiptrace, and the Tangie Williams field test.
+- 2026-04-24: Generated contact-candidate packets for the 12 enriched Harris probate keep-now leads under `docs/rollout-evidence/contact-candidate-packets-2026-04-24/`; top ready-for-paid-skiptrace packets are Tangie Williams (`543678`), Daniel R. Montoya (`525833-401`), and Janet Marie Mcmahan (`543652`).
+- 2026-04-24: Consolidated curative-title process docs into `docs/curative-title-wiki/index.md` with separate linked pages for operating model, browser-harness workflow, county land records, evidence graph, skiptrace, contact-candidate packets, and the Tangie Williams field test.
 - 2026-04-24: Ran first browser-harness curative-title land-record recon field test on Tangie Renee Williams / Harris probate case `543678`; saved Fallbrook and Perkins/Otis Williams estate document-thread evidence under `docs/rollout-evidence/land-records-recon-2026-04-24/`.
 - 2026-04-24: Added `docs/curative-title-data-pipeline.md` to make land-record document/deed review and browser-harness research foundational for curative-title heir/descendant discovery.
 - 2026-04-24: Added Harris probate rollout evidence: 202 last-week rows, 113 keep-now rows, 12 priority heirship/title-friction case-detail enrichments, and an Ares memory-backed intake simulation that bridged all 12 priority cases into canonical leads while leaving HCAD/tax overlay as the next backend gap.

@@ -1,0 +1,1188 @@
+{
+  "summary": {
+    "test_name": "contact_candidate_packet_test",
+    "tested_at": "2026-04-24",
+    "source_leads": 12,
+    "packets_generated": 12,
+    "top_packets": [
+      {
+        "case_number": "543678",
+        "decedent_name": "Tangie Renee Williams",
+        "score": 100,
+        "status": "ready_for_paid_skiptrace",
+        "candidate_count": 6
+      },
+      {
+        "case_number": "525833-401",
+        "decedent_name": "Daniel R. Montoya",
+        "score": 85,
+        "status": "ready_for_paid_skiptrace",
+        "candidate_count": 5
+      },
+      {
+        "case_number": "543652",
+        "decedent_name": "Janet Marie Mcmahan",
+        "score": 65,
+        "status": "ready_for_paid_skiptrace",
+        "candidate_count": 1
+      },
+      {
+        "case_number": "543650",
+        "decedent_name": "David Mark Lemons",
+        "score": 65,
+        "status": "ready_for_paid_skiptrace",
+        "candidate_count": 1
+      },
+      {
+        "case_number": "543672",
+        "decedent_name": "Cindy Seltzer",
+        "score": 65,
+        "status": "ready_for_paid_skiptrace",
+        "candidate_count": 1
+      }
+    ],
+    "skiptrace_boundary": "Free sources were blocked/unreliable in browser harness; packets are structured for later paid skiptrace after evidence normalization.",
+    "outputs": [
+      "contact_candidate_packets.json",
+      "REPORT.md"
+    ]
+  },
+  "packets": [
+    {
+      "packet_id": "contact_packet_543678",
+      "case_number": "543678",
+      "decedent_name": "Tangie Renee Williams",
+      "do_not_skiptrace": [
+        "Tangie Renee Williams"
+      ],
+      "estate_name": "IN THE ESTATE OF: TANGIE RENEE WILLIAMS, DECEASED",
+      "filing_type": "APP FOR INDEPENDENT ADMINISTRATION WITH AN HEIRSHIP",
+      "file_date": "04/20/2026",
+      "court_number": "1",
+      "contact_packet_status": "ready_for_paid_skiptrace",
+      "packet_confidence_score": 100,
+      "candidate_contacts": [
+        {
+          "person_name": "Brittany C Edwards",
+          "candidate_role": "applicant_or_executor",
+          "skiptrace_priority": 1,
+          "known_address": "1614 Royal Grantham Ct, Houston TX 77073",
+          "relationship_clue": "Applicant/executor party in Harris County probate detail; likely living contact candidate, not automatically an heir.",
+          "source": "harris_county_case_detail_parties",
+          "paid_skiptrace_goal": [
+            "current phones",
+            "current mailing address",
+            "living/deceased status",
+            "relatives/associates link to decedent"
+          ],
+          "do_not_treat_as_owner_without_land_record_match": true
+        },
+        {
+          "person_name": "Frederick L Phillips",
+          "candidate_role": "respondent_or_heir_candidate",
+          "skiptrace_priority": 2,
+          "known_address": "",
+          "relationship_clue": "Respondent in heirship/probate detail; strong candidate for heir/partial-rights investigation.",
+          "source": "harris_county_case_detail_parties",
+          "paid_skiptrace_goal": [
+            "current phones",
+            "current mailing address",
+            "relatives/associates link to decedent",
+            "possible property ownership link"
+          ],
+          "do_not_treat_as_owner_without_land_record_match": true
+        },
+        {
+          "person_name": "Christopher Dewanye Mcfadden",
+          "candidate_role": "respondent_or_heir_candidate",
+          "skiptrace_priority": 3,
+          "known_address": "",
+          "relationship_clue": "Respondent in heirship/probate detail; strong candidate for heir/partial-rights investigation.",
+          "source": "harris_county_case_detail_parties",
+          "paid_skiptrace_goal": [
+            "current phones",
+            "current mailing address",
+            "relatives/associates link to decedent",
+            "possible property ownership link"
+          ],
+          "do_not_treat_as_owner_without_land_record_match": true
+        },
+        {
+          "person_name": "Jordan Anthony Brown",
+          "candidate_role": "respondent_or_heir_candidate",
+          "skiptrace_priority": 4,
+          "known_address": "",
+          "relationship_clue": "Respondent in heirship/probate detail; strong candidate for heir/partial-rights investigation.",
+          "source": "harris_county_case_detail_parties",
+          "paid_skiptrace_goal": [
+            "current phones",
+            "current mailing address",
+            "relatives/associates link to decedent",
+            "possible property ownership link"
+          ],
+          "do_not_treat_as_owner_without_land_record_match": true
+        },
+        {
+          "person_name": "Laporchea Michelle Mcfadden",
+          "candidate_role": "respondent_or_heir_candidate",
+          "skiptrace_priority": 5,
+          "known_address": "2805 S. Park Ave, Apt 117, Tucson AZ 85713",
+          "relationship_clue": "Respondent in heirship/probate detail; strong candidate for heir/partial-rights investigation.",
+          "source": "harris_county_case_detail_parties",
+          "paid_skiptrace_goal": [
+            "current phones",
+            "current mailing address",
+            "relatives/associates link to decedent",
+            "possible property ownership link"
+          ],
+          "do_not_treat_as_owner_without_land_record_match": true
+        },
+        {
+          "person_name": "Don D. Ford, III",
+          "candidate_role": "attorney_ad_litem_or_court_appointee",
+          "skiptrace_priority": 99,
+          "known_address": "",
+          "relationship_clue": "Court-appointed/legal party; not a buyer/seller contact, but useful for case context.",
+          "source": "harris_county_case_detail_events",
+          "paid_skiptrace_goal": [
+            "do not paid-skiptrace unless operator decides legal-contact research is appropriate"
+          ],
+          "do_not_treat_as_owner_without_land_record_match": true
+        }
+      ],
+      "aliases_to_resolve_before_or_during_paid_skiptrace": [
+        "Tangie Williams",
+        "Tangie W McFadden",
+        "Tangie Williams Brown",
+        "Tangie B Williams",
+        "Tangie Renee Williams"
+      ],
+      "known_applicant_address": "1614 Royal Grantham Ct, Houston TX 77073",
+      "land_record_threads": [
+        {
+          "associated_names": [
+            "Tangie Williams",
+            "Tangie W McFadden",
+            "Tangie Williams Brown",
+            "Bobby Brown"
+          ],
+          "confidence": "high",
+          "high_value_documents": [
+            "RP-2022-274022",
+            "RP-2017-563067",
+            "RP-2017-563055",
+            "X177166",
+            "V302389",
+            "V302388",
+            "U130254",
+            "U130253",
+            "U130252"
+          ],
+          "legal_description": "FALLBROOK Sec: 3 Lot: 1181 Block: 24",
+          "recording_span": "1999-2022",
+          "thread_id": "fallbrook_sec3_lot1181_blk24",
+          "why_it_matters": "Repeated instruments over 1999-2022 connect Tangie identity variants to one Harris County legal description. This is a strong candidate property thread for heir/partial-rights review."
+        },
+        {
+          "associated_names": [
+            "Tangie Williams",
+            "Otis Ladell Williams",
+            "Williams Otis Estate",
+            "Joanne/Joan Greene",
+            "Sandra/Sandra Harris Williams"
+          ],
+          "confidence": "medium_high",
+          "high_value_documents": [
+            "W501407",
+            "W397760",
+            "W397757",
+            "W383936"
+          ],
+          "legal_description": "PERKINS W; 4.673 acres; Abstract 621",
+          "recording_span": "2003",
+          "thread_id": "perkins_w_abstract621_4_673_acres",
+          "why_it_matters": "Two affidavits tied to the Otis Williams estate plus warranty deed activity suggest a historical heirship/title chain that may reveal family relationships or prior inheritance patterns."
+        }
+      ],
+      "priority_recorded_documents": [
+        {
+          "file_date": "11/10/2003",
+          "file_number": "X177166",
+          "film_code": "578102265",
+          "instrument_type": "D/T",
+          "legal_description": "FALLBROOK Sec: 3 Lot: 1181 Block: 24",
+          "names": "Grantor: BROWN BOBBY ETAL; Grantor: BROWN TANGIE WILLIAMS ETAL; Grantor: WILLIAMS TANGIE ETAL; Grantee: CHASE MANHATTAN MTG CORP; Trustee: BROWN CHARLES A TRE",
+          "pages": 6,
+          "related_docs_present": true
+        },
+        {
+          "file_date": "03/14/2003",
+          "file_number": "W501407",
+          "film_code": "564482719",
+          "instrument_type": "W/D",
+          "legal_description": "PERKINS W; Misc: 4.673; Abstract: 621",
+          "names": "Grantor: WILLIAMS OTIS LADELL ETAL; Grantor: WILLIAMS TANGIE ETAL; Grantee: HUFFSMITH KOHRVILLE INC",
+          "pages": 4
+        },
+        {
+          "file_date": "01/31/2003",
+          "file_number": "W397760",
+          "film_code": "562471182",
+          "instrument_type": "W/D",
+          "legal_description": "PERKINS W; Misc: 4.673; Abstract: 621",
+          "names": "Grantor: WILLIAMS OTIS LADELL ETAL; Grantor: WILLIAMS TANGIE ETAL; Grantee: H K CONSTRUCTION",
+          "pages": 3
+        },
+        {
+          "curative_title_relevance": "Affidavit tied to Williams Otis estate and Tangie Williams as grantor; likely heirship/estate-chain evidence.",
+          "file_date": "01/31/2003",
+          "file_number": "W397757",
+          "film_code": "562471171",
+          "instrument_type": "AFFT",
+          "legal_description": "PERKINS W; Misc: 4.673; Abstract: 621",
+          "names": "Grantor: GREENE JOANNE ETAL; Grantor: WILLIAMS SANDRA HARRIS ETA; Grantor: WILLIAMS TANGIE ETAL; Grantee: WILLIAMS OTIS EST",
+          "pages": 5
+        },
+        {
+          "curative_title_relevance": "Second affidavit tied to Williams Otis estate and Tangie Williams; likely document-image priority.",
+          "file_date": "01/27/2003",
+          "file_number": "W383936",
+          "film_code": "562212678",
+          "instrument_type": "AFFT",
+          "legal_description": "PERKINS W; Misc: 4.673; Abstract: 621",
+          "names": "Grantor: GREEN JOANNE ETAL; Grantor: WILLIAMS SANDRA ETAL; Grantor: WILLIAMS TANGIE ETAL; Grantee: WILLIAMS OTIS EST",
+          "pages": 6
+        },
+        {
+          "curative_title_relevance": "Connects Tangie Williams / Tangie W McFadden identity variant to Bobby Brown and the Fallbrook property.",
+          "file_date": "09/14/2001",
+          "file_number": "V302389",
+          "film_code": "544042424",
+          "instrument_type": "CONT",
+          "legal_description": "FALLBROOK Sec: 3 Lot: 1181 Block: 24",
+          "names": "Grantor: MCFADDEN TANGIE W ETAL; Grantor: WILLIAMS TANGIE ETAL; Grantee: BROWN BOBBY",
+          "pages": 5
+        },
+        {
+          "file_date": "09/14/2001",
+          "file_number": "V302388",
+          "film_code": "544042418",
+          "instrument_type": "D/T",
+          "legal_description": "FALLBROOK Sec: 3 Lot: 1181 Block: 24",
+          "names": "Grantor: MCFADDEN TANGIE W ETAL; Grantor: WILLIAMS TANGIE ETAL; Grantee: SMALL BUS ADMN; Trustee: FLATO FRANCIS M TRE",
+          "pages": 6
+        },
+        {
+          "file_date": "12/16/1999",
+          "file_number": "U130254",
+          "film_code": "529670558",
+          "instrument_type": "NOTICE",
+          "legal_description": "FALLBROOK Sec: 3 Lot: 1181 Block: 24",
+          "names": "Grantor: LARKSTONE BLDG CO ETAL; Grantor: WILLIAMS TANGIE ETAL; Grantee: LARKSTONE BLDG CO ETAL; Grantee: WILLIAMS TANGIE ETAL",
+          "pages": 4
+        },
+        {
+          "file_date": "12/16/1999",
+          "file_number": "U130253",
+          "film_code": "529670546",
+          "instrument_type": "D/T",
+          "legal_description": "FALLBROOK Sec: 3 Lot: 1181 Block: 24",
+          "names": "Grantor: WILLIAMS TANGIE; Grantee: HARRIS CTY; Trustee: ECKELS ROBERT TRE",
+          "pages": 12
+        },
+        {
+          "file_date": "12/16/1999",
+          "file_number": "U130252",
+          "film_code": "529670540",
+          "instrument_type": "D/T",
+          "legal_description": "FALLBROOK Sec: 3 Lot: 1181 Block: 24",
+          "names": "Grantor: WILLIAMS TANGIE; Grantee: FIRST GRNTY FINL CORP; Trustee: HAUSLER LARRY TRE",
+          "pages": 6
+        },
+        {
+          "curative_title_relevance": "Recent 2022 mortgage modification suggests the Fallbrook property chain remained active close to decedent death; high-priority property candidate.",
+          "file_date": "05/25/2022",
+          "file_number": "RP-2022-274022",
+          "film_code": "RP-2022-274022",
+          "instrument_type": "MODIF",
+          "legal_description": "FALLBROOK Sec: 3 Lot: 1181 Block: 24",
+          "names": "Grantor: BROWN TANGIE; Grantor: BROWN TANGIE W; Grantor: BROWN TANGIE WILLIAMS; Grantor: WILLIAMS TANGIE; Grantee: MIDFIRST BANK",
+          "pages": 8,
+          "related_docs_present": true
+        },
+        {
+          "file_date": "12/22/2017",
+          "file_number": "RP-2017-563067",
+          "film_code": "RP-2017-563067",
+          "instrument_type": "MODIF",
+          "legal_description": "FALLBROOK Sec: 3 Lot: 1181 Block: 24",
+          "names": "Grantor: BROWN TANGIE WILLIAMS; Grantor: WILLIAMS TANGIE; Grantor: WILLIAMS TANGIE B; Grantee: CHASE HOME FINANCE LLC; Grantee: CHASE MANHATTAN MORTGAGE CORPORATION; Grantee: JPMORGAN CHASE BANK N A",
+          "pages": 13
+        }
+      ],
+      "friction_clues": [
+        "APP FOR INDEPENDENT ADMINISTRATION WITH AN HEIRSHIP",
+        "04/21/2026: Order to Appoint Aty or Gdn Ad Ltm - DON D. FORD, III",
+        "04/21/2026: Proof of Heirship by Publication",
+        "04/20/2026: Notice of Deposit of Funds for Potential Attorney Ad Litem",
+        "04/20/2026: Attorney Appointee Fee Deposited"
+      ],
+      "source_files": [
+        "docs/rollout-evidence/probate-smoke-2026-04-24/priority_keep_now_enriched.json",
+        "docs/rollout-evidence/probate-smoke-2026-04-24/priority_case_detail_raw.json",
+        "docs/rollout-evidence/land-records-recon-2026-04-24/tangie-williams-field-test.json"
+      ],
+      "next_paid_skiptrace_inputs": {
+        "names": [
+          "Brittany C Edwards",
+          "Frederick L Phillips",
+          "Christopher Dewanye Mcfadden",
+          "Jordan Anthony Brown",
+          "Laporchea Michelle Mcfadden"
+        ],
+        "addresses": [
+          "1614 Royal Grantham Ct, Houston TX 77073",
+          "2805 S. Park Ave, Apt 117, Tucson AZ 85713"
+        ],
+        "county_context": "Harris County, Texas",
+        "decedent_context": "Tangie Renee Williams",
+        "property_context": [
+          "FALLBROOK Sec: 3 Lot: 1181 Block: 24",
+          "PERKINS W; 4.673 acres; Abstract 621"
+        ],
+        "requested_outputs": [
+          "current phones",
+          "current mailing addresses",
+          "email if available",
+          "living/deceased status",
+          "relatives/associates",
+          "address history",
+          "property ownership hints"
+        ]
+      },
+      "manual_review_notes": [
+        "Do not contact or skiptrace the decedent as a live target.",
+        "Treat probate parties as candidate contacts until land-record/title evidence confirms ownership or heirship rights.",
+        "If paid skiptrace returns multiple people with same name, resolve using address/county/family association before outreach."
+      ]
+    },
+    {
+      "packet_id": "contact_packet_525833_401",
+      "case_number": "525833-401",
+      "decedent_name": "Daniel R. Montoya",
+      "do_not_skiptrace": [
+        "Daniel R. Montoya"
+      ],
+      "estate_name": "IN THE ESTATE OF: DANIEL R. MONTOYA, DECEASED",
+      "filing_type": "APP TO DETERMINE HEIRSHIP",
+      "file_date": "04/22/2026",
+      "court_number": "2",
+      "contact_packet_status": "ready_for_paid_skiptrace",
+      "packet_confidence_score": 85,
+      "candidate_contacts": [
+        {
+          "person_name": "Annette Montoya",
+          "candidate_role": "applicant_or_executor",
+          "skiptrace_priority": 1,
+          "known_address": "4044 Basswood Dr, Dickinson TX 77539",
+          "relationship_clue": "Applicant/executor party in Harris County probate detail; likely living contact candidate, not automatically an heir.",
+          "source": "harris_county_case_detail_parties",
+          "paid_skiptrace_goal": [
+            "current phones",
+            "current mailing address",
+            "living/deceased status",
+            "relatives/associates link to decedent"
+          ],
+          "do_not_treat_as_owner_without_land_record_match": true
+        },
+        {
+          "person_name": "Larence Montoya",
+          "candidate_role": "respondent_or_heir_candidate",
+          "skiptrace_priority": 2,
+          "known_address": "",
+          "relationship_clue": "Respondent in heirship/probate detail; strong candidate for heir/partial-rights investigation.",
+          "source": "harris_county_case_detail_parties",
+          "paid_skiptrace_goal": [
+            "current phones",
+            "current mailing address",
+            "relatives/associates link to decedent",
+            "possible property ownership link"
+          ],
+          "do_not_treat_as_owner_without_land_record_match": true
+        },
+        {
+          "person_name": "Adam R Montoya",
+          "candidate_role": "respondent_or_heir_candidate",
+          "skiptrace_priority": 3,
+          "known_address": "",
+          "relationship_clue": "Respondent in heirship/probate detail; strong candidate for heir/partial-rights investigation.",
+          "source": "harris_county_case_detail_parties",
+          "paid_skiptrace_goal": [
+            "current phones",
+            "current mailing address",
+            "relatives/associates link to decedent",
+            "possible property ownership link"
+          ],
+          "do_not_treat_as_owner_without_land_record_match": true
+        },
+        {
+          "person_name": "Maria Silva",
+          "candidate_role": "respondent_or_heir_candidate",
+          "skiptrace_priority": 4,
+          "known_address": "",
+          "relationship_clue": "Respondent in heirship/probate detail; strong candidate for heir/partial-rights investigation.",
+          "source": "harris_county_case_detail_parties",
+          "paid_skiptrace_goal": [
+            "current phones",
+            "current mailing address",
+            "relatives/associates link to decedent",
+            "possible property ownership link"
+          ],
+          "do_not_treat_as_owner_without_land_record_match": true
+        },
+        {
+          "person_name": "Monica Heimlich",
+          "candidate_role": "respondent_or_heir_candidate",
+          "skiptrace_priority": 5,
+          "known_address": "",
+          "relationship_clue": "Respondent in heirship/probate detail; strong candidate for heir/partial-rights investigation.",
+          "source": "harris_county_case_detail_parties",
+          "paid_skiptrace_goal": [
+            "current phones",
+            "current mailing address",
+            "relatives/associates link to decedent",
+            "possible property ownership link"
+          ],
+          "do_not_treat_as_owner_without_land_record_match": true
+        }
+      ],
+      "aliases_to_resolve_before_or_during_paid_skiptrace": [],
+      "known_applicant_address": "4044 Basswood Dr, Dickinson TX 77539",
+      "land_record_threads": [],
+      "priority_recorded_documents": [],
+      "friction_clues": [
+        "APP TO DETERMINE HEIRSHIP",
+        "04/22/2026: Case Initiated Application (OCA) - Original Application for Partition and Distribution of Heirs Property"
+      ],
+      "source_files": [
+        "docs/rollout-evidence/probate-smoke-2026-04-24/priority_keep_now_enriched.json",
+        "docs/rollout-evidence/probate-smoke-2026-04-24/priority_case_detail_raw.json"
+      ],
+      "next_paid_skiptrace_inputs": {
+        "names": [
+          "Annette Montoya",
+          "Larence Montoya",
+          "Adam R Montoya",
+          "Maria Silva",
+          "Monica Heimlich"
+        ],
+        "addresses": [
+          "4044 Basswood Dr, Dickinson TX 77539"
+        ],
+        "county_context": "Harris County, Texas",
+        "decedent_context": "Daniel R. Montoya",
+        "property_context": [],
+        "requested_outputs": [
+          "current phones",
+          "current mailing addresses",
+          "email if available",
+          "living/deceased status",
+          "relatives/associates",
+          "address history",
+          "property ownership hints"
+        ]
+      },
+      "manual_review_notes": [
+        "Do not contact or skiptrace the decedent as a live target.",
+        "Treat probate parties as candidate contacts until land-record/title evidence confirms ownership or heirship rights.",
+        "If paid skiptrace returns multiple people with same name, resolve using address/county/family association before outreach."
+      ]
+    },
+    {
+      "packet_id": "contact_packet_543652",
+      "case_number": "543652",
+      "decedent_name": "Janet Marie Mcmahan",
+      "do_not_skiptrace": [
+        "Janet Marie Mcmahan"
+      ],
+      "estate_name": "IN THE ESTATE OF: JANET MARIE MCMAHAN, DECEASED",
+      "filing_type": "APP FOR INDEPENDENT ADMINISTRATION WITH AN HEIRSHIP",
+      "file_date": "04/17/2026",
+      "court_number": "4",
+      "contact_packet_status": "ready_for_paid_skiptrace",
+      "packet_confidence_score": 65,
+      "candidate_contacts": [
+        {
+          "person_name": "Patrick Kelly McMahan",
+          "candidate_role": "applicant_or_executor",
+          "skiptrace_priority": 1,
+          "known_address": "5073 N. Nelson Dr, Katy TX 77493",
+          "relationship_clue": "Applicant/executor party in Harris County probate detail; likely living contact candidate, not automatically an heir.",
+          "source": "harris_county_case_detail_parties",
+          "paid_skiptrace_goal": [
+            "current phones",
+            "current mailing address",
+            "living/deceased status",
+            "relatives/associates link to decedent"
+          ],
+          "do_not_treat_as_owner_without_land_record_match": true
+        }
+      ],
+      "aliases_to_resolve_before_or_during_paid_skiptrace": [],
+      "known_applicant_address": "5073 N. Nelson Dr, Katy TX 77493",
+      "land_record_threads": [],
+      "priority_recorded_documents": [],
+      "friction_clues": [
+        "APP FOR INDEPENDENT ADMINISTRATION WITH AN HEIRSHIP",
+        "04/21/2026: Notice of Deposit of Funds for Potential Attorney Ad Litem",
+        "04/21/2026: Attorney Appointee Fee Deposited",
+        "04/20/2026: Application to Appoint Aty or Gdn Ad Ltm",
+        "04/20/2026: Proof of Heirship by Publication",
+        "04/17/2026: Application to Determine Heirship - HRSHP; DOD: 5/29/25; PUBL-DCR RD: 4/27/26"
+      ],
+      "source_files": [
+        "docs/rollout-evidence/probate-smoke-2026-04-24/priority_keep_now_enriched.json",
+        "docs/rollout-evidence/probate-smoke-2026-04-24/priority_case_detail_raw.json"
+      ],
+      "next_paid_skiptrace_inputs": {
+        "names": [
+          "Patrick Kelly McMahan"
+        ],
+        "addresses": [
+          "5073 N. Nelson Dr, Katy TX 77493"
+        ],
+        "county_context": "Harris County, Texas",
+        "decedent_context": "Janet Marie Mcmahan",
+        "property_context": [],
+        "requested_outputs": [
+          "current phones",
+          "current mailing addresses",
+          "email if available",
+          "living/deceased status",
+          "relatives/associates",
+          "address history",
+          "property ownership hints"
+        ]
+      },
+      "manual_review_notes": [
+        "Do not contact or skiptrace the decedent as a live target.",
+        "Treat probate parties as candidate contacts until land-record/title evidence confirms ownership or heirship rights.",
+        "If paid skiptrace returns multiple people with same name, resolve using address/county/family association before outreach."
+      ]
+    },
+    {
+      "packet_id": "contact_packet_543650",
+      "case_number": "543650",
+      "decedent_name": "David Mark Lemons",
+      "do_not_skiptrace": [
+        "David Mark Lemons"
+      ],
+      "estate_name": "IN THE ESTATE OF: DAVID MARK LEMONS, DECEASED",
+      "filing_type": "APP FOR INDEPENDENT ADMINISTRATION WITH AN HEIRSHIP",
+      "file_date": "04/17/2026",
+      "court_number": "1",
+      "contact_packet_status": "ready_for_paid_skiptrace",
+      "packet_confidence_score": 65,
+      "candidate_contacts": [
+        {
+          "person_name": "James Corwin Lemons",
+          "candidate_role": "applicant_or_executor",
+          "skiptrace_priority": 1,
+          "known_address": "6750 Shining Sumac Ave, Houston TX 77084",
+          "relationship_clue": "Applicant/executor party in Harris County probate detail; likely living contact candidate, not automatically an heir.",
+          "source": "harris_county_case_detail_parties",
+          "paid_skiptrace_goal": [
+            "current phones",
+            "current mailing address",
+            "living/deceased status",
+            "relatives/associates link to decedent"
+          ],
+          "do_not_treat_as_owner_without_land_record_match": true
+        }
+      ],
+      "aliases_to_resolve_before_or_during_paid_skiptrace": [],
+      "known_applicant_address": "6750 Shining Sumac Ave, Houston TX 77084",
+      "land_record_threads": [],
+      "priority_recorded_documents": [],
+      "friction_clues": [
+        "APP FOR INDEPENDENT ADMINISTRATION WITH AN HEIRSHIP",
+        "04/20/2026: Proof of Heirship by Publication"
+      ],
+      "source_files": [
+        "docs/rollout-evidence/probate-smoke-2026-04-24/priority_keep_now_enriched.json",
+        "docs/rollout-evidence/probate-smoke-2026-04-24/priority_case_detail_raw.json"
+      ],
+      "next_paid_skiptrace_inputs": {
+        "names": [
+          "James Corwin Lemons"
+        ],
+        "addresses": [
+          "6750 Shining Sumac Ave, Houston TX 77084"
+        ],
+        "county_context": "Harris County, Texas",
+        "decedent_context": "David Mark Lemons",
+        "property_context": [],
+        "requested_outputs": [
+          "current phones",
+          "current mailing addresses",
+          "email if available",
+          "living/deceased status",
+          "relatives/associates",
+          "address history",
+          "property ownership hints"
+        ]
+      },
+      "manual_review_notes": [
+        "Do not contact or skiptrace the decedent as a live target.",
+        "Treat probate parties as candidate contacts until land-record/title evidence confirms ownership or heirship rights.",
+        "If paid skiptrace returns multiple people with same name, resolve using address/county/family association before outreach."
+      ]
+    },
+    {
+      "packet_id": "contact_packet_543672",
+      "case_number": "543672",
+      "decedent_name": "Cindy Seltzer",
+      "do_not_skiptrace": [
+        "Cindy Seltzer"
+      ],
+      "estate_name": "IN THE ESTATE OF: CINDY SELTZER, DECEASED",
+      "filing_type": "APP FOR INDEPENDENT ADMINISTRATION WITH AN HEIRSHIP",
+      "file_date": "04/20/2026",
+      "court_number": "3",
+      "contact_packet_status": "ready_for_paid_skiptrace",
+      "packet_confidence_score": 65,
+      "candidate_contacts": [
+        {
+          "person_name": "Megan Galindo",
+          "candidate_role": "applicant_or_executor",
+          "skiptrace_priority": 1,
+          "known_address": "13018 Scenic Ritter St, Hedwig TX 78152",
+          "relationship_clue": "Applicant/executor party in Harris County probate detail; likely living contact candidate, not automatically an heir.",
+          "source": "harris_county_case_detail_parties",
+          "paid_skiptrace_goal": [
+            "current phones",
+            "current mailing address",
+            "living/deceased status",
+            "relatives/associates link to decedent"
+          ],
+          "do_not_treat_as_owner_without_land_record_match": true
+        }
+      ],
+      "aliases_to_resolve_before_or_during_paid_skiptrace": [],
+      "known_applicant_address": "13018 Scenic Ritter St, Hedwig TX 78152",
+      "land_record_threads": [],
+      "priority_recorded_documents": [],
+      "friction_clues": [
+        "APP FOR INDEPENDENT ADMINISTRATION WITH AN HEIRSHIP",
+        "04/22/2026: Notice of Deposit of Funds for Potential Attorney Ad Litem",
+        "04/22/2026: Attorney Appointee Fee Deposited",
+        "04/21/2026: Application to Appoint Aty or Gdn Ad Ltm",
+        "04/21/2026: Proof of Heirship by Publication",
+        "04/20/2026: Application to Determine Heirship - HRSHP; DOD: 3/25/26; PUBL-DCR RD: 4/27/26"
+      ],
+      "source_files": [
+        "docs/rollout-evidence/probate-smoke-2026-04-24/priority_keep_now_enriched.json",
+        "docs/rollout-evidence/probate-smoke-2026-04-24/priority_case_detail_raw.json"
+      ],
+      "next_paid_skiptrace_inputs": {
+        "names": [
+          "Megan Galindo"
+        ],
+        "addresses": [
+          "13018 Scenic Ritter St, Hedwig TX 78152"
+        ],
+        "county_context": "Harris County, Texas",
+        "decedent_context": "Cindy Seltzer",
+        "property_context": [],
+        "requested_outputs": [
+          "current phones",
+          "current mailing addresses",
+          "email if available",
+          "living/deceased status",
+          "relatives/associates",
+          "address history",
+          "property ownership hints"
+        ]
+      },
+      "manual_review_notes": [
+        "Do not contact or skiptrace the decedent as a live target.",
+        "Treat probate parties as candidate contacts until land-record/title evidence confirms ownership or heirship rights.",
+        "If paid skiptrace returns multiple people with same name, resolve using address/county/family association before outreach."
+      ]
+    },
+    {
+      "packet_id": "contact_packet_543653",
+      "case_number": "543653",
+      "decedent_name": "Dorothy Jean Dawson",
+      "do_not_skiptrace": [
+        "Dorothy Jean Dawson"
+      ],
+      "estate_name": "IN THE ESTATE OF: DOROTHY JEAN DAWSON, DECEASED",
+      "filing_type": "APP FOR INDEPENDENT ADMINISTRATION WITH AN HEIRSHIP",
+      "file_date": "04/17/2026",
+      "court_number": "2",
+      "contact_packet_status": "ready_for_paid_skiptrace",
+      "packet_confidence_score": 60,
+      "candidate_contacts": [
+        {
+          "person_name": "Chris Leslie Bolivar, Sr.",
+          "candidate_role": "applicant_or_executor",
+          "skiptrace_priority": 1,
+          "known_address": "7802 Chasewood Dr, Missouri City TX 77489",
+          "relationship_clue": "Applicant/executor party in Harris County probate detail; likely living contact candidate, not automatically an heir.",
+          "source": "harris_county_case_detail_parties",
+          "paid_skiptrace_goal": [
+            "current phones",
+            "current mailing address",
+            "living/deceased status",
+            "relatives/associates link to decedent"
+          ],
+          "do_not_treat_as_owner_without_land_record_match": true
+        }
+      ],
+      "aliases_to_resolve_before_or_during_paid_skiptrace": [],
+      "known_applicant_address": "7802 Chasewood Dr, Missouri City TX 77489",
+      "land_record_threads": [],
+      "priority_recorded_documents": [],
+      "friction_clues": [
+        "APP FOR INDEPENDENT ADMINISTRATION WITH AN HEIRSHIP"
+      ],
+      "source_files": [
+        "docs/rollout-evidence/probate-smoke-2026-04-24/priority_keep_now_enriched.json",
+        "docs/rollout-evidence/probate-smoke-2026-04-24/priority_case_detail_raw.json"
+      ],
+      "next_paid_skiptrace_inputs": {
+        "names": [
+          "Chris Leslie Bolivar, Sr."
+        ],
+        "addresses": [
+          "7802 Chasewood Dr, Missouri City TX 77489"
+        ],
+        "county_context": "Harris County, Texas",
+        "decedent_context": "Dorothy Jean Dawson",
+        "property_context": [],
+        "requested_outputs": [
+          "current phones",
+          "current mailing addresses",
+          "email if available",
+          "living/deceased status",
+          "relatives/associates",
+          "address history",
+          "property ownership hints"
+        ]
+      },
+      "manual_review_notes": [
+        "Do not contact or skiptrace the decedent as a live target.",
+        "Treat probate parties as candidate contacts until land-record/title evidence confirms ownership or heirship rights.",
+        "If paid skiptrace returns multiple people with same name, resolve using address/county/family association before outreach."
+      ]
+    },
+    {
+      "packet_id": "contact_packet_543646",
+      "case_number": "543646",
+      "decedent_name": "Horace Edward Wicker",
+      "do_not_skiptrace": [
+        "Horace Edward Wicker"
+      ],
+      "estate_name": "IN THE ESTATE OF: HORACE EDWARD WICKER, DECEASED",
+      "filing_type": "APP FOR INDEPENDENT ADMINISTRATION WITH AN HEIRSHIP",
+      "file_date": "04/17/2026",
+      "court_number": "1",
+      "contact_packet_status": "ready_for_paid_skiptrace",
+      "packet_confidence_score": 60,
+      "candidate_contacts": [
+        {
+          "person_name": "Randy Edward Wicker",
+          "candidate_role": "applicant_or_executor",
+          "skiptrace_priority": 1,
+          "known_address": "5810 Horse Prairie Dr., Katy TX 77449",
+          "relationship_clue": "Applicant/executor party in Harris County probate detail; likely living contact candidate, not automatically an heir.",
+          "source": "harris_county_case_detail_parties",
+          "paid_skiptrace_goal": [
+            "current phones",
+            "current mailing address",
+            "living/deceased status",
+            "relatives/associates link to decedent"
+          ],
+          "do_not_treat_as_owner_without_land_record_match": true
+        }
+      ],
+      "aliases_to_resolve_before_or_during_paid_skiptrace": [],
+      "known_applicant_address": "5810 Horse Prairie Dr., Katy TX 77449",
+      "land_record_threads": [],
+      "priority_recorded_documents": [],
+      "friction_clues": [
+        "APP FOR INDEPENDENT ADMINISTRATION WITH AN HEIRSHIP"
+      ],
+      "source_files": [
+        "docs/rollout-evidence/probate-smoke-2026-04-24/priority_keep_now_enriched.json",
+        "docs/rollout-evidence/probate-smoke-2026-04-24/priority_case_detail_raw.json"
+      ],
+      "next_paid_skiptrace_inputs": {
+        "names": [
+          "Randy Edward Wicker"
+        ],
+        "addresses": [
+          "5810 Horse Prairie Dr., Katy TX 77449"
+        ],
+        "county_context": "Harris County, Texas",
+        "decedent_context": "Horace Edward Wicker",
+        "property_context": [],
+        "requested_outputs": [
+          "current phones",
+          "current mailing addresses",
+          "email if available",
+          "living/deceased status",
+          "relatives/associates",
+          "address history",
+          "property ownership hints"
+        ]
+      },
+      "manual_review_notes": [
+        "Do not contact or skiptrace the decedent as a live target.",
+        "Treat probate parties as candidate contacts until land-record/title evidence confirms ownership or heirship rights.",
+        "If paid skiptrace returns multiple people with same name, resolve using address/county/family association before outreach."
+      ]
+    },
+    {
+      "packet_id": "contact_packet_543680",
+      "case_number": "543680",
+      "decedent_name": "Debra Ann Young",
+      "do_not_skiptrace": [
+        "Debra Ann Young"
+      ],
+      "estate_name": "IN THE ESTATE OF: DEBRA ANN YOUNG, DECEASED",
+      "filing_type": "APP TO DETERMINE HEIRSHIP",
+      "file_date": "04/20/2026",
+      "court_number": "2",
+      "contact_packet_status": "ready_for_paid_skiptrace",
+      "packet_confidence_score": 60,
+      "candidate_contacts": [
+        {
+          "person_name": "Cinceria Johnson",
+          "candidate_role": "applicant_or_executor",
+          "skiptrace_priority": 1,
+          "known_address": "1918 Skipwood Dr, Missouri City TX 77489",
+          "relationship_clue": "Applicant/executor party in Harris County probate detail; likely living contact candidate, not automatically an heir.",
+          "source": "harris_county_case_detail_parties",
+          "paid_skiptrace_goal": [
+            "current phones",
+            "current mailing address",
+            "living/deceased status",
+            "relatives/associates link to decedent"
+          ],
+          "do_not_treat_as_owner_without_land_record_match": true
+        }
+      ],
+      "aliases_to_resolve_before_or_during_paid_skiptrace": [],
+      "known_applicant_address": "1918 Skipwood Dr, Missouri City TX 77489",
+      "land_record_threads": [],
+      "priority_recorded_documents": [],
+      "friction_clues": [
+        "APP TO DETERMINE HEIRSHIP"
+      ],
+      "source_files": [
+        "docs/rollout-evidence/probate-smoke-2026-04-24/priority_keep_now_enriched.json",
+        "docs/rollout-evidence/probate-smoke-2026-04-24/priority_case_detail_raw.json"
+      ],
+      "next_paid_skiptrace_inputs": {
+        "names": [
+          "Cinceria Johnson"
+        ],
+        "addresses": [
+          "1918 Skipwood Dr, Missouri City TX 77489"
+        ],
+        "county_context": "Harris County, Texas",
+        "decedent_context": "Debra Ann Young",
+        "property_context": [],
+        "requested_outputs": [
+          "current phones",
+          "current mailing addresses",
+          "email if available",
+          "living/deceased status",
+          "relatives/associates",
+          "address history",
+          "property ownership hints"
+        ]
+      },
+      "manual_review_notes": [
+        "Do not contact or skiptrace the decedent as a live target.",
+        "Treat probate parties as candidate contacts until land-record/title evidence confirms ownership or heirship rights.",
+        "If paid skiptrace returns multiple people with same name, resolve using address/county/family association before outreach."
+      ]
+    },
+    {
+      "packet_id": "contact_packet_543677",
+      "case_number": "543677",
+      "decedent_name": "Nicolas Quintanilla",
+      "do_not_skiptrace": [
+        "Nicolas Quintanilla"
+      ],
+      "estate_name": "IN THE ESTATE OF: NICOLAS QUINTANILLA , DECEASED",
+      "filing_type": "APP FOR INDEPENDENT ADMINISTRATION WITH AN HEIRSHIP",
+      "file_date": "04/20/2026",
+      "court_number": "3",
+      "contact_packet_status": "ready_for_paid_skiptrace",
+      "packet_confidence_score": 60,
+      "candidate_contacts": [
+        {
+          "person_name": "Candida Neptalia Quintanilla",
+          "candidate_role": "applicant_or_executor",
+          "skiptrace_priority": 1,
+          "known_address": "12047 Green Coral Drive, Houston TX 77044",
+          "relationship_clue": "Applicant/executor party in Harris County probate detail; likely living contact candidate, not automatically an heir.",
+          "source": "harris_county_case_detail_parties",
+          "paid_skiptrace_goal": [
+            "current phones",
+            "current mailing address",
+            "living/deceased status",
+            "relatives/associates link to decedent"
+          ],
+          "do_not_treat_as_owner_without_land_record_match": true
+        }
+      ],
+      "aliases_to_resolve_before_or_during_paid_skiptrace": [],
+      "known_applicant_address": "12047 Green Coral Drive, Houston TX 77044",
+      "land_record_threads": [],
+      "priority_recorded_documents": [],
+      "friction_clues": [
+        "APP FOR INDEPENDENT ADMINISTRATION WITH AN HEIRSHIP"
+      ],
+      "source_files": [
+        "docs/rollout-evidence/probate-smoke-2026-04-24/priority_keep_now_enriched.json",
+        "docs/rollout-evidence/probate-smoke-2026-04-24/priority_case_detail_raw.json"
+      ],
+      "next_paid_skiptrace_inputs": {
+        "names": [
+          "Candida Neptalia Quintanilla"
+        ],
+        "addresses": [
+          "12047 Green Coral Drive, Houston TX 77044"
+        ],
+        "county_context": "Harris County, Texas",
+        "decedent_context": "Nicolas Quintanilla",
+        "property_context": [],
+        "requested_outputs": [
+          "current phones",
+          "current mailing addresses",
+          "email if available",
+          "living/deceased status",
+          "relatives/associates",
+          "address history",
+          "property ownership hints"
+        ]
+      },
+      "manual_review_notes": [
+        "Do not contact or skiptrace the decedent as a live target.",
+        "Treat probate parties as candidate contacts until land-record/title evidence confirms ownership or heirship rights.",
+        "If paid skiptrace returns multiple people with same name, resolve using address/county/family association before outreach."
+      ]
+    },
+    {
+      "packet_id": "contact_packet_543759",
+      "case_number": "543759",
+      "decedent_name": "Robert Lee Warren",
+      "do_not_skiptrace": [
+        "Robert Lee Warren"
+      ],
+      "estate_name": "IN THE ESTATE OF: ROBERT LEE WARREN, DECEASED",
+      "filing_type": "APP TO DETERMINE HEIRSHIP",
+      "file_date": "04/22/2026",
+      "court_number": "3",
+      "contact_packet_status": "ready_for_paid_skiptrace",
+      "packet_confidence_score": 60,
+      "candidate_contacts": [
+        {
+          "person_name": "Timothy Bernard Wilson",
+          "candidate_role": "applicant_or_executor",
+          "skiptrace_priority": 1,
+          "known_address": "1514 Lake Buchanan Cr, Richmond TX 77406",
+          "relationship_clue": "Applicant/executor party in Harris County probate detail; likely living contact candidate, not automatically an heir.",
+          "source": "harris_county_case_detail_parties",
+          "paid_skiptrace_goal": [
+            "current phones",
+            "current mailing address",
+            "living/deceased status",
+            "relatives/associates link to decedent"
+          ],
+          "do_not_treat_as_owner_without_land_record_match": true
+        }
+      ],
+      "aliases_to_resolve_before_or_during_paid_skiptrace": [],
+      "known_applicant_address": "1514 Lake Buchanan Cr, Richmond TX 77406",
+      "land_record_threads": [],
+      "priority_recorded_documents": [],
+      "friction_clues": [
+        "APP TO DETERMINE HEIRSHIP"
+      ],
+      "source_files": [
+        "docs/rollout-evidence/probate-smoke-2026-04-24/priority_keep_now_enriched.json",
+        "docs/rollout-evidence/probate-smoke-2026-04-24/priority_case_detail_raw.json"
+      ],
+      "next_paid_skiptrace_inputs": {
+        "names": [
+          "Timothy Bernard Wilson"
+        ],
+        "addresses": [
+          "1514 Lake Buchanan Cr, Richmond TX 77406"
+        ],
+        "county_context": "Harris County, Texas",
+        "decedent_context": "Robert Lee Warren",
+        "property_context": [],
+        "requested_outputs": [
+          "current phones",
+          "current mailing addresses",
+          "email if available",
+          "living/deceased status",
+          "relatives/associates",
+          "address history",
+          "property ownership hints"
+        ]
+      },
+      "manual_review_notes": [
+        "Do not contact or skiptrace the decedent as a live target.",
+        "Treat probate parties as candidate contacts until land-record/title evidence confirms ownership or heirship rights.",
+        "If paid skiptrace returns multiple people with same name, resolve using address/county/family association before outreach."
+      ]
+    },
+    {
+      "packet_id": "contact_packet_543801",
+      "case_number": "543801",
+      "decedent_name": "Gloria Lavaughn Tyler Harris",
+      "do_not_skiptrace": [
+        "Gloria Lavaughn Tyler Harris"
+      ],
+      "estate_name": "IN THE ESTATE OF: GLORIA LAVAUGHN TYLER HARRIS, DECEASED",
+      "filing_type": "APP TO DETERMINE HEIRSHIP",
+      "file_date": "04/23/2026",
+      "court_number": "2",
+      "contact_packet_status": "ready_for_paid_skiptrace",
+      "packet_confidence_score": 60,
+      "candidate_contacts": [
+        {
+          "person_name": "Carlotta Marie Tyler",
+          "candidate_role": "applicant_or_executor",
+          "skiptrace_priority": 1,
+          "known_address": "3014 Bolt St, Houston TX 77051",
+          "relationship_clue": "Applicant/executor party in Harris County probate detail; likely living contact candidate, not automatically an heir.",
+          "source": "harris_county_case_detail_parties",
+          "paid_skiptrace_goal": [
+            "current phones",
+            "current mailing address",
+            "living/deceased status",
+            "relatives/associates link to decedent"
+          ],
+          "do_not_treat_as_owner_without_land_record_match": true
+        }
+      ],
+      "aliases_to_resolve_before_or_during_paid_skiptrace": [],
+      "known_applicant_address": "3014 Bolt St, Houston TX 77051",
+      "land_record_threads": [],
+      "priority_recorded_documents": [],
+      "friction_clues": [
+        "APP TO DETERMINE HEIRSHIP",
+        "04/23/2026: Notice of Deposit of Funds for Potential Attorney Ad Litem",
+        "04/23/2026: Attorney Appointee Fee Deposited",
+        "04/23/2026: Application to Appoint Aty or Gdn Ad Ltm (No Fee) - Motion to Appoint Attorney Ad Litem"
+      ],
+      "source_files": [
+        "docs/rollout-evidence/probate-smoke-2026-04-24/priority_keep_now_enriched.json",
+        "docs/rollout-evidence/probate-smoke-2026-04-24/priority_case_detail_raw.json"
+      ],
+      "next_paid_skiptrace_inputs": {
+        "names": [
+          "Carlotta Marie Tyler"
+        ],
+        "addresses": [
+          "3014 Bolt St, Houston TX 77051"
+        ],
+        "county_context": "Harris County, Texas",
+        "decedent_context": "Gloria Lavaughn Tyler Harris",
+        "property_context": [],
+        "requested_outputs": [
+          "current phones",
+          "current mailing addresses",
+          "email if available",
+          "living/deceased status",
+          "relatives/associates",
+          "address history",
+          "property ownership hints"
+        ]
+      },
+      "manual_review_notes": [
+        "Do not contact or skiptrace the decedent as a live target.",
+        "Treat probate parties as candidate contacts until land-record/title evidence confirms ownership or heirship rights.",
+        "If paid skiptrace returns multiple people with same name, resolve using address/county/family association before outreach."
+      ]
+    },
+    {
+      "packet_id": "contact_packet_543745",
+      "case_number": "543745",
+      "decedent_name": "Lisa Ann Couch",
+      "do_not_skiptrace": [
+        "Lisa Ann Couch"
+      ],
+      "estate_name": "IN THE ESTATE OF: LISA ANN COUCH, DECEASED",
+      "filing_type": "APP FOR INDEPENDENT ADMINISTRATION WITH AN HEIRSHIP",
+      "file_date": "04/22/2026",
+      "court_number": "3",
+      "contact_packet_status": "needs_applicant_address_or_detail_review_before_paid_skiptrace",
+      "packet_confidence_score": 50,
+      "candidate_contacts": [
+        {
+          "person_name": "Lisa Ann Couch",
+          "candidate_role": "applicant_or_executor",
+          "skiptrace_priority": 1,
+          "known_address": "",
+          "relationship_clue": "Applicant/executor party in Harris County probate detail; likely living contact candidate, not automatically an heir.",
+          "source": "harris_county_case_detail_parties",
+          "paid_skiptrace_goal": [
+            "current phones",
+            "current mailing address",
+            "living/deceased status",
+            "relatives/associates link to decedent"
+          ],
+          "do_not_treat_as_owner_without_land_record_match": true
+        }
+      ],
+      "aliases_to_resolve_before_or_during_paid_skiptrace": [],
+      "known_applicant_address": "",
+      "land_record_threads": [],
+      "priority_recorded_documents": [],
+      "friction_clues": [
+        "APP FOR INDEPENDENT ADMINISTRATION WITH AN HEIRSHIP",
+        "04/22/2026: Attorney Appointee Fee Deposited",
+        "04/22/2026: Application to Appoint Aty or Gdn Ad Ltm",
+        "04/22/2026: Application to Determine Heirship - HRSHP; DOD: 3/21/24; PUBL-DCR RD: 5/11/27",
+        "04/22/2026: Case Initiated Application (OCA) - INADM; DOD: 3/21/24; post rd: 4/27/26 atty deposit"
+      ],
+      "source_files": [
+        "docs/rollout-evidence/probate-smoke-2026-04-24/priority_keep_now_enriched.json",
+        "docs/rollout-evidence/probate-smoke-2026-04-24/priority_case_detail_raw.json"
+      ],
+      "next_paid_skiptrace_inputs": {
+        "names": [
+          "Lisa Ann Couch"
+        ],
+        "addresses": [],
+        "county_context": "Harris County, Texas",
+        "decedent_context": "Lisa Ann Couch",
+        "property_context": [],
+        "requested_outputs": [
+          "current phones",
+          "current mailing addresses",
+          "email if available",
+          "living/deceased status",
+          "relatives/associates",
+          "address history",
+          "property ownership hints"
+        ]
+      },
+      "manual_review_notes": [
+        "Do not contact or skiptrace the decedent as a live target.",
+        "Treat probate parties as candidate contacts until land-record/title evidence confirms ownership or heirship rights.",
+        "If paid skiptrace returns multiple people with same name, resolve using address/county/family association before outreach."
+      ]
+    }
+  ]
+}
