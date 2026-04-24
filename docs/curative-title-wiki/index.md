@@ -56,15 +56,22 @@ Core doctrine:
    - excludes decedents as live targets
    - preserves candidate roles, addresses, confidence, and source lineage
 
+8. [[HCAD Property Match Test]]
+   - matches candidate packets to HCAD taxable property records
+   - keeps HCAD matching separate from tax overlay and outreach readiness
+   - records ambiguity instead of inventing property certainty
+
 ## Source evidence
 
 - [[../curative-title-data-pipeline|Curative Title Data Pipeline]]
 - [[../production-readiness-handoff|Production Readiness Handoff]]
 - [[../rollout-evidence/land-records-recon-2026-04-24/REPORT|Tangie Williams Land-Records Recon Report]]
 - [[../rollout-evidence/contact-candidate-packets-2026-04-24/REPORT|Contact Candidate Packet Test]]
+- [[../rollout-evidence/hcad-match-test-2026-04-24/REPORT|HCAD Property Match Test]]
 - `docs/rollout-evidence/land-records-recon-2026-04-24/tangie-williams-field-test.json`
 - `docs/rollout-evidence/probate-smoke-2026-04-24/priority_keep_now_enriched.json`
 - `docs/rollout-evidence/contact-candidate-packets-2026-04-24/contact_candidate_packets.json`
+- `docs/rollout-evidence/hcad-match-test-2026-04-24/hcad_match_results.json`
 
 ## Current open gates
 
@@ -72,6 +79,7 @@ Core doctrine:
 - HCAD account/property matching still needs to resolve legal descriptions like `FALLBROOK Sec 3 Lot 1181 Block 24`.
 - Free people-search sites may block cloud/browser-automation environments; treat this as an access gate.
 - Paid skiptrace should receive normalized contact-candidate packets, not raw probate rows.
+- HCAD/property matching must stay separate from tax overlay; if tax parser output is weak, mark it soft instead of storing fake delinquency certainty.
 - Ares needs first-class evidence graph models before this becomes a repeatable operator workflow.
 
 ## Links
@@ -83,3 +91,4 @@ Core doctrine:
 - [[Skiptrace Workflow]]
 - [[Tangie Williams Field Test]]
 - [[Contact Candidate Packet Test]]
+- [[HCAD Property Match Test]]

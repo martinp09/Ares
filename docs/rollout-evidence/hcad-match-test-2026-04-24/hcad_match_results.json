@@ -1,0 +1,543 @@
+{
+  "summary": {
+    "test_name": "hcad_property_match_test",
+    "tested_at": "2026-04-24",
+    "hcad_db": "/home/workspace/HCAD_Query/hcad.duckdb",
+    "cases_tested": [
+      "543678",
+      "525833-401",
+      "543652"
+    ],
+    "matched_cases": 2,
+    "ambiguous_cases": 1,
+    "top_result": "Tangie 543678 matched to HCAD acct 1091100001181 / 1407 GREEN TRAIL DR / FALLBROOK SEC 3 LT 1181 BLK 24",
+    "tax_overlay_status": "partial_live_check_attempted_for_confirmed Tangie and McMahan accounts; no delinquency signal, but parser needs hardening before storing final tax fields"
+  },
+  "matches": [
+    {
+      "case_number": "543678",
+      "decedent_name": "Tangie Renee Williams",
+      "match_status": "matched_property_thread",
+      "match_confidence": "high",
+      "confirmed_hcad_property": {
+        "acct": "1091100001181",
+        "owner_name": "WILLIAMS TANGIE",
+        "site_addr_1": "1407 GREEN TRAIL DR",
+        "mail_addr_1": "1407 GREEN TRAIL DR",
+        "mail_city": "HOUSTON",
+        "mail_state": "TX",
+        "mail_zip": "77038-1744",
+        "lgl_1": "LT 1181 BLK 24",
+        "lgl_2": "FALLBROOK SEC 3",
+        "lgl_3": null,
+        "tot_mkt_val": 245311,
+        "state_class": "A1",
+        "new_own_dt": "1999-12-06",
+        "tax_status_rows": [],
+        "deeds": []
+      },
+      "query_results": {
+        "owner_name_williams_tangie": [
+          {
+            "acct": "1091100001181",
+            "owner_name": "WILLIAMS TANGIE",
+            "site_addr_1": "1407 GREEN TRAIL DR",
+            "mail_addr_1": "1407 GREEN TRAIL DR",
+            "mail_city": "HOUSTON",
+            "mail_state": "TX",
+            "mail_zip": "77038-1744",
+            "lgl_1": "LT 1181 BLK 24",
+            "lgl_2": "FALLBROOK SEC 3",
+            "lgl_3": null,
+            "tot_mkt_val": 245311,
+            "state_class": "A1",
+            "new_own_dt": "1999-12-06",
+            "tax_status_rows": [],
+            "deeds": []
+          }
+        ],
+        "legal_fallbrook_sec3_lot1181_blk24": [
+          {
+            "acct": "1091100001181",
+            "owner_name": "WILLIAMS TANGIE",
+            "site_addr_1": "1407 GREEN TRAIL DR",
+            "mail_addr_1": "1407 GREEN TRAIL DR",
+            "mail_city": "HOUSTON",
+            "mail_state": "TX",
+            "mail_zip": "77038-1744",
+            "lgl_1": "LT 1181 BLK 24",
+            "lgl_2": "FALLBROOK SEC 3",
+            "lgl_3": null,
+            "tot_mkt_val": 245311,
+            "state_class": "A1",
+            "new_own_dt": "1999-12-06",
+            "tax_status_rows": [],
+            "deeds": []
+          }
+        ],
+        "applicant_address_brittany_edwards": [
+          {
+            "acct": "1391550010028",
+            "owner_name": "EDWARDS BRITTANY C & LANCE KEITH II",
+            "site_addr_1": "1614 ROYAL GRANTHAM CT",
+            "mail_addr_1": "1614 ROYAL GRANTHAM CT",
+            "mail_city": "HOUSTON",
+            "mail_state": "TX",
+            "mail_zip": "77073-1360",
+            "lgl_1": "LT 28 BLK 1",
+            "lgl_2": "IMPERIAL TRACE SEC 6",
+            "lgl_3": null,
+            "tot_mkt_val": 277977,
+            "state_class": "A1",
+            "new_own_dt": "2020-11-19",
+            "tax_status_rows": [],
+            "deeds": [
+              {
+                "acct": "1391550010028",
+                "dos": "2020-11-19",
+                "clerk_yr": 2020,
+                "clerk_id": "RP-2020-588405",
+                "deed_id": 1
+              },
+              {
+                "acct": "1391550010028",
+                "dos": "2020-05-06",
+                "clerk_yr": 2020,
+                "clerk_id": "RP-2020-194067",
+                "deed_id": 2
+              }
+            ]
+          }
+        ]
+      },
+      "why": "HCAD legal description LT 1181 BLK 24 / FALLBROOK SEC 3 matches Harris Clerk land-record thread FALLBROOK Sec 3 Lot 1181 Block 24, and owner is WILLIAMS TANGIE.",
+      "operator_note": "Applicant Brittany C Edwards also owns 1614 Royal Grantham Ct, but that is applicant contact context, not the target property thread.",
+      "next_state": "needs_paid_skiptrace_or_document_image_review"
+    },
+    {
+      "case_number": "525833-401",
+      "decedent_name": "Daniel R. Montoya",
+      "match_status": "ambiguous_hcad_candidates",
+      "match_confidence": "low_until_partition_document_or_address_resolves",
+      "query_results": {
+        "decedent_name_daniel_montoya": [
+          {
+            "acct": "0522820000144",
+            "owner_name": "MONTOYA DANIEL & MICAELA",
+            "site_addr_1": "1512 YUPON ST",
+            "mail_addr_1": "1512 YUPON ST",
+            "mail_city": "BAYTOWN",
+            "mail_state": "TX",
+            "mail_zip": "77520-6833",
+            "lgl_1": "LT 144 BLK 10",
+            "lgl_2": "PELLY SEC 1",
+            "lgl_3": null,
+            "tot_mkt_val": 99323,
+            "state_class": "A1",
+            "new_own_dt": "1990-05-18",
+            "tax_status_rows": [],
+            "deeds": []
+          },
+          {
+            "acct": "1001270000021",
+            "owner_name": "FLORES JOSE DANIEL MONTOYA",
+            "site_addr_1": "9014 IVY SPRING LN",
+            "mail_addr_1": "9014 IVY SPRING LN",
+            "mail_city": "HOUSTON",
+            "mail_state": "TX",
+            "mail_zip": "77088-1829",
+            "lgl_1": "LT 21 BLK 6",
+            "lgl_2": "WILLOW RUN SEC 2",
+            "lgl_3": null,
+            "tot_mkt_val": 202418,
+            "state_class": "A1",
+            "new_own_dt": "2017-06-27",
+            "tax_status_rows": [],
+            "deeds": [
+              {
+                "acct": "1001270000021",
+                "dos": "2017-06-27",
+                "clerk_yr": 2017,
+                "clerk_id": "RP-2017-295506",
+                "deed_id": 1
+              },
+              {
+                "acct": "1001270000021",
+                "dos": "2013-11-26",
+                "clerk_yr": 2013,
+                "clerk_id": "0599023",
+                "deed_id": 2
+              },
+              {
+                "acct": "1001270000021",
+                "dos": "2007-10-30",
+                "clerk_yr": 2007,
+                "clerk_id": "0670634",
+                "deed_id": 3
+              },
+              {
+                "acct": "1001270000021",
+                "dos": "2007-09-10",
+                "clerk_yr": 2007,
+                "clerk_id": "0574105",
+                "deed_id": 4
+              },
+              {
+                "acct": "1001270000021",
+                "dos": "2007-08-06",
+                "clerk_yr": 2007,
+                "clerk_id": "0505349",
+                "deed_id": 5
+              },
+              {
+                "acct": "1001270000021",
+                "dos": "2007-07-26",
+                "clerk_yr": 2007,
+                "clerk_id": "0479112",
+                "deed_id": 6
+              },
+              {
+                "acct": "1001270000021",
+                "dos": "2006-08-01",
+                "clerk_yr": 2006,
+                "clerk_id": "Z508477",
+                "deed_id": 7
+              }
+            ]
+          },
+          {
+            "acct": "1143520040030",
+            "owner_name": "MONTOYA-CERRATO DANIEL D",
+            "site_addr_1": "3435 SANDBROOK DR",
+            "mail_addr_1": "3435 SANDBROOK DR",
+            "mail_city": "HOUSTON",
+            "mail_state": "TX",
+            "mail_zip": "77066-5520",
+            "lgl_1": "LT 30 BLK 4",
+            "lgl_2": "BRIARCREEK-ALDINE",
+            "lgl_3": null,
+            "tot_mkt_val": 190369,
+            "state_class": "A1",
+            "new_own_dt": "2016-04-08",
+            "tax_status_rows": [],
+            "deeds": [
+              {
+                "acct": "1143520040030",
+                "dos": "2016-04-08",
+                "clerk_yr": 2016,
+                "clerk_id": "RP-2016-154293",
+                "deed_id": 1
+              },
+              {
+                "acct": "1143520040030",
+                "dos": "2008-08-29",
+                "clerk_yr": 2008,
+                "clerk_id": "0462809",
+                "deed_id": 2
+              },
+              {
+                "acct": "1143520040030",
+                "dos": "2007-11-06",
+                "clerk_yr": 2007,
+                "clerk_id": "0676104",
+                "deed_id": 4
+              },
+              {
+                "acct": "1143520040030",
+                "dos": "2005-04-18",
+                "clerk_yr": 2005,
+                "clerk_id": "Y422743",
+                "deed_id": 5
+              }
+            ]
+          },
+          {
+            "acct": "0871170010520",
+            "owner_name": "MONTOYA DANIEL A",
+            "site_addr_1": "11266 WARDVILLE ST",
+            "mail_addr_1": "11266 WARDVILLE ST",
+            "mail_city": "HOUSTON",
+            "mail_state": "TX",
+            "mail_zip": "77093-2714",
+            "lgl_1": "LT 520 BLK 24",
+            "lgl_2": "GREENWOOD VILLAGE SEC 3",
+            "lgl_3": null,
+            "tot_mkt_val": 60367,
+            "state_class": "A3",
+            "new_own_dt": "2003-12-10",
+            "tax_status_rows": [],
+            "deeds": []
+          },
+          {
+            "acct": "6000003012597",
+            "owner_name": "MONTOYA DANIEL",
+            "site_addr_1": "11266 WARDVILLE ST",
+            "mail_addr_1": "11266 WARDVILLE ST",
+            "mail_city": "HOUSTON",
+            "mail_state": "TX",
+            "mail_zip": "77093-2714",
+            "lgl_1": "1978 FLEETWOOD 14X70",
+            "lgl_2": "WHITE HUD# TEX0085519",
+            "lgl_3": "SERIAL# TXFL1A911031994",
+            "tot_mkt_val": null,
+            "state_class": "M3",
+            "new_own_dt": "2004-01-01",
+            "tax_status_rows": [],
+            "deeds": []
+          },
+          {
+            "acct": "1154720020009",
+            "owner_name": "MONTOYA DANIEL",
+            "site_addr_1": "11535 EAGLEWOOD DR",
+            "mail_addr_1": "11535 EAGLEWOOD DR",
+            "mail_city": "HOUSTON",
+            "mail_state": "TX",
+            "mail_zip": "77089-5356",
+            "lgl_1": "LT 9 BLK 2",
+            "lgl_2": "HIGHLAND MEADOW SEC 2",
+            "lgl_3": null,
+            "tot_mkt_val": 186761,
+            "state_class": "A1",
+            "new_own_dt": "2010-10-29",
+            "tax_status_rows": [],
+            "deeds": [
+              {
+                "acct": "1154720020009",
+                "dos": "2010-10-29",
+                "clerk_yr": 2010,
+                "clerk_id": "0478771",
+                "deed_id": 1
+              }
+            ]
+          },
+          {
+            "acct": "1261400010028",
+            "owner_name": "MONTOYA DANIEL",
+            "site_addr_1": "9511 TAFTSBERRY DR",
+            "mail_addr_1": "9511 TAFTSBERRY DR",
+            "mail_city": "HOUSTON",
+            "mail_state": "TX",
+            "mail_zip": "77095-7286",
+            "lgl_1": "LT 28 BLK 1",
+            "lgl_2": "CANYON LAKES AT STONEGATE SEC 11",
+            "lgl_3": null,
+            "tot_mkt_val": 308802,
+            "state_class": "A1",
+            "new_own_dt": "2005-12-30",
+            "tax_status_rows": [],
+            "deeds": []
+          },
+          {
+            "acct": "1280660010011",
+            "owner_name": "MONTOYA DANIEL GOMEZ",
+            "site_addr_1": "11607 CABOT HILL ST",
+            "mail_addr_1": "11607 CABOT HILL ST",
+            "mail_city": "HOUSTON",
+            "mail_state": "TX",
+            "mail_zip": "77044-5593",
+            "lgl_1": "LT 11 BLK 1",
+            "lgl_2": "GREENSBROOK PLACE SEC 1",
+            "lgl_3": null,
+            "tot_mkt_val": 209304,
+            "state_class": "A1",
+            "new_own_dt": "2007-04-19",
+            "tax_status_rows": [],
+            "deeds": [
+              {
+                "acct": "1280660010011",
+                "dos": "2007-04-30",
+                "clerk_yr": 2007,
+                "clerk_id": "0269229",
+                "deed_id": 1
+              },
+              {
+                "acct": "1280660010011",
+                "dos": "2007-04-19",
+                "clerk_yr": 2007,
+                "clerk_id": "0248334",
+                "deed_id": 2
+              }
+            ]
+          }
+        ],
+        "applicant_annette_montoya": [],
+        "respondent_larence_lawrence_montoya": [
+          {
+            "acct": "0640110000278",
+            "owner_name": "MONTOYA LARENCE R JR",
+            "site_addr_1": "3019 EARL ST",
+            "mail_addr_1": "3019 EARL ST",
+            "mail_city": "PASADENA",
+            "mail_state": "TX",
+            "mail_zip": "77503-1326",
+            "lgl_1": "E 10 FT OF LT 278 & W 45 FT OF",
+            "lgl_2": "LT 279",
+            "lgl_3": "DEEPWATER",
+            "tot_mkt_val": 250656,
+            "state_class": "A1",
+            "new_own_dt": "2024-01-09",
+            "tax_status_rows": [],
+            "deeds": [
+              {
+                "acct": "0640110000278",
+                "dos": "2024-01-09",
+                "clerk_yr": 2024,
+                "clerk_id": "RP-2024-11404",
+                "deed_id": 2
+              }
+            ]
+          }
+        ]
+      },
+      "why": "HCAD has multiple Daniel Montoya owners and one Larence Montoya respondent-name match, but the probate packet lacks a property legal description/address tying the case to any specific HCAD account.",
+      "operator_note": "This remains an excellent paid-skiptrace/contact packet because of multiple respondents and heir-property partition language, but it is not property-confirmed yet.",
+      "next_state": "needs_partition_document_image_or_case_property_extraction"
+    },
+    {
+      "case_number": "543652",
+      "decedent_name": "Janet Marie Mcmahan",
+      "match_status": "matched_applicant_decedent_address_property",
+      "match_confidence": "high_for_probate_packet_address_match_medium_for_title_target",
+      "confirmed_hcad_property": {
+        "acct": "1172610010016",
+        "owner_name": "MCMAHAN PATRICK K & JANET",
+        "site_addr_1": "5073 N NELSON AVE",
+        "mail_addr_1": "5073 N NELSON AVE",
+        "mail_city": "KATY",
+        "mail_state": "TX",
+        "mail_zip": "77493-9511",
+        "lgl_1": "LT 16 BLK 1",
+        "lgl_2": "MORRISON BOULEVARD PLACE R/P",
+        "lgl_3": null,
+        "tot_mkt_val": 323264,
+        "state_class": "A1",
+        "new_own_dt": "1998-08-31",
+        "tax_status_rows": [],
+        "deeds": []
+      },
+      "query_results": {
+        "decedent_owner_janet_mcmahan": [
+          {
+            "acct": "1172610010016",
+            "owner_name": "MCMAHAN PATRICK K & JANET",
+            "site_addr_1": "5073 N NELSON AVE",
+            "mail_addr_1": "5073 N NELSON AVE",
+            "mail_city": "KATY",
+            "mail_state": "TX",
+            "mail_zip": "77493-9511",
+            "lgl_1": "LT 16 BLK 1",
+            "lgl_2": "MORRISON BOULEVARD PLACE R/P",
+            "lgl_3": null,
+            "tot_mkt_val": 323264,
+            "state_class": "A1",
+            "new_own_dt": "1998-08-31",
+            "tax_status_rows": [],
+            "deeds": []
+          }
+        ],
+        "applicant_owner_patrick_mcmahan": [
+          {
+            "acct": "1172610010016",
+            "owner_name": "MCMAHAN PATRICK K & JANET",
+            "site_addr_1": "5073 N NELSON AVE",
+            "mail_addr_1": "5073 N NELSON AVE",
+            "mail_city": "KATY",
+            "mail_state": "TX",
+            "mail_zip": "77493-9511",
+            "lgl_1": "LT 16 BLK 1",
+            "lgl_2": "MORRISON BOULEVARD PLACE R/P",
+            "lgl_3": null,
+            "tot_mkt_val": 323264,
+            "state_class": "A1",
+            "new_own_dt": "1998-08-31",
+            "tax_status_rows": [],
+            "deeds": []
+          },
+          {
+            "acct": "1152510000029",
+            "owner_name": "MCMAHAN CHRISTOPHER PATRICK & ZSUZSANNA",
+            "site_addr_1": "321 SUGARBERRY CIR",
+            "mail_addr_1": "321 SUGARBERRY CIRCLE",
+            "mail_city": "HOUSTON",
+            "mail_state": "TX",
+            "mail_zip": "77024-7215",
+            "lgl_1": "LT 29 & TR 59B",
+            "lgl_2": "HUDSON BEND 2ND AMENDED R/P",
+            "lgl_3": null,
+            "tot_mkt_val": 1284903,
+            "state_class": "A1",
+            "new_own_dt": "2023-05-15",
+            "tax_status_rows": [],
+            "deeds": [
+              {
+                "acct": "1152510000029",
+                "dos": "2023-05-15",
+                "clerk_yr": 2023,
+                "clerk_id": "RP-2023-179708",
+                "deed_id": 7
+              },
+              {
+                "acct": "1152510000029",
+                "dos": "2021-04-22",
+                "clerk_yr": 2021,
+                "clerk_id": "RP-2021-227125",
+                "deed_id": 4
+              },
+              {
+                "acct": "1152510000029",
+                "dos": "2021-04-22",
+                "clerk_yr": 2021,
+                "clerk_id": "RP-2021-236233",
+                "deed_id": 5
+              }
+            ]
+          }
+        ],
+        "applicant_address_5073_n_nelson": [
+          {
+            "acct": "1172610010016",
+            "owner_name": "MCMAHAN PATRICK K & JANET",
+            "site_addr_1": "5073 N NELSON AVE",
+            "mail_addr_1": "5073 N NELSON AVE",
+            "mail_city": "KATY",
+            "mail_state": "TX",
+            "mail_zip": "77493-9511",
+            "lgl_1": "LT 16 BLK 1",
+            "lgl_2": "MORRISON BOULEVARD PLACE R/P",
+            "lgl_3": null,
+            "tot_mkt_val": 323264,
+            "state_class": "A1",
+            "new_own_dt": "1998-08-31",
+            "tax_status_rows": [],
+            "deeds": []
+          }
+        ]
+      },
+      "why": "HCAD owner MCMAHAN PATRICK K and JANET at 5073 N NELSON AVE matches the probate applicant Patrick Kelly McMahan / Janet McMahan packet and applicant address.",
+      "operator_note": "This is a strong person/property match, but still needs land-record/deed image review before assuming curative-title opportunity.",
+      "next_state": "needs_land_record_search_then_paid_skiptrace"
+    }
+  ],
+  "hctax_live_checks": [
+    {
+      "acct": "1091100001181",
+      "label": "Tangie Fallbrook confirmed",
+      "result_summary": {
+        "is_delinquent": false,
+        "amount_owed": 0.0,
+        "search_method": "detail_page",
+        "parser_warning": "hctax_client parsed owner/value fields incorrectly on this page; use as no-delinquency signal only until parser is hardened"
+      }
+    },
+    {
+      "acct": "1172610010016",
+      "label": "McMahan confirmed",
+      "result_summary": {
+        "is_delinquent": false,
+        "amount_owed": 0.0,
+        "search_method": "detail_page",
+        "parser_warning": "hctax_client parsed owner/value fields incorrectly on this page; use as no-delinquency signal only until parser is hardened"
+      }
+    }
+  ]
+}

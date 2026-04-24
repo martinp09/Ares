@@ -32,6 +32,10 @@ Latest curative-title packet test:
 
 - `docs/rollout-evidence/contact-candidate-packets-2026-04-24/REPORT.md`
 
+Latest HCAD/property match test:
+
+- `docs/rollout-evidence/hcad-match-test-2026-04-24/REPORT.md`
+
 Existing source plans remain background:
 
 - `docs/superpowers/plans/2026-04-24-ares-full-stack-cohesion-mega-plan.md`

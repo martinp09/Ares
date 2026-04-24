@@ -184,6 +184,14 @@
 
 ## Change Log
 
+### 2026-04-24 HCAD Property Match Test
+
+- Ran HCAD/property match test for the top contact-candidate packets using `/home/workspace/HCAD_Query/hcad.duckdb`; evidence saved under `docs/rollout-evidence/hcad-match-test-2026-04-24/`.
+- Tangie Renee Williams (`543678`) matched high-confidence to HCAD acct `1091100001181`, owner `WILLIAMS TANGIE`, site `1407 GREEN TRAIL DR`, legal `LT 1181 BLK 24` / `FALLBROOK SEC 3`, market value `$245,311`.
+- Janet Marie Mcmahan (`543652`) matched to HCAD acct `1172610010016`, owner `MCMAHAN PATRICK K and JANET`, site/mailing `5073 N NELSON AVE`, market value `$323,264`.
+- Daniel R. Montoya (`525833-401`) remains ambiguous: HCAD has multiple Daniel Montoya candidates and one Larence/Lawrence Montoya respondent-name candidate, but no case-property tie until partition/property details are extracted.
+- Live hctax checks on confirmed Tangie/McMahan accounts showed no delinquency signal, but the parser misread some owner/value fields; tax overlay should stay soft until parser hardening.
+
 ### 2026-04-24 Contact Candidate Packet Test
 
 - Generated 12 contact-candidate packets from the enriched Harris probate keep-now set under `docs/rollout-evidence/contact-candidate-packets-2026-04-24/`.
