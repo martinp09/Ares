@@ -53,6 +53,14 @@ Phase 4:
 - Enforced per-lead queue keys for lease-option sequence and manual-call child jobs.
 - Persisted `trigger_run_id` from artifact callbacks.
 
+Phase 5:
+
+- Added `TEXTGRID_STATUS_CALLBACK_URL` config and passed it through outbound SMS requests.
+- Provider side-effect failures during lead intake now create durable manual-review tasks visible in Mission Control.
+- Lead-intake and sequence dispatch outbound messages now persist provider message IDs when available.
+- TextGrid status callbacks update durable message status and record processed provider webhook receipts.
+- Booking confirmation sends preserve successful provider message IDs even if a later channel fails, while booking suppression/opportunity sync still proceeds.
+
 ## Hard rules
 
 - Do not install Ares into Hermes.
@@ -70,6 +78,7 @@ git diff --check
 uv run pytest tests/smoke/test_health.py tests/api/test_runtime_config_contract.py tests/api/test_trigger_contract_files.py -q
 uv run pytest tests/db/test_supabase_control_plane_client.py tests/db/test_control_plane_supabase_adapters.py -q
 uv run pytest tests/api/test_commands.py tests/api/test_approvals.py tests/api/test_runs.py tests/api/test_replays.py tests/api/test_trigger_callbacks.py tests/api/test_hermes_tools.py tests/api/test_lead_machine_trigger_contract.py tests/api/test_marketing_sequence.py tests/api/test_marketing_leads.py -q
+uv run pytest tests/providers/test_textgrid.py tests/providers/test_resend.py tests/providers/test_calcom.py tests/services/test_inbound_sms_service.py tests/services/test_booking_service.py tests/api/test_marketing_runtime.py tests/api/test_marketing_webhooks.py tests/api/test_marketing_leads.py tests/api/test_mission_control.py tests/api/test_mission_control_marketing.py -q
 uv run pytest -q
 npm --prefix trigger run typecheck
 npm --prefix apps/mission-control run test -- --run
@@ -79,4 +88,4 @@ npm --prefix apps/mission-control run build
 
 ## Next gate
 
-Start Phase 5 provider adapter cohesion next.
+Start Phase 6 lead-machine end-to-end workflows next.

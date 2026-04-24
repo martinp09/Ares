@@ -419,8 +419,42 @@ class MissionControlService:
                 )
             )
 
+        for task in self.get_visible_provider_failure_tasks(business_id=business_id, environment=environment):
+            tasks.append(
+                MissionControlTaskSummary(
+                    thread_id=task.lead_id or task.id or "provider_failure",
+                    lead_name=str(task.details.get("phone") or task.lead_id or "Unknown lead"),
+                    channel=str(task.details.get("side_effect") or "provider"),
+                    booking_status=None,
+                    sequence_status=None,
+                    next_sequence_step=None,
+                    manual_call_due_at=task.created_at.isoformat(),
+                    recent_reply_preview=str(task.details.get("error_message") or ""),
+                    reply_needs_review=True,
+                    task_id=task.id,
+                    task_type=str(task.task_type.value),
+                    priority=str(task.priority.value),
+                    provider_failure=True,
+                    error_message=str(task.details.get("error_message") or ""),
+                )
+            )
+
         ordered_tasks = sorted(tasks, key=lambda task: task.manual_call_due_at)
         return MissionControlTasksResponse(due_count=len(ordered_tasks), tasks=ordered_tasks)
+
+    def get_visible_provider_failure_tasks(
+        self,
+        *,
+        business_id: str | None = None,
+        environment: str | None = None,
+    ):
+        return [
+            task
+            for task in self.tasks_repository.list(business_id=business_id, environment=environment)
+            if task.status == TaskStatus.OPEN
+            and task.task_type == TaskType.MANUAL_REVIEW
+            and bool(task.details.get("visible_in_mission_control"))
+        ]
 
     def complete_task_for_thread(
         self,

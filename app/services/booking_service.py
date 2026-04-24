@@ -27,6 +27,15 @@ SequenceStatus = Literal["active", "paused", "completed", "stopped"]
 LEASE_OPTION_SEQUENCE_KEY = "lease_option_non_booker_v1"
 
 
+def _extract_provider_message_id(response: Any) -> str | None:
+    if isinstance(response, dict):
+        for key in ("sid", "message_sid", "MessageSid", "id"):
+            value = response.get(key)
+            if value:
+                return str(value)
+    return None
+
+
 @dataclass(slots=True)
 class NonBookerCheckRequest:
     lead_id: str
@@ -78,7 +87,7 @@ class BookingStateRepository(Protocol):
 
 
 class AppointmentNotifier(Protocol):
-    def send_appointment_confirmation(self, *, lead_id: str) -> None: ...
+    def send_appointment_confirmation(self, *, lead_id: str) -> dict[str, str | None]: ...
 
 
 class SequenceEnrollmentService(Protocol):
@@ -88,7 +97,12 @@ class SequenceEnrollmentService(Protocol):
 
 
 class BookingMessageLogService(Protocol):
-    def log_appointment_confirmation(self, *, lead: MarketingLeadRecord) -> None: ...
+    def log_appointment_confirmation(
+        self,
+        *,
+        lead: MarketingLeadRecord,
+        provider_message_ids: dict[str, str | None] | None = None,
+    ) -> None: ...
 
 
 class WebhookReceiptService(Protocol):
@@ -170,8 +184,8 @@ class _MarketingBookingStateRepository:
 
 
 class _NoopAppointmentNotifier:
-    def send_appointment_confirmation(self, *, lead_id: str) -> None:
-        return None
+    def send_appointment_confirmation(self, *, lead_id: str) -> dict[str, str | None]:
+        return {}
 
 
 class _NoopWebhookReceiptService:
@@ -189,7 +203,12 @@ class _NoopWebhookReceiptService:
 
 
 class _NoopBookingMessageLogService:
-    def log_appointment_confirmation(self, *, lead: MarketingLeadRecord) -> None:
+    def log_appointment_confirmation(
+        self,
+        *,
+        lead: MarketingLeadRecord,
+        provider_message_ids: dict[str, str | None] | None = None,
+    ) -> None:
         return None
 
 
@@ -207,7 +226,13 @@ class _RepositoryBookingMessageLogService:
         self.conversations = conversations or ConversationsRepository(self.contacts.client)
         self.messages = messages or MessagesRepository(self.contacts.client)
 
-    def log_appointment_confirmation(self, *, lead: MarketingLeadRecord) -> None:
+    def log_appointment_confirmation(
+        self,
+        *,
+        lead: MarketingLeadRecord,
+        provider_message_ids: dict[str, str | None] | None = None,
+    ) -> None:
+        resolved_provider_message_ids = provider_message_ids or {}
         confirmation = f"Thanks {lead.first_name}, your lease-option appointment is confirmed."
         if (
             self.settings.textgrid_account_sid
@@ -228,6 +253,7 @@ class _RepositoryBookingMessageLogService:
                 channel="sms",
                 provider="textgrid",
                 body=confirmation,
+                external_message_id=resolved_provider_message_ids.get("sms"),
             )
         if lead.email and self.settings.resend_api_key and self.settings.resend_from_email:
             conversation = self.conversations.get_or_create(
@@ -244,6 +270,7 @@ class _RepositoryBookingMessageLogService:
                 channel="email",
                 provider="resend",
                 body=confirmation,
+                external_message_id=resolved_provider_message_ids.get("email"),
             )
 
 
@@ -287,23 +314,24 @@ class _ConfiguredAppointmentNotifier:
         *,
         settings: Settings | None = None,
         contacts: ContactsRepository | None = None,
-        request_sender: Callable[[dict[str, Any]], None] | None = None,
+        request_sender: Callable[[dict[str, Any]], Any] | None = None,
     ) -> None:
         self.settings = settings or get_settings()
         self.contacts = contacts or ContactsRepository()
         self.request_sender = request_sender or _default_request_sender
 
-    def send_appointment_confirmation(self, *, lead_id: str) -> None:
+    def send_appointment_confirmation(self, *, lead_id: str) -> dict[str, str | None]:
         lead = self.contacts.get_lead(lead_id)
         if lead is None:
-            return
+            return {}
+        provider_message_ids: dict[str, str | None] = {}
         message = f"Thanks {lead.first_name}, your lease-option appointment is confirmed."
         if (
             self.settings.textgrid_account_sid
             and self.settings.textgrid_auth_token
             and self.settings.textgrid_from_number
         ):
-            self.request_sender(
+            provider_message_ids["sms"] = self._send_and_extract(
                 build_outbound_sms_request(
                     account_sid=self.settings.textgrid_account_sid,
                     auth_token=self.settings.textgrid_auth_token,
@@ -311,10 +339,11 @@ class _ConfiguredAppointmentNotifier:
                     to_number=lead.phone,
                     body=message,
                     base_url=self.settings.textgrid_sms_url or "https://api.textgrid.com",
+                    status_callback_url=self.settings.textgrid_status_callback_url,
                 )
             )
         if lead.email and self.settings.resend_api_key and self.settings.resend_from_email:
-            self.request_sender(
+            provider_message_ids["email"] = self._send_and_extract(
                 build_send_email_request(
                     api_key=self.settings.resend_api_key,
                     from_email=self.settings.resend_from_email,
@@ -323,6 +352,13 @@ class _ConfiguredAppointmentNotifier:
                     text_body=message,
                 )
             )
+        return provider_message_ids
+
+    def _send_and_extract(self, outbound_request: dict[str, Any]) -> str | None:
+        try:
+            return _extract_provider_message_id(self.request_sender(outbound_request))
+        except Exception:
+            return None
 
 
 class _SequenceEnrollmentAdapter:
@@ -410,10 +446,17 @@ class BookingService:
             self.webhook_receipts.mark_processed(receipt_id)
             return {"status": "processed", "lead_id": event.lead_id, "booking_status": event.booking_status}
         newly_booked = self.booking_repository.apply_booking_event(event)
+        provider_message_ids: dict[str, str | None] = {}
         if newly_booked:
-            self.appointment_notifier.send_appointment_confirmation(lead_id=event.lead_id)
+            try:
+                provider_message_ids = self.appointment_notifier.send_appointment_confirmation(lead_id=event.lead_id) or {}
+            except Exception:
+                pass
             if lead is not None:
-                self.message_log_service.log_appointment_confirmation(lead=lead)
+                self.message_log_service.log_appointment_confirmation(
+                    lead=lead,
+                    provider_message_ids=provider_message_ids,
+                )
             self._sync_opportunity(lead, event)
         if event.booking_status in {"booked", "rescheduled"}:
             self.sequence_service.suppress_for_booked_lead(lead_id=event.lead_id)
@@ -486,7 +529,7 @@ class BookingService:
         )
 
 
-def _default_request_sender(outbound_request: dict[str, Any]) -> None:
+def _default_request_sender(outbound_request: dict[str, Any]) -> Any:
     headers = {
         str(key): str(value)
         for key, value in dict(outbound_request.get("headers") or {}).items()
@@ -507,8 +550,14 @@ def _default_request_sender(outbound_request: dict[str, Any]) -> None:
         headers=headers,
         method="POST",
     )
-    with http_request.urlopen(req, timeout=10):
+    with http_request.urlopen(req, timeout=10) as response:
+        response_body = response.read()
+    if not response_body:
         return None
+    try:
+        return json.loads(response_body.decode("utf-8"))
+    except (json.JSONDecodeError, UnicodeDecodeError):
+        return response_body.decode("utf-8", errors="replace")
 
 
 booking_service = BookingService()

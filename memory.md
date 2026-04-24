@@ -171,8 +171,8 @@
 
 ## Open Work
 
-1. commit the Phase 4 Trigger.dev runtime contract slice on `feature/ares-full-stack-cohesion-clean`
-2. start Phase 5 provider adapter cohesion
+1. commit the Phase 5 provider adapter cohesion slice on `feature/ares-full-stack-cohesion-clean`
+2. start Phase 6 lead-machine end-to-end workflows
 3. reconcile the preserved dirty Supabase persistence work before any hosted Supabase rollout
 4. keep post-merge Supabase follow-up scope narrow to persistence regressions and real hosted smoke only
 5. keep browser acquisition and ambiguous research in Hermes or other driver agents, not inside Ares
@@ -209,6 +209,15 @@
 - Manual-call and sequence child jobs now use per-lead queue keys based on business, environment, and lead.
 - Artifact callbacks now persist `trigger_run_id` on the canonical run before appending artifact rows.
 - QC approved Phase 4 after focused checks; broader gates passed with `uv run pytest -q`, Trigger typecheck, Mission Control tests/typecheck/build, and `git diff --check`.
+
+### 2026-04-24 Full-Stack Cohesion Phase 5
+
+- Phase 5 added `TEXTGRID_STATUS_CALLBACK_URL` and passes TextGrid status callback URLs through lead-intake, sequence, and booking outbound SMS paths.
+- Marketing lead intake no longer silently drops provider/Trigger side-effect failures: it returns side-effect statuses and creates durable high-priority manual-review tasks with `visible_in_mission_control=true`.
+- Outbound confirmation and sequence messages now persist provider message IDs when TextGrid/Resend responses expose `sid`, `message_sid`, `MessageSid`, or `id`.
+- TextGrid status callbacks update durable message status by provider/external ID, record provider webhook receipts, mark them processed, and do not create false review tasks.
+- Booking confirmation sends tolerate provider failures without blocking booking suppression/opportunity sync, and configured booking sends preserve successful partial provider IDs if a later channel fails.
+- QC approved Phase 5 after the partial booking provider-ID blocker was fixed; broader gates passed with `uv run pytest -q`, Trigger typecheck, Mission Control tests/typecheck/build, and `git diff --check`.
 
 ### 2026-04-23 Origin Main Supabase Persistence Wiring
 

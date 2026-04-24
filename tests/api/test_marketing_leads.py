@@ -4,7 +4,14 @@ from urllib.parse import parse_qs, urlparse
 from fastapi.testclient import TestClient
 
 from app.core.config import Settings
+from app.db.client import InMemoryControlPlaneClient, InMemoryControlPlaneStore
+from app.db.contacts import ContactsRepository
+from app.db.conversations import ConversationsRepository
+from app.db.messages import MessagesRepository
+from app.db.tasks import TasksRepository
 from app.main import app
+from app.services.mission_control_service import MissionControlService
+from app.models.mission_control import MissionControlTasksResponse
 from app.services.marketing_lead_service import (
     LeadIntakePayload,
     MarketingLeadService,
@@ -108,6 +115,7 @@ def test_marketing_lead_service_dispatches_configured_provider_requests() -> Non
             textgrid_auth_token="token_123",
             textgrid_from_number="+13467725914",
             textgrid_sms_url="https://api.textgrid.com/custom/messages",
+            textgrid_status_callback_url="https://runtime.example.com/marketing/webhooks/textgrid",
             resend_api_key="re_123",
             resend_from_email="Hermes <team@example.com>",
             cal_booking_url="https://cal.com/limitless/lease-option-review",
@@ -132,6 +140,7 @@ def test_marketing_lead_service_dispatches_configured_provider_requests() -> Non
     assert sent_requests[0]["payload"] == {
         "Body": "Thanks Maya, we got your lease-option request and will follow up shortly.",
         "From": "+13467725914",
+        "StatusCallback": "https://runtime.example.com/marketing/webhooks/textgrid",
         "To": "+15551234567",
     }
     assert sent_requests[1]["endpoint"] == "https://api.resend.com/emails"
@@ -240,13 +249,23 @@ def test_marketing_lead_service_dispatches_trigger_non_booker_check_over_http(mo
     }
 
 
-def test_marketing_lead_service_persists_lead_even_if_provider_requests_fail() -> None:
+def test_marketing_lead_service_persists_lead_even_if_provider_requests_fail(monkeypatch) -> None:
+    from app.services import marketing_lead_service as marketing_lead_service_module
+
+    client = InMemoryControlPlaneClient(InMemoryControlPlaneStore())
+
     class StubLeadRepository:
         def upsert_lead(self, payload) -> str:
             return "lead_123"
 
     def fail_request(_payload):
         raise RuntimeError("provider down")
+
+    monkeypatch.setattr(
+        marketing_lead_service_module.request,
+        "urlopen",
+        lambda *args, **kwargs: (_ for _ in ()).throw(RuntimeError("provider down")),
+    )
 
     service = MarketingLeadService(
         settings=Settings(
@@ -260,6 +279,7 @@ def test_marketing_lead_service_persists_lead_even_if_provider_requests_fail() -
         ),
         lead_repository=StubLeadRepository(),
         request_sender=fail_request,
+        tasks=TasksRepository(client),
     )
 
     result = service.intake_lead(
@@ -274,3 +294,91 @@ def test_marketing_lead_service_persists_lead_even_if_provider_requests_fail() -
     )
 
     assert result["lead_id"] == "lead_123"
+    assert result["side_effects"] == [
+        {
+            "name": "confirmation_sms",
+            "status": "failed",
+            "error_message": "provider down",
+        },
+        {
+            "name": "confirmation_email",
+            "status": "failed",
+            "error_message": "provider down",
+        },
+        {
+            "name": "trigger_non_booker_check",
+            "status": "failed",
+            "error_message": "provider down",
+        },
+    ]
+    tasks = TasksRepository(client).list(lead_id="lead_123")
+    assert [task.task_type.value for task in tasks] == ["manual_review", "manual_review", "manual_review"]
+    assert [task.details["side_effect"] for task in tasks] == [
+        "confirmation_sms",
+        "confirmation_email",
+        "trigger_non_booker_check",
+    ]
+    visible_tasks = MissionControlService(client=client).get_visible_provider_failure_tasks(
+        business_id="limitless",
+        environment="dev",
+    )
+    assert [task.id for task in visible_tasks] == [task.id for task in tasks]
+    mission_control_tasks = MissionControlService(client=client).get_tasks(
+        business_id="limitless",
+        environment="dev",
+    )
+    assert isinstance(mission_control_tasks, MissionControlTasksResponse)
+    assert mission_control_tasks.due_count == 3
+    assert [task.provider_failure for task in mission_control_tasks.tasks] == [True, True, True]
+
+
+def test_marketing_lead_service_logs_provider_message_ids_for_status_callbacks() -> None:
+    client = InMemoryControlPlaneClient(InMemoryControlPlaneStore())
+    contacts = ContactsRepository(client)
+    conversations = ConversationsRepository(client)
+    messages_repository = MessagesRepository(client)
+
+    class StubLeadRepository:
+        def upsert_lead(self, payload) -> str:
+            return "lead_123"
+
+    def fake_send(outbound_request):
+        if outbound_request["headers"]["Content-Type"] == "application/x-www-form-urlencoded":
+            return {"sid": "SM123"}
+        return {"id": "email_123"}
+
+    service = MarketingLeadService(
+        settings=Settings(
+            _env_file=None,
+            textgrid_account_sid="acct_123",
+            textgrid_auth_token="token_123",
+            textgrid_from_number="+13467725914",
+            resend_api_key="re_123",
+            resend_from_email="Hermes <team@example.com>",
+        ),
+        lead_repository=StubLeadRepository(),
+        request_sender=fake_send,
+        contacts=contacts,
+        conversations=conversations,
+        messages=messages_repository,
+        tasks=TasksRepository(client),
+    )
+
+    result = service.intake_lead(
+        LeadIntakePayload(
+            business_id="limitless",
+            environment="dev",
+            first_name="Maya",
+            phone="+15551234567",
+            email="maya@example.com",
+            property_address="123 Main St, Houston, TX",
+        )
+    )
+
+    assert result["lead_id"] == "lead_123"
+    with client.transaction() as store:
+        messages = list(getattr(store, "marketing_message_rows", {}).values())
+    assert [(message.channel, message.external_message_id) for message in messages] == [
+        ("sms", "SM123"),
+        ("email", "email_123"),
+    ]

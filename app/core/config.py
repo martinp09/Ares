@@ -145,6 +145,10 @@ class Settings(BaseSettings):
         default=None,
         validation_alias=AliasChoices("textgrid_webhook_secret", "TEXTGRID_WEBHOOK_SECRET"),
     )
+    textgrid_status_callback_url: str | None = Field(
+        default=None,
+        validation_alias=AliasChoices("textgrid_status_callback_url", "TEXTGRID_STATUS_CALLBACK_URL"),
+    )
     resend_api_key: str | None = Field(
         default=None,
         validation_alias=AliasChoices("resend_api_key", "RESEND_API_KEY"),

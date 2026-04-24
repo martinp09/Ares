@@ -10,6 +10,7 @@ from app.services.booking_service import (
     BookingService,
     LeaseOptionSequenceGuardRequest,
     NormalizedBookingEvent,
+    _ConfiguredAppointmentNotifier,
     _MarketingBookingStateRepository,
 )
 from app.services.opportunity_service import OpportunityService
@@ -46,8 +47,8 @@ def test_booked_calcom_event_creates_lease_option_opportunity() -> None:
             return None
 
     class StubAppointmentNotifier:
-        def send_appointment_confirmation(self, *, lead_id: str) -> None:
-            return None
+        def send_appointment_confirmation(self, *, lead_id: str):
+            return {"sms": "SM_BOOKING_123", "email": "email_booking_123"}
 
     class StubWebhookReceipts:
         def record_calcom_event(self, *, event, lead, payload):
@@ -161,8 +162,8 @@ def test_booked_calcom_event_logs_outbound_confirmation_messages() -> None:
             return None
 
     class StubAppointmentNotifier:
-        def send_appointment_confirmation(self, *, lead_id: str) -> None:
-            return None
+        def send_appointment_confirmation(self, *, lead_id: str):
+            return {"sms": "SM_BOOKING_123", "email": "email_booking_123"}
 
     service = BookingService(
         settings=Settings(
@@ -186,3 +187,106 @@ def test_booked_calcom_event_logs_outbound_confirmation_messages() -> None:
 
     message_rows = getattr(client.store, "marketing_message_rows", {})
     assert len(message_rows) == 2
+    assert sorted(message.external_message_id for message in message_rows.values()) == [
+        "SM_BOOKING_123",
+        "email_booking_123",
+    ]
+
+
+def test_booked_calcom_event_still_suppresses_and_syncs_when_confirmation_send_fails() -> None:
+    client = InMemoryControlPlaneClient(InMemoryControlPlaneStore())
+    contacts = ContactsRepository(client)
+    lead = contacts.upsert_lead(
+        LeadUpsertRequest(
+            business_id="limitless",
+            environment="dev",
+            first_name="Maya",
+            phone="+15551234567",
+            email="maya@example.com",
+            property_address="123 Main St, Houston, TX",
+        )
+    )
+
+    class StubCalcomAdapter:
+        def normalize(self, payload, *, signature, raw_body=None):
+            return NormalizedBookingEvent(
+                lead_id=lead.id,
+                booking_status="booked",
+                event_name="booking.created",
+                external_booking_id="book_failure_tolerant",
+            )
+
+    class FailingAppointmentNotifier:
+        def send_appointment_confirmation(self, *, lead_id: str) -> None:
+            raise RuntimeError("textgrid down")
+
+    class StubSequenceService:
+        def __init__(self) -> None:
+            self.suppressed = 0
+
+        def suppress_for_booked_lead(self, *, lead_id: str) -> None:
+            self.suppressed += 1
+
+        def enroll_non_booker(self, *, lead_id: str, business_id: str, environment: str) -> None:
+            return None
+
+    sequence = StubSequenceService()
+    service = BookingService(
+        calcom_adapter=StubCalcomAdapter(),
+        booking_repository=_MarketingBookingStateRepository(
+            contacts=contacts,
+            bookings=BookingsRepository(client),
+        ),
+        appointment_notifier=FailingAppointmentNotifier(),
+        sequence_service=sequence,
+        contacts=contacts,
+        opportunity_service=OpportunityService(OpportunitiesRepository(client)),
+    )
+
+    result = service.handle_calcom_webhook({}, signature=None)
+
+    assert result == {"status": "processed", "lead_id": lead.id, "booking_status": "booked"}
+    assert sequence.suppressed == 1
+    opportunities = OpportunitiesRepository(client).list(business_id="limitless", environment="dev")
+    assert len(opportunities) == 1
+
+
+def test_configured_booking_notifier_preserves_partial_provider_message_ids() -> None:
+    client = InMemoryControlPlaneClient(InMemoryControlPlaneStore())
+    contacts = ContactsRepository(client)
+    lead = contacts.upsert_lead(
+        LeadUpsertRequest(
+            business_id="limitless",
+            environment="dev",
+            first_name="Maya",
+            phone="+15551234567",
+            email="maya@example.com",
+            property_address="123 Main St, Houston, TX",
+        )
+    )
+    calls: list[str] = []
+
+    def request_sender(outbound_request):
+        endpoint = str(outbound_request["endpoint"])
+        calls.append(endpoint)
+        if "resend" in endpoint:
+            raise RuntimeError("resend down")
+        return {"sid": "SM_PARTIAL_123"}
+
+    notifier = _ConfiguredAppointmentNotifier(
+        settings=Settings(
+            textgrid_account_sid="acct_123",
+            textgrid_auth_token="token_123",
+            textgrid_from_number="+13467725914",
+            resend_api_key="resend_123",
+            resend_from_email="ops@example.com",
+        ),
+        contacts=contacts,
+        request_sender=request_sender,
+    )
+
+    assert notifier.send_appointment_confirmation(lead_id=lead.id) == {
+        "sms": "SM_PARTIAL_123",
+        "email": None,
+    }
+    assert len(calls) == 2
