@@ -1,112 +1,133 @@
 ---
-title: "Ares TODO / Handoff"
+title: "Ares Production Readiness TODO / Handoff"
 status: active
-updated_at: "2026-04-24T00:00:00-05:00"
+updated_at: "2026-04-24T13:00:33Z"
 repo: "martinp09/Ares"
-local_checkout: "/Users/solomartin/Projects/Ares-full-stack-cohesion"
-current_branch: "feature/ares-full-stack-cohesion-clean"
+local_checkout: "/tmp/ares-production-readiness"
+current_branch: "test/production-readiness-handoff"
+base_commit: "0c14769"
 ---
 
-# Ares TODO / Handoff
+# Ares Production Readiness TODO / Handoff
 
 ## Live pointer
 
-The current implementation blueprint is:
+This branch exists to answer one question cleanly:
+
+> What exactly remains before Ares can honestly be called fully wired and production ready?
+
+Primary handoff:
+
+- `docs/production-readiness-handoff.md`
+
+Execution plan:
+
+- `docs/superpowers/plans/2026-04-24-ares-production-readiness-test-branch-plan.md`
+
+Existing source plans remain background:
 
 - `docs/superpowers/plans/2026-04-24-ares-full-stack-cohesion-mega-plan.md`
-
-Supporting source map:
-
 - `docs/superpowers/plans/2026-04-24-ares-supabase-wiring-from-memory.md`
+- `docs/production-promotion.md`
+- `docs/preview-staging-rollout.md`
+- `docs/hermes-ares-trigger-supabase-runbook.md`
 
-## Completed slices
+## Current status
 
-Phase 0 + Phase 1:
+Ares is **code-wired** but **not yet live-production-wired**.
 
-- full-stack cohesion spec
-- clean `.env.example`
-- Hermes/Ares/Trigger/Supabase runbook
-- config contract tests
-- Trigger runtime API static contract test
-- Vite dev proxy for authenticated Mission Control API calls without exposing a public runtime key
-- no Supabase migrations
-- no live SMS/email sends
+Completed in code:
 
-Phase 2:
+- Supabase control-plane hydrate/persist adapter exists.
+- Runtime API routes are mounted.
+- Trigger runtime callbacks exist.
+- Mission Control API routes and frontend API client exist.
+- Lead-machine runtime routes exist.
+- Provider adapters/readiness surfaces exist.
+- Guarded preview and production readiness scripts exist.
+- Python backend suite passed on latest main: `558 passed, 5 warnings`.
 
-- Supabase control-plane transaction now snapshots, flushes, deletes, and restores core `commands`, `approvals`, `runs`, `events`, and `artifacts`.
-- Rollback restore is FK-safe for command/run/event/artifact tables, including parent-before-child replay runs.
-- Regression coverage covers core deletions, update rollback, bigint canonicalization, and failed flush restore.
+Not completed live:
 
-Phase 3:
+- no verified hosted Supabase migration apply
+- no deployed Ares runtime with all backends set to `supabase`
+- no deployed Trigger workers calling hosted Ares
+- no deployed Mission Control proven against hosted Ares API source
+- no provider webhooks proven against hosted Ares
+- no no-live hosted smoke evidence
+- no guarded live provider smoke evidence
+- no production rollback/backup evidence
 
-- Added `docs/hermes-ares-runtime-adapter-contract.md`.
-- Added `scripts/smoke_hermes_runtime_adapter.py`.
-- Added Hermes tool payload-stability coverage.
+## Production-readiness TODO
 
-Phase 4:
+### 1. Preview/staging Supabase gate
 
-- Standardized Trigger lifecycle callback payloads to Ares snake_case callback models.
-- Added required lifecycle reporting for run-mapped lead-machine jobs.
-- Kept scheduled marketing sequence jobs lifecycle-optional so existing non-run Trigger scheduling still works.
-- Removed stale `create-manual-call-task` Trigger job ID and kept the planned `marketing-create-manual-call-task` ID.
-- Enforced per-lead queue keys for lease-option sequence and manual-call child jobs.
-- Persisted `trigger_run_id` from artifact callbacks.
+- [ ] Link preview/staging Supabase project.
+- [ ] Confirm `supabase/.temp/project-ref` equals the expected preview/staging ref.
+- [ ] Run `scripts/preview_rollout_readiness.py --run-linked-dry-run`.
+- [ ] Apply migrations with `supabase db push --linked` only after the dry-run passes.
+- [ ] Record evidence in `docs/rollout-evidence/preview-YYYY-MM-DD.json`.
 
-Phase 5:
+### 2. Preview/staging Ares runtime gate
 
-- Added `TEXTGRID_STATUS_CALLBACK_URL` config and passed it through outbound SMS requests.
-- Provider side-effect failures during lead intake now create durable manual-review tasks visible in Mission Control.
-- Lead-intake and sequence dispatch outbound messages now persist provider message IDs when available.
-- TextGrid status callbacks update durable message status and record processed provider webhook receipts.
-- Booking confirmation sends preserve successful provider message IDs even if a later channel fails, while booking suppression/opportunity sync still proceeds.
+- [ ] Deploy Ares from the same commit used for Supabase migration evidence.
+- [ ] Set runtime backends to `supabase`:
+  - `CONTROL_PLANE_BACKEND=supabase`
+  - `MARKETING_BACKEND=supabase`
+  - `LEAD_MACHINE_BACKEND=supabase`
+  - `SITE_EVENTS_BACKEND=supabase`
+- [ ] Verify `/health`.
+- [ ] Verify protected routes reject unauthenticated calls.
+- [ ] Verify protected routes accept `Authorization: Bearer <runtime-key>`.
+- [ ] Prove Ares reads/writes Supabase-backed state.
+- [ ] Append Ares runtime evidence to the preview evidence JSON.
 
-Phase 6:
+### 3. Trigger.dev gate
 
-- Added canonical `POST /lead-machine/intake` backed by existing `LeadRecord` and `LeadEventRecord` repositories.
-- Generic lead intake is replay-safe through source-namespaced identity keys and deterministic intake event idempotency keys.
-- Unknown lead source values fail closed instead of silently becoming `manual`.
-- Trigger `lead-intake` now targets `/lead-machine/intake`; probate payloads keep a separate `probate-intake` job pointed at `/lead-machine/probate/intake`.
+- [ ] Configure Trigger with hosted Ares `RUNTIME_API_BASE_URL` and `RUNTIME_API_KEY`.
+- [ ] Run `npm --prefix trigger run typecheck`.
+- [ ] Deploy Trigger workers to preview/staging.
+- [ ] Prove lifecycle callbacks update Ares runs/events/artifacts.
+- [ ] Append Trigger evidence to the preview evidence JSON.
 
-Phase 7:
+### 4. Mission Control gate
 
-- Mission Control dashboard now exposes backend-owned `provider_failure_task_count`.
-- Provider-failure task counts and task rows are org-scoped through task details metadata, preventing cross-org leakage for same business/environment.
-- Mission Control tasks UI distinguishes provider-failure reviews while preserving normal manual-call rendering.
+- [ ] Install frontend dependencies if missing.
+- [ ] Run Mission Control typecheck/tests/build.
+- [ ] Deploy Mission Control pointed at hosted Ares with `VITE_RUNTIME_API_BASE_URL`.
+- [ ] Prove dashboard/inbox/runs/tasks load from Ares API source, not fixture fallback.
+- [ ] Append Mission Control evidence to the preview evidence JSON.
 
-Phase 8:
+### 5. Provider webhook / no-live smoke gate
 
-- Runtime command ingestion appends `hermes_command_invoked` audit events and `tool_call` usage records.
-- Approval creation/approval and run creation now append durable audit events; run creation records `run` usage.
-- Trigger lifecycle callbacks append `trigger_run_started`/`trigger_run_completed`/`trigger_run_failed` audit events, and started callbacks count `host_dispatch` usage attempts.
-- Replay requests append audit with actor context and preserve existing side-effect safety: approval-required commands create no child run until the replay approval is approved.
-- Observability is nonfatal after primary state changes, so audit/usage failures do not strand commands, approvals, runs, Trigger callbacks, or replays.
-- Agent-backed audit/usage scope is preserved through command persistence, approval paths, Trigger lifecycle fallback, replay approvals, deduped retries, and direct/hydrated Supabase command storage.
+- [ ] Configure TextGrid inbound/status webhook to hosted Ares.
+- [ ] Configure Cal.com booking webhook to hosted Ares.
+- [ ] Configure Instantly webhook to hosted Ares if cold outbound is in scope.
+- [ ] Run `uv run python scripts/smoke_provider_readiness.py`.
+- [ ] Run `uv run python scripts/smoke_full_stack_cohesion.py --no-live-sends`.
+- [ ] Prove Mission Control shows runs/leads/tasks/audit/usage/provider failures.
+- [ ] Append no-live/provider evidence to preview evidence JSON.
 
-Phase 9:
+### 6. Guarded live provider smoke gate
 
-- Added deterministic in-process full-stack smoke coverage in `scripts/smoke_full_stack_cohesion.py`.
-- The full-stack smoke exercises `/health`, Hermes tool discovery/invocation, Trigger lifecycle callbacks, lead intake, manual-call task intake, Cal.com booking webhook, TextGrid inbound webhook, Mission Control dashboard/runs, audit, usage, and repository-backed messages/tasks/bookings.
-- Full-stack smoke forces memory-backed settings, clears live provider credentials, patches route-level marketing services during the run, and blocks any attempted live provider request.
-- `reset_control_plane_store()` now clears dynamic marketing in-memory stores so repeated in-process smoke runs do not accumulate contacts, conversations, messages, bookings, or sequence enrollments.
-- Added `scripts/smoke_provider_readiness.py` for TextGrid/Resend request-shape validation without sending; live flags require explicit `--allow-live`.
-- Added `docs/smoke-tests/full-stack-cohesion.md` with the local smoke commands and no-live-sends contract.
+- [ ] Confirm operator-owned phone/email recipients.
+- [ ] Set explicit live smoke recipient flags.
+- [ ] Send exactly controlled test SMS/email.
+- [ ] Prove provider IDs/statuses/webhooks/receipts are captured.
+- [ ] Append live provider smoke evidence to preview evidence JSON.
 
-Phase 10:
+### 7. Production promotion gate
 
-- Added `scripts/preview_rollout_readiness.py` as a guarded preview/staging readiness gate.
-- The readiness gate refuses linked Supabase dry-runs unless `--expected-project-ref` matches `supabase/.temp/project-ref`.
-- The readiness gate cannot report `ready`, `can_apply_preview_migrations`, or `can_run_preview_smoke` until the linked Supabase dry-run executes and passes.
-- Added `docs/preview-staging-rollout.md` with the actual preview gate commands and no-live provider policy.
-- This checkout is not linked to a Supabase project ref, so no preview migrations, deploys, Trigger workers, or live provider sends were run.
-
-Phase 11:
-
-- Added `scripts/production_promotion_readiness.py` as a guarded production promotion gate.
-- Production promotion is blocked unless the linked production Supabase ref matches the expected ref, the linked dry-run passes, HEAD matches the staged commit, staging evidence JSON contains the same commit, a backup reference exists, production is explicitly acknowledged, production env is present, and all runtime backends are `supabase`.
-- Live provider smoke stays blocked unless `--allow-live-provider-smoke` and explicit SMS/email recipient flags are present.
-- Added `docs/production-promotion.md` with the promotion order and hard gates.
-- This checkout is not linked to a production project ref and lacks production env/evidence, so no production migrations, deploys, Trigger workers, or live provider sends were run.
+- [ ] Create production backup/rollback reference.
+- [ ] Link production Supabase project.
+- [ ] Run `scripts/production_promotion_readiness.py` with expected project ref, staged commit, staging evidence, backup reference, and `--acknowledge-production`.
+- [ ] Apply production migrations only if the gate passes.
+- [ ] Deploy production Ares from the exact staged commit.
+- [ ] Deploy production Trigger workers from the exact staged commit.
+- [ ] Deploy production Mission Control pointed at production Ares.
+- [ ] Run production no-live smoke.
+- [ ] Run optional guarded live provider smoke.
+- [ ] Record production evidence in `docs/rollout-evidence/production-YYYY-MM-DD.json`.
 
 ## Hard rules
 
@@ -114,33 +135,37 @@ Phase 11:
 - Do not make Hermes, Trigger.dev, providers, or Mission Control the source of truth.
 - Do not let Mission Control frontend call Supabase directly.
 - Do not rewrite already-applied baseline migrations in place.
-- Do not remove `business_id + environment` while adding `org_id`.
-- Do not run live provider sends without explicit opt-in recipient flags.
-- Preserve the existing dirty Supabase persistence work in `/Users/solomartin/Projects/Ares` until it is intentionally reconciled.
+- Do not run live SMS/email without explicit approved recipient flags.
+- Do not use fixture-backed UI success as production proof.
+- Do not promote a commit different from the staged/evidenced commit.
+- Do not run production migrations unless the linked Supabase project ref is verified.
 
-## Latest verification
+## Minimum local verification before merging this handoff branch
 
 ```bash
 git diff --check
-uv run pytest tests/smoke/test_health.py tests/api/test_runtime_config_contract.py tests/api/test_trigger_contract_files.py -q
-uv run pytest tests/db/test_supabase_control_plane_client.py tests/db/test_control_plane_supabase_adapters.py -q
-uv run pytest tests/api/test_commands.py tests/api/test_approvals.py tests/api/test_runs.py tests/api/test_replays.py tests/api/test_trigger_callbacks.py tests/api/test_hermes_tools.py tests/api/test_lead_machine_trigger_contract.py tests/api/test_marketing_sequence.py tests/api/test_marketing_leads.py -q
-uv run pytest tests/providers/test_textgrid.py tests/providers/test_resend.py tests/providers/test_calcom.py tests/services/test_inbound_sms_service.py tests/services/test_booking_service.py tests/api/test_marketing_runtime.py tests/api/test_marketing_webhooks.py tests/api/test_marketing_leads.py tests/api/test_mission_control.py tests/api/test_mission_control_marketing.py -q
-uv run pytest tests/api/test_lead_machine.py tests/services/test_lead_intake_service.py tests/api/test_lead_machine_trigger_contract.py -q
-uv run pytest tests/api/test_mission_control.py::test_provider_failure_tasks_are_org_scoped_in_dashboard_and_tasks tests/api/test_marketing_leads.py -q
-uv run pytest tests/api/test_audit.py tests/api/test_usage.py tests/api/test_replays.py -q
-uv run pytest tests/smoke/test_full_stack_contract.py -q
-uv run pytest tests/smoke/test_preview_rollout_readiness.py -q
-uv run pytest tests/smoke/test_production_promotion_readiness.py -q
-uv run python scripts/smoke_full_stack_cohesion.py --no-live-sends
-uv run python scripts/smoke_provider_readiness.py
 uv run pytest -q
+```
+
+Optional once Node dependencies exist:
+
+```bash
 npm --prefix trigger run typecheck
-npm --prefix apps/mission-control run test -- --run
 npm --prefix apps/mission-control run typecheck
+npm --prefix apps/mission-control run test -- --run
 npm --prefix apps/mission-control run build
 ```
 
-## Next gate
+## Definition of production ready
 
-All planned phases are implemented and QC-approved in the clean worktree. Hosted preview/staging/production promotion remains blocked until a verified linked target, env, staging evidence, and backup reference are supplied.
+Ares is production-ready only when:
+
+- [ ] hosted Supabase persistence is applied and verified
+- [ ] hosted Ares runtime is writing Supabase-backed state
+- [ ] Trigger.dev workers call hosted Ares and report lifecycle back
+- [ ] Mission Control uses hosted Ares API data, not fixtures
+- [ ] provider webhooks round-trip into Ares
+- [ ] no-live smoke passes in hosted environment
+- [ ] guarded live provider smoke passes with approved recipients
+- [ ] production evidence JSON exists
+- [ ] rollback/backup reference exists

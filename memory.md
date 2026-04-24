@@ -27,8 +27,11 @@
 
 ## Current Direction
 
-- `feature/ares-full-stack-cohesion-clean` is the current clean worktree branch for the full-stack cohesion plan.
-- `fix/origin-main-supabase-persistence-wiring` remains preserved as dirty local persistence work in `/Users/solomartin/Projects/Ares` and must be reconciled intentionally before Phase 2 Supabase implementation.
+- `test/production-readiness-handoff` is the current test/handoff branch for converting code-wired Ares into live production readiness gates.
+- `feature/ares-full-stack-cohesion-clean` completed the full-stack cohesion implementation and merged to `origin/main` at `0c14769`.
+- Production-readiness handoff: `docs/production-readiness-handoff.md`.
+- Production-readiness execution plan: `docs/superpowers/plans/2026-04-24-ares-production-readiness-test-branch-plan.md`.
+- `fix/origin-main-supabase-persistence-wiring` remains preserved as dirty local persistence work in `/Users/solomartin/Projects/Ares` and must be reconciled intentionally before any hosted rollout if still relevant.
 - Hermes is the current primary control shell and browser-capable driver
 - This repo should become the reusable real-estate operating runtime those drivers call into
 - Generalist runtime first, lanes and strategies second
@@ -171,15 +174,22 @@
 
 ## Open Work
 
-1. commit Phase 11 production promotion readiness on `feature/ares-full-stack-cohesion-clean`
+1. execute `docs/superpowers/plans/2026-04-24-ares-production-readiness-test-branch-plan.md` in hosted preview/staging before production
 2. hosted rollout remains blocked until verified linked targets, env, staging evidence, and backup references are supplied
-3. reconcile the preserved dirty Supabase persistence work before any hosted Supabase rollout
+3. create rollout evidence under `docs/rollout-evidence/` as each Supabase/Ares/Trigger/Mission Control/provider gate is proven
 4. keep post-merge Supabase follow-up scope narrow to persistence regressions and real hosted smoke only
 5. keep browser acquisition and ambiguous research in Hermes or other driver agents, not inside Ares
 6. add durable Trigger lead-machine jobs only where sync paths become operationally risky
 7. keep using `supabase start -x vector` on this machine until the Colima mount issue is fixed
 
 ## Change Log
+
+### 2026-04-24 Production Readiness Handoff Branch
+
+- Created `test/production-readiness-handoff` from `origin/main` commit `0c14769` as a test/handoff branch for the remaining live wiring gates.
+- Added `docs/production-readiness-handoff.md` to define, in layman and operator terms, what remains before Ares is fully wired and production ready.
+- Added `docs/superpowers/plans/2026-04-24-ares-production-readiness-test-branch-plan.md` with phased gates for preview Supabase, hosted Ares, Trigger.dev, Mission Control, provider webhooks, no-live smoke, guarded live provider smoke, production promotion, and evidence capture.
+- Updated `CONTEXT.md`, `TODO.md`, and `README.md` to make the production-readiness handoff the active route for future sessions.
 
 ### 2026-04-24 Full-Stack Cohesion Phase 0/1 Kickoff
 
