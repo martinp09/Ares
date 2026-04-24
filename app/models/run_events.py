@@ -20,6 +20,10 @@ class RunStartedCallbackRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     trigger_run_id: str | None = None
+    command_id: str | None = None
+    business_id: str | None = None
+    environment: str | None = None
+    idempotency_key: str | None = None
     started_at: datetime | None = None
 
 
@@ -27,6 +31,10 @@ class RunCompletedCallbackRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     trigger_run_id: str | None = None
+    command_id: str | None = None
+    business_id: str | None = None
+    environment: str | None = None
+    idempotency_key: str | None = None
     completed_at: datetime | None = None
 
 
@@ -34,6 +42,10 @@ class RunFailedCallbackRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     trigger_run_id: str | None = None
+    command_id: str | None = None
+    business_id: str | None = None
+    environment: str | None = None
+    idempotency_key: str | None = None
     completed_at: datetime | None = None
     error_classification: str = Field(min_length=1)
     error_message: str = Field(min_length=1)
@@ -43,6 +55,10 @@ class ArtifactProducedCallbackRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     trigger_run_id: str | None = None
+    command_id: str | None = None
+    business_id: str | None = None
+    environment: str | None = None
+    idempotency_key: str | None = None
     completed_at: datetime | None = None
     artifact_type: str = Field(min_length=1)
     payload: dict[str, Any] = Field(default_factory=dict)

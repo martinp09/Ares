@@ -7,6 +7,13 @@ export const LEAD_MACHINE_ENDPOINTS = {
   taskReminderOrOverdue: "/lead-machine/internal/task-reminder-or-overdue",
 } as const;
 
+export type LeadMachineRunContext = {
+  run_id?: string;
+  command_id?: string;
+  idempotency_key?: string;
+  trigger_run_id?: string;
+};
+
 export type ProbateIntakeRecordInput = {
   case_number?: string;
   cause_number?: string;
@@ -21,7 +28,7 @@ export type ProbateIntakePayload = {
   environment: string;
   records: ProbateIntakeRecordInput[];
   keep_only?: boolean;
-};
+} & LeadMachineRunContext;
 
 export type ProbateIntakeResponse = {
   processed_count: number;
@@ -51,7 +58,7 @@ export type OutboundEnqueuePayload = {
   verify_leads_on_import?: boolean;
   chunk_size?: number | null;
   wait_seconds?: number | null;
-};
+} & LeadMachineRunContext;
 
 export type OutboundEnqueueResponse = {
   automation_run_ids: string[];
@@ -66,7 +73,7 @@ export type InstantlyWebhookPayload = {
   payload: Record<string, unknown>;
   trusted?: boolean;
   trust_reason?: string | null;
-};
+} & LeadMachineRunContext;
 
 export type InstantlyWebhookResponse = {
   status: string;
@@ -87,7 +94,7 @@ export type FollowupStepRunnerPayload = {
   template_id: string;
   manual_call_checkpoint?: boolean;
   campaign_id?: string | null;
-};
+} & LeadMachineRunContext;
 
 export type FollowupStepRunnerResponse = {
   message_id: string;
@@ -107,7 +114,7 @@ export type SuppressionSyncPayload = {
   provider_event_id?: string | null;
   event_timestamp?: string | null;
   idempotency_key?: string | null;
-};
+} & LeadMachineRunContext;
 
 export type SuppressionSyncResponse = {
   status: string;
@@ -127,7 +134,7 @@ export type TaskReminderOrOverduePayload = {
   lead_id?: string | null;
   assigned_to?: string | null;
   priority?: "low" | "normal" | "high" | "urgent" | null;
-};
+} & LeadMachineRunContext;
 
 export type TaskReminderOrOverdueResponse = {
   status: string;

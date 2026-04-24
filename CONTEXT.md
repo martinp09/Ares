@@ -8,17 +8,17 @@
 
 ## Current Scope
 - Execute the full-stack cohesion plan in gated slices.
-- Phases 0/1, 2, and 3 are complete and QC-approved in the clean worktree.
-- No live Supabase migrations, provider sends, or production deploys have been run.
+- Phases 0/1, 2, 3, and 4 are complete and QC-approved in the clean worktree.
+- No live Supabase migrations, provider sends, Trigger deploys, or production deploys have been run.
 - The dirty Supabase persistence work in `/Users/solomartin/Projects/Ares` remains preserved outside this clean worktree.
 
 ## Current TODO
-1. Commit the Phase 2/3 slice after final diff review.
-2. Start Phase 4 Trigger.dev runtime contract next.
+1. Commit the Phase 4 Trigger runtime contract slice.
+2. Start Phase 5 provider adapter cohesion next.
 3. Keep `CONTROL_PLANE_BACKEND`, `MARKETING_BACKEND`, `LEAD_MACHINE_BACKEND`, and `SITE_EVENTS_BACKEND` memory-backed for local smoke unless a Supabase slice explicitly starts.
 
 ## Recent Change
-- 2026-04-24: Phase 2 hardened Supabase transaction flush/rollback for core commands, approvals, runs, events, and artifacts; Phase 3 added the Hermes runtime adapter contract, smoke script, and tool payload-stability regression. Full backend/frontend/Trigger gates are green.
+- 2026-04-24: Phase 4 tightened Trigger job IDs, lifecycle callbacks, queue keys, and callback persistence. Full backend/frontend/Trigger gates are green.
 
 ## Read These Sections In `memory.md`
 1. `## Current Direction`

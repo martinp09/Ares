@@ -171,8 +171,8 @@
 
 ## Open Work
 
-1. commit the Phase 2/3 slice on `feature/ares-full-stack-cohesion-clean`
-2. start Phase 4 Trigger.dev runtime contract
+1. commit the Phase 4 Trigger.dev runtime contract slice on `feature/ares-full-stack-cohesion-clean`
+2. start Phase 5 provider adapter cohesion
 3. reconcile the preserved dirty Supabase persistence work before any hosted Supabase rollout
 4. keep post-merge Supabase follow-up scope narrow to persistence regressions and real hosted smoke only
 5. keep browser acquisition and ambiguous research in Hermes or other driver agents, not inside Ares
@@ -199,6 +199,16 @@
 - Added regressions for core deletion flush, rollback after deletion/update failures, bigint string/int canonicalization, and parent-before-child run restore.
 - Phase 3 added `docs/hermes-ares-runtime-adapter-contract.md`, `scripts/smoke_hermes_runtime_adapter.py`, and Hermes tool payload-stability coverage.
 - Local adapter smoke succeeded against a short-lived Uvicorn server; the server was shut down afterward.
+
+### 2026-04-24 Full-Stack Cohesion Phase 4
+
+- Phase 4 standardized Trigger-to-Ares lifecycle callbacks through `reportRunLifecycle()` with snake_case request bodies and Ares-owned persistence.
+- Lead-machine Trigger jobs now use required `runWithLifecycle()` wrapping when they are mapped to Ares runs; marketing sequence jobs use `runWithOptionalLifecycle()` because current lease-option non-booker scheduling is not yet backed by an Ares run.
+- Removed the stale `create-manual-call-task` Trigger job ID and kept the planned `marketing-create-manual-call-task` job.
+- Lease-option sequence child jobs no longer inherit parent `runId`/`commandId`/`idempotencyKey`, preventing delayed child jobs from mutating the parent run lifecycle.
+- Manual-call and sequence child jobs now use per-lead queue keys based on business, environment, and lead.
+- Artifact callbacks now persist `trigger_run_id` on the canonical run before appending artifact rows.
+- QC approved Phase 4 after focused checks; broader gates passed with `uv run pytest -q`, Trigger typecheck, Mission Control tests/typecheck/build, and `git diff --check`.
 
 ### 2026-04-23 Origin Main Supabase Persistence Wiring
 

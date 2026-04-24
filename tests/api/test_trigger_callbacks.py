@@ -59,6 +59,29 @@ def test_run_started_updates_run_to_in_progress() -> None:
     assert detail["trigger_run_id"] == "trg-123"
 
 
+def test_run_started_accepts_trigger_runtime_contract_fields() -> None:
+    reset_control_plane_state()
+    client = build_client()
+    run_id = create_safe_run(client, idempotency_key="cmd-started-contract")
+
+    response = client.post(
+        f"/trigger/callbacks/runs/{run_id}/started",
+        json={
+            "trigger_run_id": "trg-contract",
+            "command_id": "cmd_contract",
+            "business_id": "limitless",
+            "environment": "dev",
+            "idempotency_key": "cmd-started-contract",
+        },
+        headers=AUTH_HEADERS,
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["event_type"] == "run_started"
+    assert body["trigger_run_id"] == "trg-contract"
+
+
 def test_artifact_produced_appends_artifact_rows_without_mutating_prior_artifacts() -> None:
     reset_control_plane_state()
     client = build_client()
@@ -94,6 +117,27 @@ def test_artifact_produced_appends_artifact_rows_without_mutating_prior_artifact
     assert len(detail["artifacts"]) == 2
     assert detail["artifacts"][0]["artifact_type"] == "market_research_report"
     assert detail["artifacts"][1]["artifact_type"] == "campaign_brief"
+
+
+def test_artifact_produced_persists_trigger_run_id_linkage() -> None:
+    reset_control_plane_state()
+    client = build_client()
+    run_id = create_safe_run(client, idempotency_key="cmd-artifact-trigger")
+
+    response = client.post(
+        f"/trigger/callbacks/runs/{run_id}/artifacts",
+        json={
+            "trigger_run_id": "trg-artifact-first",
+            "artifact_type": "lead_machine_intake",
+            "payload": {"processed_count": 2},
+        },
+        headers=AUTH_HEADERS,
+    )
+
+    assert response.status_code == 200
+    run_detail = client.get(f"/runs/{run_id}", headers=AUTH_HEADERS)
+    assert run_detail.status_code == 200
+    assert run_detail.json()["trigger_run_id"] == "trg-artifact-first"
 
 
 def test_run_completed_sets_status_completed() -> None:
