@@ -1020,7 +1020,6 @@ interface AgentInstallResponsePayload {
 }
 
 const defaultBaseUrl = import.meta.env.VITE_RUNTIME_API_BASE_URL ?? "";
-const defaultRuntimeApiKey = import.meta.env.VITE_RUNTIME_API_KEY;
 
 function trimTrailingSlash(value: string): string {
   return value.replace(/\/$/, "");
@@ -2032,7 +2031,7 @@ export function createMissionControlApi(
 ): MissionControlApi {
   const resolvedOptions: MissionControlApiOptions = {
     baseUrl: options.baseUrl ?? defaultBaseUrl,
-    runtimeApiKey: options.runtimeApiKey ?? defaultRuntimeApiKey,
+    runtimeApiKey: options.runtimeApiKey,
     fetchImpl: options.fetchImpl,
     orgId: options.orgId,
     businessId: options.businessId,

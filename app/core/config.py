@@ -23,7 +23,7 @@ class Settings(BaseSettings):
     marketing_backend: Literal["memory", "supabase"] = "memory"
     lead_machine_backend: Literal["memory", "supabase"] = "memory"
     database_url: str | None = None
-    site_events_backend: Literal["memory", "supabase"] = "supabase"
+    site_events_backend: Literal["memory", "supabase"] = "memory"
     runtime_provider_default: Literal["anthropic", "openai_compat", "local"] = "anthropic"
     supabase_url: str | None = Field(
         default=None,

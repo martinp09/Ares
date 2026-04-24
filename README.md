@@ -15,6 +15,7 @@ This repo is the deterministic runtime, policy layer, orchestration surface, and
 - `CONTEXT.md` is the short router and TODO file. Keep it under 50 lines and point to exact sections in `memory.md`.
 - `WAT_Architecture.md` defines the operating model for workflows, agents, and tools.
 - Hermes <-> Ares setup/runbook: `docs/hermes-ares-integration-runbook.md`
+- Full-stack local runbook: `docs/hermes-ares-trigger-supabase-runbook.md`
 
 ## Initial Direction
 
@@ -70,11 +71,43 @@ Current implementation notes:
 - site-event ingestion is append-only and non-blocking at the API layer
 - Supabase remains the intended system of record, but live wiring is intentionally deferred in this slice
 
+## Local Runtime Contract
+
+Default local development stays memory-backed unless a Supabase slice is intentionally enabled:
+
+```bash
+RUNTIME_API_BASE_URL=http://127.0.0.1:8000
+RUNTIME_API_KEY=dev-runtime-key
+CONTROL_PLANE_BACKEND=memory
+MARKETING_BACKEND=memory
+LEAD_MACHINE_BACKEND=memory
+SITE_EVENTS_BACKEND=memory
+HERMES_RUNTIME_API_BASE_URL=http://127.0.0.1:8000
+HERMES_RUNTIME_API_KEY=dev-runtime-key
+VITE_RUNTIME_API_BASE_URL=
+```
+
+Startup:
+
+```bash
+uv run --with uvicorn uvicorn app.main:app --host 127.0.0.1 --port 8000
+RUNTIME_API_BASE_URL=http://127.0.0.1:8000 RUNTIME_API_KEY=dev-runtime-key npm --prefix apps/mission-control run dev -- --host 127.0.0.1 --port 5173
+HERMES_RUNTIME_API_BASE_URL=http://127.0.0.1:8000 HERMES_RUNTIME_API_KEY=dev-runtime-key npm --prefix trigger run dev
+```
+
+First smoke:
+
+```bash
+curl -sS http://127.0.0.1:8000/health
+curl -sS -H 'Authorization: Bearer dev-runtime-key' http://127.0.0.1:8000/hermes/tools
+```
+
 ## Verification
 
 - Python: `uv run pytest -q`
 - Lead machine smoke: `uv run python scripts/smoke/lead_machine_smoke.py`
-- Trigger.dev: `npx tsc -p trigger/tsconfig.json --noEmit`
+- Trigger.dev: `npm --prefix trigger run typecheck`
+- Mission Control: `npm --prefix apps/mission-control run test -- --run`, `npm --prefix apps/mission-control run typecheck`, `npm --prefix apps/mission-control run build`
 
 ## Bootstrap
 
@@ -85,6 +118,8 @@ Current implementation notes:
 
 - `CONTEXT.md` for quick session routing
 - `memory.md` for indexed master memory
+- `docs/superpowers/plans/2026-04-24-ares-full-stack-cohesion-mega-plan.md` for the current cohesion integration scope
+- `docs/superpowers/specs/2026-04-24-ares-full-stack-cohesion-spec.md` for the accepted boundary gate
 - `docs/superpowers/plans/2026-04-18-ares-phased-implementation-plan.md` for the merged phased Ares implementation sequence
 - `docs/superpowers/plans/2026-04-21-ares-crm-master-scope-prd.json` as the overnight loop handoff artifact
 - future runtime database for canonical business state

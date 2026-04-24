@@ -27,7 +27,8 @@
 
 ## Current Direction
 
-- `fix/origin-main-supabase-persistence-wiring` is the current merge branch for finishing the remaining `origin/main` Supabase persistence work before taking more product surface.
+- `feature/ares-full-stack-cohesion-clean` is the current clean worktree branch for the full-stack cohesion plan.
+- `fix/origin-main-supabase-persistence-wiring` remains preserved as dirty local persistence work in `/Users/solomartin/Projects/Ares` and must be reconciled intentionally before Phase 2 Supabase implementation.
 - Hermes is the current primary control shell and browser-capable driver
 - This repo should become the reusable real-estate operating runtime those drivers call into
 - Generalist runtime first, lanes and strategies second
@@ -35,6 +36,8 @@
 - Marketing control plane is the first execution domain
 - Ares North Star: self-hosted operating system for distressed real-estate lead management
 - Source-of-truth implementation plan for phased Ares scope: `docs/superpowers/plans/2026-04-18-ares-phased-implementation-plan.md`
+- Current full-stack cohesion plan: `docs/superpowers/plans/2026-04-24-ares-full-stack-cohesion-mega-plan.md`
+- Current full-stack cohesion spec gate: `docs/superpowers/specs/2026-04-24-ares-full-stack-cohesion-spec.md`
 - Combined Mission Control + enterprise backlog execution plan: `docs/superpowers/plans/2026-04-21-mission-control-enterprise-backlog-master-plan.md`
 - Mission Control orchestration plan remains a live source input: `docs/superpowers/plans/2026-04-13-hermes-mission-control-orchestration-plan.md`
 - Enterprise agent platform plan remains a live source input: `docs/superpowers/plans/2026-04-15-ares-enterprise-agent-platform-implementation-plan.md`
@@ -69,6 +72,7 @@
 - `TRIGGER_SECRET_KEY` is present in the local `.env`
 - Trigger.dev local worker boot verified against project `proj_puouljyhwiraonjkpiki`
 - Local `.env` already includes `Cal.com`, `TextGrid`, and `Resend` credentials needed for the lease-option MVP
+- Local development defaults `SITE_EVENTS_BACKEND=memory` unless a Supabase persistence slice is explicitly enabled.
 - The active landing page lives at `/Users/solomartin/Business/website/lease-options-landing`
 - The landing page currently persists form submissions and redirects to `Cal.com`, but still hands automation off to `n8n`
 - A proven `TextGrid` adapter exists in `/Users/solomartin/Projects/Phone System/api/_lib/providers/textgrid.js`
@@ -167,13 +171,25 @@
 
 ## Open Work
 
-1. merge `fix/origin-main-supabase-persistence-wiring` to `main`
-2. keep post-merge follow-up scope narrow to Supabase persistence regressions and real hosted smoke only
-3. keep browser acquisition and ambiguous research in Hermes or other driver agents, not inside Ares
-4. add durable Trigger lead-machine jobs only where sync paths become operationally risky
-5. keep using `supabase start -x vector` on this machine until the Colima mount issue is fixed
+1. complete the Phase 0/1 full-stack cohesion QC gate on `feature/ares-full-stack-cohesion-clean`
+2. reconcile the preserved dirty Supabase persistence work before starting Phase 2 migrations or adapter changes
+3. keep post-merge Supabase follow-up scope narrow to persistence regressions and real hosted smoke only
+4. keep browser acquisition and ambiguous research in Hermes or other driver agents, not inside Ares
+5. add durable Trigger lead-machine jobs only where sync paths become operationally risky
+6. keep using `supabase start -x vector` on this machine until the Colima mount issue is fixed
 
 ## Change Log
+
+### 2026-04-24 Full-Stack Cohesion Phase 0/1 Kickoff
+
+- Created clean worktree `/Users/solomartin/Projects/Ares-full-stack-cohesion` on `feature/ares-full-stack-cohesion-clean` from `origin/main`.
+- Preserved the dirty Supabase persistence checkout at `/Users/solomartin/Projects/Ares` for later intentional reconciliation.
+- Restored the remote docs branch handoff plans into the live tree: `2026-04-24-ares-full-stack-cohesion-mega-plan.md` and `2026-04-24-ares-supabase-wiring-from-memory.md`.
+- Added the full-stack cohesion spec gate and local Hermes/Ares/Trigger/Supabase runbook.
+- Cleaned `.env.example` into explicit runtime, Supabase, Trigger, provider, Mission Control, and model-provider sections.
+- Set the local site-events default to memory-backed state so local health/smoke work does not require Supabase credentials.
+- Added Vite dev proxy auth for Mission Control so local UI calls stay authenticated without exposing a public runtime key.
+- Added Phase 1 config contract tests and static Trigger runtime API contract tests.
 
 ### 2026-04-23 Origin Main Supabase Persistence Wiring
 
