@@ -1,0 +1,256 @@
+{
+  "field_test": "curative_title_land_records_recon",
+  "tested_at": "2026-04-24",
+  "seed_case": {
+    "case_number": "543678",
+    "county": "Harris",
+    "filing_type": "APP FOR INDEPENDENT ADMINISTRATION WITH AN HEIRSHIP",
+    "decedent_name": "Tangie Renee Williams",
+    "date_of_death_from_case_event": "2026-02-09",
+    "applicant": "Brittany C Edwards",
+    "applicant_address": "1614 Royal Grantham Ct, Houston, TX 77073",
+    "attorney": "LIMBRICK, DONALD W.",
+    "attorney_ad_litem": ["Don D. Ford, III"],
+    "respondents_or_heir_candidates": [
+      "Frederick L Phillips",
+      "Christopher Dewanye Mcfadden",
+      "Jordan Anthony Brown",
+      "Laporchea Michelle Mcfadden"
+    ],
+    "case_clues": [
+      "Proof of Heirship by Publication",
+      "Notice of Deposit of Funds for Potential Attorney Ad Litem",
+      "Attorney Appointee Fee Deposited",
+      "Case Initiated Application (OCA) - INADM-HRSHP; DOD: 2/9/26; PUBL-DCR RD; 4/27/26",
+      "Abstract of Notice"
+    ]
+  },
+  "browser_harness_sources_checked": [
+    {
+      "source": "Harris County Clerk Real Property",
+      "url": "https://www.cclerk.hctx.net/Applications/WebSearch/RP.aspx",
+      "search": {
+        "field": "Grantor",
+        "query": "Williams Tangie"
+      },
+      "status": "results_found"
+    },
+    {
+      "source": "Harris County Tax Office Delinquent Account Search",
+      "url": "https://www.hctax.net/Property/DelinquentTax",
+      "search": {
+        "field": "Name",
+        "query": "Williams Tangie"
+      },
+      "status": "no_result_from_name_search"
+    },
+    {
+      "source": "TruePeopleSearch",
+      "url": "https://www.truepeoplesearch.com/results?name=Brittany%20C%20Edwards&citystatezip=Houston%2C%20TX",
+      "search": {
+        "query": "Brittany C Edwards Houston TX"
+      },
+      "status": "blocked_by_cloudflare"
+    },
+    {
+      "source": "CyberBackgroundChecks",
+      "url": "https://www.cyberbackgroundchecks.com/people/brittany-edwards/tx/houston",
+      "search": {
+        "query": "Brittany Edwards Houston TX"
+      },
+      "status": "blocked_by_cloudflare"
+    },
+    {
+      "source": "Bing web search",
+      "url": "https://www.bing.com/search?q=%22Brittany+C+Edwards%22+%22Houston%22",
+      "search": {
+        "query": "\"Brittany C Edwards\" \"Houston\""
+      },
+      "status": "blocked_by_cloudflare_challenge"
+    }
+  ],
+  "harris_real_property_matches": [
+    {
+      "file_number": "X177166",
+      "file_date": "11/10/2003",
+      "instrument_type": "D/T",
+      "names": "Grantor: BROWN BOBBY ETAL; Grantor: BROWN TANGIE WILLIAMS ETAL; Grantor: WILLIAMS TANGIE ETAL; Grantee: CHASE MANHATTAN MTG CORP; Trustee: BROWN CHARLES A TRE",
+      "legal_description": "FALLBROOK Sec: 3 Lot: 1181 Block: 24",
+      "pages": 6,
+      "film_code": "578102265",
+      "related_docs_present": true
+    },
+    {
+      "file_number": "W501407",
+      "file_date": "03/14/2003",
+      "instrument_type": "W/D",
+      "names": "Grantor: WILLIAMS OTIS LADELL ETAL; Grantor: WILLIAMS TANGIE ETAL; Grantee: HUFFSMITH KOHRVILLE INC",
+      "legal_description": "PERKINS W; Misc: 4.673; Abstract: 621",
+      "pages": 4,
+      "film_code": "564482719"
+    },
+    {
+      "file_number": "W397760",
+      "file_date": "01/31/2003",
+      "instrument_type": "W/D",
+      "names": "Grantor: WILLIAMS OTIS LADELL ETAL; Grantor: WILLIAMS TANGIE ETAL; Grantee: H K CONSTRUCTION",
+      "legal_description": "PERKINS W; Misc: 4.673; Abstract: 621",
+      "pages": 3,
+      "film_code": "562471182"
+    },
+    {
+      "file_number": "W397757",
+      "file_date": "01/31/2003",
+      "instrument_type": "AFFT",
+      "names": "Grantor: GREENE JOANNE ETAL; Grantor: WILLIAMS SANDRA HARRIS ETA; Grantor: WILLIAMS TANGIE ETAL; Grantee: WILLIAMS OTIS EST",
+      "legal_description": "PERKINS W; Misc: 4.673; Abstract: 621",
+      "pages": 5,
+      "film_code": "562471171",
+      "curative_title_relevance": "Affidavit tied to Williams Otis estate and Tangie Williams as grantor; likely heirship/estate-chain evidence."
+    },
+    {
+      "file_number": "W383936",
+      "file_date": "01/27/2003",
+      "instrument_type": "AFFT",
+      "names": "Grantor: GREEN JOANNE ETAL; Grantor: WILLIAMS SANDRA ETAL; Grantor: WILLIAMS TANGIE ETAL; Grantee: WILLIAMS OTIS EST",
+      "legal_description": "PERKINS W; Misc: 4.673; Abstract: 621",
+      "pages": 6,
+      "film_code": "562212678",
+      "curative_title_relevance": "Second affidavit tied to Williams Otis estate and Tangie Williams; likely document-image priority."
+    },
+    {
+      "file_number": "V302389",
+      "file_date": "09/14/2001",
+      "instrument_type": "CONT",
+      "names": "Grantor: MCFADDEN TANGIE W ETAL; Grantor: WILLIAMS TANGIE ETAL; Grantee: BROWN BOBBY",
+      "legal_description": "FALLBROOK Sec: 3 Lot: 1181 Block: 24",
+      "pages": 5,
+      "film_code": "544042424",
+      "curative_title_relevance": "Connects Tangie Williams / Tangie W McFadden identity variant to Bobby Brown and the Fallbrook property."
+    },
+    {
+      "file_number": "V302388",
+      "file_date": "09/14/2001",
+      "instrument_type": "D/T",
+      "names": "Grantor: MCFADDEN TANGIE W ETAL; Grantor: WILLIAMS TANGIE ETAL; Grantee: SMALL BUS ADMN; Trustee: FLATO FRANCIS M TRE",
+      "legal_description": "FALLBROOK Sec: 3 Lot: 1181 Block: 24",
+      "pages": 6,
+      "film_code": "544042418"
+    },
+    {
+      "file_number": "U130254",
+      "file_date": "12/16/1999",
+      "instrument_type": "NOTICE",
+      "names": "Grantor: LARKSTONE BLDG CO ETAL; Grantor: WILLIAMS TANGIE ETAL; Grantee: LARKSTONE BLDG CO ETAL; Grantee: WILLIAMS TANGIE ETAL",
+      "legal_description": "FALLBROOK Sec: 3 Lot: 1181 Block: 24",
+      "pages": 4,
+      "film_code": "529670558"
+    },
+    {
+      "file_number": "U130253",
+      "file_date": "12/16/1999",
+      "instrument_type": "D/T",
+      "names": "Grantor: WILLIAMS TANGIE; Grantee: HARRIS CTY; Trustee: ECKELS ROBERT TRE",
+      "legal_description": "FALLBROOK Sec: 3 Lot: 1181 Block: 24",
+      "pages": 12,
+      "film_code": "529670546"
+    },
+    {
+      "file_number": "U130252",
+      "file_date": "12/16/1999",
+      "instrument_type": "D/T",
+      "names": "Grantor: WILLIAMS TANGIE; Grantee: FIRST GRNTY FINL CORP; Trustee: HAUSLER LARRY TRE",
+      "legal_description": "FALLBROOK Sec: 3 Lot: 1181 Block: 24",
+      "pages": 6,
+      "film_code": "529670540"
+    },
+    {
+      "file_number": "RP-2022-274022",
+      "file_date": "05/25/2022",
+      "instrument_type": "MODIF",
+      "names": "Grantor: BROWN TANGIE; Grantor: BROWN TANGIE W; Grantor: BROWN TANGIE WILLIAMS; Grantor: WILLIAMS TANGIE; Grantee: MIDFIRST BANK",
+      "legal_description": "FALLBROOK Sec: 3 Lot: 1181 Block: 24",
+      "pages": 8,
+      "film_code": "RP-2022-274022",
+      "related_docs_present": true,
+      "curative_title_relevance": "Recent 2022 mortgage modification suggests the Fallbrook property chain remained active close to decedent death; high-priority property candidate."
+    },
+    {
+      "file_number": "RP-2017-563067",
+      "file_date": "12/22/2017",
+      "instrument_type": "MODIF",
+      "names": "Grantor: BROWN TANGIE WILLIAMS; Grantor: WILLIAMS TANGIE; Grantor: WILLIAMS TANGIE B; Grantee: CHASE HOME FINANCE LLC; Grantee: CHASE MANHATTAN MORTGAGE CORPORATION; Grantee: JPMORGAN CHASE BANK N A",
+      "legal_description": "FALLBROOK Sec: 3 Lot: 1181 Block: 24",
+      "pages": 13,
+      "film_code": "RP-2017-563067"
+    },
+    {
+      "file_number": "RP-2017-563055",
+      "file_date": "12/22/2017",
+      "instrument_type": "D/T",
+      "names": "Grantor: BROWN TANGIE WILLIAMS; Grantor: WILLIAMS TANGIE; Grantor: WILLIAMS TANGIE B; Grantee: U S DEPARTMENT OF HOUSING AND URBAN DEVELOPMENT; Trustee: KESLER REX; Trustee: REDER T; Trustee: SANCHEZ N",
+      "legal_description": "FALLBROOK Sec: 3 Lot: 1181 Block: 24",
+      "pages": 7,
+      "film_code": "RP-2017-563055"
+    }
+  ],
+  "provisional_property_threads": [
+    {
+      "thread_id": "fallbrook_sec3_lot1181_blk24",
+      "legal_description": "FALLBROOK Sec: 3 Lot: 1181 Block: 24",
+      "associated_names": [
+        "Tangie Williams",
+        "Tangie W McFadden",
+        "Tangie Williams Brown",
+        "Bobby Brown"
+      ],
+      "recording_span": "1999-2022",
+      "high_value_documents": [
+        "RP-2022-274022",
+        "RP-2017-563067",
+        "RP-2017-563055",
+        "X177166",
+        "V302389",
+        "V302388",
+        "U130254",
+        "U130253",
+        "U130252"
+      ],
+      "confidence": "high",
+      "why_it_matters": "Repeated instruments over 1999-2022 connect Tangie identity variants to one Harris County legal description. This is a strong candidate property thread for heir/partial-rights review."
+    },
+    {
+      "thread_id": "perkins_w_abstract621_4_673_acres",
+      "legal_description": "PERKINS W; 4.673 acres; Abstract 621",
+      "associated_names": [
+        "Tangie Williams",
+        "Otis Ladell Williams",
+        "Williams Otis Estate",
+        "Joanne/Joan Greene",
+        "Sandra/Sandra Harris Williams"
+      ],
+      "recording_span": "2003",
+      "high_value_documents": [
+        "W501407",
+        "W397760",
+        "W397757",
+        "W383936"
+      ],
+      "confidence": "medium_high",
+      "why_it_matters": "Two affidavits tied to the Otis Williams estate plus warranty deed activity suggest a historical heirship/title chain that may reveal family relationships or prior inheritance patterns."
+    }
+  ],
+  "free_skiptrace_status": {
+    "truepeoplesearch": "blocked_by_cloudflare",
+    "cyberbackgroundchecks": "blocked_by_cloudflare",
+    "bing": "blocked_by_cloudflare_challenge",
+    "interpretation": "Free skiptrace is feasible conceptually but this browser environment is blocked by major people-search/search surfaces without residential/manual session support. Treat as a workflow/environment gate, not a data failure."
+  },
+  "next_actions": [
+    "Pull/view Harris Clerk images for RP-2022-274022, RP-2017-563067, RP-2017-563055, X177166, V302389, W397757, and W383936 using authorized county access; do not bypass login/CAPTCHA.",
+    "Resolve Fallbrook Sec 3 Lot 1181 Block 24 to HCAD account/property address via HCAD public data or county index legal-description search.",
+    "Build person aliases for Tangie Williams / Tangie W McFadden / Tangie Williams Brown before skiptrace.",
+    "Use document images to identify heirs/descendants/affiants from affidavit and deed text, then run free-source skiptrace in a human/residential browser session or via approved provider.",
+    "Keep respondent/heir names from probate as candidate contacts, but verify against land-record chain before outreach."
+  ]
+}

@@ -184,6 +184,14 @@
 
 ## Change Log
 
+### 2026-04-24 Tangie Williams Land-Records Recon Field Test
+
+- Ran first browser-harness curative-title land-record recon field test on Harris probate case `543678` / Tangie Renee Williams.
+- Harris real-property grantor search for `Williams Tangie` exposed a strong `FALLBROOK Sec 3 Lot 1181 Block 24` thread with 1999-2022 instruments and aliases `Tangie Williams`, `Tangie W McFadden`, and `Tangie Williams Brown`.
+- The same search exposed a `PERKINS W; 4.673 acres; Abstract 621` Otis Williams estate thread with 2003 `AFFT` records likely useful for family/heir mapping.
+- Free people-search checks against TruePeopleSearch, CyberBackgroundChecks, and Bing were blocked by Cloudflare/challenge in this browser environment; treat free skiptrace as an environment/access gate, not a data failure.
+- Evidence saved under `docs/rollout-evidence/land-records-recon-2026-04-24/`.
+
 ### 2026-04-24 Curative Title Data Pipeline Doctrine
 
 - Added `docs/curative-title-data-pipeline.md` to define the land-record-first curative-title workflow: deeds, affidavits, probate-related recordings, grantor/grantee chains, legal descriptions, and document details drive heir/descendant and partial-rights discovery.

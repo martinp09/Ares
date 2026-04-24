@@ -22,6 +22,7 @@
 4. Do not call Ares fully production-ready until the final acceptance gate and production evidence are complete.
 
 ## Recent Change
+- 2026-04-24: Ran first browser-harness curative-title land-record recon field test on Tangie Renee Williams / Harris probate case `543678`; saved Fallbrook and Perkins/Otis Williams estate document-thread evidence under `docs/rollout-evidence/land-records-recon-2026-04-24/`.
 - 2026-04-24: Added `docs/curative-title-data-pipeline.md` to make land-record document/deed review and browser-harness research foundational for curative-title heir/descendant discovery.
 - 2026-04-24: Added Harris probate rollout evidence: 202 last-week rows, 113 keep-now rows, 12 priority heirship/title-friction case-detail enrichments, and an Ares memory-backed intake simulation that bridged all 12 priority cases into canonical leads while leaving HCAD/tax overlay as the next backend gap.
 
