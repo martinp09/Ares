@@ -1,0 +1,123 @@
+{
+  "bridged_count": 12,
+  "input_count": 12,
+  "keep_now_count": 12,
+  "lead_ids": [
+    "lead_c422ddd319d3ba754e3ce819",
+    "lead_42dd3442321dc3d0a13bc92c",
+    "lead_bf7736c78960fa4f9e9eceee",
+    "lead_d76da410c006bcc8cabd3fa5",
+    "lead_54844d60a37cac83ef3f9371",
+    "lead_7bb0190edce8f94478fff09c",
+    "lead_3d8f339c8f74f7a24feaee24",
+    "lead_a96bbfc6940567ec6de023ed",
+    "lead_6dd37ca0c4bfb5d73f48124f",
+    "lead_318c89f528fafd5c58dfb3f5",
+    "lead_1d3c32d62c163328ea308a50",
+    "lead_b75d9c1f031e0c8110e94064"
+  ],
+  "lead_score_max": 75.0,
+  "lead_score_min": 59.0,
+  "received_count": 12,
+  "records": [
+    {
+      "bridged_lead_id": "lead_c422ddd319d3ba754e3ce819",
+      "case_number": "543653",
+      "contact_confidence": "medium",
+      "hcad_match_status": "unmatched",
+      "keep_now": true,
+      "lead_score": 75.0
+    },
+    {
+      "bridged_lead_id": "lead_42dd3442321dc3d0a13bc92c",
+      "case_number": "543652",
+      "contact_confidence": "medium",
+      "hcad_match_status": "unmatched",
+      "keep_now": true,
+      "lead_score": 75.0
+    },
+    {
+      "bridged_lead_id": "lead_bf7736c78960fa4f9e9eceee",
+      "case_number": "543650",
+      "contact_confidence": "medium",
+      "hcad_match_status": "unmatched",
+      "keep_now": true,
+      "lead_score": 75.0
+    },
+    {
+      "bridged_lead_id": "lead_d76da410c006bcc8cabd3fa5",
+      "case_number": "543646",
+      "contact_confidence": "medium",
+      "hcad_match_status": "unmatched",
+      "keep_now": true,
+      "lead_score": 75.0
+    },
+    {
+      "bridged_lead_id": "lead_54844d60a37cac83ef3f9371",
+      "case_number": "543680",
+      "contact_confidence": "medium",
+      "hcad_match_status": "unmatched",
+      "keep_now": true,
+      "lead_score": 75.0
+    },
+    {
+      "bridged_lead_id": "lead_7bb0190edce8f94478fff09c",
+      "case_number": "543678",
+      "contact_confidence": "medium",
+      "hcad_match_status": "unmatched",
+      "keep_now": true,
+      "lead_score": 75.0
+    },
+    {
+      "bridged_lead_id": "lead_3d8f339c8f74f7a24feaee24",
+      "case_number": "543677",
+      "contact_confidence": "medium",
+      "hcad_match_status": "unmatched",
+      "keep_now": true,
+      "lead_score": 75.0
+    },
+    {
+      "bridged_lead_id": "lead_a96bbfc6940567ec6de023ed",
+      "case_number": "543672",
+      "contact_confidence": "medium",
+      "hcad_match_status": "unmatched",
+      "keep_now": true,
+      "lead_score": 75.0
+    },
+    {
+      "bridged_lead_id": "lead_6dd37ca0c4bfb5d73f48124f",
+      "case_number": "543759",
+      "contact_confidence": "medium",
+      "hcad_match_status": "unmatched",
+      "keep_now": true,
+      "lead_score": 75.0
+    },
+    {
+      "bridged_lead_id": "lead_318c89f528fafd5c58dfb3f5",
+      "case_number": "543745",
+      "contact_confidence": "medium",
+      "hcad_match_status": "unmatched",
+      "keep_now": true,
+      "lead_score": 59.0
+    },
+    {
+      "bridged_lead_id": "lead_1d3c32d62c163328ea308a50",
+      "case_number": "525833-401",
+      "contact_confidence": "medium",
+      "hcad_match_status": "unmatched",
+      "keep_now": true,
+      "lead_score": 75.0
+    },
+    {
+      "bridged_lead_id": "lead_b75d9c1f031e0c8110e94064",
+      "case_number": "543801",
+      "contact_confidence": "medium",
+      "hcad_match_status": "unmatched",
+      "keep_now": true,
+      "lead_score": 75.0
+    }
+  ],
+  "with_applicant_in_raw_payload": 12,
+  "with_applicant_mailing_address": 11,
+  "with_heir_or_respondent_candidates": 2
+}

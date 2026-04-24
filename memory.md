@@ -184,6 +184,13 @@
 
 ## Change Log
 
+### 2026-04-24 Probate Rollout Evidence
+
+- Added Harris County probate rollout evidence under `docs/rollout-evidence/probate-smoke-2026-04-24/`: 202 raw last-week rows, 113 keep-now rows, and 12 priority heirship/title-friction detail enrichments.
+- Case-detail enrichment uses the Harris Clerk `CourtCaseDetail.aspx?ID=...` AJAX detail path because the search-result list view does not expose executor/applicant/heir data.
+- Ares memory-backed intake simulation accepted all 12 enriched priority cases, kept all 12, bridged all 12 into canonical leads, and scored them 59.0–75.0.
+- Remaining backend gap: HCAD/property matching and tax delinquency overlay were not run; applicant/respondent/heir details currently persist in `raw_payload` instead of first-class probate fields.
+
 ### 2026-04-24 Production Readiness Handoff Branch
 
 - Created `test/production-readiness-handoff` from `origin/main` commit `0c14769` as a test/handoff branch for the remaining live wiring gates.

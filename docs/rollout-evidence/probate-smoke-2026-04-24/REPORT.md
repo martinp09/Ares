@@ -141,3 +141,48 @@ Ares processed: **113**, bridged canonical leads: **113**
 | 543805 | 04/23/2026 | 5 | PROBATE OF WILL (INDEPENDENT ADMINISTRATION) | Thomas Trigg Lupher | not in search results |
 | 543807 | 04/23/2026 | 4 | INDEPENDENT ADMINISTRATION | Robert Clayton Swanson | not in search results |
 | 543808 | 04/23/2026 | 5 | INDEPENDENT ADMINISTRATION | Betty Sue O'Neil Reynolds | not in search results |
+
+## Priority case-detail enrichment smoke
+
+A second pass followed the Harris County case-detail AJAX endpoint (`CourtCaseDetail.aspx?ID=...`) for 12 highest-priority heirship/title-friction cases. The list-view still does not expose parties; the detail endpoint does.
+
+Ares enriched-priority simulation:
+
+- Input priority cases: **12**
+- Kept by Ares: **12**
+- Bridged canonical leads: **12**
+- Lead score range: **59.0–75.0**
+- Applicant captured in raw payload: **12**
+- Applicant mailing address mapped for current model: **11**
+- Respondent/heir candidates exposed by detail rows: **2**
+
+Evidence files added:
+
+- `priority_case_detail_raw.json`
+- `priority_keep_now_enriched.json`
+- `ares_priority_case_detail_intake_summary.json`
+- `ares_priority_probate_records.json`
+- `ares_priority_canonical_leads.json`
+
+### Priority enriched lead list
+
+| Case | Type | Decedent | Applicant / executor clue | Applicant address | Respondent / heir candidates | Key clue | Ares score |
+|---|---|---|---|---|---|---|---:|
+| 543653 | APP FOR INDEPENDENT ADMINISTRATION WITH AN HEIRSHIP | Dorothy Jean Dawson | Chris Leslie Bolivar, Sr. | 7802 Chasewood Dr, Missouri City TX 77489 | — | 04/21/2026: Basic Personal - Out / Private - Charlotte Lavonne Bolivar Weatherby- for pick up | 75.0 |
+| 543652 | APP FOR INDEPENDENT ADMINISTRATION WITH AN HEIRSHIP | Janet Marie Mcmahan | Patrick Kelly McMahan | 5073 N. Nelson Dr, Katy TX 77493 | — | 04/21/2026: Notice of Deposit of Funds for Potential Attorney Ad Litem; 04/20/2026: Proof of Heirship by Publication | 75.0 |
+| 543650 | APP FOR INDEPENDENT ADMINISTRATION WITH AN HEIRSHIP | David Mark Lemons | James Corwin Lemons | 6750 Shining Sumac Ave, Houston TX 77084 | — | 04/20/2026: Proof of Heirship by Publication | 75.0 |
+| 543646 | APP FOR INDEPENDENT ADMINISTRATION WITH AN HEIRSHIP | Horace Edward Wicker | Randy Edward Wicker | 5810 Horse Prairie Dr., Katy TX 77449 | — | 04/21/2026: ADMINISTRATION (IND/ DEP) Posting | 75.0 |
+| 543680 | APP TO DETERMINE HEIRSHIP | Debra Ann Young | Cinceria Johnson | 1918 Skipwood Dr, Missouri City TX 77489 | — | 04/21/2026: Order Approving/Denying Emergency Intervention - For Funeral and Burial Expenses; In the amount of $5,000.00; 04/20/2026: Case Initiated Application (OCA) - Emergency Intervention Application for Funeral and Burial Expenses | 75.0 |
+| 543678 | APP FOR INDEPENDENT ADMINISTRATION WITH AN HEIRSHIP | Tangie Renee Williams | Brittany C Edwards | 1614 Royal Grantham Ct, Houston TX 77073 | Frederick L Phillips, Christopher Dewanye Mcfadden, Jordan Anthony Brown, Laporchea Michelle Mcfadden | 04/21/2026: Proof of Heirship by Publication; 04/20/2026: Notice of Deposit of Funds for Potential Attorney Ad Litem | 75.0 |
+| 543677 | APP FOR INDEPENDENT ADMINISTRATION WITH AN HEIRSHIP | Nicolas Quintanilla | Candida Neptalia Quintanilla | 12047 Green Coral Drive, Houston TX 77044 | — | 04/20/2026: Case Initiated Application (OCA) - INADM-HRSHP; 09/16/2025; NO SERV. REQ. | 75.0 |
+| 543672 | APP FOR INDEPENDENT ADMINISTRATION WITH AN HEIRSHIP | Cindy Seltzer | Megan Galindo | 13018 Scenic Ritter St, Hedwig TX 78152 | — | 04/22/2026: Notice of Deposit of Funds for Potential Attorney Ad Litem; 04/21/2026: Proof of Heirship by Publication | 75.0 |
+| 543759 | APP TO DETERMINE HEIRSHIP | Robert Lee Warren | Timothy Bernard Wilson | 1514 Lake Buchanan Cr, Richmond TX 77406 | — | 04/22/2026: Case Initiated Application (OCA) - HRSHP; DOD: 8/27/1998; publ-dcr , rd : 4/27/26 | 75.0 |
+| 543745 | APP FOR INDEPENDENT ADMINISTRATION WITH AN HEIRSHIP | Lisa Ann Couch | Lisa Ann Couch | — | — | 04/22/2026: Application to Determine Heirship - HRSHP; DOD: 3/21/24; PUBL-DCR RD: 5/11/27 | 59.0 |
+| 525833-401 | APP TO DETERMINE HEIRSHIP | Daniel R. Montoya | Annette Montoya | 4044 Basswood Dr, Dickinson TX 77539 | Larence Montoya, Adam R Montoya, Maria Silva, Monica Heimlich | 04/22/2026: Case Initiated Application (OCA) - Original Application for Partition and Distribution of Heirs Property | 75.0 |
+| 543801 | APP TO DETERMINE HEIRSHIP | Gloria Lavaughn Tyler Harris | Carlotta Marie Tyler | 3014 Bolt St, Houston TX 77051 | — | 04/23/2026: Notice of Deposit of Funds for Potential Attorney Ad Litem; 04/23/2026: Application to Appoint Aty or Gdn Ad Ltm (No Fee) - Motion to Appoint Attorney Ad Litem | 75.0 |
+
+### Remaining gaps from this smoke
+
+- HCAD/property matching was not run in this case-detail pass, so all priority leads remain `hcad_match_status=unmatched`.
+- Ares preserves applicant/heir detail in `raw_payload`, but the core probate model still lacks first-class applicant/respondent columns. That is the next backend wire-up if these fields need Mission Control filtering, assignment, or campaign export without custom raw-payload parsing.
+- Tax delinquency overlay still needs the HCAD match output first. No fake tax flag was injected.

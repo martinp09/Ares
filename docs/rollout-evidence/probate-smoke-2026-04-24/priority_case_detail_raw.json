@@ -1,0 +1,671 @@
+{
+  "525833-401": {
+    "event_id": "Cbv6vhxwtk5UkA5_5RaJ17xaDwhAqVfFXZUtIOMmGcw.",
+    "events": [
+      {
+        "Case": "525833-401",
+        "Comments": "Original Application for Partition and Distribution of Heirs Property",
+        "Event Date": "04/22/2026",
+        "Event Desc": "Case Initiated Application (OCA)"
+      },
+      {
+        "Case": "525833-401",
+        "Comments": "",
+        "Event Date": "04/22/2026",
+        "Event Desc": "Abstract of Notice"
+      }
+    ],
+    "parties": [
+      {
+        "": "",
+        "Attorney": "MCANINCH, DOUGLAS A.\nDOUGLAS A MCANINCH PC\nP.O. Box 2290\nFriendswood\u00a0TX\u00a077549\nPhone 713-254-1157\nFax 281-486-9295",
+        "Case": "525833-401",
+        "Party": "Annette Montoya\n4044 Basswood Dr\nDickinson\u00a0TX\u00a077539",
+        "Role": "Applicant"
+      },
+      {
+        "": "",
+        "Attorney": "",
+        "Case": "525833-401",
+        "Party": "Daniel R. Montoya",
+        "Role": "Deceased"
+      },
+      {
+        "": "",
+        "Attorney": "",
+        "Case": "525833-401",
+        "Party": "Larence Montoya",
+        "Role": "Respondent"
+      },
+      {
+        "": "",
+        "Attorney": "",
+        "Case": "525833-401",
+        "Party": "Adam R Montoya",
+        "Role": "Respondent"
+      },
+      {
+        "": "",
+        "Attorney": "",
+        "Case": "525833-401",
+        "Party": "Maria Silva",
+        "Role": "Respondent"
+      },
+      {
+        "": "",
+        "Attorney": "",
+        "Case": "525833-401",
+        "Party": "Monica Heimlich",
+        "Role": "Respondent"
+      }
+    ],
+    "party_id": "-O25Sx-wsMVqaM6z9f8ao2eiouWufveHh_jwQ17S-Ck."
+  },
+  "543646": {
+    "event_id": "Cbv6vhxwtk5UkA5_5RaJ12JnHia5U0AGjyD58V93q-s.",
+    "events": [
+      {
+        "Case": "543646",
+        "Comments": "",
+        "Event Date": "04/21/2026",
+        "Event Desc": "ADMINISTRATION (IND/ DEP) Posting"
+      },
+      {
+        "Case": "543646",
+        "Comments": "INADM-HRSHP; DOD: 12/14/24; POST RD: 4/27/26",
+        "Event Date": "04/17/2026",
+        "Event Desc": "Case Initiated Application (OCA)"
+      },
+      {
+        "Case": "543646",
+        "Comments": "",
+        "Event Date": "04/17/2026",
+        "Event Desc": "Abstract of Notice"
+      }
+    ],
+    "parties": [
+      {
+        "": "",
+        "Attorney": "GUERRERO, AARONMATTHEW\n402 Heights Blvd.\nHouston\u00a0TX\u00a077007\nPhone 713-335-4800\nFax 713-335-4848",
+        "Case": "543646",
+        "Party": "Randy Edward Wicker\n5810 Horse Prairie Dr.\nKaty\u00a0TX\u00a077449",
+        "Role": "Applicant"
+      },
+      {
+        "": "",
+        "Attorney": "",
+        "Case": "543646",
+        "Party": "Horace Edward Wicker",
+        "Role": "Deceased"
+      }
+    ],
+    "party_id": "-O25Sx-wsMVqaM6z9f8ao4SpbPTNEJel7pDDA6HjFYs."
+  },
+  "543650": {
+    "event_id": "Cbv6vhxwtk5UkA5_5RaJ14-Dt8hGueZTrpTTJOXfqkA.",
+    "events": [
+      {
+        "Case": "543650",
+        "Comments": "",
+        "Event Date": "04/20/2026",
+        "Event Desc": "ADMINISTRATION (IND/ DEP) Posting"
+      },
+      {
+        "Case": "543650",
+        "Comments": "",
+        "Event Date": "04/20/2026",
+        "Event Desc": "Proof of Heirship by Publication"
+      },
+      {
+        "Case": "543650",
+        "Comments": "INADM-HRSHP; DOD: 2/21/26; POST RD: 4/27/26",
+        "Event Date": "04/17/2026",
+        "Event Desc": "Case Initiated Application (OCA)"
+      },
+      {
+        "Case": "543650",
+        "Comments": "",
+        "Event Date": "04/17/2026",
+        "Event Desc": "Abstract of Notice"
+      }
+    ],
+    "parties": [
+      {
+        "": "",
+        "Attorney": "Flores, Jacob\n355 T C Jester Blvd\nHouston\u00a0TX\u00a077007\nPhone 800-521-0230\nFax 833-386-0347",
+        "Case": "543650",
+        "Party": "James Corwin Lemons\n6750 Shining Sumac Ave\nHouston\u00a0TX\u00a077084",
+        "Role": "Applicant"
+      },
+      {
+        "": "",
+        "Attorney": "",
+        "Case": "543650",
+        "Party": "David Mark Lemons",
+        "Role": "Deceased"
+      }
+    ],
+    "party_id": "-O25Sx-wsMVqaM6z9f8ao-iJNMltq5An3oD2Ovl8lT0."
+  },
+  "543652": {
+    "event_id": "Cbv6vhxwtk5UkA5_5RaJ14RV5RVJoGxG_Obo2nnHByQ.",
+    "events": [
+      {
+        "Case": "543652",
+        "Comments": "",
+        "Event Date": "04/23/2026",
+        "Event Desc": "Notice to Creditors"
+      },
+      {
+        "Case": "543652",
+        "Comments": "",
+        "Event Date": "04/21/2026",
+        "Event Desc": "Notice of Deposit of Funds for Potential Attorney Ad Litem"
+      },
+      {
+        "Case": "543652",
+        "Comments": "",
+        "Event Date": "04/21/2026",
+        "Event Desc": "Attorney Appointee Fee Deposited"
+      },
+      {
+        "Case": "543652",
+        "Comments": "",
+        "Event Date": "04/20/2026",
+        "Event Desc": "Application to Appoint Aty or Gdn Ad Ltm"
+      },
+      {
+        "Case": "543652",
+        "Comments": "",
+        "Event Date": "04/20/2026",
+        "Event Desc": "ADMINISTRATION (IND/ DEP) Posting"
+      },
+      {
+        "Case": "543652",
+        "Comments": "",
+        "Event Date": "04/20/2026",
+        "Event Desc": "Proof of Heirship by Publication"
+      },
+      {
+        "Case": "543652",
+        "Comments": "HRSHP; DOD: 5/29/25; PUBL-DCR RD: 4/27/26",
+        "Event Date": "04/17/2026",
+        "Event Desc": "Application to Determine Heirship"
+      },
+      {
+        "Case": "543652",
+        "Comments": "INADM; DOD; 5/29/25; POST RD: 4/27/26",
+        "Event Date": "04/17/2026",
+        "Event Desc": "Case Initiated Application (OCA)"
+      },
+      {
+        "Case": "543652",
+        "Comments": "",
+        "Event Date": "04/17/2026",
+        "Event Desc": "Abstract of Notice"
+      }
+    ],
+    "parties": [
+      {
+        "": "",
+        "Attorney": "Theander, Christy L.\n1325 Main street, unit 1101\nKaty\u00a0TX\u00a077494\nPhone 281-972-8488\nFax 281-972-8433",
+        "Case": "543652",
+        "Party": "Patrick Kelly McMahan\n5073 N. Nelson Dr\nKaty\u00a0TX\u00a077493",
+        "Role": "Applicant"
+      },
+      {
+        "": "",
+        "Attorney": "",
+        "Case": "543652",
+        "Party": "Janet Marie McMahan",
+        "Role": "Deceased"
+      }
+    ],
+    "party_id": "-O25Sx-wsMVqaM6z9f8aoygD3UIToZbL49KsHNvTIe4."
+  },
+  "543653": {
+    "event_id": "Cbv6vhxwtk5UkA5_5RaJ14s-1lE8SQI6OF-dEa0JdWA.",
+    "events": [
+      {
+        "Case": "543653",
+        "Comments": "Charlotte Lavonne Bolivar Weatherby- for pick up",
+        "Event Date": "04/21/2026",
+        "Event Desc": "Basic Personal - Out / Private"
+      },
+      {
+        "Case": "543653",
+        "Comments": "",
+        "Event Date": "04/21/2026",
+        "Event Desc": "ADMINISTRATION (IND/ DEP) Posting"
+      },
+      {
+        "Case": "543653",
+        "Comments": "Post, RD 05/04/2026, Prev. Filed 04/17/2026",
+        "Event Date": "04/20/2026",
+        "Event Desc": "Request"
+      },
+      {
+        "Case": "543653",
+        "Comments": "1 pers by pp p.u - Charlotte Weatherby",
+        "Event Date": "04/17/2026",
+        "Event Desc": "Letter"
+      },
+      {
+        "Case": "543653",
+        "Comments": "INAMD-HRSHP; DOD: 3/23/26; 1 pers by pp p.u",
+        "Event Date": "04/17/2026",
+        "Event Desc": "Case Initiated Application (OCA)"
+      },
+      {
+        "Case": "543653",
+        "Comments": "",
+        "Event Date": "04/17/2026",
+        "Event Desc": "Abstract of Notice"
+      }
+    ],
+    "parties": [
+      {
+        "": "",
+        "Attorney": "Klevenhagen, John Joseph, III\n952 Echo Lane, Suite 380\nHouston\u00a0TX\u00a077024\nPhone 713-572-1500\nFax 713-572-1507",
+        "Case": "543653",
+        "Party": "Chris Leslie Bolivar, Sr.\n7802 Chasewood Dr\nMissouri City\u00a0TX\u00a077489",
+        "Role": "Applicant"
+      },
+      {
+        "": "",
+        "Attorney": "",
+        "Case": "543653",
+        "Party": "Dorothy Jean Dawson",
+        "Role": "Deceased"
+      }
+    ],
+    "party_id": "-O25Sx-wsMVqaM6z9f8ao7rzFus_r73_Cemi1QGEVS0."
+  },
+  "543672": {
+    "event_id": "Cbv6vhxwtk5UkA5_5RaJ1xz3awBd8xUejulvRSpZLk4.",
+    "events": [
+      {
+        "Case": "543672",
+        "Comments": "",
+        "Event Date": "04/22/2026",
+        "Event Desc": "Notice of Deposit of Funds for Potential Attorney Ad Litem"
+      },
+      {
+        "Case": "543672",
+        "Comments": "",
+        "Event Date": "04/22/2026",
+        "Event Desc": "Attorney Appointee Fee Deposited"
+      },
+      {
+        "Case": "543672",
+        "Comments": "",
+        "Event Date": "04/21/2026",
+        "Event Desc": "Application to Appoint Aty or Gdn Ad Ltm"
+      },
+      {
+        "Case": "543672",
+        "Comments": "",
+        "Event Date": "04/21/2026",
+        "Event Desc": "ADMINISTRATION (IND/ DEP) Posting"
+      },
+      {
+        "Case": "543672",
+        "Comments": "",
+        "Event Date": "04/21/2026",
+        "Event Desc": "Proof of Heirship by Publication"
+      },
+      {
+        "Case": "543672",
+        "Comments": "INADM; DOD: 3/25/26; POST RD: 4/27/26",
+        "Event Date": "04/20/2026",
+        "Event Desc": "Case Initiated Application (OCA)"
+      },
+      {
+        "Case": "543672",
+        "Comments": "HRSHP; DOD: 3/25/26; PUBL-DCR RD: 4/27/26",
+        "Event Date": "04/20/2026",
+        "Event Desc": "Application to Determine Heirship"
+      },
+      {
+        "Case": "543672",
+        "Comments": "",
+        "Event Date": "04/20/2026",
+        "Event Desc": "Abstract of Notice"
+      }
+    ],
+    "parties": [
+      {
+        "": "",
+        "Attorney": "Horner, Kevin T.\n1980 Post Oak Blvd.\nSuite 1200\nHouston\u00a0TX\u00a077056\nPhone 713-759-9977\nFax 713-759-9967",
+        "Case": "543672",
+        "Party": "Megan Galindo\n13018 Scenic Ritter St\nHedwig\u00a0TX\u00a078152",
+        "Role": "Applicant"
+      },
+      {
+        "": "",
+        "Attorney": "",
+        "Case": "543672",
+        "Party": "Cindy Seltzer",
+        "Role": "Deceased"
+      }
+    ],
+    "party_id": "-O25Sx-wsMVqaM6z9f8ao2VXnjACO8ZZPEfBfssiQSQ."
+  },
+  "543677": {
+    "event_id": "Cbv6vhxwtk5UkA5_5RaJ1_YEwdjCno47rxVUyuKRIQE.",
+    "events": [
+      {
+        "Case": "543677",
+        "Comments": "INADM-HRSHP; 09/16/2025; NO SERV. REQ.",
+        "Event Date": "04/20/2026",
+        "Event Desc": "Case Initiated Application (OCA)"
+      },
+      {
+        "Case": "543677",
+        "Comments": "",
+        "Event Date": "04/20/2026",
+        "Event Desc": "Abstract of Notice"
+      }
+    ],
+    "parties": [
+      {
+        "": "",
+        "Attorney": "Amesty, Eduardo\nBraam Partners Law Firm\n23410 Grand Reserve Drive, Suite 503\nKaty\u00a0TX\u00a077494\nPhone 832-904-0582",
+        "Case": "543677",
+        "Party": "Candida Neptalia Quintanilla\n12047 Green Coral Drive\nHouston\u00a0TX\u00a077044",
+        "Role": "Applicant"
+      },
+      {
+        "": "",
+        "Attorney": "",
+        "Case": "543677",
+        "Party": "Nicolas Quintanilla",
+        "Role": "Deceased"
+      }
+    ],
+    "party_id": "-O25Sx-wsMVqaM6z9f8ao0BVYKPQBGmJrXGqRnl3SCI."
+  },
+  "543678": {
+    "event_id": "Cbv6vhxwtk5UkA5_5RaJ19JisV8A_of5UwC2-Tym72U.",
+    "events": [
+      {
+        "Case": "543678",
+        "Comments": "DON D. FORD, III",
+        "Event Date": "04/21/2026",
+        "Event Desc": "Order to Appoint Aty or Gdn Ad Ltm"
+      },
+      {
+        "Case": "543678",
+        "Comments": "",
+        "Event Date": "04/21/2026",
+        "Event Desc": "Proof of Heirship by Publication"
+      },
+      {
+        "Case": "543678",
+        "Comments": "",
+        "Event Date": "04/20/2026",
+        "Event Desc": "Notice of Deposit of Funds for Potential Attorney Ad Litem"
+      },
+      {
+        "Case": "543678",
+        "Comments": "",
+        "Event Date": "04/20/2026",
+        "Event Desc": "Attorney Appointee Fee Deposited"
+      },
+      {
+        "Case": "543678",
+        "Comments": "INADM-HRSHP; DOD: 2/9/26; PUBL-DCR RD; 4/27/26",
+        "Event Date": "04/20/2026",
+        "Event Desc": "Case Initiated Application (OCA)"
+      },
+      {
+        "Case": "543678",
+        "Comments": "",
+        "Event Date": "04/20/2026",
+        "Event Desc": "Abstract of Notice"
+      }
+    ],
+    "parties": [
+      {
+        "": "",
+        "Attorney": "",
+        "Case": "543678",
+        "Party": "Don D. Ford, III\n700 Louisiana Street 41 floor\nHouston\u00a0TX\u00a077007",
+        "Role": "Attorney Ad Litem (Participant)"
+      },
+      {
+        "": "",
+        "Attorney": "LIMBRICK, DONALD W.\n2855 Mangum Rd Ste A569\nHouston\u00a0TX\u00a077092\nPhone 713-224-6811\nFax 713-224-6812",
+        "Case": "543678",
+        "Party": "Brittany C Edwards\n1614 Royal Grantham Ct\nHouston\u00a0TX\u00a077073",
+        "Role": "Applicant"
+      },
+      {
+        "": "",
+        "Attorney": "",
+        "Case": "543678",
+        "Party": "Tangie Renee Williams",
+        "Role": "Deceased"
+      },
+      {
+        "": "",
+        "Attorney": "",
+        "Case": "543678",
+        "Party": "Frederick L Phillips",
+        "Role": "Respondent"
+      },
+      {
+        "": "",
+        "Attorney": "",
+        "Case": "543678",
+        "Party": "Christopher Dewanye Mcfadden",
+        "Role": "Respondent"
+      },
+      {
+        "": "",
+        "Attorney": "",
+        "Case": "543678",
+        "Party": "Jordan Anthony Brown",
+        "Role": "Respondent"
+      },
+      {
+        "": "",
+        "Attorney": "",
+        "Case": "543678",
+        "Party": "Laporchea Michelle Mcfadden\n2805 S. Park Ave\nApt 117\nTucson\u00a0AZ\u00a085713",
+        "Role": "Respondent"
+      }
+    ],
+    "party_id": "-O25Sx-wsMVqaM6z9f8aowSKSOhfjtKuZR842d-RbxE."
+  },
+  "543680": {
+    "event_id": "Cbv6vhxwtk5UkA5_5RaJ13kyIAjYgMQlSJlJOyWCZWA.",
+    "events": [
+      {
+        "Case": "543680",
+        "Comments": "For Funeral and Burial Expenses; In the amount of $5,000.00",
+        "Event Date": "04/21/2026",
+        "Event Desc": "Order Approving/Denying Emergency Intervention"
+      },
+      {
+        "Case": "543680",
+        "Comments": "Application for Access to Bank Records",
+        "Event Date": "04/20/2026",
+        "Event Desc": "Application of Miscellaneous kind"
+      },
+      {
+        "Case": "543680",
+        "Comments": "Emergency Intervention Application for Funeral and Burial Expenses",
+        "Event Date": "04/20/2026",
+        "Event Desc": "Case Initiated Application (OCA)"
+      },
+      {
+        "Case": "543680",
+        "Comments": "",
+        "Event Date": "04/20/2026",
+        "Event Desc": "Abstract of Notice"
+      }
+    ],
+    "parties": [
+      {
+        "": "",
+        "Attorney": "LOCKETT, ELIZABETH JAUNITA\n14090 Southwest Fwy, ste 300\n#411\nSugar Land\u00a0TX\u00a077478\nPhone 281-542-8515\nFax 281-274-9332",
+        "Case": "543680",
+        "Party": "Cinceria Johnson\n1918 Skipwood Dr\nMissouri City\u00a0TX\u00a077489",
+        "Role": "Applicant"
+      },
+      {
+        "": "",
+        "Attorney": "",
+        "Case": "543680",
+        "Party": "Debra Ann Young",
+        "Role": "Deceased"
+      }
+    ],
+    "party_id": "-O25Sx-wsMVqaM6z9f8ao85jBN0rNd6ieOUDgP3dN_4."
+  },
+  "543745": {
+    "event_id": "Cbv6vhxwtk5UkA5_5RaJ10x4Lc-_6zFOuzN7M_o_upY.",
+    "events": [
+      {
+        "Case": "543745",
+        "Comments": "",
+        "Event Date": "04/23/2026",
+        "Event Desc": "ADMINISTRATION (IND/ DEP) Posting"
+      },
+      {
+        "Case": "543745",
+        "Comments": "",
+        "Event Date": "04/22/2026",
+        "Event Desc": "Attorney Appointee Fee Deposited"
+      },
+      {
+        "Case": "543745",
+        "Comments": "",
+        "Event Date": "04/22/2026",
+        "Event Desc": "Application to Appoint Aty or Gdn Ad Ltm"
+      },
+      {
+        "Case": "543745",
+        "Comments": "HRSHP; DOD: 3/21/24; PUBL-DCR RD: 5/11/27",
+        "Event Date": "04/22/2026",
+        "Event Desc": "Application to Determine Heirship"
+      },
+      {
+        "Case": "543745",
+        "Comments": "INADM; DOD: 3/21/24; post rd: 4/27/26 atty deposit",
+        "Event Date": "04/22/2026",
+        "Event Desc": "Case Initiated Application (OCA)"
+      },
+      {
+        "Case": "543745",
+        "Comments": "",
+        "Event Date": "04/22/2026",
+        "Event Desc": "Abstract of Notice"
+      }
+    ],
+    "parties": [
+      {
+        "": "",
+        "Attorney": "",
+        "Case": "543745",
+        "Party": "Lisa Ann Couch",
+        "Role": "Applicant"
+      },
+      {
+        "": "",
+        "Attorney": "",
+        "Case": "543745",
+        "Party": "Wilburn Lee Couch",
+        "Role": "Deceased"
+      }
+    ],
+    "party_id": "-O25Sx-wsMVqaM6z9f8aowcmvC6b_hTBvX_WCEQ4-bE."
+  },
+  "543759": {
+    "event_id": "Cbv6vhxwtk5UkA5_5RaJ132_7DEnlrupomrjt-1lo0A.",
+    "events": [
+      {
+        "Case": "543759",
+        "Comments": "HRSHP; DOD: 8/27/1998; publ-dcr , rd : 4/27/26",
+        "Event Date": "04/22/2026",
+        "Event Desc": "Case Initiated Application (OCA)"
+      },
+      {
+        "Case": "543759",
+        "Comments": "",
+        "Event Date": "04/22/2026",
+        "Event Desc": "Abstract of Notice"
+      }
+    ],
+    "parties": [
+      {
+        "": "",
+        "Attorney": "Graham, Kerri L.\n21408 Provincial Boulevard\nKaty\u00a0TX\u00a077450\nPhone 281-972-7192\nFax 281-972-7193",
+        "Case": "543759",
+        "Party": "Timothy Bernard Wilson\n1514 Lake Buchanan Cr\nRichmond\u00a0TX\u00a077406",
+        "Role": "Applicant"
+      },
+      {
+        "": "",
+        "Attorney": "",
+        "Case": "543759",
+        "Party": "Robert Lee Warren",
+        "Role": "Deceased"
+      }
+    ],
+    "party_id": "-O25Sx-wsMVqaM6z9f8ao9R-Tk_OcPYharQ-IzeHU6M."
+  },
+  "543801": {
+    "event_id": "Cbv6vhxwtk5UkA5_5RaJ18aHf8-Y-HFok1-JkFIy04g.",
+    "events": [
+      {
+        "Case": "543801",
+        "Comments": "",
+        "Event Date": "04/23/2026",
+        "Event Desc": "Notice of Deposit of Funds for Potential Attorney Ad Litem"
+      },
+      {
+        "Case": "543801",
+        "Comments": "",
+        "Event Date": "04/23/2026",
+        "Event Desc": "Attorney Appointee Fee Deposited"
+      },
+      {
+        "Case": "543801",
+        "Comments": "Motion to Appoint Attorney Ad Litem",
+        "Event Date": "04/23/2026",
+        "Event Desc": "Application to Appoint Aty or Gdn Ad Ltm (No Fee)"
+      },
+      {
+        "Case": "543801",
+        "Comments": "HRSHP, DOD: 10/15/2021 PUB, DCR, RD: 5/11/26",
+        "Event Date": "04/23/2026",
+        "Event Desc": "Case Initiated Application (OCA)"
+      },
+      {
+        "Case": "543801",
+        "Comments": "",
+        "Event Date": "04/23/2026",
+        "Event Desc": "Abstract of Notice"
+      }
+    ],
+    "parties": [
+      {
+        "": "",
+        "Attorney": "Hatchett, Cynthia M.\n11200 Broadway, Suite 2705\nPearland\u00a0TX\u00a077584\nPhone 346-635-7062\nFax 346-299-2652",
+        "Case": "543801",
+        "Party": "Carlotta Marie Tyler\n3014 Bolt St\nHouston\u00a0TX\u00a077051",
+        "Role": "Applicant"
+      },
+      {
+        "": "",
+        "Attorney": "",
+        "Case": "543801",
+        "Party": "Gloria Lavaughn Tyler Harris",
+        "Role": "Deceased"
+      }
+    ],
+    "party_id": "-O25Sx-wsMVqaM6z9f8ao_LYrzFgBVN6rM3Gl44Jalk."
+  }
+}

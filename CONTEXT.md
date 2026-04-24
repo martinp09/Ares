@@ -21,7 +21,7 @@
 4. Do not call Ares fully production-ready until the final acceptance gate and production evidence are complete.
 
 ## Recent Change
-- 2026-04-24: Created the production-readiness handoff branch and docs that convert “push to Supabase / fully wire backend” into explicit preview, staging, production, Trigger, Mission Control, provider, smoke, and rollback gates.
+- 2026-04-24: Added Harris probate rollout evidence: 202 last-week rows, 113 keep-now rows, 12 priority heirship/title-friction case-detail enrichments, and an Ares memory-backed intake simulation that bridged all 12 priority cases into canonical leads while leaving HCAD/tax overlay as the next backend gap.
 
 ## Read These Sections In `memory.md`
 1. `## Current Direction`
