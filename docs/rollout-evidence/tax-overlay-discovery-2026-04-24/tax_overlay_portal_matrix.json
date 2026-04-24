@@ -1,0 +1,90 @@
+{
+  "test_name": "tax_overlay_discovery",
+  "tested_at": "2026-04-24",
+  "counties": [
+    "Harris",
+    "Tarrant",
+    "Montgomery",
+    "Dallas",
+    "Travis"
+  ],
+  "sites_found_for_all_5": true,
+  "immediate_build_order": [
+    "Harris parser hardening",
+    "Travis HTML adapter",
+    "Dallas/Montgomery ACT adapter family",
+    "Tarrant Cloudflare/manual-session endpoint discovery"
+  ],
+  "ares_overlay_contract": {
+    "input_priority": [
+      "owner_name",
+      "property_address",
+      "hcad_account_or_cad_account",
+      "candidate_names"
+    ],
+    "lookup_order": "owner-name first, then property address, then account number, then manual/browser fallback",
+    "output_fields": [
+      "county",
+      "account",
+      "is_delinquent",
+      "amount_owed",
+      "current_year_owed",
+      "prior_years_owed",
+      "estimated_years_delinquent",
+      "taxes_under_suit",
+      "homestead_or_exemption_clues",
+      "search_method",
+      "confidence",
+      "raw_source_url",
+      "checked_at",
+      "parser_warnings"
+    ],
+    "state_policy": "Do not set tax_delinquent=true unless source evidence is parsed with high confidence; store soft/unknown signals separately."
+  },
+  "matrix": [
+    {
+      "county": "Harris",
+      "official_tax_search_url": "https://www.hctax.net/Property/DelinquentTax",
+      "known_machine_path": "POST https://www.hctax.net/Property/Actions/DelAccountsList with colSearch=name/account/address and searchText; optional GET /Property/AccountEncrypt?account=... then /Property/TaxStatement?account=<encrypted>",
+      "probe_status": "working_from_python_requests",
+      "automation_tier": "tier_1_direct_json_api",
+      "notes": "Existing HCAD_Query hctax_client uses this. Parser needs hardening because statement pages recently produced owner/value parse weirdness, but delinquent search endpoint is real."
+    },
+    {
+      "county": "Tarrant",
+      "official_tax_search_url": "https://www.tax.tarrantcountytx.gov/search",
+      "alternate_url": "https://www.tax.tarrantcountytx.gov/Search/Index",
+      "known_machine_path": "Unknown; site is an official search/payment portal supporting account number, owner name/address, and property location search.",
+      "probe_status": "official_site_found_but_cloudflare_challenge_in_current_cloud_browser_and_requests",
+      "automation_tier": "tier_3_browser_or_manual_session_until_endpoint_discovered",
+      "notes": "No Big Daddy required yet, but this one may need residential/manual browser session or endpoint discovery from browser devtools because Cloudflare blocks current environment."
+    },
+    {
+      "county": "Montgomery",
+      "official_tax_search_url": "https://actweb.acttax.com/act_webdev/montgomery/index.jsp",
+      "known_machine_path": "ACT web JSP portal; known direct detail shape showdetail2.jsp?can=<account>&ownerno=0; likely searchbyaccount.jsp/searchbyproperty.jsp/searchbyowner.jsp style pages.",
+      "probe_status": "official_site_found_via_duckduckgo; current environment timed out connecting to actweb.acttax.com",
+      "automation_tier": "tier_2_html_form_scraper_after_connection_or_manual_session",
+      "notes": "ACT web is probably scrapeable once reachable; Dallas uses a sibling ACT stack."
+    },
+    {
+      "county": "Dallas",
+      "official_tax_search_url": "https://www.dallasact.com/act_webdev/dallas/index.jsp",
+      "account_search_url": "https://www.dallasact.com/act_webdev/dallas/searchbyaccount.jsp",
+      "property_search_url": "https://www.dallasact.com/act_webdev/dallas/searchbyproperty.jsp",
+      "known_machine_path": "ACT web JSP portal; direct detail shape showdetail2.jsp?can=<account>&ownerno=0.",
+      "probe_status": "official_site_found_via_duckduckgo; current environment timed out connecting to dallasact.com",
+      "automation_tier": "tier_2_html_form_scraper_after_connection_or_manual_session",
+      "notes": "Likely same adapter family as Montgomery with county-specific base URL."
+    },
+    {
+      "county": "Travis",
+      "official_tax_search_url": "https://tax-office.traviscountytx.gov/properties/taxes/account-search",
+      "payment_search_app": "https://travis.go2gov.net/cart/responsive/search.do",
+      "known_machine_path": "POST https://travis.go2gov.net/cart/responsive/quickSearch.do with formViewMode=responsive, criteria.searchStatus=1, pager.pageSize=10, pager.pageNumber=1, criteria.heuristicSearch=<name/address/account>.",
+      "probe_status": "working_from_python_requests; HTML response parse required",
+      "automation_tier": "tier_2_html_form_scraper",
+      "notes": "Quick search form is accessible and posts cleanly without a browser. Build parser around results/detail pages."
+    }
+  ]
+}

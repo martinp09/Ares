@@ -184,6 +184,16 @@
 
 ## Change Log
 
+### 2026-04-24 Tax Overlay Discovery
+
+- Discovered official tax search/payment portals for all five Phase-1 counties; evidence saved under `docs/rollout-evidence/tax-overlay-discovery-2026-04-24/` and wiki page `docs/curative-title-wiki/Tax Overlay Adapter Matrix.md`.
+- Harris: `https://www.hctax.net/Property/DelinquentTax`, direct JSON endpoint `/Property/Actions/DelAccountsList`, existing `hctax_client.py` path; parser hardening required.
+- Tarrant: `https://www.tax.tarrantcountytx.gov/search`, official portal found but Cloudflare blocks current cloud/browser environment.
+- Montgomery: `https://actweb.acttax.com/act_webdev/montgomery/index.jsp`, ACT Web JSP portal found; current environment timed out connecting.
+- Dallas: `https://www.dallasact.com/act_webdev/dallas/index.jsp`, ACT Web JSP portal found; current environment timed out connecting.
+- Travis: `https://tax-office.traviscountytx.gov/properties/taxes/account-search` / `https://travis.go2gov.net/cart/responsive/search.do`, working POST `/cart/responsive/quickSearch.do` with `criteria.heuristicSearch`.
+- Ares tax overlay state policy: never set `tax_delinquent=true` from soft parser output; use explicit soft/unknown/blocked/verified states.
+
 ### 2026-04-24 HCAD Property Match Test
 
 - Ran HCAD/property match test for the top contact-candidate packets using `/home/workspace/HCAD_Query/hcad.duckdb`; evidence saved under `docs/rollout-evidence/hcad-match-test-2026-04-24/`.

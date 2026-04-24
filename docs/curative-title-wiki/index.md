@@ -61,6 +61,11 @@ Core doctrine:
    - keeps HCAD matching separate from tax overlay and outreach readiness
    - records ambiguity instead of inventing property certainty
 
+9. [[Tax Overlay Adapter Matrix]]
+   - official tax portals for Harris, Tarrant, Montgomery, Dallas, and Travis
+   - adapter tiers and current blockers
+   - Ares overlay contract and hard state rules
+
 ## Source evidence
 
 - [[../curative-title-data-pipeline|Curative Title Data Pipeline]]
@@ -68,10 +73,12 @@ Core doctrine:
 - [[../rollout-evidence/land-records-recon-2026-04-24/REPORT|Tangie Williams Land-Records Recon Report]]
 - [[../rollout-evidence/contact-candidate-packets-2026-04-24/REPORT|Contact Candidate Packet Test]]
 - [[../rollout-evidence/hcad-match-test-2026-04-24/REPORT|HCAD Property Match Test]]
+- [[../rollout-evidence/tax-overlay-discovery-2026-04-24/REPORT|Tax Overlay Discovery]]
 - `docs/rollout-evidence/land-records-recon-2026-04-24/tangie-williams-field-test.json`
 - `docs/rollout-evidence/probate-smoke-2026-04-24/priority_keep_now_enriched.json`
 - `docs/rollout-evidence/contact-candidate-packets-2026-04-24/contact_candidate_packets.json`
 - `docs/rollout-evidence/hcad-match-test-2026-04-24/hcad_match_results.json`
+- `docs/rollout-evidence/tax-overlay-discovery-2026-04-24/tax_overlay_portal_matrix.json`
 
 ## Current open gates
 
@@ -80,6 +87,7 @@ Core doctrine:
 - Free people-search sites may block cloud/browser-automation environments; treat this as an access gate.
 - Paid skiptrace should receive normalized contact-candidate packets, not raw probate rows.
 - HCAD/property matching must stay separate from tax overlay; if tax parser output is weak, mark it soft instead of storing fake delinquency certainty.
+- Tarrant tax portal blocks this cloud/browser environment with Cloudflare; Dallas/Montgomery ACT portals were discovered but timed out here; Travis and Harris are directly probeable.
 - Ares needs first-class evidence graph models before this becomes a repeatable operator workflow.
 
 ## Links
@@ -92,3 +100,4 @@ Core doctrine:
 - [[Tangie Williams Field Test]]
 - [[Contact Candidate Packet Test]]
 - [[HCAD Property Match Test]]
+- [[Tax Overlay Adapter Matrix]]
