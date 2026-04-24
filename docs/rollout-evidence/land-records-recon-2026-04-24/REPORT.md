@@ -178,9 +178,63 @@ This validates the corrected curative-title workflow:
 3. The real contact targets come from combining probate parties + land-record parties + document-image facts.
 4. A flat probate lead row is not enough. Ares needs an evidence graph.
 
+## Document image access check
+
+I tested the image/document boundary instead of assuming it.
+
+### `RP-2022-274022`
+
+- Searched by exact file number.
+- Result resolved to the same Fallbrook record.
+- Film-code/document link points to `EComm/ViewEdocs.aspx?...`.
+- Opening the document URL redirected to Harris Clerk `Registration/Login.aspx`.
+- Related-docs postback worked and exposed one related document: `X177166`, labeled `Related Harris County Real Property File Number`.
+
+### `W397757`
+
+- Searched by exact file number.
+- Result resolved to the Perkins W / Williams Otis Estate affidavit record.
+- Film-code/document link also points to `EComm/ViewEdocs.aspx?...`.
+- Opening the document URL redirected to Harris Clerk `Registration/Login.aspx`.
+
+Conclusion: Harris index and related-document metadata are public enough for browser-harness collection, but document images require authorized Harris Clerk portal login. Do not bypass login/CAPTCHA; treat image pulls as an operator-authenticated workflow step.
+
+## Workflow ownership: Hermes vs Ares
+
+This should be a split workflow, not “all in Ares” and not “all in Hermes.”
+
+```text
+Hermes browser harness
+  -> county portal research / screenshots / raw extraction
+  -> evidence package
+  -> Ares API
+  -> durable evidence graph + lead state
+  -> Mission Control review queue
+```
+
+Hermes owns:
+
+- browser-harness navigation through county portals;
+- exploratory research on weird WebForms/SPA sites;
+- document-image review when a human-authenticated session is required;
+- OCR/summarization/extraction from viewed documents;
+- operator decisions and manual confirmations.
+
+Ares owns:
+
+- canonical property/person/document/probate/contact models;
+- evidence graph and source lineage;
+- deterministic confidence scoring;
+- skiptrace candidate state;
+- suppression/compliance state;
+- outreach-readiness status;
+- Mission Control queues and audit trail.
+
+Scripts/adapters are optional later. The promotion rule is: browser harness proves the workflow first; only stable, repetitive pieces become Ares adapters or scripts.
+
 ## Gaps / blockers
 
-- Harris Clerk document images are likely login-gated. Do not bypass CAPTCHA/login.
+- Harris Clerk document images are login-gated. Do not bypass CAPTCHA/login.
 - HCAD account/property address for `FALLBROOK Sec 3 Lot 1181 Block 24` is still unresolved in this smoke.
 - HCTax name search for `Williams Tangie` returned no result; need account/address search after HCAD match.
 - TruePeopleSearch, CyberBackgroundChecks, and Bing were blocked by Cloudflare/challenge from this browser environment.
