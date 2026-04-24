@@ -1,4 +1,5 @@
 export const LEAD_MACHINE_ENDPOINTS = {
+  leadIntake: "/lead-machine/intake",
   probateIntake: "/lead-machine/probate/intake",
   outboundEnqueue: "/lead-machine/outbound/enqueue",
   instantlyWebhookIngest: "/lead-machine/webhooks/instantly",
@@ -42,6 +43,34 @@ export type ProbateIntakeResponse = {
     contact_confidence: string;
     bridged_lead_id: string | null;
   }>;
+};
+
+export type LeadIntakePayload = {
+  business_id: string;
+  environment: string;
+  source?: string;
+  source_record_id?: string | null;
+  campaign_key?: string | null;
+  first_name?: string | null;
+  last_name?: string | null;
+  phone?: string | null;
+  email?: string | null;
+  property_address?: string | null;
+  county?: string | null;
+  status?: string;
+  pipeline_stage?: string | null;
+  priority?: string | null;
+  dedupe_key?: string | null;
+  metadata?: Record<string, unknown>;
+} & LeadMachineRunContext;
+
+export type LeadIntakeResponse = {
+  status: "created" | "deduped" | "queued" | "skipped";
+  lead_id: string;
+  event_id: string;
+  queued: boolean;
+  skipped: boolean;
+  failed_side_effects: string[];
 };
 
 export type OutboundEnqueuePayload = {

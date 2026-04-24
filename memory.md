@@ -171,8 +171,8 @@
 
 ## Open Work
 
-1. commit the Phase 5 provider adapter cohesion slice on `feature/ares-full-stack-cohesion-clean`
-2. start Phase 6 lead-machine end-to-end workflows
+1. commit the Phase 6 lead-machine intake slice on `feature/ares-full-stack-cohesion-clean`
+2. start Phase 7 Mission Control cohesion
 3. reconcile the preserved dirty Supabase persistence work before any hosted Supabase rollout
 4. keep post-merge Supabase follow-up scope narrow to persistence regressions and real hosted smoke only
 5. keep browser acquisition and ambiguous research in Hermes or other driver agents, not inside Ares
@@ -218,6 +218,15 @@
 - TextGrid status callbacks update durable message status by provider/external ID, record provider webhook receipts, mark them processed, and do not create false review tasks.
 - Booking confirmation sends tolerate provider failures without blocking booking suppression/opportunity sync, and configured booking sends preserve successful partial provider IDs if a later channel fails.
 - QC approved Phase 5 after the partial booking provider-ID blocker was fixed; broader gates passed with `uv run pytest -q`, Trigger typecheck, Mission Control tests/typecheck/build, and `git diff --check`.
+
+### 2026-04-24 Full-Stack Cohesion Phase 6
+
+- Phase 6 added the missing generic `POST /lead-machine/intake` seam without duplicating existing probate or marketing intake paths.
+- The new `LeadIntakeService` writes existing canonical `LeadRecord` and `LeadEventRecord` records, returns `created` versus `deduped`, and keeps side-effect status fields explicit without sending live provider traffic.
+- Intake replay safety uses source-namespaced external keys and deterministic `lead-intake:{business}:{environment}:{dedupe_key}` event idempotency keys.
+- Unknown lead source values now fail closed instead of being silently coerced to `manual`, preserving canonical source truth and Supabase source constraints.
+- Trigger now has separate `lead-intake` and `probate-intake` jobs so generic intake uses `/lead-machine/intake` while existing probate payloads keep `/lead-machine/probate/intake`.
+- QC approved Phase 6 after fixing the probate Trigger path and unknown-source downgrade blockers; broader gates passed with `uv run pytest -q`, Trigger typecheck, Mission Control tests/typecheck/build, and `git diff --check`.
 
 ### 2026-04-23 Origin Main Supabase Persistence Wiring
 
