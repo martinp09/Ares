@@ -171,12 +171,13 @@
 
 ## Open Work
 
-1. complete the Phase 0/1 full-stack cohesion QC gate on `feature/ares-full-stack-cohesion-clean`
-2. reconcile the preserved dirty Supabase persistence work before starting Phase 2 migrations or adapter changes
-3. keep post-merge Supabase follow-up scope narrow to persistence regressions and real hosted smoke only
-4. keep browser acquisition and ambiguous research in Hermes or other driver agents, not inside Ares
-5. add durable Trigger lead-machine jobs only where sync paths become operationally risky
-6. keep using `supabase start -x vector` on this machine until the Colima mount issue is fixed
+1. commit the Phase 2/3 slice on `feature/ares-full-stack-cohesion-clean`
+2. start Phase 4 Trigger.dev runtime contract
+3. reconcile the preserved dirty Supabase persistence work before any hosted Supabase rollout
+4. keep post-merge Supabase follow-up scope narrow to persistence regressions and real hosted smoke only
+5. keep browser acquisition and ambiguous research in Hermes or other driver agents, not inside Ares
+6. add durable Trigger lead-machine jobs only where sync paths become operationally risky
+7. keep using `supabase start -x vector` on this machine until the Colima mount issue is fixed
 
 ## Change Log
 
@@ -190,6 +191,14 @@
 - Set the local site-events default to memory-backed state so local health/smoke work does not require Supabase credentials.
 - Added Vite dev proxy auth for Mission Control so local UI calls stay authenticated without exposing a public runtime key.
 - Added Phase 1 config contract tests and static Trigger runtime API contract tests.
+
+### 2026-04-24 Full-Stack Cohesion Phases 2 and 3
+
+- Phase 2 hardened `SupabaseControlPlaneClient.transaction()` so core command-plane tables (`commands`, `approvals`, `runs`, `events`, `artifacts`) are persisted/deleted/restored with the same rollback safety as text runtime tables.
+- Added FK-aware core restore ordering: commands before approvals/runs, parent runs before child replay runs, then events/artifacts; delete order remains child-first.
+- Added regressions for core deletion flush, rollback after deletion/update failures, bigint string/int canonicalization, and parent-before-child run restore.
+- Phase 3 added `docs/hermes-ares-runtime-adapter-contract.md`, `scripts/smoke_hermes_runtime_adapter.py`, and Hermes tool payload-stability coverage.
+- Local adapter smoke succeeded against a short-lived Uvicorn server; the server was shut down afterward.
 
 ### 2026-04-23 Origin Main Supabase Persistence Wiring
 

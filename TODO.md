@@ -19,9 +19,9 @@ Supporting source map:
 
 - `docs/superpowers/plans/2026-04-24-ares-supabase-wiring-from-memory.md`
 
-## Active slice
+## Completed slices
 
-Phase 0 + Phase 1 only:
+Phase 0 + Phase 1:
 
 - full-stack cohesion spec
 - clean `.env.example`
@@ -31,6 +31,18 @@ Phase 0 + Phase 1 only:
 - Vite dev proxy for authenticated Mission Control API calls without exposing a public runtime key
 - no Supabase migrations
 - no live SMS/email sends
+
+Phase 2:
+
+- Supabase control-plane transaction now snapshots, flushes, deletes, and restores core `commands`, `approvals`, `runs`, `events`, and `artifacts`.
+- Rollback restore is FK-safe for command/run/event/artifact tables, including parent-before-child replay runs.
+- Regression coverage covers core deletions, update rollback, bigint canonicalization, and failed flush restore.
+
+Phase 3:
+
+- Added `docs/hermes-ares-runtime-adapter-contract.md`.
+- Added `scripts/smoke_hermes_runtime_adapter.py`.
+- Added Hermes tool payload-stability coverage.
 
 ## Hard rules
 
@@ -42,15 +54,20 @@ Phase 0 + Phase 1 only:
 - Do not run live provider sends without explicit opt-in recipient flags.
 - Preserve the existing dirty Supabase persistence work in `/Users/solomartin/Projects/Ares` until it is intentionally reconciled.
 
-## Phase 0/1 verification
+## Latest verification
 
 ```bash
 git diff --check
 uv run pytest tests/smoke/test_health.py tests/api/test_runtime_config_contract.py tests/api/test_trigger_contract_files.py -q
+uv run pytest tests/db/test_supabase_control_plane_client.py tests/db/test_control_plane_supabase_adapters.py -q
+uv run pytest tests/api/test_commands.py tests/api/test_approvals.py tests/api/test_runs.py tests/api/test_replays.py tests/api/test_trigger_callbacks.py tests/api/test_hermes_tools.py -q
+uv run pytest -q
 npm --prefix trigger run typecheck
+npm --prefix apps/mission-control run test -- --run
 npm --prefix apps/mission-control run typecheck
+npm --prefix apps/mission-control run build
 ```
 
 ## Next gate
 
-Phase 2 starts only after Phase 0/1 is green and the uncommitted Supabase persistence slice in the original checkout is intentionally reconciled with this branch.
+Start Phase 4 Trigger.dev runtime contract next.

@@ -104,6 +104,28 @@ def test_list_hermes_tools_exposes_marketing_commands(client) -> None:
     assert "publish_campaign" in tool_names
 
 
+def test_list_hermes_tools_payload_stays_runtime_adapter_compatible(client) -> None:
+    reset_control_plane_state()
+
+    response = client.get("/hermes/tools", headers=AUTH_HEADERS)
+
+    assert response.status_code == 200
+    tool = next(item for item in response.json()["tools"] if item["name"] == "run_market_research")
+    assert set(tool) == {
+        "name",
+        "approval_mode",
+        "permission_mode",
+        "capability_allowed",
+        "payload_schema",
+        "idempotency_scope",
+    }
+    assert tool["approval_mode"] == "safe_autonomous"
+    assert tool["permission_mode"] == "always_allow"
+    assert tool["capability_allowed"] is True
+    assert tool["payload_schema"] == {"type": "object"}
+    assert tool["idempotency_scope"] == "business_id + environment + command_type + idempotency_key"
+
+
 def test_list_hermes_tools_with_command_backed_bound_skills_only_exposes_supported_intersection(client) -> None:
     reset_control_plane_state()
     research_skill_id = create_skill(
