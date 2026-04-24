@@ -28,6 +28,20 @@ const tasksFixture: TasksData = {
       recentReplyPreview: null,
       replyNeedsReview: false,
     },
+    {
+      threadId: "task_provider_1",
+      leadName: "+15551230003",
+      channel: "confirmation_sms",
+      bookingStatus: "pending",
+      sequenceStatus: "active",
+      nextSequenceStep: "confirmation_sms",
+      manualCallDueAt: "2026-04-14T19:30:00+00:00",
+      recentReplyPreview: null,
+      replyNeedsReview: true,
+      priority: "high",
+      providerFailure: true,
+      errorMessage: "textgrid down",
+    },
   ],
 };
 
@@ -46,6 +60,11 @@ describe("TasksPage", () => {
     expect(
       within(firstTask).getByText("If this works I can jump on a call tonight."),
     ).toBeInTheDocument();
+
+    const providerFailureTask = screen.getByLabelText("manual-call-task_provider_1");
+    expect(within(providerFailureTask).getByText("provider failure")).toBeInTheDocument();
+    expect(within(providerFailureTask).getByText("high")).toBeInTheDocument();
+    expect(within(providerFailureTask).getByText("textgrid down")).toBeInTheDocument();
   });
 
   it("renders an empty state when no manual calls are due", () => {

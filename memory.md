@@ -171,8 +171,8 @@
 
 ## Open Work
 
-1. commit the Phase 6 lead-machine intake slice on `feature/ares-full-stack-cohesion-clean`
-2. start Phase 7 Mission Control cohesion
+1. commit the Phase 7 Mission Control provider-failure visibility slice on `feature/ares-full-stack-cohesion-clean`
+2. start Phase 8 runtime observability, audit, usage, and replay
 3. reconcile the preserved dirty Supabase persistence work before any hosted Supabase rollout
 4. keep post-merge Supabase follow-up scope narrow to persistence regressions and real hosted smoke only
 5. keep browser acquisition and ambiguous research in Hermes or other driver agents, not inside Ares
@@ -227,6 +227,13 @@
 - Unknown lead source values now fail closed instead of being silently coerced to `manual`, preserving canonical source truth and Supabase source constraints.
 - Trigger now has separate `lead-intake` and `probate-intake` jobs so generic intake uses `/lead-machine/intake` while existing probate payloads keep `/lead-machine/probate/intake`.
 - QC approved Phase 6 after fixing the probate Trigger path and unknown-source downgrade blockers; broader gates passed with `uv run pytest -q`, Trigger typecheck, Mission Control tests/typecheck/build, and `git diff --check`.
+
+### 2026-04-24 Full-Stack Cohesion Phase 7
+
+- Phase 7 added backend-owned `provider_failure_task_count` to the Mission Control dashboard response and frontend dashboard summary.
+- Provider-failure task rows now preserve optional task metadata in the Mission Control API client and render distinctly in the Tasks page.
+- Provider-failure dashboard/task read models are org-scoped through task details metadata so same business/environment tasks do not leak across actor orgs.
+- QC approved Phase 7 after fixing the org-scoping blocker; broader gates passed with `uv run pytest -q`, Trigger typecheck, Mission Control tests/typecheck/build, and `git diff --check`.
 
 ### 2026-04-23 Origin Main Supabase Persistence Wiring
 

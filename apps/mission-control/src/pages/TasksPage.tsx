@@ -33,10 +33,13 @@ export function TasksPage({ data }: TasksPageProps) {
               <span>{task.manualCallDueAt}</span>
             </div>
             <div className="list-card__row list-card__row--muted">
-              <span>{task.bookingStatus}</span>
-              <span>{task.sequenceStatus}</span>
+              <span>{task.providerFailure ? "provider failure" : task.bookingStatus}</span>
+              <span>{task.priority ?? task.sequenceStatus}</span>
             </div>
             <p className="list-card__body">{task.nextSequenceStep}</p>
+            {task.providerFailure && task.errorMessage ? (
+              <p className="list-card__body">{task.errorMessage}</p>
+            ) : null}
             {task.replyNeedsReview ? <p className="list-card__body">Review required</p> : null}
             {task.recentReplyPreview ? <p className="list-card__body">{task.recentReplyPreview}</p> : null}
           </article>

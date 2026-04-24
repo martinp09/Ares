@@ -56,6 +56,7 @@ describe("Mission Control API client", () => {
         active_non_booker_enrollment_count: 3,
         due_manual_call_count: 1,
         replies_needing_review_count: 2,
+        provider_failure_task_count: 3,
         opportunity_count: 4,
         opportunity_stage_summaries: [
           { source_lane: "probate", stage: "contract_sent", count: 1 },
@@ -97,6 +98,7 @@ describe("Mission Control API client", () => {
     ]);
     expect(dashboard.outboundProbateSummary?.readyLeadCount).toBe(7);
     expect(dashboard.inboundLeaseOptionSummary?.pendingLeadCount).toBe(5);
+    expect(dashboard.providerFailureTaskCount).toBe(3);
     expect(dashboard.opportunityPipelineSummary?.laneStageSummaries).toEqual([
       { sourceLane: "probate", stage: "contract_sent", count: 1 },
       { sourceLane: "lease_option_inbound", stage: "qualified_opportunity", count: 3 },

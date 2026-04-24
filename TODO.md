@@ -68,6 +68,12 @@ Phase 6:
 - Unknown lead source values fail closed instead of silently becoming `manual`.
 - Trigger `lead-intake` now targets `/lead-machine/intake`; probate payloads keep a separate `probate-intake` job pointed at `/lead-machine/probate/intake`.
 
+Phase 7:
+
+- Mission Control dashboard now exposes backend-owned `provider_failure_task_count`.
+- Provider-failure task counts and task rows are org-scoped through task details metadata, preventing cross-org leakage for same business/environment.
+- Mission Control tasks UI distinguishes provider-failure reviews while preserving normal manual-call rendering.
+
 ## Hard rules
 
 - Do not install Ares into Hermes.
@@ -87,6 +93,7 @@ uv run pytest tests/db/test_supabase_control_plane_client.py tests/db/test_contr
 uv run pytest tests/api/test_commands.py tests/api/test_approvals.py tests/api/test_runs.py tests/api/test_replays.py tests/api/test_trigger_callbacks.py tests/api/test_hermes_tools.py tests/api/test_lead_machine_trigger_contract.py tests/api/test_marketing_sequence.py tests/api/test_marketing_leads.py -q
 uv run pytest tests/providers/test_textgrid.py tests/providers/test_resend.py tests/providers/test_calcom.py tests/services/test_inbound_sms_service.py tests/services/test_booking_service.py tests/api/test_marketing_runtime.py tests/api/test_marketing_webhooks.py tests/api/test_marketing_leads.py tests/api/test_mission_control.py tests/api/test_mission_control_marketing.py -q
 uv run pytest tests/api/test_lead_machine.py tests/services/test_lead_intake_service.py tests/api/test_lead_machine_trigger_contract.py -q
+uv run pytest tests/api/test_mission_control.py::test_provider_failure_tasks_are_org_scoped_in_dashboard_and_tasks tests/api/test_marketing_leads.py -q
 uv run pytest -q
 npm --prefix trigger run typecheck
 npm --prefix apps/mission-control run test -- --run
@@ -96,4 +103,4 @@ npm --prefix apps/mission-control run build
 
 ## Next gate
 
-Start Phase 7 Mission Control cohesion next.
+Start Phase 8 runtime observability, audit, usage, and replay next.

@@ -330,6 +330,12 @@ def test_marketing_lead_service_persists_lead_even_if_provider_requests_fail(mon
     assert isinstance(mission_control_tasks, MissionControlTasksResponse)
     assert mission_control_tasks.due_count == 3
     assert [task.provider_failure for task in mission_control_tasks.tasks] == [True, True, True]
+    dashboard = MissionControlService(client=client).get_dashboard(
+        business_id="limitless",
+        environment="dev",
+    )
+    assert dashboard.provider_failure_task_count == 3
+    assert dashboard.system_status == "watch"
 
 
 def test_marketing_lead_service_logs_provider_message_ids_for_status_callbacks() -> None:
