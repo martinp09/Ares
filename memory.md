@@ -184,6 +184,13 @@
 
 ## Change Log
 
+### 2026-04-24 Tax Overlay Adapter Slice
+
+- Added `app/services/tax_overlay_service.py` with `TaxOverlayResult`, `TaxOverlayStatus`, `HarrisTaxStatementParser`, `TravisTaxSearchAdapter`/`Parser`, and `ActWebTaxDetailParser` for Dallas/Montgomery detail-page HTML.
+- Added `tests/services/test_tax_overlay_service.py` covering Harris live-style statement layouts, delinquent/current status parsing, Travis quick-search payload/result parsing, official Travis table rows, and ACT Web detail parsing.
+- Live smoke saved under `docs/rollout-evidence/tax-overlay-adapters-2026-04-24/`: Tangie acct `1091100001181` parsed owner `WILLIAMS TANGIE`, address `1407 GREEN TRAIL DR`, value `$214,867`, status `tax_overlay_verified_current`; McMahan acct `1172610010016` parsed owner `MCMAHAN PATRICK K & JANET`, address `5073 N NELSON AVE`, value `$320,544`, status `tax_overlay_verified_current`; Travis query `01150409100000` parsed account/owner/address/amount as a soft quick-search signal.
+- Dallas/Montgomery ACT parser is fixture-ready, but live ACT hosts still need reachable samples before declaring live support.
+
 ### 2026-04-24 Tax Overlay Discovery
 
 - Discovered official tax search/payment portals for all five Phase-1 counties; evidence saved under `docs/rollout-evidence/tax-overlay-discovery-2026-04-24/` and wiki page `docs/curative-title-wiki/Tax Overlay Adapter Matrix.md`.

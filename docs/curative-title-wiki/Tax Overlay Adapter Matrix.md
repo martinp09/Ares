@@ -19,16 +19,18 @@ For curative title, the order stays:
 
 | County | Official portal | Adapter tier | Status |
 |---|---|---|---|
-| Harris | `https://www.hctax.net/Property/DelinquentTax` | direct JSON/API | Works from Python requests; parser needs hardening |
-| Tarrant | `https://www.tax.tarrantcountytx.gov/search` | browser/manual-session discovery | Official site found; Cloudflare blocks current cloud/browser environment |
-| Montgomery | `https://actweb.acttax.com/act_webdev/montgomery/index.jsp` | ACT JSP HTML scraper | Official site found; current environment timed out connecting |
-| Dallas | `https://www.dallasact.com/act_webdev/dallas/index.jsp` | ACT JSP HTML scraper | Official site found; current environment timed out connecting |
-| Travis | `https://tax-office.traviscountytx.gov/properties/taxes/account-search` + `https://travis.go2gov.net/cart/responsive/search.do` | HTML form scraper | Quick search POST works from Python requests |
+| Harris | `https://www.hctax.net/Property/DelinquentTax` | direct JSON/API | Parser hardened and live-smoked on Tangie/McMahan accounts |
+| Tarrant | `https://www.tax.tarrantcountytx.gov/search` | browser/manual-session discovery | Ignored for now; Cloudflare blocks current cloud/browser environment |
+| Montgomery | `https://actweb.acttax.com/act_webdev/montgomery/index.jsp` | ACT JSP HTML scraper | ACT detail parser scaffolded; current environment timed out connecting |
+| Dallas | `https://www.dallasact.com/act_webdev/dallas/index.jsp` | ACT JSP HTML scraper | ACT detail parser scaffolded; current environment timed out connecting |
+| Travis | `https://tax-office.traviscountytx.gov/properties/taxes/account-search` + `https://travis.go2gov.net/cart/responsive/search.do` | HTML form scraper | Quick search adapter/parser implemented and live-smoked |
 
 Source evidence:
 
 - `docs/rollout-evidence/tax-overlay-discovery-2026-04-24/REPORT.md`
 - `docs/rollout-evidence/tax-overlay-discovery-2026-04-24/tax_overlay_portal_matrix.json`
+- `docs/rollout-evidence/tax-overlay-adapters-2026-04-24/REPORT.md`
+- `docs/rollout-evidence/tax-overlay-adapters-2026-04-24/tax_overlay_adapter_smoke.json`
 
 ## Adapter tiers
 
@@ -143,10 +145,18 @@ Use explicit states:
 
 - `tax_overlay_not_checked`
 - `tax_overlay_soft_no_signal`
+- `tax_overlay_soft_signal`
 - `tax_overlay_verified_current`
 - `tax_overlay_verified_delinquent`
 - `tax_overlay_ambiguous`
 - `tax_overlay_blocked`
+
+## Build status
+
+1. Harris parser hardened and live-smoked against confirmed Tangie/McMahan accounts.
+2. Travis quick-search adapter/parser implemented and live-smoked.
+3. Dallas/Montgomery ACT detail parser scaffolded and fixture-tested; live sites still need reachable samples.
+4. Tarrant intentionally deferred.
 
 ## Build order
 

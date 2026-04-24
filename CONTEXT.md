@@ -23,6 +23,7 @@
 4. Do not call Ares fully production-ready until the final acceptance gate and production evidence are complete.
 
 ## Recent Change
+- 2026-04-24: Implemented first tax-overlay adapter slice: Harris parser hardened and live-smoked on Tangie/McMahan accounts, Travis quick-search adapter/parser implemented and live-smoked, Dallas/Montgomery ACT detail parser scaffolded with fixture coverage, Tarrant deferred.
 - 2026-04-24: Discovered official tax overlay portals for all five Phase-1 counties and saved adapter matrix under `docs/rollout-evidence/tax-overlay-discovery-2026-04-24/`; Harris and Travis are directly probeable, Dallas/Montgomery are ACT Web portals timing out here, and Tarrant is Cloudflare-blocked in this environment.
 - 2026-04-24: Ran HCAD/property match test for top contact packets; Tangie (`543678`) matched HCAD acct `1091100001181` / `1407 GREEN TRAIL DR` / `FALLBROOK SEC 3`, McMahan (`543652`) matched acct `1172610010016`, and Montoya (`525833-401`) remains ambiguous pending partition/property document extraction.
 - 2026-04-24: Generated contact-candidate packets for the 12 enriched Harris probate keep-now leads under `docs/rollout-evidence/contact-candidate-packets-2026-04-24/`; top ready-for-paid-skiptrace packets are Tangie Williams (`543678`), Daniel R. Montoya (`525833-401`), and Janet Marie Mcmahan (`543652`).

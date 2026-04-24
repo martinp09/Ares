@@ -1,0 +1,140 @@
+{
+  "smoke": "tax_overlay_adapters",
+  "results": [
+    {
+      "county": "harris",
+      "account": "1091100001181",
+      "html_len": 58734,
+      "parsed": {
+        "county": "harris",
+        "account": "1091100001181",
+        "owner_name": "WILLIAMS TANGIE",
+        "property_address": "1407 GREEN TRAIL DR",
+        "status": "tax_overlay_verified_current",
+        "is_delinquent": false,
+        "amount_owed": 0.0,
+        "current_year_owed": 0.0,
+        "prior_years_owed": 0.0,
+        "estimated_years_delinquent": 0,
+        "tax_value": 214867.0,
+        "tax_value_spread": 214867.0,
+        "tax_to_value_pct": 0.0,
+        "taxes_under_suit": false,
+        "homestead_or_exemption_clues": [
+          "homestead",
+          "disabled"
+        ],
+        "search_method": "harris_tax_statement",
+        "confidence": "high",
+        "source_url": "https://www.hctax.net/Property/TaxStatement?account=[encrypted]",
+        "parser_warnings": [],
+        "raw": {
+          "labeled_fields": {
+            "account number": "Current As Of:",
+            "current as of": "April 23, 2026",
+            "assessed owner": "WILLIAMS TANGIE\n1407 GREEN TRAIL DR\nHOUSTON TX 77038-1744",
+            "property description": "Appraised Values",
+            "impr market value": "182,203",
+            "total market value": "214,867",
+            "less capped mkt value": "10,025",
+            "appraised value": "204,842",
+            "taxing jurisdiction": "Exemption",
+            "total 2025 taxes due by january 31 2026": "$321.03",
+            "payments applied to 2025 taxes": "$321.03",
+            "total current taxes due": "$0.00",
+            "prior year s taxes due if any": "- $0.00",
+            "total amount due for april 2026": "$0.00",
+            "annette ramirez": "Tax Assessor-Collector",
+            "search results": "Close",
+            "2025 property tax statement": "Account is Paid",
+            "notes exemptions": "1407 GREEN TRAIL DR 77038 LT 1181 BLK 24 FALLBROOK SEC 3 .1480 AC"
+          }
+        }
+      }
+    },
+    {
+      "county": "harris",
+      "account": "1172610010016",
+      "html_len": 59259,
+      "parsed": {
+        "county": "harris",
+        "account": "1172610010016",
+        "owner_name": "MCMAHAN PATRICK K & JANET",
+        "property_address": "5073 N NELSON AVE",
+        "status": "tax_overlay_verified_current",
+        "is_delinquent": false,
+        "amount_owed": 0.0,
+        "current_year_owed": 0.0,
+        "prior_years_owed": 0.0,
+        "estimated_years_delinquent": 0,
+        "tax_value": 320544.0,
+        "tax_value_spread": 320544.0,
+        "tax_to_value_pct": 0.0,
+        "taxes_under_suit": false,
+        "homestead_or_exemption_clues": [
+          "homestead",
+          "disabled"
+        ],
+        "search_method": "harris_tax_statement",
+        "confidence": "high",
+        "source_url": "https://www.hctax.net/Property/TaxStatement?account=[encrypted]",
+        "parser_warnings": [],
+        "raw": {
+          "labeled_fields": {
+            "account number": "Current As Of:",
+            "current as of": "April 23, 2026",
+            "assessed owner": "MCMAHAN PATRICK K & JANET\n5073 N NELSON AVE\nKATY TX 77493-9511",
+            "property description": "Appraised Values",
+            "impr market value": "245,153",
+            "total market value": "320,544",
+            "less capped mkt value": "0",
+            "appraised value": "320,544",
+            "taxing jurisdiction": "Exemption",
+            "total 2025 taxes due by january 31 2026": "$1,147.69",
+            "payments applied to 2025 taxes": "$1,147.69",
+            "total current taxes due": "$0.00",
+            "prior year s taxes due if any": "- $0.00",
+            "total amount due for april 2026": "$0.00",
+            "annette ramirez": "Tax Assessor-Collector",
+            "search results": "Close",
+            "2025 property tax statement": "Account is Paid",
+            "notes exemptions": "5073 N NELSON AVE 77493 LT 16 BLK 1 MORRISON BOULEVARD PLACE R/P .4246 AC"
+          }
+        }
+      }
+    },
+    {
+      "county": "travis",
+      "query": "01150409100000",
+      "result_count": 1,
+      "parsed": [
+        {
+          "county": "travis",
+          "account": "01150409100000",
+          "owner_name": "BARRY ALEX T",
+          "property_address": "1901 VISTA LN",
+          "status": "tax_overlay_soft_signal",
+          "is_delinquent": null,
+          "amount_owed": 0.0,
+          "current_year_owed": null,
+          "prior_years_owed": null,
+          "estimated_years_delinquent": null,
+          "tax_value": null,
+          "tax_value_spread": null,
+          "tax_to_value_pct": null,
+          "taxes_under_suit": null,
+          "homestead_or_exemption_clues": [],
+          "search_method": "travis_quick_search",
+          "confidence": "medium",
+          "source_url": "https://travis.go2gov.net/showPropertyInfo.do?account=01150409100000",
+          "parser_warnings": [
+            "quick_search_result_requires_detail_page_verification"
+          ],
+          "raw": {
+            "result_text": "01150409100000 BARRY ALEX T $0.00 1901 VISTA LN $0.00 1901 VISTA LN Add to Cart"
+          }
+        }
+      ]
+    }
+  ]
+}
