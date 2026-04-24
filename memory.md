@@ -171,8 +171,8 @@
 
 ## Open Work
 
-1. commit Phase 9 end-to-end local smoke on `feature/ares-full-stack-cohesion-clean`
-2. start Phase 10 preview/staging rollout readiness next, but keep live Supabase migrations, provider sends, Trigger deploys, and production deploys gated on explicitly verified safe targets
+1. commit Phase 10 preview/staging rollout readiness on `feature/ares-full-stack-cohesion-clean`
+2. start Phase 11 production promotion readiness next, but keep live Supabase migrations, provider sends, Trigger deploys, and production deploys gated on explicitly verified safe targets
 3. reconcile the preserved dirty Supabase persistence work before any hosted Supabase rollout
 4. keep post-merge Supabase follow-up scope narrow to persistence regressions and real hosted smoke only
 5. keep browser acquisition and ambiguous research in Hermes or other driver agents, not inside Ares
@@ -254,6 +254,16 @@
 - The full-stack smoke forces memory-backed settings, clears live provider credentials in the service instances it uses, patches route-level marketing services only for the smoke duration, and blocks any attempted outbound provider request.
 - QC initially found state accumulation, weak no-live guarding, and shallow Mission Control assertions; all were fixed before a fresh QC approval.
 - Verified with `uv run pytest tests/smoke/test_full_stack_contract.py -q`, `uv run python scripts/smoke_full_stack_cohesion.py --no-live-sends`, `uv run python scripts/smoke_provider_readiness.py`, `uv run pytest -q` (`545 passed, 5 warnings`), Trigger typecheck, Mission Control tests/typecheck/build, `git diff --check`, and fresh QC approval.
+
+### 2026-04-24 Full-Stack Cohesion Phase 10
+
+- Added `scripts/preview_rollout_readiness.py` as a guarded preview/staging readiness gate for linked Supabase target verification, required preview env, CLI availability, backend selection, and linked dry-run status.
+- Added `tests/smoke/test_preview_rollout_readiness.py` covering unverified target blocking, expected project-ref requirement, backend env gating, dry-run requirement, and ready-after-dry-run behavior.
+- Added `docs/preview-staging-rollout.md` with the preview rollout command sequence and no-live provider policy.
+- The readiness gate refuses to run linked Supabase commands unless `--run-linked-dry-run` is present and `--expected-project-ref` matches `supabase/.temp/project-ref`.
+- The readiness gate cannot report `ready`, `can_apply_preview_migrations`, or `can_run_preview_smoke` until the linked Supabase dry-run executes and passes.
+- This checkout has no linked Supabase project ref; `supabase migration list --linked` and `supabase db push --dry-run --linked` fail safely with the missing-project-ref error, so no preview migrations, deploys, Trigger workers, or live provider sends were run.
+- Verified with `uv run pytest tests/smoke/test_preview_rollout_readiness.py tests/smoke/test_full_stack_contract.py -q`, `uv run python scripts/preview_rollout_readiness.py` (`blocked`), `uv run pytest -q` (`550 passed, 5 warnings`), Mission Control tests/typecheck/build, Trigger typecheck, no-live full-stack smoke, `git diff --check`, and fresh QC approval.
 
 ### 2026-04-23 Origin Main Supabase Persistence Wiring
 

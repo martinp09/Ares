@@ -8,17 +8,17 @@
 
 ## Current Scope
 - Execute the full-stack cohesion plan in gated slices.
-- Phases 0/1 through 9 are complete and QC-approved in the clean worktree.
+- Phases 0/1 through 10 are complete and QC-approved in the clean worktree.
 - No live Supabase migrations, provider sends, Trigger deploys, or production deploys have been run.
 - The dirty Supabase persistence work in `/Users/solomartin/Projects/Ares` remains preserved outside this clean worktree.
 
 ## Current TODO
-1. Commit Phase 9 end-to-end local smoke.
-2. Start Phase 10 preview/staging rollout readiness next.
+1. Commit Phase 10 preview/staging rollout readiness.
+2. Start Phase 11 production promotion readiness next.
 3. Do not run live Supabase migrations, provider sends, Trigger deploys, or production deploys unless the target is explicitly verified safe.
 
 ## Recent Change
-- 2026-04-24: Phase 9 added deterministic in-process full-stack smoke coverage for Hermes, Ares, Trigger callbacks, marketing provider webhooks, Mission Control, audit, usage, tasks, messages, and bookings. Full gates and fresh QC are green.
+- 2026-04-24: Phase 10 added guarded preview/staging readiness checks. No hosted migrations, deploys, Trigger workers, or live provider sends were run because this checkout is not linked to a verified preview target. Full gates and fresh QC are green.
 
 ## Read These Sections In `memory.md`
 1. `## Current Direction`

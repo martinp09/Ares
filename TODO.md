@@ -92,6 +92,14 @@ Phase 9:
 - Added `scripts/smoke_provider_readiness.py` for TextGrid/Resend request-shape validation without sending; live flags require explicit `--allow-live`.
 - Added `docs/smoke-tests/full-stack-cohesion.md` with the local smoke commands and no-live-sends contract.
 
+Phase 10:
+
+- Added `scripts/preview_rollout_readiness.py` as a guarded preview/staging readiness gate.
+- The readiness gate refuses linked Supabase dry-runs unless `--expected-project-ref` matches `supabase/.temp/project-ref`.
+- The readiness gate cannot report `ready`, `can_apply_preview_migrations`, or `can_run_preview_smoke` until the linked Supabase dry-run executes and passes.
+- Added `docs/preview-staging-rollout.md` with the actual preview gate commands and no-live provider policy.
+- This checkout is not linked to a Supabase project ref, so no preview migrations, deploys, Trigger workers, or live provider sends were run.
+
 ## Hard rules
 
 - Do not install Ares into Hermes.
@@ -114,6 +122,7 @@ uv run pytest tests/api/test_lead_machine.py tests/services/test_lead_intake_ser
 uv run pytest tests/api/test_mission_control.py::test_provider_failure_tasks_are_org_scoped_in_dashboard_and_tasks tests/api/test_marketing_leads.py -q
 uv run pytest tests/api/test_audit.py tests/api/test_usage.py tests/api/test_replays.py -q
 uv run pytest tests/smoke/test_full_stack_contract.py -q
+uv run pytest tests/smoke/test_preview_rollout_readiness.py -q
 uv run python scripts/smoke_full_stack_cohesion.py --no-live-sends
 uv run python scripts/smoke_provider_readiness.py
 uv run pytest -q
@@ -125,4 +134,4 @@ npm --prefix apps/mission-control run build
 
 ## Next gate
 
-Commit Phase 9, then start Phase 10 preview/staging rollout readiness next. Keep live Supabase migrations, provider sends, Trigger deploys, and production deploys gated on an explicitly verified safe target.
+Commit Phase 10, then start Phase 11 production promotion readiness next. Keep live Supabase migrations, provider sends, Trigger deploys, and production deploys gated on an explicitly verified safe target.
