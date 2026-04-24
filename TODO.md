@@ -83,6 +83,15 @@ Phase 8:
 - Observability is nonfatal after primary state changes, so audit/usage failures do not strand commands, approvals, runs, Trigger callbacks, or replays.
 - Agent-backed audit/usage scope is preserved through command persistence, approval paths, Trigger lifecycle fallback, replay approvals, deduped retries, and direct/hydrated Supabase command storage.
 
+Phase 9:
+
+- Added deterministic in-process full-stack smoke coverage in `scripts/smoke_full_stack_cohesion.py`.
+- The full-stack smoke exercises `/health`, Hermes tool discovery/invocation, Trigger lifecycle callbacks, lead intake, manual-call task intake, Cal.com booking webhook, TextGrid inbound webhook, Mission Control dashboard/runs, audit, usage, and repository-backed messages/tasks/bookings.
+- Full-stack smoke forces memory-backed settings, clears live provider credentials, patches route-level marketing services during the run, and blocks any attempted live provider request.
+- `reset_control_plane_store()` now clears dynamic marketing in-memory stores so repeated in-process smoke runs do not accumulate contacts, conversations, messages, bookings, or sequence enrollments.
+- Added `scripts/smoke_provider_readiness.py` for TextGrid/Resend request-shape validation without sending; live flags require explicit `--allow-live`.
+- Added `docs/smoke-tests/full-stack-cohesion.md` with the local smoke commands and no-live-sends contract.
+
 ## Hard rules
 
 - Do not install Ares into Hermes.
@@ -104,6 +113,9 @@ uv run pytest tests/providers/test_textgrid.py tests/providers/test_resend.py te
 uv run pytest tests/api/test_lead_machine.py tests/services/test_lead_intake_service.py tests/api/test_lead_machine_trigger_contract.py -q
 uv run pytest tests/api/test_mission_control.py::test_provider_failure_tasks_are_org_scoped_in_dashboard_and_tasks tests/api/test_marketing_leads.py -q
 uv run pytest tests/api/test_audit.py tests/api/test_usage.py tests/api/test_replays.py -q
+uv run pytest tests/smoke/test_full_stack_contract.py -q
+uv run python scripts/smoke_full_stack_cohesion.py --no-live-sends
+uv run python scripts/smoke_provider_readiness.py
 uv run pytest -q
 npm --prefix trigger run typecheck
 npm --prefix apps/mission-control run test -- --run
@@ -113,4 +125,4 @@ npm --prefix apps/mission-control run build
 
 ## Next gate
 
-Commit Phase 8, then start Phase 9 end-to-end local smoke next.
+Commit Phase 9, then start Phase 10 preview/staging rollout readiness next. Keep live Supabase migrations, provider sends, Trigger deploys, and production deploys gated on an explicitly verified safe target.

@@ -171,8 +171,8 @@
 
 ## Open Work
 
-1. commit Phase 8 runtime observability on `feature/ares-full-stack-cohesion-clean`
-2. start Phase 9 end-to-end local smoke next
+1. commit Phase 9 end-to-end local smoke on `feature/ares-full-stack-cohesion-clean`
+2. start Phase 10 preview/staging rollout readiness next, but keep live Supabase migrations, provider sends, Trigger deploys, and production deploys gated on explicitly verified safe targets
 3. reconcile the preserved dirty Supabase persistence work before any hosted Supabase rollout
 4. keep post-merge Supabase follow-up scope narrow to persistence regressions and real hosted smoke only
 5. keep browser acquisition and ambiguous research in Hermes or other driver agents, not inside Ares
@@ -244,6 +244,16 @@
 - Replay requests append actor-scoped audit while preserving existing safety: approval-required replays create approval records only and do not create child runs until approval resolution.
 - Added command `agent_revision_id` persistence across memory, direct Supabase command adapters, hydrated Supabase transactions, and the additive `202604240001_command_agent_revision_scope.sql` migration.
 - Verified with targeted audit/usage/replay/db regressions, `uv run pytest -q` (`542 passed, 5 warnings`), Trigger typecheck, Mission Control tests/typecheck/build, `git diff --check`, and fresh QC approval.
+
+### 2026-04-24 Full-Stack Cohesion Phase 9
+
+- Added deterministic in-process full-stack smoke coverage in `scripts/smoke_full_stack_cohesion.py` for `/health`, Hermes tool discovery/invocation, Trigger lifecycle callbacks, marketing lead intake, manual-call task intake, Cal.com booking webhook, TextGrid inbound webhook, Mission Control dashboard/runs, audit, usage, tasks, messages, and booking events.
+- Added `scripts/smoke_provider_readiness.py` to validate TextGrid and Resend request shapes without sending; live smoke intent requires explicit provider env flags plus `--allow-live`.
+- Added `docs/smoke-tests/full-stack-cohesion.md` documenting the no-live-sends local smoke flow.
+- Hardened `reset_control_plane_store()` to clear dynamic marketing in-memory stores for contacts, conversations, messages, booking events, and sequence enrollments so repeated in-process smoke runs stay deterministic.
+- The full-stack smoke forces memory-backed settings, clears live provider credentials in the service instances it uses, patches route-level marketing services only for the smoke duration, and blocks any attempted outbound provider request.
+- QC initially found state accumulation, weak no-live guarding, and shallow Mission Control assertions; all were fixed before a fresh QC approval.
+- Verified with `uv run pytest tests/smoke/test_full_stack_contract.py -q`, `uv run python scripts/smoke_full_stack_cohesion.py --no-live-sends`, `uv run python scripts/smoke_provider_readiness.py`, `uv run pytest -q` (`545 passed, 5 warnings`), Trigger typecheck, Mission Control tests/typecheck/build, `git diff --check`, and fresh QC approval.
 
 ### 2026-04-23 Origin Main Supabase Persistence Wiring
 
