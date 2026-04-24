@@ -184,6 +184,12 @@
 
 ## Change Log
 
+### 2026-04-24 Curative Title Data Pipeline Doctrine
+
+- Added `docs/curative-title-data-pipeline.md` to define the land-record-first curative-title workflow: deeds, affidavits, probate-related recordings, grantor/grantee chains, legal descriptions, and document details drive heir/descendant and partial-rights discovery.
+- Documented browser harness / Hermes browser automation as a foundational workflow method for county land-record research; scripts should follow only after the browser workflow is proven and stable.
+- Captured free-source skiptrace as a later reconnaissance layer using living candidate contacts from the evidence graph, not decedent-only rows.
+
 ### 2026-04-24 Probate Rollout Evidence
 
 - Added Harris County probate rollout evidence under `docs/rollout-evidence/probate-smoke-2026-04-24/`: 202 raw last-week rows, 113 keep-now rows, and 12 priority heirship/title-friction detail enrichments.

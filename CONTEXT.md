@@ -6,6 +6,7 @@
 - Branch: `test/production-readiness-handoff`
 - Base commit: `0c14769` (`origin/main`)
 - Production-readiness handoff: `docs/production-readiness-handoff.md`
+- Curative-title data pipeline doctrine: `docs/curative-title-data-pipeline.md`
 - Production-readiness plan: `docs/superpowers/plans/2026-04-24-ares-production-readiness-test-branch-plan.md`
 
 ## Current Scope
@@ -21,6 +22,7 @@
 4. Do not call Ares fully production-ready until the final acceptance gate and production evidence are complete.
 
 ## Recent Change
+- 2026-04-24: Added `docs/curative-title-data-pipeline.md` to make land-record document/deed review and browser-harness research foundational for curative-title heir/descendant discovery.
 - 2026-04-24: Added Harris probate rollout evidence: 202 last-week rows, 113 keep-now rows, 12 priority heirship/title-friction case-detail enrichments, and an Ares memory-backed intake simulation that bridged all 12 priority cases into canonical leads while leaving HCAD/tax overlay as the next backend gap.
 
 ## Read These Sections In `memory.md`

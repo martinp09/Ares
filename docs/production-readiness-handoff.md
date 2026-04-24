@@ -67,6 +67,14 @@ The current `origin/main` contains these implemented/gated pieces:
    - Full-stack no-live smoke: `scripts/smoke_full_stack_cohesion.py`
    - Provider request-shape smoke: `scripts/smoke_provider_readiness.py`
 
+## Curative-title data workflow doctrine
+
+The curative-title lead machine is **land-record-first**, not probate-first. Probate filings are useful party clues, but the decisive evidence is in deeds, affidavits, probate-related recordings, legal descriptions, grantor/grantee chains, and document images/details that reveal heirs, descendants, and partial-rights holders.
+
+The browser harness / Hermes browser automation is a foundational method for this workflow because county portals are fragmented and often require faithful human-browser interaction before any reliable script can be built.
+
+See: `docs/curative-title-data-pipeline.md`.
+
 ## What is still required
 
 ### Gate 1 — Choose and verify environments
