@@ -110,9 +110,13 @@ Not completed live:
 
 ### 6. Guarded live provider smoke gate
 
-- [ ] Confirm operator-owned phone/email recipients.
-- [ ] Set explicit live smoke recipient flags.
-- [ ] Send exactly controlled test SMS/email.
+- [x] Run first local live provider smoke with AWF credentials and memory-backed Ares state.
+- [x] Confirm TextGrid SMS can queue through marketing lead intake.
+- [x] Confirm direct Mission Control Resend email test can queue.
+- [ ] Fix marketing lead confirmation email side-effect path: local smoke showed `HTTP Error 403: Forbidden` there while `/mission-control/outbound/email/test` succeeded through the direct Resend provider service.
+- [ ] Confirm operator-owned phone/email recipients for hosted smoke.
+- [ ] Set explicit live smoke recipient flags for hosted smoke.
+- [ ] Send exactly controlled hosted test SMS/email.
 - [ ] Prove provider IDs/statuses/webhooks/receipts are captured.
 - [ ] Append live provider smoke evidence to preview evidence JSON.
 
