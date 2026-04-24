@@ -171,8 +171,8 @@
 
 ## Open Work
 
-1. commit the Phase 7 Mission Control provider-failure visibility slice on `feature/ares-full-stack-cohesion-clean`
-2. start Phase 8 runtime observability, audit, usage, and replay
+1. commit Phase 8 runtime observability on `feature/ares-full-stack-cohesion-clean`
+2. start Phase 9 end-to-end local smoke next
 3. reconcile the preserved dirty Supabase persistence work before any hosted Supabase rollout
 4. keep post-merge Supabase follow-up scope narrow to persistence regressions and real hosted smoke only
 5. keep browser acquisition and ambiguous research in Hermes or other driver agents, not inside Ares
@@ -234,6 +234,16 @@
 - Provider-failure task rows now preserve optional task metadata in the Mission Control API client and render distinctly in the Tasks page.
 - Provider-failure dashboard/task read models are org-scoped through task details metadata so same business/environment tasks do not leak across actor orgs.
 - QC approved Phase 7 after fixing the org-scoping blocker; broader gates passed with `uv run pytest -q`, Trigger typecheck, Mission Control tests/typecheck/build, and `git diff --check`.
+
+### 2026-04-24 Full-Stack Cohesion Phase 8
+
+- Added `RuntimeObservabilityService` as the shared nonfatal audit/usage seam for runtime command, approval, run, Trigger lifecycle, and replay paths.
+- Command ingestion now appends `hermes_command_invoked` audit entries and `tool_call` usage records, including deduped command invocations scoped from the persisted command revision.
+- Approval creation/approval and run creation now append runtime audit entries; run creation records `run` usage and approved-command runs route through `RunService` while preserving agent revision scope.
+- Trigger lifecycle callbacks append operator-visible audit entries, and started callbacks count `host_dispatch` usage attempts with Trigger correlation metadata; no-dispatch approved runs fall back to command agent scope.
+- Replay requests append actor-scoped audit while preserving existing safety: approval-required replays create approval records only and do not create child runs until approval resolution.
+- Added command `agent_revision_id` persistence across memory, direct Supabase command adapters, hydrated Supabase transactions, and the additive `202604240001_command_agent_revision_scope.sql` migration.
+- Verified with targeted audit/usage/replay/db regressions, `uv run pytest -q` (`542 passed, 5 warnings`), Trigger typecheck, Mission Control tests/typecheck/build, `git diff --check`, and fresh QC approval.
 
 ### 2026-04-23 Origin Main Supabase Persistence Wiring
 

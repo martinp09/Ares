@@ -74,6 +74,15 @@ Phase 7:
 - Provider-failure task counts and task rows are org-scoped through task details metadata, preventing cross-org leakage for same business/environment.
 - Mission Control tasks UI distinguishes provider-failure reviews while preserving normal manual-call rendering.
 
+Phase 8:
+
+- Runtime command ingestion appends `hermes_command_invoked` audit events and `tool_call` usage records.
+- Approval creation/approval and run creation now append durable audit events; run creation records `run` usage.
+- Trigger lifecycle callbacks append `trigger_run_started`/`trigger_run_completed`/`trigger_run_failed` audit events, and started callbacks count `host_dispatch` usage attempts.
+- Replay requests append audit with actor context and preserve existing side-effect safety: approval-required commands create no child run until the replay approval is approved.
+- Observability is nonfatal after primary state changes, so audit/usage failures do not strand commands, approvals, runs, Trigger callbacks, or replays.
+- Agent-backed audit/usage scope is preserved through command persistence, approval paths, Trigger lifecycle fallback, replay approvals, deduped retries, and direct/hydrated Supabase command storage.
+
 ## Hard rules
 
 - Do not install Ares into Hermes.
@@ -94,6 +103,7 @@ uv run pytest tests/api/test_commands.py tests/api/test_approvals.py tests/api/t
 uv run pytest tests/providers/test_textgrid.py tests/providers/test_resend.py tests/providers/test_calcom.py tests/services/test_inbound_sms_service.py tests/services/test_booking_service.py tests/api/test_marketing_runtime.py tests/api/test_marketing_webhooks.py tests/api/test_marketing_leads.py tests/api/test_mission_control.py tests/api/test_mission_control_marketing.py -q
 uv run pytest tests/api/test_lead_machine.py tests/services/test_lead_intake_service.py tests/api/test_lead_machine_trigger_contract.py -q
 uv run pytest tests/api/test_mission_control.py::test_provider_failure_tasks_are_org_scoped_in_dashboard_and_tasks tests/api/test_marketing_leads.py -q
+uv run pytest tests/api/test_audit.py tests/api/test_usage.py tests/api/test_replays.py -q
 uv run pytest -q
 npm --prefix trigger run typecheck
 npm --prefix apps/mission-control run test -- --run
@@ -103,4 +113,4 @@ npm --prefix apps/mission-control run build
 
 ## Next gate
 
-Start Phase 8 runtime observability, audit, usage, and replay next.
+Commit Phase 8, then start Phase 9 end-to-end local smoke next.

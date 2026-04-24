@@ -241,3 +241,80 @@ def test_usage_api_rejects_conflicting_revision_and_session_identity(client) -> 
     assert mismatched_agent.json()["detail"] == "Agent id must match agent revision"
     assert mismatched_session_revision.status_code == 422
     assert mismatched_session_revision.json()["detail"] == "Agent revision id must match session"
+
+
+def test_runtime_records_run_tool_call_and_trigger_usage(client) -> None:
+    reset_control_plane_state()
+
+    response = client.post(
+        "/commands",
+        json={
+            "business_id": "limitless",
+            "environment": "dev",
+            "command_type": "run_market_research",
+            "idempotency_key": "cmd-usage-runtime",
+            "payload": {"topic": "runtime usage"},
+        },
+        headers=AUTH_HEADERS,
+    )
+    assert response.status_code == 201
+    run_id = response.json()["run_id"]
+
+    started_response = client.post(
+        f"/trigger/callbacks/runs/{run_id}/started",
+        json={"trigger_run_id": "trg-usage-runtime"},
+        headers=AUTH_HEADERS,
+    )
+    assert started_response.status_code == 200
+
+    listing = client.get("/usage", headers=AUTH_HEADERS)
+    assert listing.status_code == 200
+    body = listing.json()
+    assert body["summary"]["by_kind"] == {
+        "host_dispatch": 1,
+        "run": 1,
+        "tool_call": 1,
+    }
+    assert body["summary"]["total_count"] == 3
+    assert {event["run_id"] for event in body["events"] if event["kind"] != "tool_call"} == {run_id}
+
+
+def test_agent_backed_runtime_usage_stays_scoped_to_agent_org(client) -> None:
+    reset_control_plane_state()
+
+    headers = org_actor_headers(org_id="org_alpha", actor_id="actor_alpha")
+    agent_id, revision_id = create_published_agent(client, headers=headers, name="Alpha Runtime Agent")
+    response = client.post(
+        "/commands",
+        json={
+            "business_id": "limitless",
+            "environment": "dev",
+            "command_type": "run_market_research",
+            "idempotency_key": "cmd-usage-agent-org",
+            "payload": {"topic": "org-scoped runtime usage"},
+            "agent_revision_id": revision_id,
+        },
+        headers=headers,
+    )
+    assert response.status_code == 201
+    run_id = response.json()["run_id"]
+
+    started_response = client.post(
+        f"/trigger/callbacks/runs/{run_id}/started",
+        json={"trigger_run_id": "trg-usage-agent-org"},
+        headers=AUTH_HEADERS,
+    )
+    assert started_response.status_code == 200
+
+    alpha_usage = client.get("/usage", headers=headers)
+    internal_usage = client.get("/usage", headers=AUTH_HEADERS)
+    assert alpha_usage.status_code == 200
+    assert internal_usage.status_code == 200
+    assert alpha_usage.json()["summary"]["by_kind"] == {
+        "host_dispatch": 1,
+        "run": 1,
+        "tool_call": 1,
+    }
+    assert {event["agent_id"] for event in alpha_usage.json()["events"]} == {agent_id}
+    assert {event["agent_revision_id"] for event in alpha_usage.json()["events"]} == {revision_id}
+    assert internal_usage.json()["summary"]["total_count"] == 0

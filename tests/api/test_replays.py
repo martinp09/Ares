@@ -516,3 +516,220 @@ def test_side_effecting_run_replay_requires_reapproval() -> None:
     body = response.json()
     assert body["requires_approval"] is True
     assert body["approval_id"] is not None
+
+
+def test_side_effecting_replay_records_no_child_run_until_approval() -> None:
+    reset_control_plane_state()
+    client = build_client()
+    command_response = client.post(
+        "/commands",
+        json={
+            "business_id": "limitless",
+            "environment": "dev",
+            "command_type": "publish_campaign",
+            "idempotency_key": "cmd-031-side-effect-audit",
+            "payload": {"campaign_id": "camp-4"},
+        },
+        headers=AUTH_HEADERS,
+    )
+    approval_id = command_response.json()["approval_id"]
+    approval_response = client.post(
+        f"/approvals/{approval_id}/approve",
+        json={"actor_id": "ops-1"},
+        headers=AUTH_HEADERS,
+    )
+    run_id = approval_response.json()["run_id"]
+    run_ids_before_replay = set(STORE.runs)
+
+    response = client.post(
+        f"/replays/{run_id}",
+        json={"reason": "rerun delivery"},
+        headers=AUTH_HEADERS,
+    )
+
+    assert response.status_code == 409
+    body = response.json()
+    assert body["child_run_id"] is None
+    assert body["requires_approval"] is True
+    assert set(STORE.runs) == run_ids_before_replay
+    parent_replay_events = [
+        event for event in STORE.runs[run_id].events if event.get("event_type") == "replay_requested"
+    ]
+    assert parent_replay_events[-1]["payload"]["requires_approval"] is True
+
+
+def test_side_effecting_replay_records_approval_created_audit() -> None:
+    reset_control_plane_state()
+    client = build_client()
+    command_response = client.post(
+        "/commands",
+        json={
+            "business_id": "limitless",
+            "environment": "dev",
+            "command_type": "publish_campaign",
+            "idempotency_key": "cmd-031-replay-approval-audit",
+            "payload": {"campaign_id": "camp-5"},
+        },
+        headers=AUTH_HEADERS,
+    )
+    approval_response = client.post(
+        f"/approvals/{command_response.json()['approval_id']}/approve",
+        json={"actor_id": "ops-1"},
+        headers=AUTH_HEADERS,
+    )
+    run_id = approval_response.json()["run_id"]
+
+    response = client.post(f"/replays/{run_id}", json={"reason": "audit approval"}, headers=AUTH_HEADERS)
+
+    assert response.status_code == 409
+    replay_approval_id = response.json()["approval_id"]
+    approval_created_events = [
+        event
+        for event in STORE.audit_events.values()
+        if event.event_type == "approval_created" and event.resource_id == replay_approval_id
+    ]
+    assert len(approval_created_events) == 1
+
+
+def test_replay_observability_failure_does_not_fail_committed_replay(monkeypatch) -> None:
+    from app.services.runtime_observability_service import runtime_observability_service
+
+    reset_control_plane_state()
+    client = build_client()
+    command_response = client.post(
+        "/commands",
+        json={
+            "business_id": "limitless",
+            "environment": "dev",
+            "command_type": "run_market_research",
+            "idempotency_key": "cmd-031-replay-audit-failure",
+            "payload": {"topic": "audit failure should not duplicate"},
+        },
+        headers=AUTH_HEADERS,
+    )
+    run_id = command_response.json()["run_id"]
+
+    def fail_replay_audit(*args, **kwargs) -> None:
+        raise RuntimeError("synthetic audit failure")
+
+    monkeypatch.setattr(runtime_observability_service, "record_replay_requested", fail_replay_audit)
+
+    response = client.post(f"/replays/{run_id}", json={"reason": "nonfatal audit"}, headers=AUTH_HEADERS)
+
+    assert response.status_code == 201
+    body = response.json()
+    assert body["child_run_id"] is not None
+    assert body["child_run_id"] in STORE.runs
+
+
+def test_replay_run_created_observability_failure_does_not_orphan_child_run(monkeypatch) -> None:
+    from app.services.runtime_observability_service import runtime_observability_service
+
+    reset_control_plane_state()
+    client = build_client()
+    command_response = client.post(
+        "/commands",
+        json={
+            "business_id": "limitless",
+            "environment": "dev",
+            "command_type": "run_market_research",
+            "idempotency_key": "cmd-031-replay-run-audit-failure",
+            "payload": {"topic": "run audit failure should not orphan"},
+        },
+        headers=AUTH_HEADERS,
+    )
+    run_id = command_response.json()["run_id"]
+
+    def fail_run_created(*args, **kwargs) -> None:
+        raise RuntimeError("synthetic run audit failure")
+
+    monkeypatch.setattr(runtime_observability_service, "record_run_created", fail_run_created)
+
+    response = client.post(f"/replays/{run_id}", json={"reason": "nonfatal run audit"}, headers=AUTH_HEADERS)
+
+    assert response.status_code == 201
+    child_run_id = response.json()["child_run_id"]
+    child_run = STORE.runs[child_run_id]
+    assert child_run.command_id in STORE.commands
+    assert STORE.commands[child_run.command_id].run_id == child_run_id
+
+
+def test_side_effecting_replay_approval_audit_failure_does_not_fail_replay(monkeypatch) -> None:
+    from app.services.runtime_observability_service import runtime_observability_service
+
+    reset_control_plane_state()
+    client = build_client()
+    command_response = client.post(
+        "/commands",
+        json={
+            "business_id": "limitless",
+            "environment": "dev",
+            "command_type": "publish_campaign",
+            "idempotency_key": "cmd-031-replay-approval-audit-failure",
+            "payload": {"campaign_id": "camp-audit-failure"},
+        },
+        headers=AUTH_HEADERS,
+    )
+    approval_response = client.post(
+        f"/approvals/{command_response.json()['approval_id']}/approve",
+        json={"actor_id": "ops-1"},
+        headers=AUTH_HEADERS,
+    )
+    run_id = approval_response.json()["run_id"]
+
+    def fail_approval_audit(*args, **kwargs) -> None:
+        raise RuntimeError("synthetic approval audit failure")
+
+    monkeypatch.setattr(runtime_observability_service, "record_approval_created", fail_approval_audit)
+
+    response = client.post(f"/replays/{run_id}", json={"reason": "nonfatal approval audit"}, headers=AUTH_HEADERS)
+
+    assert response.status_code == 409
+    replay_approval_id = response.json()["approval_id"]
+    assert replay_approval_id in STORE.approvals
+    replay_command_id = STORE.approvals[replay_approval_id].command_id
+    assert replay_command_id in STORE.commands
+    assert STORE.commands[replay_command_id].approval_id == replay_approval_id
+
+
+def test_agent_backed_side_effecting_replay_approval_preserves_agent_scope() -> None:
+    reset_control_plane_state()
+    client = build_client()
+    agent_id, revision_id = create_published_agent(client)
+    command_response = client.post(
+        "/commands",
+        json={
+            "business_id": "limitless",
+            "environment": "dev",
+            "command_type": "publish_campaign",
+            "idempotency_key": "cmd-031-agent-replay-approval-scope",
+            "payload": {"campaign_id": "camp-agent-replay"},
+            "agent_revision_id": revision_id,
+        },
+        headers=org_actor_headers(actor_id="ops-alpha", org_id="org_internal"),
+    )
+    approval_response = client.post(
+        f"/approvals/{command_response.json()['approval_id']}/approve",
+        json={"actor_id": "ops-1"},
+        headers=AUTH_HEADERS,
+    )
+    run_id = approval_response.json()["run_id"]
+    replay_response = client.post(f"/replays/{run_id}", json={"reason": "agent scoped replay"}, headers=AUTH_HEADERS)
+    assert replay_response.status_code == 409
+
+    approved_replay = client.post(
+        f"/approvals/{replay_response.json()['approval_id']}/approve",
+        json={"actor_id": "ops-2"},
+        headers=AUTH_HEADERS,
+    )
+
+    assert approved_replay.status_code == 200
+    child_run_id = approved_replay.json()["run_id"]
+    child_run_events = [
+        event
+        for event in STORE.audit_events.values()
+        if event.event_type == "run_created" and event.run_id == child_run_id
+    ]
+    assert len(child_run_events) == 1
+    assert child_run_events[0].agent_id == agent_id
+    assert child_run_events[0].agent_revision_id == revision_id

@@ -6,6 +6,7 @@ from app.db.runs import RunsRepository
 from app.models.commands import CommandRecord, CommandStatus
 from app.models.runs import RunDetailResponse, RunRecord, RunStatus
 from app.services.agent_execution_service import agent_execution_service as default_agent_execution_service
+from app.services.runtime_observability_service import runtime_observability_service
 import shutil
 from pathlib import Path
 
@@ -38,6 +39,7 @@ class RunService:
         parent_run_id: str | None = None,
         replay_reason: str | None = None,
         skip_dispatch_validation: bool = False,
+        observability_agent_revision_id: str | None = None,
     ) -> RunRecord:
         if agent_revision_id is not None and not skip_dispatch_validation:
             self.agent_execution_service.validate_dispatchable(agent_revision_id)
@@ -74,6 +76,11 @@ class RunService:
             except Exception:
                 self._rollback_failed_run_creation(run.id, previous_command=prior_command)
                 raise
+        runtime_observability_service.nonfatal(
+            runtime_observability_service.record_run_created,
+            run,
+            agent_revision_id=observability_agent_revision_id or agent_revision_id,
+        )
         return run
 
     def _rollback_failed_run_creation(self, run_id: str, *, previous_command: CommandRecord | None) -> None:

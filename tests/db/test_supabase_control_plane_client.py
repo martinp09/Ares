@@ -4,6 +4,7 @@ from app.models.actors import ActorType
 from app.models.agent_installs import AgentInstallRecord
 from app.models.agents import AgentRecord, AgentRevisionRecord, AgentRevisionState
 from app.models.catalog import CatalogEntryRecord
+from app.models.commands import CommandPolicy, CommandRecord, CommandStatus
 from app.models.host_adapters import HostAdapterKind
 from app.models.sessions import SessionRecord, SessionStatus
 from app.models.session_journal import SessionCompactionState
@@ -26,7 +27,7 @@ def build_settings() -> Settings:
 def test_supabase_control_plane_client_hydrates_and_persists_text_runtime_tables(monkeypatch) -> None:
     settings = build_settings()
     inserted = []
-    patched = []
+    inserted = []
 
     def fake_fetch_rows(table: str, *, params: dict[str, str], settings=None):
         if table == "commands":
@@ -117,6 +118,66 @@ def test_supabase_control_plane_client_hydrates_and_persists_text_runtime_tables
     assert "sessions_runtime" in inserted_tables
     assert "turns_runtime" in inserted_tables
     assert "mission_control_threads_runtime" in inserted_tables
+
+
+def test_supabase_control_plane_client_preserves_command_agent_revision_scope(monkeypatch) -> None:
+    settings = build_settings()
+    rows_by_table = {
+        "commands": {
+            "101": {
+                "id": 101,
+                "business_id": 7,
+                "environment": "dev",
+                "command_type": "publish_campaign",
+                "payload": {"campaign_id": "camp-1"},
+                "agent_revision_id": "rev_alpha",
+                "idempotency_key": "cmd-agent-scope",
+                "policy_result": "approval_required",
+                "approval_required": True,
+                "status": "approval_required",
+                "created_at": "2026-04-20T00:00:00Z",
+            }
+        },
+        "approvals": {},
+        "runs": {},
+        "events": {},
+        "artifacts": {},
+    }
+
+    def fake_fetch_rows(table: str, *, params: dict[str, str], settings=None):
+        return list(rows_by_table.get(table, {}).values())
+
+    inserted = []
+
+    def fake_insert_rows(table: str, rows: list[dict], *, select=None, prefer="return=representation", settings=None):
+        inserted.extend((table, row) for row in rows)
+        return [{"id": row["id"]} for row in rows]
+
+    def fake_patch_rows(table: str, *, params: dict[str, str], row: dict, select=None, settings=None):
+        return [{"id": row["id"]}]
+
+    monkeypatch.setattr("app.db.control_plane_store_supabase.fetch_rows", fake_fetch_rows)
+    monkeypatch.setattr("app.db.control_plane_store_supabase.insert_rows", fake_insert_rows)
+    monkeypatch.setattr("app.db.control_plane_store_supabase.patch_rows", fake_patch_rows)
+
+    client = SupabaseControlPlaneClient(settings)
+    with client.transaction() as store:
+        assert store.commands["cmd_101"].agent_revision_id == "rev_alpha"
+        store.commands["cmd_102"] = CommandRecord(
+            id="cmd_102",
+            business_id="7",
+            environment="dev",
+            command_type="publish_campaign",
+            payload={"campaign_id": "camp-2"},
+            idempotency_key="cmd-agent-scope-2",
+            agent_revision_id="rev_beta",
+            policy=CommandPolicy.APPROVAL_REQUIRED,
+            status=CommandStatus.AWAITING_APPROVAL,
+            created_at="2026-04-20T00:00:00Z",
+        )
+
+    command_inserts = [row for table, row in inserted if table == "commands"]
+    assert any(row["id"] == "102" and row["agent_revision_id"] == "rev_beta" for row in command_inserts)
 
 
 def test_supabase_control_plane_client_rehydrates_core_runs_for_store_reads(monkeypatch) -> None:
@@ -274,6 +335,7 @@ def test_supabase_control_plane_client_restores_core_deletions_when_later_flush_
         "environment": "dev",
         "command_type": "run_market_research",
         "payload": {"topic": "houston"},
+        "agent_revision_id": None,
         "idempotency_key": "cmd-1",
         "policy_result": "safe_autonomous",
         "approval_required": False,
@@ -394,6 +456,7 @@ def test_supabase_control_plane_client_restores_core_updates_when_later_flush_fa
         "environment": "dev",
         "command_type": "run_market_research",
         "payload": {"topic": "houston"},
+        "agent_revision_id": None,
         "idempotency_key": "cmd-1",
         "policy_result": "safe_autonomous",
         "approval_required": False,

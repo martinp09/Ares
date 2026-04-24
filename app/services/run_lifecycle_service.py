@@ -16,6 +16,7 @@ from app.models.run_events import (
     RunStartedCallbackRequest,
 )
 from app.models.runs import ReplayLineageContext, RunStatus
+from app.services.runtime_observability_service import runtime_observability_service
 
 
 def utc_now() -> datetime:
@@ -52,6 +53,12 @@ class RunLifecycleService:
             payload=request.model_dump(mode="json"),
             created_at=started_at,
         )
+        runtime_observability_service.nonfatal(
+            runtime_observability_service.record_trigger_lifecycle,
+            run,
+            event_type=RunLifecycleEvent.RUN_STARTED.value,
+            trigger_run_id=run.trigger_run_id,
+        )
         return RunLifecycleResponse(
             run_id=run.id,
             event_type=RunLifecycleEvent.RUN_STARTED.value,
@@ -78,6 +85,12 @@ class RunLifecycleService:
             payload=request.model_dump(mode="json"),
             created_at=completed_at,
         )
+        runtime_observability_service.nonfatal(
+            runtime_observability_service.record_trigger_lifecycle,
+            run,
+            event_type=RunLifecycleEvent.RUN_COMPLETED.value,
+            trigger_run_id=run.trigger_run_id,
+        )
         return RunLifecycleResponse(
             run_id=run.id,
             event_type=RunLifecycleEvent.RUN_COMPLETED.value,
@@ -103,6 +116,12 @@ class RunLifecycleService:
             event_type=RunLifecycleEvent.RUN_FAILED.value,
             payload=request.model_dump(mode="json"),
             created_at=failed_at,
+        )
+        runtime_observability_service.nonfatal(
+            runtime_observability_service.record_trigger_lifecycle,
+            run,
+            event_type=RunLifecycleEvent.RUN_FAILED.value,
+            trigger_run_id=run.trigger_run_id,
         )
         return RunLifecycleResponse(
             run_id=run.id,

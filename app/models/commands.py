@@ -55,6 +55,7 @@ class CommandRecord(BaseModel):
     command_type: str = Field(min_length=1)
     payload: dict[str, Any] = Field(default_factory=dict)
     idempotency_key: str = Field(min_length=1)
+    agent_revision_id: str | None = None
     policy: CommandPolicy
     status: CommandStatus
     approval_id: str | None = None
@@ -72,6 +73,7 @@ class CommandIngestResponse(BaseModel):
     command_type: str
     idempotency_key: str
     payload: dict[str, Any] = Field(default_factory=dict)
+    agent_revision_id: str | None = None
     policy: CommandPolicy
     status: CommandStatus
     approval_id: str | None = None

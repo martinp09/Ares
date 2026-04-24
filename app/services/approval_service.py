@@ -9,6 +9,7 @@ from app.models.actors import ActorContext
 from app.models.approvals import ApprovalDecisionRequest, ApprovalDecisionResponse, ApprovalRecord, ApprovalStatus
 from app.models.commands import CommandRecord, CommandStatus
 from app.services.replay_lineage_service import ReplayLineageService, replay_lineage_service as default_replay_lineage_service
+from app.services.runtime_observability_service import runtime_observability_service
 from app.services.run_lifecycle_service import RunLifecycleService, run_lifecycle_service as default_run_lifecycle_service
 from app.services.run_service import run_service
 
@@ -48,6 +49,11 @@ class ApprovalService:
         self.commands_repository.attach_approval(command.id, approval_id=approval.id)
         command.approval_id = approval.id
         command.status = CommandStatus.AWAITING_APPROVAL
+        runtime_observability_service.nonfatal(
+            runtime_observability_service.record_approval_created,
+            approval,
+            agent_revision_id=command.agent_revision_id,
+        )
         return approval
 
     def list_approvals(
@@ -66,6 +72,7 @@ class ApprovalService:
     def approve(
         self, approval_id: str, request: ApprovalDecisionRequest
     ) -> ApprovalDecisionResponse | None:
+        prior_approval = self.approvals_repository.get(approval_id)
         approval = self.approvals_repository.approve(approval_id, actor_id=request.actor_id)
         if approval is None:
             return None
@@ -76,6 +83,13 @@ class ApprovalService:
 
         if approval.status == ApprovalStatus.APPROVED and command.run_id is not None:
             return ApprovalDecisionResponse(approval=approval, run_id=command.run_id)
+
+        if prior_approval is None or prior_approval.status != ApprovalStatus.APPROVED:
+            runtime_observability_service.nonfatal(
+                runtime_observability_service.record_approval_approved,
+                approval,
+                agent_revision_id=command.agent_revision_id,
+            )
 
         replay_metadata = self.replay_lineage_service.approval_metadata(approval.payload_snapshot)
         if replay_metadata is not None:
@@ -116,16 +130,7 @@ class ApprovalService:
             )
             return ApprovalDecisionResponse(approval=approval, run_id=run.id)
 
-        run = self.runs_repository.create(
-            command_id=command.id,
-            business_id=command.business_id,
-            environment=command.environment,
-            command_type=command.command_type,
-            command_policy=command.policy,
-        )
-        self.commands_repository.attach_run(command.id, run_id=run.id)
-        command.run_id = run.id
-        command.status = CommandStatus.QUEUED
+        run = run_service.create_run(command, observability_agent_revision_id=command.agent_revision_id)
         return ApprovalDecisionResponse(approval=approval, run_id=run.id)
 
 
