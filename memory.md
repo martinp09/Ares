@@ -171,8 +171,8 @@
 
 ## Open Work
 
-1. commit Phase 10 preview/staging rollout readiness on `feature/ares-full-stack-cohesion-clean`
-2. start Phase 11 production promotion readiness next, but keep live Supabase migrations, provider sends, Trigger deploys, and production deploys gated on explicitly verified safe targets
+1. commit Phase 11 production promotion readiness on `feature/ares-full-stack-cohesion-clean`
+2. hosted rollout remains blocked until verified linked targets, env, staging evidence, and backup references are supplied
 3. reconcile the preserved dirty Supabase persistence work before any hosted Supabase rollout
 4. keep post-merge Supabase follow-up scope narrow to persistence regressions and real hosted smoke only
 5. keep browser acquisition and ambiguous research in Hermes or other driver agents, not inside Ares
@@ -264,6 +264,17 @@
 - The readiness gate cannot report `ready`, `can_apply_preview_migrations`, or `can_run_preview_smoke` until the linked Supabase dry-run executes and passes.
 - This checkout has no linked Supabase project ref; `supabase migration list --linked` and `supabase db push --dry-run --linked` fail safely with the missing-project-ref error, so no preview migrations, deploys, Trigger workers, or live provider sends were run.
 - Verified with `uv run pytest tests/smoke/test_preview_rollout_readiness.py tests/smoke/test_full_stack_contract.py -q`, `uv run python scripts/preview_rollout_readiness.py` (`blocked`), `uv run pytest -q` (`550 passed, 5 warnings`), Mission Control tests/typecheck/build, Trigger typecheck, no-live full-stack smoke, `git diff --check`, and fresh QC approval.
+
+### 2026-04-24 Full-Stack Cohesion Phase 11
+
+- Added `scripts/production_promotion_readiness.py` as a read-only production promotion gate.
+- Production promotion is blocked unless production is explicitly acknowledged, the linked Supabase project ref matches the expected production ref, the linked dry-run executes and passes, HEAD matches the staged commit, staging evidence JSON contains that same commit, a backup reference exists, required production env is present, and all runtime backends are `supabase`.
+- Live provider smoke remains blocked unless `--allow-live-provider-smoke` and explicit SMS/email recipient flags are present.
+- Added `tests/smoke/test_production_promotion_readiness.py` covering production acknowledgement, unverified target blocking, commit mismatch, dry-run requirement, valid ready path, live provider flags, evidence commit mismatch, and invalid evidence.
+- Added `docs/production-promotion.md` documenting the promotion order, evidence contract, no-live default, and live-smoke opt-in contract.
+- QC initially found that staging evidence was not bound to the staged commit and one test could call a real Supabase CLI; both were fixed before fresh QC approval.
+- This checkout has no linked production Supabase project ref and no production env/evidence, so no production migrations, deploys, Trigger workers, or live provider sends were run.
+- Verified with `uv run pytest tests/smoke/test_production_promotion_readiness.py tests/smoke/test_full_stack_contract.py -q`, `uv run python scripts/production_promotion_readiness.py ...` (`blocked`), `uv run pytest -q` (`558 passed, 5 warnings`), Mission Control tests/typecheck/build, Trigger typecheck, no-live full-stack smoke, `git diff --check`, and fresh QC approval.
 
 ### 2026-04-23 Origin Main Supabase Persistence Wiring
 

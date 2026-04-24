@@ -100,6 +100,14 @@ Phase 10:
 - Added `docs/preview-staging-rollout.md` with the actual preview gate commands and no-live provider policy.
 - This checkout is not linked to a Supabase project ref, so no preview migrations, deploys, Trigger workers, or live provider sends were run.
 
+Phase 11:
+
+- Added `scripts/production_promotion_readiness.py` as a guarded production promotion gate.
+- Production promotion is blocked unless the linked production Supabase ref matches the expected ref, the linked dry-run passes, HEAD matches the staged commit, staging evidence JSON contains the same commit, a backup reference exists, production is explicitly acknowledged, production env is present, and all runtime backends are `supabase`.
+- Live provider smoke stays blocked unless `--allow-live-provider-smoke` and explicit SMS/email recipient flags are present.
+- Added `docs/production-promotion.md` with the promotion order and hard gates.
+- This checkout is not linked to a production project ref and lacks production env/evidence, so no production migrations, deploys, Trigger workers, or live provider sends were run.
+
 ## Hard rules
 
 - Do not install Ares into Hermes.
@@ -123,6 +131,7 @@ uv run pytest tests/api/test_mission_control.py::test_provider_failure_tasks_are
 uv run pytest tests/api/test_audit.py tests/api/test_usage.py tests/api/test_replays.py -q
 uv run pytest tests/smoke/test_full_stack_contract.py -q
 uv run pytest tests/smoke/test_preview_rollout_readiness.py -q
+uv run pytest tests/smoke/test_production_promotion_readiness.py -q
 uv run python scripts/smoke_full_stack_cohesion.py --no-live-sends
 uv run python scripts/smoke_provider_readiness.py
 uv run pytest -q
@@ -134,4 +143,4 @@ npm --prefix apps/mission-control run build
 
 ## Next gate
 
-Commit Phase 10, then start Phase 11 production promotion readiness next. Keep live Supabase migrations, provider sends, Trigger deploys, and production deploys gated on an explicitly verified safe target.
+All planned phases are implemented and QC-approved in the clean worktree. Hosted preview/staging/production promotion remains blocked until a verified linked target, env, staging evidence, and backup reference are supplied.

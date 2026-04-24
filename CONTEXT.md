@@ -8,17 +8,17 @@
 
 ## Current Scope
 - Execute the full-stack cohesion plan in gated slices.
-- Phases 0/1 through 10 are complete and QC-approved in the clean worktree.
+- Phases 0/1 through 11 are complete and QC-approved in the clean worktree.
 - No live Supabase migrations, provider sends, Trigger deploys, or production deploys have been run.
 - The dirty Supabase persistence work in `/Users/solomartin/Projects/Ares` remains preserved outside this clean worktree.
 
 ## Current TODO
-1. Commit Phase 10 preview/staging rollout readiness.
-2. Start Phase 11 production promotion readiness next.
-3. Do not run live Supabase migrations, provider sends, Trigger deploys, or production deploys unless the target is explicitly verified safe.
+1. Commit Phase 11 production promotion readiness.
+2. Await a verified hosted preview/staging/prod target before running live migrations, deploys, Trigger workers, or provider sends.
+3. Keep using the guarded readiness scripts before any hosted rollout step.
 
 ## Recent Change
-- 2026-04-24: Phase 10 added guarded preview/staging readiness checks. No hosted migrations, deploys, Trigger workers, or live provider sends were run because this checkout is not linked to a verified preview target. Full gates and fresh QC are green.
+- 2026-04-24: Phase 11 added guarded production promotion readiness checks. No production migrations, deploys, Trigger workers, or live provider sends were run because this checkout is not linked to a verified production target and lacks production env/evidence. Full gates and fresh QC are green.
 
 ## Read These Sections In `memory.md`
 1. `## Current Direction`
