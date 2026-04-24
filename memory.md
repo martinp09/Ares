@@ -184,6 +184,12 @@
 
 ## Change Log
 
+### 2026-04-24 Curative Title Wiki Consolidation
+
+- Added `docs/curative-title-wiki/index.md` as the single hub for curative-title process docs.
+- Added linked wiki pages for operating model, browser-harness research workflow, county land-records playbook, evidence graph data model, skiptrace workflow, and Tangie Williams field test.
+- Updated README, production-readiness handoff, and CONTEXT to point future sessions at the wiki hub.
+
 ### 2026-04-24 Tangie Williams Land-Records Recon Field Test
 
 - Ran first browser-harness curative-title land-record recon field test on Harris probate case `543678` / Tangie Renee Williams.

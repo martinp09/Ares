@@ -75,6 +75,8 @@ The browser harness / Hermes browser automation is a foundational method for thi
 
 See: `docs/curative-title-data-pipeline.md`.
 
+Wiki hub: `docs/curative-title-wiki/index.md`.
+
 ## What is still required
 
 ### Gate 1 — Choose and verify environments

@@ -17,6 +17,7 @@ This repo is the deterministic runtime, policy layer, orchestration surface, and
 - Hermes <-> Ares setup/runbook: `docs/hermes-ares-integration-runbook.md`
 - Full-stack local runbook: `docs/hermes-ares-trigger-supabase-runbook.md`
 - Production-readiness handoff: `docs/production-readiness-handoff.md`
+- Curative-title workflow wiki: `docs/curative-title-wiki/index.md`
 
 ## Initial Direction
 
@@ -124,13 +125,14 @@ curl -sS -H 'Authorization: Bearer dev-runtime-key' http://127.0.0.1:8000/hermes
 - `docs/superpowers/plans/2026-04-18-ares-phased-implementation-plan.md` for the merged phased Ares implementation sequence
 - `docs/superpowers/plans/2026-04-21-ares-crm-master-scope-prd.json` as the overnight loop handoff artifact
 - future runtime database for canonical business state
+- curative-title workflow wiki: `docs/curative-title-wiki/index.md`
 - production-readiness handoff for live wiring gates: `docs/production-readiness-handoff.md`
 - production-readiness execution plan: `docs/superpowers/plans/2026-04-24-ares-production-readiness-test-branch-plan.md`
 
 ## Phase 1 Guardrails
 
 - Counties remain fixed: Harris, Tarrant, Montgomery, Dallas, Travis
-- Lead selection rule: probate first, tax delinquency as overlay
+- Lead selection rule: land-record document/deed review first for curative-title heir/descendant discovery; probate is one source and tax delinquency is an overlay
 - Outreach rule: drafts stay pending human approval before any send
 
 ## Trigger Setup
