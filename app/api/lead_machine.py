@@ -12,6 +12,8 @@ from app.models.commands import utc_now
 from app.models.lead_events import LeadEventRecord
 from app.models.tasks import TaskPriority, TaskRecord, TaskStatus, TaskType
 from app.services.inbound_sms_service import LeaseOptionSequenceStepRequest, inbound_sms_service
+from app.services.lead_intake_service import LeadIntakeRequest as ServiceLeadIntakeRequest
+from app.services.lead_intake_service import lead_intake_service
 from app.services.lead_sequence_runner import LeadSequenceRunner, lead_sequence_runner
 from app.services.lead_suppression_service import LeadSuppressionService, lead_suppression_service
 from app.services.probate_write_path_service import ProbateWritePathService, probate_write_path_service
@@ -35,6 +37,36 @@ class ProbateIntakeRecordInput(BaseModel):
         if not ((self.filing_type and self.filing_type.strip()) or (self.type and self.type.strip())):
             raise ValueError("filing_type or type is required")
         return self
+
+
+class LeadMachineIntakeRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    business_id: str = Field(min_length=1)
+    environment: str = Field(min_length=1)
+    source: str = Field(default="manual", min_length=1)
+    source_record_id: str | None = None
+    campaign_key: str | None = None
+    first_name: str | None = None
+    last_name: str | None = None
+    phone: str | None = None
+    email: str | None = None
+    property_address: str | None = None
+    county: str | None = None
+    status: str = Field(default="new", min_length=1)
+    pipeline_stage: str | None = None
+    priority: str | None = None
+    dedupe_key: str | None = None
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class LeadMachineIntakeResponse(BaseModel):
+    status: Literal["created", "deduped", "queued", "skipped"]
+    lead_id: str
+    event_id: str
+    queued: bool
+    skipped: bool
+    failed_side_effects: list[str]
 
 
 class ProbateIntakeRequest(BaseModel):
@@ -176,6 +208,24 @@ tasks_repository = TasksRepository()
 
 def _build_write_path_service() -> ProbateWritePathService:
     return probate_write_path_service
+
+
+@router.post("/intake", response_model=LeadMachineIntakeResponse, status_code=status.HTTP_201_CREATED)
+def intake_lead(request: LeadMachineIntakeRequest) -> LeadMachineIntakeResponse:
+    try:
+        result = lead_intake_service.intake_lead(
+            ServiceLeadIntakeRequest(**request.model_dump(mode="python"))
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)) from exc
+    return LeadMachineIntakeResponse(
+        status=result.status,
+        lead_id=result.lead.id or "",
+        event_id=result.intake_event.id or "",
+        queued=result.queued,
+        skipped=result.skipped,
+        failed_side_effects=result.failed_side_effects,
+    )
 
 
 @router.post("/probate/intake", response_model=ProbateIntakeResponse, status_code=status.HTTP_201_CREATED)

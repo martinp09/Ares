@@ -127,6 +127,80 @@ def test_post_probate_intake_normalizes_scores_and_bridges_keep_now(monkeypatch)
     ]
 
 
+def test_post_lead_machine_intake_creates_canonical_lead_and_event() -> None:
+    from app.api import lead_machine as lead_machine_api
+
+    store = InMemoryControlPlaneStore()
+    client_state = InMemoryControlPlaneClient(store)
+    service = lead_machine_api.lead_intake_service.__class__(
+        leads_repository=LeadsRepository(client_state),
+        lead_events_repository=LeadEventsRepository(client_state),
+    )
+    original = lead_machine_api.lead_intake_service
+    lead_machine_api.lead_intake_service = service
+    try:
+        client = TestClient(app)
+        response = client.post(
+            "/lead-machine/intake",
+            json={
+                "business_id": "limitless",
+                "environment": "dev",
+                "source": "manual",
+                "source_record_id": "lp_123",
+                "campaign_key": "lease-option",
+                "first_name": "Maya",
+                "phone": "+15551234567",
+                "email": "maya@example.com",
+                "property_address": "123 Main St",
+                "county": "Harris",
+                "status": "ready",
+                "pipeline_stage": "new_inbound",
+                "priority": "high",
+                "metadata": {"utm_source": "site"},
+            },
+            headers=AUTH_HEADERS,
+        )
+    finally:
+        lead_machine_api.lead_intake_service = original
+
+    assert response.status_code == 201
+    body = response.json()
+    assert body["status"] == "created"
+    assert body["lead_id"].startswith("lead_")
+    assert body["event_id"].startswith("levt_")
+    assert body["queued"] is False
+    assert body["skipped"] is False
+    assert body["failed_side_effects"] == []
+
+
+def test_post_lead_machine_intake_returns_deduped_for_replayed_identity(monkeypatch) -> None:
+    from app.api import lead_machine as lead_machine_api
+
+    store = InMemoryControlPlaneStore()
+    client_state = InMemoryControlPlaneClient(store)
+    service = lead_machine_api.lead_intake_service.__class__(
+        leads_repository=LeadsRepository(client_state),
+        lead_events_repository=LeadEventsRepository(client_state),
+    )
+    monkeypatch.setattr(lead_machine_api, "lead_intake_service", service)
+    client = TestClient(app)
+    payload = {
+        "business_id": "limitless",
+        "environment": "dev",
+        "source_record_id": "lp_123",
+        "phone": "+15551234567",
+    }
+
+    first = client.post("/lead-machine/intake", json=payload, headers=AUTH_HEADERS)
+    second = client.post("/lead-machine/intake", json=payload, headers=AUTH_HEADERS)
+
+    assert first.status_code == 201
+    assert second.status_code == 201
+    assert first.json()["status"] == "created"
+    assert second.json()["status"] == "deduped"
+    assert first.json()["lead_id"] == second.json()["lead_id"]
+
+
 def test_post_probate_intake_rejects_empty_records_payload() -> None:
     client = TestClient(app)
 
@@ -481,6 +555,7 @@ def test_post_task_reminder_or_overdue_creates_reminder_task(monkeypatch) -> Non
 def test_create_app_mounts_lead_machine_router() -> None:
     routes = {route.path for route in create_app().routes}
 
+    assert "/lead-machine/intake" in routes
     assert "/lead-machine/probate/intake" in routes
     assert "/lead-machine/outbound/enqueue" in routes
     assert "/lead-machine/webhooks/instantly" in routes

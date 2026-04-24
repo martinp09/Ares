@@ -1,111 +1,146 @@
 ---
 title: "Ares TODO / Handoff"
 status: active
-updated_at: "2026-04-23T15:38:00Z"
+updated_at: "2026-04-24T00:00:00-05:00"
 repo: "martinp09/Ares"
-local_checkout: "/root/.config/superpowers/worktrees/Hermes-Central-Command/mission-control-enterprise-backlog"
-current_branch: "feature/mission-control-enterprise-backlog"
+local_checkout: "/Users/solomartin/Projects/Ares-full-stack-cohesion"
+current_branch: "feature/ares-full-stack-cohesion-clean"
 ---
 
 # Ares TODO / Handoff
 
-## Canonical branch docs
+## Live pointer
 
-- Master scope: `docs/superpowers/plans/2026-04-21-mission-control-enterprise-backlog-master-plan.md`
-- Active slice order: `docs/superpowers/plans/2026-04-22-mission-control-enterprise-backlog-sliced-execution-plan.md`
-- Live source input: `docs/superpowers/plans/2026-04-13-hermes-mission-control-orchestration-plan.md`
-- Live source input: `docs/superpowers/plans/2026-04-15-ares-enterprise-agent-platform-implementation-plan.md`
-- Runtime boundary notes: `docs/hermes-ares-integration-runbook.md`
+The current implementation blueprint is:
 
-## Hard rules for the next session
+- `docs/superpowers/plans/2026-04-24-ares-full-stack-cohesion-mega-plan.md`
 
-1. Reconstruct from git + repo files only.
-2. Do **not** touch Supabase in this environment.
-3. Preserve existing non-Supabase wiring.
-4. Keep `business_id + environment` alive while adding/using `org_id`.
-5. Keep changes additive and bounded by slice.
-6. Do not claim a slice is good without tests **and** QC approval.
+Supporting source map:
 
-## Completed slices before this handoff
+- `docs/superpowers/plans/2026-04-24-ares-supabase-wiring-from-memory.md`
 
-- Phase 2 complete and QC-approved.
-- Phase 3 complete through `P3.5` and QC-approved on the active non-Supabase path.
-- Phase 4 complete through `P4.5` and QC-approved.
-- Phase 5 complete through `P5.5` on the active non-Supabase path.
-- Phase 6 complete through `P6.5` and QC-approved.
+## Completed slices
 
-## Current status
+Phase 0 + Phase 1:
 
-### Phase 6 final closeout
+- full-stack cohesion spec
+- clean `.env.example`
+- Hermes/Ares/Trigger/Supabase runbook
+- config contract tests
+- Trigger runtime API static contract test
+- Vite dev proxy for authenticated Mission Control API calls without exposing a public runtime key
+- no Supabase migrations
+- no live SMS/email sends
 
-- `P6.3` added release/host visibility to the Mission Control shell through the agents-first workflow.
-- `P6.4` added read-only governance surfaces for secrets health, audit, usage, and settings.
-- `P6.5` added org-aware navigation/filtering while keeping `business_id + environment` alive as secondary scope and preserving the non-Supabase path.
-- Phase 6 remains closed unless a fresh blocker appears.
+Phase 2:
 
-### Phase 7 current state
+- Supabase control-plane transaction now snapshots, flushes, deletes, and restores core `commands`, `approvals`, `runs`, `events`, and `artifacts`.
+- Rollback restore is FK-safe for command/run/event/artifact tables, including parent-before-child replay runs.
+- Regression coverage covers core deletions, update rollback, bigint canonicalization, and failed flush restore.
 
-- `P7.1` backend/domain work is now implemented locally and verified.
-- `P7.2` Mission Control catalog/install UI is now implemented locally and verified.
-- `P7.3` marketplace-readiness metadata is now implemented locally and verified.
-- The new Phase 7 branch state adds:
-  - catalog entries that point at agent revisions
-  - derived host/provider/skill/secret/release compatibility metadata
-  - install lineage records that preserve source agent/revision context
-  - `/catalog` and `/agent-installs` API surfaces
-  - a bounded Mission Control catalog page + install wizard with pre-install compatibility visibility and install outcome messaging
-  - explicit truth gates so fixture-backed catalog entries cannot be installed and non-internal org scope does not inherit internal fixture catalog entries
-  - visibility metadata that supports `internal`, `private_catalog`, and `marketplace_candidate`, while `marketplace_published` stays fail-closed behind an explicit config gate
-- Installs preserve runtime semantics by reusing the existing agent-creation contract rather than inventing a parallel execution path.
+Phase 3:
 
-### Latest verification evidence
+- Added `docs/hermes-ares-runtime-adapter-contract.md`.
+- Added `scripts/smoke_hermes_runtime_adapter.py`.
+- Added Hermes tool payload-stability coverage.
 
-Phase 6 recorded branch evidence:
-- `npm --prefix apps/mission-control run test -- --run` → `19 files passed`, `52 tests passed`
-- `npm --prefix apps/mission-control run typecheck` → pass
-- `npm --prefix apps/mission-control run build` → pass
-- targeted backend gate on the branch closeout → `53 passed`
-- backend full suite on the branch closeout → `458 passed, 5 warnings`
-- fresh `gpt-5.4` XHIGH QC approved the Phase 6 closeout
+Phase 4:
 
-P7.1 local backend evidence:
-- `./.venv/bin/python -m pytest tests/db/test_catalog_repository.py tests/db/test_agent_install_repository.py tests/api/test_catalog.py tests/api/test_agent_installs.py tests/api/test_agents.py -q` → `21 passed`
-- `./.venv/bin/python -m pytest -q` → `465 passed, 5 warnings`
+- Standardized Trigger lifecycle callback payloads to Ares snake_case callback models.
+- Added required lifecycle reporting for run-mapped lead-machine jobs.
+- Kept scheduled marketing sequence jobs lifecycle-optional so existing non-run Trigger scheduling still works.
+- Removed stale `create-manual-call-task` Trigger job ID and kept the planned `marketing-create-manual-call-task` ID.
+- Enforced per-lead queue keys for lease-option sequence and manual-call child jobs.
+- Persisted `trigger_run_id` from artifact callbacks.
 
-P7.2 local frontend evidence:
-- `npm --prefix apps/mission-control run test -- --run src/App.test.tsx src/lib/api.test.ts src/pages/CatalogPage.test.tsx` → `31 passed`
-- `npm --prefix apps/mission-control run test -- --run` → `20 files passed`, `58 tests passed`
-- `npm --prefix apps/mission-control run typecheck` → pass
-- `npm --prefix apps/mission-control run build` → pass
+Phase 5:
 
-P7.3 local marketplace-readiness evidence:
-- `./.venv/bin/python -m pytest tests/api/test_catalog.py tests/api/test_agent_installs.py -q` → `6 passed`
-- `./.venv/bin/python -m pytest tests/api/test_agents.py tests/api/test_catalog.py tests/api/test_agent_installs.py tests/db/test_catalog_repository.py -q` → `23 passed`
-- `npm --prefix apps/mission-control run test -- --run` → `20 files passed`, `58 tests passed`
-- `npm --prefix apps/mission-control run typecheck` → pass
-- `npm --prefix apps/mission-control run build` → pass
-- `./.venv/bin/python -m pytest -q` → `468 passed, 5 warnings`
+- Added `TEXTGRID_STATUS_CALLBACK_URL` config and passed it through outbound SMS requests.
+- Provider side-effect failures during lead intake now create durable manual-review tasks visible in Mission Control.
+- Lead-intake and sequence dispatch outbound messages now persist provider message IDs when available.
+- TextGrid status callbacks update durable message status and record processed provider webhook receipts.
+- Booking confirmation sends preserve successful provider message IDs even if a later channel fails, while booking suppression/opportunity sync still proceeds.
 
-Known warnings:
-- existing `HTTP_422_UNPROCESSABLE_ENTITY` deprecation warnings in older tests
+Phase 6:
 
-## Recommended next slice
+- Added canonical `POST /lead-machine/intake` backed by existing `LeadRecord` and `LeadEventRecord` repositories.
+- Generic lead intake is replay-safe through source-namespaced identity keys and deterministic intake event idempotency keys.
+- Unknown lead source values fail closed instead of silently becoming `manual`.
+- Trigger `lead-intake` now targets `/lead-machine/intake`; probate payloads keep a separate `probate-intake` job pointed at `/lead-machine/probate/intake`.
 
-### Phase 7 merge pass
+Phase 7:
 
-`P7.1`, `P7.2`, and `P7.3` are implemented, QC-reviewed, locally verified, and now include the post-review release-managed deactivation fix plus the final governance-scope truth fix.
+- Mission Control dashboard now exposes backend-owned `provider_failure_task_count`.
+- Provider-failure task counts and task rows are org-scoped through task details metadata, preventing cross-org leakage for same business/environment.
+- Mission Control tasks UI distinguishes provider-failure reviews while preserving normal manual-call rendering.
 
-The Phase 7 merge blockers are closed:
-- `marketplace_publication_enabled` is derived live instead of persisted as stale point-in-time truth
-- catalog install UX now speaks in terms of selected target scope and explicitly reports when an install landed outside the current filtered view
-- active-agent retirement now has a first-class release-management deactivation path, and the legacy `/agents/.../archive` active path delegates into it instead of regressing `origin/main`
-- settings/governance stays explicitly org-scoped under secondary business/environment filters instead of half-filtering secrets posture while leaving aggregates org-wide
+Phase 8:
 
-Next up:
-- merge the branch to `main`
+- Runtime command ingestion appends `hermes_command_invoked` audit events and `tool_call` usage records.
+- Approval creation/approval and run creation now append durable audit events; run creation records `run` usage.
+- Trigger lifecycle callbacks append `trigger_run_started`/`trigger_run_completed`/`trigger_run_failed` audit events, and started callbacks count `host_dispatch` usage attempts.
+- Replay requests append audit with actor context and preserve existing side-effect safety: approval-required commands create no child run until the replay approval is approved.
+- Observability is nonfatal after primary state changes, so audit/usage failures do not strand commands, approvals, runs, Trigger callbacks, or replays.
+- Agent-backed audit/usage scope is preserved through command persistence, approval paths, Trigger lifecycle fallback, replay approvals, deduped retries, and direct/hydrated Supabase command storage.
 
-## Repo cleanup check already performed
+Phase 9:
 
-- Searched for stray spec/plan files.
-- No obviously foreign plan/spec files were found that clearly do not belong in this repo.
-- No plan/spec files were deleted in this handoff prep because there was nothing high-confidence to remove without being reckless.
+- Added deterministic in-process full-stack smoke coverage in `scripts/smoke_full_stack_cohesion.py`.
+- The full-stack smoke exercises `/health`, Hermes tool discovery/invocation, Trigger lifecycle callbacks, lead intake, manual-call task intake, Cal.com booking webhook, TextGrid inbound webhook, Mission Control dashboard/runs, audit, usage, and repository-backed messages/tasks/bookings.
+- Full-stack smoke forces memory-backed settings, clears live provider credentials, patches route-level marketing services during the run, and blocks any attempted live provider request.
+- `reset_control_plane_store()` now clears dynamic marketing in-memory stores so repeated in-process smoke runs do not accumulate contacts, conversations, messages, bookings, or sequence enrollments.
+- Added `scripts/smoke_provider_readiness.py` for TextGrid/Resend request-shape validation without sending; live flags require explicit `--allow-live`.
+- Added `docs/smoke-tests/full-stack-cohesion.md` with the local smoke commands and no-live-sends contract.
+
+Phase 10:
+
+- Added `scripts/preview_rollout_readiness.py` as a guarded preview/staging readiness gate.
+- The readiness gate refuses linked Supabase dry-runs unless `--expected-project-ref` matches `supabase/.temp/project-ref`.
+- The readiness gate cannot report `ready`, `can_apply_preview_migrations`, or `can_run_preview_smoke` until the linked Supabase dry-run executes and passes.
+- Added `docs/preview-staging-rollout.md` with the actual preview gate commands and no-live provider policy.
+- This checkout is not linked to a Supabase project ref, so no preview migrations, deploys, Trigger workers, or live provider sends were run.
+
+Phase 11:
+
+- Added `scripts/production_promotion_readiness.py` as a guarded production promotion gate.
+- Production promotion is blocked unless the linked production Supabase ref matches the expected ref, the linked dry-run passes, HEAD matches the staged commit, staging evidence JSON contains the same commit, a backup reference exists, production is explicitly acknowledged, production env is present, and all runtime backends are `supabase`.
+- Live provider smoke stays blocked unless `--allow-live-provider-smoke` and explicit SMS/email recipient flags are present.
+- Added `docs/production-promotion.md` with the promotion order and hard gates.
+- This checkout is not linked to a production project ref and lacks production env/evidence, so no production migrations, deploys, Trigger workers, or live provider sends were run.
+
+## Hard rules
+
+- Do not install Ares into Hermes.
+- Do not make Hermes, Trigger.dev, providers, or Mission Control the source of truth.
+- Do not let Mission Control frontend call Supabase directly.
+- Do not rewrite already-applied baseline migrations in place.
+- Do not remove `business_id + environment` while adding `org_id`.
+- Do not run live provider sends without explicit opt-in recipient flags.
+- Preserve the existing dirty Supabase persistence work in `/Users/solomartin/Projects/Ares` until it is intentionally reconciled.
+
+## Latest verification
+
+```bash
+git diff --check
+uv run pytest tests/smoke/test_health.py tests/api/test_runtime_config_contract.py tests/api/test_trigger_contract_files.py -q
+uv run pytest tests/db/test_supabase_control_plane_client.py tests/db/test_control_plane_supabase_adapters.py -q
+uv run pytest tests/api/test_commands.py tests/api/test_approvals.py tests/api/test_runs.py tests/api/test_replays.py tests/api/test_trigger_callbacks.py tests/api/test_hermes_tools.py tests/api/test_lead_machine_trigger_contract.py tests/api/test_marketing_sequence.py tests/api/test_marketing_leads.py -q
+uv run pytest tests/providers/test_textgrid.py tests/providers/test_resend.py tests/providers/test_calcom.py tests/services/test_inbound_sms_service.py tests/services/test_booking_service.py tests/api/test_marketing_runtime.py tests/api/test_marketing_webhooks.py tests/api/test_marketing_leads.py tests/api/test_mission_control.py tests/api/test_mission_control_marketing.py -q
+uv run pytest tests/api/test_lead_machine.py tests/services/test_lead_intake_service.py tests/api/test_lead_machine_trigger_contract.py -q
+uv run pytest tests/api/test_mission_control.py::test_provider_failure_tasks_are_org_scoped_in_dashboard_and_tasks tests/api/test_marketing_leads.py -q
+uv run pytest tests/api/test_audit.py tests/api/test_usage.py tests/api/test_replays.py -q
+uv run pytest tests/smoke/test_full_stack_contract.py -q
+uv run pytest tests/smoke/test_preview_rollout_readiness.py -q
+uv run pytest tests/smoke/test_production_promotion_readiness.py -q
+uv run python scripts/smoke_full_stack_cohesion.py --no-live-sends
+uv run python scripts/smoke_provider_readiness.py
+uv run pytest -q
+npm --prefix trigger run typecheck
+npm --prefix apps/mission-control run test -- --run
+npm --prefix apps/mission-control run typecheck
+npm --prefix apps/mission-control run build
+```
+
+## Next gate
+
+All planned phases are implemented and QC-approved in the clean worktree. Hosted preview/staging/production promotion remains blocked until a verified linked target, env, staging evidence, and backup reference are supplied.

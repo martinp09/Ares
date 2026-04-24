@@ -50,6 +50,7 @@ def test_commands_repository_translates_through_supabase(monkeypatch) -> None:
                 "environment": "dev",
                 "command_type": "run_market_research",
                 "payload": {"topic": "houston"},
+                "agent_revision_id": "rev_123",
                 "idempotency_key": "cmd-001",
                 "policy_result": "safe_autonomous",
                 "status": "queued",
@@ -67,6 +68,7 @@ def test_commands_repository_translates_through_supabase(monkeypatch) -> None:
         command_type="run_market_research",
         idempotency_key="cmd-001",
         payload={"topic": "houston"},
+        agent_revision_id="rev_123",
         policy=CommandPolicy.SAFE_AUTONOMOUS,
         status=CommandStatus.ACCEPTED,
     )
@@ -74,7 +76,9 @@ def test_commands_repository_translates_through_supabase(monkeypatch) -> None:
     assert captured["table"] == "commands"
     assert captured["row"]["business_id"] == 7
     assert captured["row"]["status"] == "queued"
+    assert captured["row"]["agent_revision_id"] == "rev_123"
     assert command.id == "cmd_101"
+    assert command.agent_revision_id == "rev_123"
     assert command.status == CommandStatus.QUEUED
 
 

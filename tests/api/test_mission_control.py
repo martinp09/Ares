@@ -307,6 +307,73 @@ def test_dashboard_endpoint_hides_other_org_records_with_same_scope(client) -> N
     assert beta_body["unread_conversation_count"] == 1
 
 
+def test_provider_failure_tasks_are_org_scoped_in_dashboard_and_tasks(client) -> None:
+    reset_control_plane_state()
+    alpha_headers = org_actor_headers(org_id="org_alpha", actor_id="actor_alpha")
+    beta_headers = org_actor_headers(org_id="org_beta", actor_id="actor_beta")
+
+    mission_control_service.tasks_repository.create(
+        TaskRecord(
+            business_id="limitless",
+            environment="dev",
+            lead_id="lead_alpha",
+            title="Review failed alpha provider side effect",
+            status=TaskStatus.OPEN,
+            task_type=TaskType.MANUAL_REVIEW,
+            priority=TaskPriority.HIGH,
+            idempotency_key="provider-failure-alpha",
+            details={
+                "org_id": "org_alpha",
+                "side_effect": "confirmation_sms",
+                "visible_in_mission_control": True,
+                "error_message": "alpha only",
+            },
+        )
+    )
+    mission_control_service.tasks_repository.create(
+        TaskRecord(
+            business_id="limitless",
+            environment="dev",
+            lead_id="lead_beta",
+            title="Review failed beta provider side effect",
+            status=TaskStatus.OPEN,
+            task_type=TaskType.MANUAL_REVIEW,
+            priority=TaskPriority.HIGH,
+            idempotency_key="provider-failure-beta",
+            details={
+                "org_id": "org_beta",
+                "side_effect": "confirmation_sms",
+                "visible_in_mission_control": True,
+                "error_message": "beta only",
+            },
+        )
+    )
+
+    alpha_dashboard = client.get(
+        "/mission-control/dashboard?business_id=limitless&environment=dev",
+        headers=alpha_headers,
+    )
+    beta_dashboard = client.get(
+        "/mission-control/dashboard?business_id=limitless&environment=dev",
+        headers=beta_headers,
+    )
+    alpha_tasks = client.get(
+        "/mission-control/tasks?business_id=limitless&environment=dev",
+        headers=alpha_headers,
+    )
+    beta_tasks = client.get(
+        "/mission-control/tasks?business_id=limitless&environment=dev",
+        headers=beta_headers,
+    )
+
+    assert alpha_dashboard.status_code == 200
+    assert beta_dashboard.status_code == 200
+    assert alpha_dashboard.json()["provider_failure_task_count"] == 1
+    assert beta_dashboard.json()["provider_failure_task_count"] == 1
+    assert [task["error_message"] for task in alpha_tasks.json()["tasks"]] == ["alpha only"]
+    assert [task["error_message"] for task in beta_tasks.json()["tasks"]] == ["beta only"]
+
+
 def test_dashboard_endpoint_changes_with_org_header_even_when_business_and_environment_match(client) -> None:
     reset_control_plane_state()
 

@@ -8,6 +8,7 @@ from app.models.actors import ActorContext
 from app.models.commands import CommandPolicy, CommandRecord, CommandStatus, generate_id
 from app.models.runs import ReplayRequest, ReplayResponse
 from app.services.replay_lineage_service import ReplayLineageService, replay_lineage_service as default_replay_lineage_service
+from app.services.runtime_observability_service import runtime_observability_service
 from app.services.run_lifecycle_service import RunLifecycleService, run_lifecycle_service as default_run_lifecycle_service
 from app.services.run_service import run_service
 
@@ -44,6 +45,8 @@ class ReplayService:
 
         requested_at = utc_now()
         agent_revision_id = self.replay_lineage_service.agent_revision_id_for_run(parent_run.id)
+        if agent_revision_id is None:
+            agent_revision_id = original_command.agent_revision_id
         lineage = self.replay_lineage_service.build_lineage(
             agent_revision_id=agent_revision_id,
             parent_created_at=parent_run.created_at,
@@ -74,6 +77,13 @@ class ReplayService:
                 child_run_id=child_run.id,
                 occurred_at=requested_at,
             )
+            self._record_replay_requested_nonfatal(
+                parent_run,
+                actor_context=actor_context,
+                child_run_id=child_run.id,
+                approval_id=None,
+                replay_reason=request.reason,
+            )
             return (
                 ReplayResponse(
                     parent_run_id=parent_run.id,
@@ -100,6 +110,7 @@ class ReplayService:
                 actor_context=actor_context,
             ),
         )
+        self._record_approval_created_nonfatal(replay_approval, agent_revision_id=replay_command.agent_revision_id)
         self.commands_repository.attach_approval(replay_command.id, approval_id=replay_approval.id)
         replay_command.approval_id = replay_approval.id
         replay_command.status = CommandStatus.AWAITING_APPROVAL
@@ -110,6 +121,13 @@ class ReplayService:
             lineage=lineage,
             approval_id=replay_approval.id,
             occurred_at=requested_at,
+        )
+        self._record_replay_requested_nonfatal(
+            parent_run,
+            actor_context=actor_context,
+            child_run_id=None,
+            approval_id=replay_approval.id,
+            replay_reason=request.reason,
         )
         return (
             ReplayResponse(
@@ -130,6 +148,7 @@ class ReplayService:
             command_type=command.command_type,
             idempotency_key=self._replay_idempotency_key(command.idempotency_key),
             payload=command.payload,
+            agent_revision_id=command.agent_revision_id,
             policy=command.policy,
             status=CommandStatus.ACCEPTED,
         )
@@ -148,6 +167,32 @@ class ReplayService:
                 command.idempotency_key,
             )
             store.command_keys.pop(dedupe_key, None)
+
+    @staticmethod
+    def _record_replay_requested_nonfatal(
+        parent_run,
+        *,
+        actor_context: ActorContext,
+        child_run_id: str | None,
+        approval_id: str | None,
+        replay_reason: str | None,
+    ) -> None:
+        runtime_observability_service.nonfatal(
+            runtime_observability_service.record_replay_requested,
+            parent_run,
+            actor_context=actor_context,
+            child_run_id=child_run_id,
+            approval_id=approval_id,
+            replay_reason=replay_reason,
+        )
+
+    @staticmethod
+    def _record_approval_created_nonfatal(approval, *, agent_revision_id: str | None = None) -> None:
+        runtime_observability_service.nonfatal(
+            runtime_observability_service.record_approval_created,
+            approval,
+            agent_revision_id=agent_revision_id,
+        )
 
 
 replay_service = ReplayService()

@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { createMissionControlApi } from "./api";
 import { missionControlFixtures, missionControlTasksFixture } from "./fixtures";
@@ -15,6 +15,32 @@ function parseUrl(input: RequestInfo | URL): URL {
 }
 
 describe("Mission Control API client", () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  it("does not read a public Vite runtime key into request authorization", async () => {
+    vi.resetModules();
+    vi.stubEnv("VITE_RUNTIME_API_KEY", "public-build-secret");
+    const { createMissionControlApi: createApi } = await import("./api");
+    const fetchMock = vi.fn(async (_input: RequestInfo | URL, _init?: RequestInit) =>
+      jsonResponse({
+        approval_count: 0,
+        active_run_count: 0,
+        failed_run_count: 0,
+        active_agent_count: 0,
+        system_status: "healthy",
+        updated_at: "2026-04-24T00:00:00+00:00",
+      }),
+    );
+
+    await createApi({ fetchImpl: fetchMock as typeof fetch }).getDashboard();
+
+    const init = fetchMock.mock.calls[0][1] as RequestInit;
+    const headers = init.headers as Record<string, string>;
+    expect(headers.Authorization).toBeUndefined();
+  });
+
   it("maps additive pipeline summaries from the dashboard payload", async () => {
     const fetchMock = vi.fn(async () =>
       jsonResponse({
@@ -30,6 +56,7 @@ describe("Mission Control API client", () => {
         active_non_booker_enrollment_count: 3,
         due_manual_call_count: 1,
         replies_needing_review_count: 2,
+        provider_failure_task_count: 3,
         opportunity_count: 4,
         opportunity_stage_summaries: [
           { source_lane: "probate", stage: "contract_sent", count: 1 },
@@ -71,6 +98,7 @@ describe("Mission Control API client", () => {
     ]);
     expect(dashboard.outboundProbateSummary?.readyLeadCount).toBe(7);
     expect(dashboard.inboundLeaseOptionSummary?.pendingLeadCount).toBe(5);
+    expect(dashboard.providerFailureTaskCount).toBe(3);
     expect(dashboard.opportunityPipelineSummary?.laneStageSummaries).toEqual([
       { sourceLane: "probate", stage: "contract_sent", count: 1 },
       { sourceLane: "lease_option_inbound", stage: "qualified_opportunity", count: 3 },

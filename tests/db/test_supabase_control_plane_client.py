@@ -4,6 +4,7 @@ from app.models.actors import ActorType
 from app.models.agent_installs import AgentInstallRecord
 from app.models.agents import AgentRecord, AgentRevisionRecord, AgentRevisionState
 from app.models.catalog import CatalogEntryRecord
+from app.models.commands import CommandPolicy, CommandRecord, CommandStatus
 from app.models.host_adapters import HostAdapterKind
 from app.models.sessions import SessionRecord, SessionStatus
 from app.models.session_journal import SessionCompactionState
@@ -26,7 +27,7 @@ def build_settings() -> Settings:
 def test_supabase_control_plane_client_hydrates_and_persists_text_runtime_tables(monkeypatch) -> None:
     settings = build_settings()
     inserted = []
-    patched = []
+    inserted = []
 
     def fake_fetch_rows(table: str, *, params: dict[str, str], settings=None):
         if table == "commands":
@@ -119,6 +120,66 @@ def test_supabase_control_plane_client_hydrates_and_persists_text_runtime_tables
     assert "mission_control_threads_runtime" in inserted_tables
 
 
+def test_supabase_control_plane_client_preserves_command_agent_revision_scope(monkeypatch) -> None:
+    settings = build_settings()
+    rows_by_table = {
+        "commands": {
+            "101": {
+                "id": 101,
+                "business_id": 7,
+                "environment": "dev",
+                "command_type": "publish_campaign",
+                "payload": {"campaign_id": "camp-1"},
+                "agent_revision_id": "rev_alpha",
+                "idempotency_key": "cmd-agent-scope",
+                "policy_result": "approval_required",
+                "approval_required": True,
+                "status": "approval_required",
+                "created_at": "2026-04-20T00:00:00Z",
+            }
+        },
+        "approvals": {},
+        "runs": {},
+        "events": {},
+        "artifacts": {},
+    }
+
+    def fake_fetch_rows(table: str, *, params: dict[str, str], settings=None):
+        return list(rows_by_table.get(table, {}).values())
+
+    inserted = []
+
+    def fake_insert_rows(table: str, rows: list[dict], *, select=None, prefer="return=representation", settings=None):
+        inserted.extend((table, row) for row in rows)
+        return [{"id": row["id"]} for row in rows]
+
+    def fake_patch_rows(table: str, *, params: dict[str, str], row: dict, select=None, settings=None):
+        return [{"id": row["id"]}]
+
+    monkeypatch.setattr("app.db.control_plane_store_supabase.fetch_rows", fake_fetch_rows)
+    monkeypatch.setattr("app.db.control_plane_store_supabase.insert_rows", fake_insert_rows)
+    monkeypatch.setattr("app.db.control_plane_store_supabase.patch_rows", fake_patch_rows)
+
+    client = SupabaseControlPlaneClient(settings)
+    with client.transaction() as store:
+        assert store.commands["cmd_101"].agent_revision_id == "rev_alpha"
+        store.commands["cmd_102"] = CommandRecord(
+            id="cmd_102",
+            business_id="7",
+            environment="dev",
+            command_type="publish_campaign",
+            payload={"campaign_id": "camp-2"},
+            idempotency_key="cmd-agent-scope-2",
+            agent_revision_id="rev_beta",
+            policy=CommandPolicy.APPROVAL_REQUIRED,
+            status=CommandStatus.AWAITING_APPROVAL,
+            created_at="2026-04-20T00:00:00Z",
+        )
+
+    command_inserts = [row for table, row in inserted if table == "commands"]
+    assert any(row["id"] == "102" and row["agent_revision_id"] == "rev_beta" for row in command_inserts)
+
+
 def test_supabase_control_plane_client_rehydrates_core_runs_for_store_reads(monkeypatch) -> None:
     settings = build_settings()
 
@@ -172,6 +233,421 @@ def test_supabase_control_plane_client_rehydrates_core_runs_for_store_reads(monk
         assert run.command_id == "cmd_101"
         assert run.command_type == "run_market_research"
         assert run.status == "in_progress"
+
+
+def test_supabase_control_plane_client_persists_core_runtime_deletions(monkeypatch) -> None:
+    settings = build_settings()
+    rows_by_table = {
+        "commands": {
+            "101": {
+                "id": 101,
+                "business_id": 7,
+                "environment": "dev",
+                "command_type": "run_market_research",
+                "payload": {"topic": "houston"},
+                "idempotency_key": "cmd-1",
+                "policy_result": "safe_autonomous",
+                "status": "queued",
+                "created_at": "2026-04-20T00:00:00Z",
+            }
+        },
+        "approvals": {},
+        "runs": {
+            "201": {
+                "id": 201,
+                "business_id": 7,
+                "environment": "dev",
+                "command_id": 101,
+                "parent_run_id": None,
+                "replay_reason": None,
+                "trigger_run_id": None,
+                "status": "queued",
+                "started_at": None,
+                "completed_at": None,
+                "error_classification": None,
+                "error_message": None,
+                "created_at": "2026-04-20T00:00:00Z",
+                "updated_at": "2026-04-20T00:00:00Z",
+            }
+        },
+        "events": {
+            "301": {
+                "id": 301,
+                "business_id": 7,
+                "environment": "dev",
+                "command_id": 101,
+                "run_id": 201,
+                "event_type": "run_started",
+                "payload": {},
+                "created_at": "2026-04-20T00:00:00Z",
+            }
+        },
+        "artifacts": {
+            "401": {
+                "id": 401,
+                "business_id": 7,
+                "environment": "dev",
+                "run_id": 201,
+                "artifact_type": "report",
+                "data": {},
+                "created_at": "2026-04-20T00:00:00Z",
+            }
+        },
+    }
+    deleted: list[tuple[str, dict[str, str]]] = []
+
+    def fake_fetch_rows(table: str, *, params: dict[str, str], settings=None):
+        table_rows = list(rows_by_table.get(table, {}).values())
+        if params.get("id", "").startswith("eq."):
+            row_id = params["id"][3:]
+            return [row for row in table_rows if str(row.get("id")) == row_id]
+        return table_rows
+
+    def fake_delete_rows(table: str, *, params: dict[str, str], settings=None):
+        deleted.append((table, dict(params)))
+        row_id = params["id"][3:]
+        rows_by_table[table].pop(row_id, None)
+        return []
+
+    monkeypatch.setattr("app.db.control_plane_store_supabase.fetch_rows", fake_fetch_rows)
+    monkeypatch.setattr("app.db.control_plane_store_supabase.insert_rows", lambda *args, **kwargs: [{"id": "noop"}])
+    monkeypatch.setattr("app.db.control_plane_store_supabase.patch_rows", lambda *args, **kwargs: [{"id": "noop"}])
+    monkeypatch.setattr("app.db.control_plane_store_supabase.delete_rows", fake_delete_rows)
+
+    client = SupabaseControlPlaneClient(settings)
+    with client.transaction() as store:
+        del store.commands["cmd_101"]
+        del store.runs["run_201"]
+
+    assert deleted == [
+        ("artifacts", {"id": "eq.401"}),
+        ("events", {"id": "eq.301"}),
+        ("runs", {"id": "eq.201"}),
+        ("commands", {"id": "eq.101"}),
+    ]
+
+
+def test_supabase_control_plane_client_restores_core_deletions_when_later_flush_fails(monkeypatch) -> None:
+    settings = build_settings()
+    command_row = {
+        "id": 101,
+        "business_id": 7,
+        "environment": "dev",
+        "command_type": "run_market_research",
+        "payload": {"topic": "houston"},
+        "agent_revision_id": None,
+        "idempotency_key": "cmd-1",
+        "policy_result": "safe_autonomous",
+        "approval_required": False,
+        "status": "queued",
+        "created_at": "2026-04-20T00:00:00Z",
+    }
+    run_row = {
+        "id": 201,
+        "business_id": 7,
+        "environment": "dev",
+        "command_id": 101,
+        "parent_run_id": None,
+        "replay_source_run_id": None,
+        "replay_reason": None,
+        "trigger_run_id": None,
+        "status": "queued",
+        "started_at": None,
+        "completed_at": None,
+        "error_classification": None,
+        "error_message": None,
+        "created_at": "2026-04-20T00:00:00Z",
+        "updated_at": "2026-04-20T00:00:00Z",
+    }
+    event_row = {
+        "id": 301,
+        "business_id": 7,
+        "environment": "dev",
+        "command_id": 101,
+        "run_id": 201,
+        "event_type": "run_started",
+        "payload": {},
+        "created_at": "2026-04-20T00:00:00Z",
+    }
+    artifact_row = {
+        "id": 401,
+        "business_id": 7,
+        "environment": "dev",
+        "run_id": 201,
+        "artifact_type": "report",
+        "data": {},
+        "created_at": "2026-04-20T00:00:00Z",
+    }
+    rows_by_table = {
+        "commands": {"101": dict(command_row)},
+        "approvals": {},
+        "runs": {"201": dict(run_row)},
+        "events": {"301": dict(event_row)},
+        "artifacts": {"401": dict(artifact_row)},
+    }
+
+    def fake_fetch_rows(table: str, *, params: dict[str, str], settings=None):
+        table_rows = list(rows_by_table.get(table, {}).values())
+        if params.get("id", "").startswith("eq."):
+            row_id = params["id"][3:]
+            return [row for row in table_rows if str(row.get("id")) == row_id]
+        return table_rows
+
+    def fake_insert_rows(table: str, rows: list[dict], *, select=None, prefer="return=representation", settings=None):
+        if table == "agents_runtime":
+            raise RuntimeError("agents flush failed")
+        table_rows = rows_by_table.setdefault(table, {})
+        inserted = []
+        for row in rows:
+            payload = dict(row)
+            row_id = str(payload["id"])
+            if table == "runs" and str(payload["command_id"]) not in rows_by_table["commands"]:
+                raise AssertionError("runs restored before commands")
+            if table == "events" and str(payload["run_id"]) not in rows_by_table["runs"]:
+                raise AssertionError("events restored before runs")
+            if table == "artifacts" and str(payload["run_id"]) not in rows_by_table["runs"]:
+                raise AssertionError("artifacts restored before runs")
+            table_rows[row_id] = payload
+            inserted.append(payload)
+        return inserted
+
+    def fake_delete_rows(table: str, *, params: dict[str, str], settings=None):
+        row_id = params["id"][3:]
+        rows_by_table[table].pop(row_id, None)
+        return []
+
+    monkeypatch.setattr("app.db.control_plane_store_supabase.fetch_rows", fake_fetch_rows)
+    monkeypatch.setattr("app.db.control_plane_store_supabase.insert_rows", fake_insert_rows)
+    monkeypatch.setattr("app.db.control_plane_store_supabase.patch_rows", lambda *args, **kwargs: [{"id": "noop"}])
+    monkeypatch.setattr("app.db.control_plane_store_supabase.delete_rows", fake_delete_rows)
+
+    client = SupabaseControlPlaneClient(settings)
+    try:
+        with client.transaction() as store:
+            del store.commands["cmd_101"]
+            del store.runs["run_201"]
+            store.agents["agt_rollback"] = AgentRecord(
+                id="agt_rollback",
+                org_id="org_internal",
+                business_id="limitless",
+                environment="dev",
+                name="Rollback Agent",
+                description=None,
+                active_revision_id=None,
+                created_at="2026-04-20T00:00:00Z",
+                updated_at="2026-04-20T00:00:00Z",
+            )
+    except RuntimeError as exc:
+        assert str(exc) == "agents flush failed"
+    else:
+        raise AssertionError("expected flush failure")
+
+    assert rows_by_table["commands"]["101"] == command_row
+    assert rows_by_table["runs"]["201"] == run_row
+    assert rows_by_table["events"]["301"] == event_row
+    assert rows_by_table["artifacts"]["401"] == artifact_row
+
+
+def test_supabase_control_plane_client_restores_core_updates_when_later_flush_fails(monkeypatch) -> None:
+    settings = build_settings()
+    command_row = {
+        "id": 101,
+        "business_id": 7,
+        "environment": "dev",
+        "command_type": "run_market_research",
+        "payload": {"topic": "houston"},
+        "agent_revision_id": None,
+        "idempotency_key": "cmd-1",
+        "policy_result": "safe_autonomous",
+        "approval_required": False,
+        "status": "queued",
+        "created_at": "2026-04-20T00:00:00Z",
+    }
+    run_row = {
+        "id": 201,
+        "business_id": 7,
+        "environment": "dev",
+        "command_id": 101,
+        "parent_run_id": None,
+        "replay_source_run_id": None,
+        "replay_reason": None,
+        "trigger_run_id": None,
+        "status": "queued",
+        "started_at": None,
+        "completed_at": None,
+        "error_classification": None,
+        "error_message": None,
+        "created_at": "2026-04-20T00:00:00Z",
+        "updated_at": "2026-04-20T00:00:00Z",
+    }
+    rows_by_table = {
+        "commands": {"101": dict(command_row)},
+        "approvals": {},
+        "runs": {"201": dict(run_row)},
+        "events": {},
+        "artifacts": {},
+    }
+
+    def fake_fetch_rows(table: str, *, params: dict[str, str], settings=None):
+        return list(rows_by_table.get(table, {}).values())
+
+    def fake_patch_rows(table: str, *, params: dict[str, str], row: dict, select=None, settings=None):
+        row_id = params["id"][3:]
+        payload = dict(rows_by_table[table][row_id])
+        payload.update(row)
+        rows_by_table[table][row_id] = payload
+        return [payload]
+
+    def fake_insert_rows(table: str, rows: list[dict], *, select=None, prefer="return=representation", settings=None):
+        if table == "agents_runtime":
+            raise RuntimeError("agents flush failed")
+        return rows
+
+    monkeypatch.setattr("app.db.control_plane_store_supabase.fetch_rows", fake_fetch_rows)
+    monkeypatch.setattr("app.db.control_plane_store_supabase.insert_rows", fake_insert_rows)
+    monkeypatch.setattr("app.db.control_plane_store_supabase.patch_rows", fake_patch_rows)
+    monkeypatch.setattr("app.db.control_plane_store_supabase.delete_rows", lambda *args, **kwargs: [])
+
+    client = SupabaseControlPlaneClient(settings)
+    try:
+        with client.transaction() as store:
+            run = store.runs["run_201"]
+            run.status = "in_progress"
+            store.runs["run_201"] = run
+            store.agents["agt_rollback"] = AgentRecord(
+                id="agt_rollback",
+                org_id="org_internal",
+                business_id="limitless",
+                environment="dev",
+                name="Rollback Agent",
+                description=None,
+                active_revision_id=None,
+                created_at="2026-04-20T00:00:00Z",
+                updated_at="2026-04-20T00:00:00Z",
+            )
+    except RuntimeError as exc:
+        assert str(exc) == "agents flush failed"
+    else:
+        raise AssertionError("expected flush failure")
+
+    assert rows_by_table["commands"]["101"] == command_row
+    assert rows_by_table["runs"]["201"] == run_row
+
+
+def test_supabase_control_plane_client_restores_parent_runs_before_child_runs(monkeypatch) -> None:
+    settings = build_settings()
+    rows_by_table = {
+        "commands": {
+            "101": {
+                "id": 101,
+                "business_id": 7,
+                "environment": "dev",
+                "command_type": "run_market_research",
+                "payload": {},
+                "idempotency_key": "cmd-1",
+                "policy_result": "safe_autonomous",
+                "status": "queued",
+                "created_at": "2026-04-20T00:00:00Z",
+            },
+            "102": {
+                "id": 102,
+                "business_id": 7,
+                "environment": "dev",
+                "command_type": "run_market_research",
+                "payload": {},
+                "idempotency_key": "cmd-2",
+                "policy_result": "safe_autonomous",
+                "status": "queued",
+                "created_at": "2026-04-20T00:00:00Z",
+            },
+        },
+        "approvals": {},
+        "runs": {
+            "201": {
+                "id": 201,
+                "business_id": 7,
+                "environment": "dev",
+                "command_id": 101,
+                "parent_run_id": None,
+                "replay_reason": None,
+                "trigger_run_id": None,
+                "status": "queued",
+                "started_at": None,
+                "completed_at": None,
+                "error_classification": None,
+                "error_message": None,
+                "created_at": "2026-04-20T00:00:00Z",
+                "updated_at": "2026-04-20T00:00:00Z",
+            },
+            "202": {
+                "id": 202,
+                "business_id": 7,
+                "environment": "dev",
+                "command_id": 102,
+                "parent_run_id": 201,
+                "replay_reason": "retry",
+                "trigger_run_id": None,
+                "status": "queued",
+                "started_at": None,
+                "completed_at": None,
+                "error_classification": None,
+                "error_message": None,
+                "created_at": "2026-04-20T00:01:00Z",
+                "updated_at": "2026-04-20T00:01:00Z",
+            },
+        },
+        "events": {},
+        "artifacts": {},
+    }
+    restored_runs: list[str] = []
+
+    def fake_fetch_rows(table: str, *, params: dict[str, str], settings=None):
+        return list(rows_by_table.get(table, {}).values())
+
+    def fake_insert_rows(table: str, rows: list[dict], *, select=None, prefer="return=representation", settings=None):
+        if table == "agents_runtime":
+            raise RuntimeError("agents flush failed")
+        for row in rows:
+            row_id = str(row["id"])
+            if table == "runs":
+                parent_id = row.get("parent_run_id")
+                if parent_id is not None and str(parent_id) not in rows_by_table["runs"]:
+                    raise AssertionError("child run restored before parent run")
+                restored_runs.append(row_id)
+            rows_by_table.setdefault(table, {})[row_id] = dict(row)
+        return rows
+
+    def fake_delete_rows(table: str, *, params: dict[str, str], settings=None):
+        rows_by_table[table].pop(params["id"][3:], None)
+        return []
+
+    monkeypatch.setattr("app.db.control_plane_store_supabase.fetch_rows", fake_fetch_rows)
+    monkeypatch.setattr("app.db.control_plane_store_supabase.insert_rows", fake_insert_rows)
+    monkeypatch.setattr("app.db.control_plane_store_supabase.patch_rows", lambda *args, **kwargs: [{"id": "noop"}])
+    monkeypatch.setattr("app.db.control_plane_store_supabase.delete_rows", fake_delete_rows)
+
+    client = SupabaseControlPlaneClient(settings)
+    try:
+        with client.transaction() as store:
+            store.runs.clear()
+            store.commands.clear()
+            store.agents["agt_rollback"] = AgentRecord(
+                id="agt_rollback",
+                org_id="org_internal",
+                business_id="limitless",
+                environment="dev",
+                name="Rollback Agent",
+                description=None,
+                active_revision_id=None,
+                created_at="2026-04-20T00:00:00Z",
+                updated_at="2026-04-20T00:00:00Z",
+            )
+    except RuntimeError as exc:
+        assert str(exc) == "agents flush failed"
+    else:
+        raise AssertionError("expected flush failure")
+
+    assert restored_runs == ["201", "202"]
 
 
 def test_supabase_control_plane_client_persists_enterprise_tables(monkeypatch) -> None:

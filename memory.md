@@ -27,7 +27,8 @@
 
 ## Current Direction
 
-- `fix/origin-main-supabase-persistence-wiring` is the current merge branch for finishing the remaining `origin/main` Supabase persistence work before taking more product surface.
+- `feature/ares-full-stack-cohesion-clean` is the current clean worktree branch for the full-stack cohesion plan.
+- `fix/origin-main-supabase-persistence-wiring` remains preserved as dirty local persistence work in `/Users/solomartin/Projects/Ares` and must be reconciled intentionally before Phase 2 Supabase implementation.
 - Hermes is the current primary control shell and browser-capable driver
 - This repo should become the reusable real-estate operating runtime those drivers call into
 - Generalist runtime first, lanes and strategies second
@@ -35,6 +36,8 @@
 - Marketing control plane is the first execution domain
 - Ares North Star: self-hosted operating system for distressed real-estate lead management
 - Source-of-truth implementation plan for phased Ares scope: `docs/superpowers/plans/2026-04-18-ares-phased-implementation-plan.md`
+- Current full-stack cohesion plan: `docs/superpowers/plans/2026-04-24-ares-full-stack-cohesion-mega-plan.md`
+- Current full-stack cohesion spec gate: `docs/superpowers/specs/2026-04-24-ares-full-stack-cohesion-spec.md`
 - Combined Mission Control + enterprise backlog execution plan: `docs/superpowers/plans/2026-04-21-mission-control-enterprise-backlog-master-plan.md`
 - Mission Control orchestration plan remains a live source input: `docs/superpowers/plans/2026-04-13-hermes-mission-control-orchestration-plan.md`
 - Enterprise agent platform plan remains a live source input: `docs/superpowers/plans/2026-04-15-ares-enterprise-agent-platform-implementation-plan.md`
@@ -69,6 +72,7 @@
 - `TRIGGER_SECRET_KEY` is present in the local `.env`
 - Trigger.dev local worker boot verified against project `proj_puouljyhwiraonjkpiki`
 - Local `.env` already includes `Cal.com`, `TextGrid`, and `Resend` credentials needed for the lease-option MVP
+- Local development defaults `SITE_EVENTS_BACKEND=memory` unless a Supabase persistence slice is explicitly enabled.
 - The active landing page lives at `/Users/solomartin/Business/website/lease-options-landing`
 - The landing page currently persists form submissions and redirects to `Cal.com`, but still hands automation off to `n8n`
 - A proven `TextGrid` adapter exists in `/Users/solomartin/Projects/Phone System/api/_lib/providers/textgrid.js`
@@ -167,13 +171,110 @@
 
 ## Open Work
 
-1. merge `fix/origin-main-supabase-persistence-wiring` to `main`
-2. keep post-merge follow-up scope narrow to Supabase persistence regressions and real hosted smoke only
-3. keep browser acquisition and ambiguous research in Hermes or other driver agents, not inside Ares
-4. add durable Trigger lead-machine jobs only where sync paths become operationally risky
-5. keep using `supabase start -x vector` on this machine until the Colima mount issue is fixed
+1. commit Phase 11 production promotion readiness on `feature/ares-full-stack-cohesion-clean`
+2. hosted rollout remains blocked until verified linked targets, env, staging evidence, and backup references are supplied
+3. reconcile the preserved dirty Supabase persistence work before any hosted Supabase rollout
+4. keep post-merge Supabase follow-up scope narrow to persistence regressions and real hosted smoke only
+5. keep browser acquisition and ambiguous research in Hermes or other driver agents, not inside Ares
+6. add durable Trigger lead-machine jobs only where sync paths become operationally risky
+7. keep using `supabase start -x vector` on this machine until the Colima mount issue is fixed
 
 ## Change Log
+
+### 2026-04-24 Full-Stack Cohesion Phase 0/1 Kickoff
+
+- Created clean worktree `/Users/solomartin/Projects/Ares-full-stack-cohesion` on `feature/ares-full-stack-cohesion-clean` from `origin/main`.
+- Preserved the dirty Supabase persistence checkout at `/Users/solomartin/Projects/Ares` for later intentional reconciliation.
+- Restored the remote docs branch handoff plans into the live tree: `2026-04-24-ares-full-stack-cohesion-mega-plan.md` and `2026-04-24-ares-supabase-wiring-from-memory.md`.
+- Added the full-stack cohesion spec gate and local Hermes/Ares/Trigger/Supabase runbook.
+- Cleaned `.env.example` into explicit runtime, Supabase, Trigger, provider, Mission Control, and model-provider sections.
+- Set the local site-events default to memory-backed state so local health/smoke work does not require Supabase credentials.
+- Added Vite dev proxy auth for Mission Control so local UI calls stay authenticated without exposing a public runtime key.
+- Added Phase 1 config contract tests and static Trigger runtime API contract tests.
+
+### 2026-04-24 Full-Stack Cohesion Phases 2 and 3
+
+- Phase 2 hardened `SupabaseControlPlaneClient.transaction()` so core command-plane tables (`commands`, `approvals`, `runs`, `events`, `artifacts`) are persisted/deleted/restored with the same rollback safety as text runtime tables.
+- Added FK-aware core restore ordering: commands before approvals/runs, parent runs before child replay runs, then events/artifacts; delete order remains child-first.
+- Added regressions for core deletion flush, rollback after deletion/update failures, bigint string/int canonicalization, and parent-before-child run restore.
+- Phase 3 added `docs/hermes-ares-runtime-adapter-contract.md`, `scripts/smoke_hermes_runtime_adapter.py`, and Hermes tool payload-stability coverage.
+- Local adapter smoke succeeded against a short-lived Uvicorn server; the server was shut down afterward.
+
+### 2026-04-24 Full-Stack Cohesion Phase 4
+
+- Phase 4 standardized Trigger-to-Ares lifecycle callbacks through `reportRunLifecycle()` with snake_case request bodies and Ares-owned persistence.
+- Lead-machine Trigger jobs now use required `runWithLifecycle()` wrapping when they are mapped to Ares runs; marketing sequence jobs use `runWithOptionalLifecycle()` because current lease-option non-booker scheduling is not yet backed by an Ares run.
+- Removed the stale `create-manual-call-task` Trigger job ID and kept the planned `marketing-create-manual-call-task` job.
+- Lease-option sequence child jobs no longer inherit parent `runId`/`commandId`/`idempotencyKey`, preventing delayed child jobs from mutating the parent run lifecycle.
+- Manual-call and sequence child jobs now use per-lead queue keys based on business, environment, and lead.
+- Artifact callbacks now persist `trigger_run_id` on the canonical run before appending artifact rows.
+- QC approved Phase 4 after focused checks; broader gates passed with `uv run pytest -q`, Trigger typecheck, Mission Control tests/typecheck/build, and `git diff --check`.
+
+### 2026-04-24 Full-Stack Cohesion Phase 5
+
+- Phase 5 added `TEXTGRID_STATUS_CALLBACK_URL` and passes TextGrid status callback URLs through lead-intake, sequence, and booking outbound SMS paths.
+- Marketing lead intake no longer silently drops provider/Trigger side-effect failures: it returns side-effect statuses and creates durable high-priority manual-review tasks with `visible_in_mission_control=true`.
+- Outbound confirmation and sequence messages now persist provider message IDs when TextGrid/Resend responses expose `sid`, `message_sid`, `MessageSid`, or `id`.
+- TextGrid status callbacks update durable message status by provider/external ID, record provider webhook receipts, mark them processed, and do not create false review tasks.
+- Booking confirmation sends tolerate provider failures without blocking booking suppression/opportunity sync, and configured booking sends preserve successful partial provider IDs if a later channel fails.
+- QC approved Phase 5 after the partial booking provider-ID blocker was fixed; broader gates passed with `uv run pytest -q`, Trigger typecheck, Mission Control tests/typecheck/build, and `git diff --check`.
+
+### 2026-04-24 Full-Stack Cohesion Phase 6
+
+- Phase 6 added the missing generic `POST /lead-machine/intake` seam without duplicating existing probate or marketing intake paths.
+- The new `LeadIntakeService` writes existing canonical `LeadRecord` and `LeadEventRecord` records, returns `created` versus `deduped`, and keeps side-effect status fields explicit without sending live provider traffic.
+- Intake replay safety uses source-namespaced external keys and deterministic `lead-intake:{business}:{environment}:{dedupe_key}` event idempotency keys.
+- Unknown lead source values now fail closed instead of being silently coerced to `manual`, preserving canonical source truth and Supabase source constraints.
+- Trigger now has separate `lead-intake` and `probate-intake` jobs so generic intake uses `/lead-machine/intake` while existing probate payloads keep `/lead-machine/probate/intake`.
+- QC approved Phase 6 after fixing the probate Trigger path and unknown-source downgrade blockers; broader gates passed with `uv run pytest -q`, Trigger typecheck, Mission Control tests/typecheck/build, and `git diff --check`.
+
+### 2026-04-24 Full-Stack Cohesion Phase 7
+
+- Phase 7 added backend-owned `provider_failure_task_count` to the Mission Control dashboard response and frontend dashboard summary.
+- Provider-failure task rows now preserve optional task metadata in the Mission Control API client and render distinctly in the Tasks page.
+- Provider-failure dashboard/task read models are org-scoped through task details metadata so same business/environment tasks do not leak across actor orgs.
+- QC approved Phase 7 after fixing the org-scoping blocker; broader gates passed with `uv run pytest -q`, Trigger typecheck, Mission Control tests/typecheck/build, and `git diff --check`.
+
+### 2026-04-24 Full-Stack Cohesion Phase 8
+
+- Added `RuntimeObservabilityService` as the shared nonfatal audit/usage seam for runtime command, approval, run, Trigger lifecycle, and replay paths.
+- Command ingestion now appends `hermes_command_invoked` audit entries and `tool_call` usage records, including deduped command invocations scoped from the persisted command revision.
+- Approval creation/approval and run creation now append runtime audit entries; run creation records `run` usage and approved-command runs route through `RunService` while preserving agent revision scope.
+- Trigger lifecycle callbacks append operator-visible audit entries, and started callbacks count `host_dispatch` usage attempts with Trigger correlation metadata; no-dispatch approved runs fall back to command agent scope.
+- Replay requests append actor-scoped audit while preserving existing safety: approval-required replays create approval records only and do not create child runs until approval resolution.
+- Added command `agent_revision_id` persistence across memory, direct Supabase command adapters, hydrated Supabase transactions, and the additive `202604240001_command_agent_revision_scope.sql` migration.
+- Verified with targeted audit/usage/replay/db regressions, `uv run pytest -q` (`542 passed, 5 warnings`), Trigger typecheck, Mission Control tests/typecheck/build, `git diff --check`, and fresh QC approval.
+
+### 2026-04-24 Full-Stack Cohesion Phase 9
+
+- Added deterministic in-process full-stack smoke coverage in `scripts/smoke_full_stack_cohesion.py` for `/health`, Hermes tool discovery/invocation, Trigger lifecycle callbacks, marketing lead intake, manual-call task intake, Cal.com booking webhook, TextGrid inbound webhook, Mission Control dashboard/runs, audit, usage, tasks, messages, and booking events.
+- Added `scripts/smoke_provider_readiness.py` to validate TextGrid and Resend request shapes without sending; live smoke intent requires explicit provider env flags plus `--allow-live`.
+- Added `docs/smoke-tests/full-stack-cohesion.md` documenting the no-live-sends local smoke flow.
+- Hardened `reset_control_plane_store()` to clear dynamic marketing in-memory stores for contacts, conversations, messages, booking events, and sequence enrollments so repeated in-process smoke runs stay deterministic.
+- The full-stack smoke forces memory-backed settings, clears live provider credentials in the service instances it uses, patches route-level marketing services only for the smoke duration, and blocks any attempted outbound provider request.
+- QC initially found state accumulation, weak no-live guarding, and shallow Mission Control assertions; all were fixed before a fresh QC approval.
+- Verified with `uv run pytest tests/smoke/test_full_stack_contract.py -q`, `uv run python scripts/smoke_full_stack_cohesion.py --no-live-sends`, `uv run python scripts/smoke_provider_readiness.py`, `uv run pytest -q` (`545 passed, 5 warnings`), Trigger typecheck, Mission Control tests/typecheck/build, `git diff --check`, and fresh QC approval.
+
+### 2026-04-24 Full-Stack Cohesion Phase 10
+
+- Added `scripts/preview_rollout_readiness.py` as a guarded preview/staging readiness gate for linked Supabase target verification, required preview env, CLI availability, backend selection, and linked dry-run status.
+- Added `tests/smoke/test_preview_rollout_readiness.py` covering unverified target blocking, expected project-ref requirement, backend env gating, dry-run requirement, and ready-after-dry-run behavior.
+- Added `docs/preview-staging-rollout.md` with the preview rollout command sequence and no-live provider policy.
+- The readiness gate refuses to run linked Supabase commands unless `--run-linked-dry-run` is present and `--expected-project-ref` matches `supabase/.temp/project-ref`.
+- The readiness gate cannot report `ready`, `can_apply_preview_migrations`, or `can_run_preview_smoke` until the linked Supabase dry-run executes and passes.
+- This checkout has no linked Supabase project ref; `supabase migration list --linked` and `supabase db push --dry-run --linked` fail safely with the missing-project-ref error, so no preview migrations, deploys, Trigger workers, or live provider sends were run.
+- Verified with `uv run pytest tests/smoke/test_preview_rollout_readiness.py tests/smoke/test_full_stack_contract.py -q`, `uv run python scripts/preview_rollout_readiness.py` (`blocked`), `uv run pytest -q` (`550 passed, 5 warnings`), Mission Control tests/typecheck/build, Trigger typecheck, no-live full-stack smoke, `git diff --check`, and fresh QC approval.
+
+### 2026-04-24 Full-Stack Cohesion Phase 11
+
+- Added `scripts/production_promotion_readiness.py` as a read-only production promotion gate.
+- Production promotion is blocked unless production is explicitly acknowledged, the linked Supabase project ref matches the expected production ref, the linked dry-run executes and passes, HEAD matches the staged commit, staging evidence JSON contains that same commit, a backup reference exists, required production env is present, and all runtime backends are `supabase`.
+- Live provider smoke remains blocked unless `--allow-live-provider-smoke` and explicit SMS/email recipient flags are present.
+- Added `tests/smoke/test_production_promotion_readiness.py` covering production acknowledgement, unverified target blocking, commit mismatch, dry-run requirement, valid ready path, live provider flags, evidence commit mismatch, and invalid evidence.
+- Added `docs/production-promotion.md` documenting the promotion order, evidence contract, no-live default, and live-smoke opt-in contract.
+- QC initially found that staging evidence was not bound to the staged commit and one test could call a real Supabase CLI; both were fixed before fresh QC approval.
+- This checkout has no linked production Supabase project ref and no production env/evidence, so no production migrations, deploys, Trigger workers, or live provider sends were run.
+- Verified with `uv run pytest tests/smoke/test_production_promotion_readiness.py tests/smoke/test_full_stack_contract.py -q`, `uv run python scripts/production_promotion_readiness.py ...` (`blocked`), `uv run pytest -q` (`558 passed, 5 warnings`), Mission Control tests/typecheck/build, Trigger typecheck, no-live full-stack smoke, `git diff --check`, and fresh QC approval.
 
 ### 2026-04-23 Origin Main Supabase Persistence Wiring
 

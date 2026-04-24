@@ -23,7 +23,7 @@ class Settings(BaseSettings):
     marketing_backend: Literal["memory", "supabase"] = "memory"
     lead_machine_backend: Literal["memory", "supabase"] = "memory"
     database_url: str | None = None
-    site_events_backend: Literal["memory", "supabase"] = "supabase"
+    site_events_backend: Literal["memory", "supabase"] = "memory"
     runtime_provider_default: Literal["anthropic", "openai_compat", "local"] = "anthropic"
     supabase_url: str | None = Field(
         default=None,
@@ -144,6 +144,10 @@ class Settings(BaseSettings):
     textgrid_webhook_secret: str | None = Field(
         default=None,
         validation_alias=AliasChoices("textgrid_webhook_secret", "TEXTGRID_WEBHOOK_SECRET"),
+    )
+    textgrid_status_callback_url: str | None = Field(
+        default=None,
+        validation_alias=AliasChoices("textgrid_status_callback_url", "TEXTGRID_STATUS_CALLBACK_URL"),
     )
     resend_api_key: str | None = Field(
         default=None,

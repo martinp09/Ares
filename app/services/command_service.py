@@ -5,6 +5,7 @@ from app.models.commands import CommandCreateRequest, CommandIngestResponse, Com
 from app.policies.classifier import apply_policy_precedence
 from app.services.agent_execution_service import agent_execution_service as default_agent_execution_service
 from app.services.approval_service import approval_service
+from app.services.runtime_observability_service import runtime_observability_service
 from app.services.run_service import run_service
 
 
@@ -48,6 +49,12 @@ class CommandService:
             )
             if existing is not None:
                 deduped = existing.model_copy(update={"deduped": True})
+                runtime_observability_service.nonfatal(
+                    runtime_observability_service.record_command_invoked,
+                    deduped,
+                    deduped=True,
+                    agent_revision_id=deduped.agent_revision_id,
+                )
                 return CommandIngestResponse(**deduped.model_dump()), 200
             self.agent_execution_service.validate_dispatchable(request.agent_revision_id)
 
@@ -57,12 +64,24 @@ class CommandService:
             command_type=request.command_type,
             idempotency_key=request.idempotency_key,
             payload=request.payload,
+            agent_revision_id=request.agent_revision_id,
             policy=policy,
             status=CommandStatus.ACCEPTED,
         )
         if command.deduped:
+            runtime_observability_service.nonfatal(
+                runtime_observability_service.record_command_invoked,
+                command,
+                deduped=True,
+                agent_revision_id=command.agent_revision_id,
+            )
             return CommandIngestResponse(**command.model_dump()), 200
 
+        runtime_observability_service.nonfatal(
+            runtime_observability_service.record_command_invoked,
+            command,
+            agent_revision_id=request.agent_revision_id,
+        )
         if policy == CommandPolicy.SAFE_AUTONOMOUS:
             run = run_service.create_run(command, agent_revision_id=request.agent_revision_id)
             command = self.commands_repository.attach_run(command.id, run_id=run.id) or command.model_copy(

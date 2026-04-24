@@ -210,6 +210,8 @@ def hydrate_control_plane_store(settings: Settings) -> InMemoryControlPlaneStore
 
 def persist_control_plane_store(store: InMemoryControlPlaneStore, settings: Settings) -> None:
     snapshots = _capture_runtime_table_snapshots(settings)
+    core_snapshots = _capture_core_table_snapshots(settings)
+    desired_core_rows = _prepare_core_rows(store)
     desired_rows = {
         table: _prepare_text_rows(table, accessor(store))
         for table, accessor in PERSISTED_TEXT_TABLES
@@ -221,9 +223,11 @@ def persist_control_plane_store(store: InMemoryControlPlaneStore, settings: Sett
         }
     )
     try:
+        _persist_core_rows(desired_core_rows, settings)
         for table, rows in desired_rows.items():
             _persist_prepared_rows(table, rows, settings)
     except Exception:
+        _restore_core_table_snapshots(core_snapshots, desired_core_rows, settings)
         _restore_runtime_table_snapshots(snapshots, desired_rows, settings)
         raise
 
@@ -283,11 +287,151 @@ def _capture_runtime_table_snapshots(settings: Settings) -> dict[str, dict[str, 
     }
 
 
+CORE_TABLES = ("commands", "approvals", "runs", "events", "artifacts")
+CORE_DELETE_ORDER = ("artifacts", "events", "runs", "approvals", "commands")
+CORE_UPSERT_ORDER = ("commands", "approvals", "runs", "events", "artifacts")
+
+
+def _capture_core_table_snapshots(settings: Settings) -> dict[str, dict[str, dict]]:
+    return {table: _snapshot_rows(table, settings) for table in CORE_TABLES}
+
+
 def _snapshot_rows(table: str, settings: Settings) -> dict[str, dict]:
     return {
         str(row["id"]): dict(row)
         for row in fetch_rows(table, params={"select": "*", "order": "id.asc"}, settings=settings)
     }
+
+
+def _persist_core_rows(desired_rows: dict[str, dict[str, dict]], settings: Settings) -> None:
+    existing = {table: _snapshot_rows(table, settings) for table in CORE_TABLES}
+    for table in CORE_DELETE_ORDER:
+        for row_id in sorted(set(existing[table]) - set(desired_rows[table]), key=_numeric_sort_key, reverse=True):
+            delete_rows(table, params={"id": f"eq.{row_id}"}, settings=settings)
+    for table in CORE_UPSERT_ORDER:
+        _upsert_core_prepared_rows(table, desired_rows[table], existing[table], settings)
+
+
+def _upsert_core_prepared_rows(
+    table: str,
+    rows: dict[str, dict],
+    existing: dict[str, dict],
+    settings: Settings,
+) -> None:
+    for row in rows.values():
+        if row["id"] in existing:
+            patch_rows(table, params={"id": f"eq.{row['id']}"}, row=row, select="id", settings=settings)
+        else:
+            insert_rows(table, [row], select="id", settings=settings)
+
+
+def _prepare_core_rows(store: InMemoryControlPlaneStore) -> dict[str, dict[str, dict]]:
+    rows: dict[str, dict[str, dict]] = {table: {} for table in CORE_TABLES}
+    for command in store.commands.values():
+        row_id = _numeric_external_id(command.id, "cmd")
+        if row_id is None:
+            continue
+        rows["commands"][row_id] = {
+            "id": row_id,
+            "business_id": command.business_id,
+            "environment": command.environment,
+            "command_type": command.command_type,
+            "payload": command.payload,
+            "agent_revision_id": command.agent_revision_id,
+            "idempotency_key": command.idempotency_key,
+            "policy_result": _policy_to_db(command.policy),
+            "approval_required": command.policy == CommandPolicy.APPROVAL_REQUIRED,
+            "status": _command_status_to_db(command.status),
+            "created_at": _isoformat(command.created_at),
+        }
+    for approval in store.approvals.values():
+        row_id = _numeric_external_id(approval.id, "apr")
+        command_id = _numeric_external_id(approval.command_id, "cmd")
+        if row_id is None or command_id is None:
+            continue
+        rows["approvals"][row_id] = {
+            "id": row_id,
+            "business_id": approval.business_id,
+            "environment": approval.environment,
+            "command_id": command_id,
+            "approved_by": approval.actor_id,
+            "approved_payload": approval.payload_snapshot,
+            "status": approval.status.value,
+            "decided_at": _isoformat(approval.approved_at),
+            "created_at": _isoformat(approval.created_at),
+        }
+    for run in store.runs.values():
+        row_id = _numeric_external_id(run.id, "run")
+        command_id = _numeric_external_id(run.command_id, "cmd")
+        if row_id is None or command_id is None:
+            continue
+        rows["runs"][row_id] = {
+            "id": row_id,
+            "business_id": run.business_id,
+            "environment": run.environment,
+            "command_id": command_id,
+            "parent_run_id": _numeric_external_id(run.parent_run_id, "run"),
+            "replay_source_run_id": _numeric_external_id(run.parent_run_id, "run"),
+            "replay_reason": run.replay_reason,
+            "trigger_run_id": run.trigger_run_id,
+            "status": _run_status_to_db(run.status),
+            "error_classification": run.error_classification,
+            "error_message": run.error_message,
+            "started_at": _isoformat(run.started_at),
+            "completed_at": _isoformat(run.completed_at),
+            "created_at": _isoformat(run.created_at),
+            "updated_at": _isoformat(run.updated_at),
+        }
+        for event in run.events:
+            event_id = _numeric_external_id(str(event.get("id")), "evt")
+            if event_id is None:
+                continue
+            rows["events"][event_id] = {
+                "id": event_id,
+                "business_id": run.business_id,
+                "environment": run.environment,
+                "command_id": command_id,
+                "run_id": row_id,
+                "event_type": event.get("event_type"),
+                "payload": event.get("payload") or {},
+                "created_at": event.get("created_at"),
+            }
+        for artifact in run.artifacts:
+            artifact_id = _numeric_external_id(str(artifact.get("id")), "art")
+            if artifact_id is None:
+                continue
+            rows["artifacts"][artifact_id] = {
+                "id": artifact_id,
+                "business_id": run.business_id,
+                "environment": run.environment,
+                "run_id": row_id,
+                "artifact_type": artifact.get("artifact_type"),
+                "data": artifact.get("payload") or {},
+                "created_at": artifact.get("created_at"),
+            }
+    return rows
+
+
+def _restore_core_table_snapshots(
+    snapshots: dict[str, dict[str, dict]],
+    desired_rows: dict[str, dict[str, dict]],
+    settings: Settings,
+) -> None:
+    for table in CORE_UPSERT_ORDER:
+        snapshot_rows = snapshots[table]
+        pending_rows = desired_rows.get(table, {})
+        touched_ids = {
+            row_id
+            for row_id in set(snapshot_rows) | set(pending_rows)
+            if snapshot_rows.get(row_id) != pending_rows.get(row_id)
+        }
+        rows_to_restore = {row_id for row_id in touched_ids if row_id in snapshot_rows}
+        _restore_rows(table, snapshot_rows, pending_rows, rows_to_restore, settings)
+    for table in CORE_DELETE_ORDER:
+        snapshot_rows = snapshots[table]
+        pending_rows = desired_rows.get(table, {})
+        rows_to_delete = {row_id for row_id in pending_rows if row_id not in snapshot_rows}
+        _restore_rows(table, snapshot_rows, pending_rows, rows_to_delete, settings)
 
 
 def _restore_runtime_table_snapshots(
@@ -318,11 +462,14 @@ def _restore_rows(
         str(row["id"]): dict(row)
         for row in fetch_rows(table, params={"select": "*", "order": "id.asc"}, settings=settings)
     }
-    for row_id in row_ids:
+    for row_id in _ordered_restore_row_ids(table, row_ids, snapshot_rows):
         current_row = current_rows.get(row_id)
         snapshot_row = snapshot_rows.get(row_id)
         pending_row = pending_rows.get(row_id)
         if snapshot_row is not None:
+            if current_row is None and pending_row is None:
+                insert_rows(table, [snapshot_row], select="id", settings=settings)
+                continue
             if not _row_matches_expected(current_row, pending_row):
                 continue
             if current_row is None:
@@ -348,6 +495,8 @@ def _canonicalize_row_value(value):
         return [_canonicalize_row_value(item) for item in value]
     if isinstance(value, str):
         candidate = value.strip()
+        if candidate.isdigit():
+            return int(candidate)
         if candidate.endswith("Z"):
             candidate = f"{candidate[:-1]}+00:00"
         try:
@@ -358,6 +507,65 @@ def _canonicalize_row_value(value):
             return parsed.astimezone(UTC).isoformat()
         return parsed.isoformat()
     return value
+
+
+def _ordered_restore_row_ids(table: str, row_ids: set[str], snapshot_rows: dict[str, dict]) -> list[str]:
+    if table != "runs":
+        return sorted(row_ids, key=_numeric_sort_key)
+    remaining = set(row_ids)
+    ordered: list[str] = []
+    while remaining:
+        progressed = False
+        for row_id in sorted(remaining, key=_numeric_sort_key):
+            parent_id = snapshot_rows.get(row_id, {}).get("parent_run_id")
+            parent_key = str(parent_id) if parent_id is not None else None
+            if parent_key is None or parent_key not in remaining:
+                ordered.append(row_id)
+                remaining.remove(row_id)
+                progressed = True
+                break
+        if not progressed:
+            ordered.extend(sorted(remaining, key=_numeric_sort_key))
+            break
+    return ordered
+
+
+def _numeric_external_id(value: str | None, prefix: str) -> str | None:
+    if not value:
+        return None
+    raw = str(value)
+    token = raw[len(prefix) + 1 :] if raw.startswith(f"{prefix}_") else raw
+    return token if token.isdigit() else None
+
+
+def _numeric_sort_key(value: str) -> int:
+    return int(value) if value.isdigit() else 0
+
+
+def _isoformat(value):
+    return value.isoformat() if hasattr(value, "isoformat") else value
+
+
+def _policy_to_db(policy: CommandPolicy) -> str:
+    if policy == CommandPolicy.SAFE_AUTONOMOUS:
+        return "safe_autonomous"
+    if policy == CommandPolicy.APPROVAL_REQUIRED:
+        return "approval_required"
+    return "blocked"
+
+
+def _command_status_to_db(status: CommandStatus) -> str:
+    if status == CommandStatus.AWAITING_APPROVAL:
+        return "approval_required"
+    if status == CommandStatus.REJECTED:
+        return "rejected"
+    return "queued"
+
+
+def _run_status_to_db(status: RunStatus) -> str:
+    if status == RunStatus.IN_PROGRESS:
+        return "running"
+    return status.value
 
 
 def _prepare_scope_rows(snapshots: dict[tuple[str, str], object]) -> dict[str, dict]:
@@ -465,6 +673,7 @@ def _hydrate_core_commands(store: InMemoryControlPlaneStore, settings: Settings)
             environment=str(row["environment"]),
             command_type=str(row["command_type"]),
             payload=dict(row.get("payload") or {}),
+            agent_revision_id=row.get("agent_revision_id"),
             idempotency_key=str(row["idempotency_key"]),
             policy=policy_by_id[command_id],
             status=_command_status_from_db(str(row.get("status") or "queued")),

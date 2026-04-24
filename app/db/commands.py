@@ -30,6 +30,7 @@ class CommandsRepository:
         command_type: str,
         idempotency_key: str,
         payload: dict[str, Any] | None = None,
+        agent_revision_id: str | None = None,
         policy: CommandPolicy,
         status: CommandStatus,
     ) -> CommandRecord:
@@ -40,6 +41,7 @@ class CommandsRepository:
                 command_type=command_type,
                 idempotency_key=idempotency_key,
                 payload=payload,
+                agent_revision_id=agent_revision_id,
                 policy=policy,
                 status=status,
             )
@@ -56,6 +58,7 @@ class CommandsRepository:
                 command_type=command_type,
                 idempotency_key=idempotency_key,
                 payload=payload or {},
+                agent_revision_id=agent_revision_id,
                 policy=policy,
                 status=status,
             )
@@ -123,6 +126,7 @@ class CommandsRepository:
         command_type: str,
         idempotency_key: str,
         payload: dict[str, Any] | None,
+        agent_revision_id: str | None,
         policy: CommandPolicy,
         status: CommandStatus,
     ) -> CommandRecord:
@@ -150,6 +154,7 @@ class CommandsRepository:
                     "environment": tenant.environment,
                     "command_type": command_type,
                     "payload": payload or {},
+                    "agent_revision_id": agent_revision_id,
                     "idempotency_key": idempotency_key,
                     "policy_result": self._policy_to_db(policy),
                     "approval_required": policy == CommandPolicy.APPROVAL_REQUIRED,
@@ -239,6 +244,7 @@ class CommandsRepository:
             idempotency_key=str(row["idempotency_key"]),
             policy=self._policy_from_db(str(row.get("policy_result") or "pending")),
             status=self._status_from_db(str(row.get("status") or "queued")),
+            agent_revision_id=row.get("agent_revision_id"),
             approval_id=external_id("apr", approval_rows[0]["id"]) if approval_rows else None,
             run_id=external_id("run", run_rows[0]["id"]) if run_rows else None,
             deduped=deduped,

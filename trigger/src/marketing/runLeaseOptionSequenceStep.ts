@@ -1,5 +1,6 @@
 import { task, tasks } from "@trigger.dev/sdk";
 import { leadSequenceQueueKey } from "../runtime/queueKeys";
+import { runWithOptionalLifecycle } from "../runtime/reportRunLifecycle";
 import { invokeRuntimeApi } from "../shared/runtimeApi";
 
 type LeaseOptionSequenceStep = {
@@ -24,6 +25,10 @@ export type RunLeaseOptionSequenceStepPayload = {
   businessId: string;
   environment: string;
   day: number;
+  runId?: string;
+  commandId?: string;
+  idempotencyKey?: string;
+  triggerRunId?: string;
 };
 
 type SequenceGuardResponse = {
@@ -45,68 +50,74 @@ function findNextStep(day: number): LeaseOptionSequenceStep | undefined {
 export const runLeaseOptionSequenceStep = task({
   id: "marketing-run-lease-option-sequence-step",
   run: async (payload: RunLeaseOptionSequenceStepPayload) => {
-    const currentStep = LEASE_OPTION_SEQUENCE_STEPS.find((step) => step.day === payload.day);
-    if (!currentStep) {
-      return {
-        leadId: payload.leadId,
-        day: payload.day,
-        status: "skipped_unknown_step",
-      };
-    }
+    return await runWithOptionalLifecycle(payload, async () => {
+      const currentStep = LEASE_OPTION_SEQUENCE_STEPS.find((step) => step.day === payload.day);
+      if (!currentStep) {
+        return {
+          leadId: payload.leadId,
+          day: payload.day,
+          status: "skipped_unknown_step",
+        };
+      }
 
-    const guard = await invokeRuntimeApi<SequenceGuardResponse, RunLeaseOptionSequenceStepPayload>(
-      "/marketing/internal/lease-option-sequence/guard",
-      payload
-    );
+      const guard = await invokeRuntimeApi<SequenceGuardResponse, RunLeaseOptionSequenceStepPayload>(
+        "/marketing/internal/lease-option-sequence/guard",
+        payload
+      );
 
-    if (
-      guard.bookingStatus !== "pending" ||
-      guard.sequenceStatus !== "active" ||
-      guard.optedOut
-    ) {
-      return {
-        leadId: payload.leadId,
-        day: payload.day,
-        status: "stopped",
-      };
-    }
+      if (
+        guard.bookingStatus !== "pending" ||
+        guard.sequenceStatus !== "active" ||
+        guard.optedOut
+      ) {
+        return {
+          leadId: payload.leadId,
+          day: payload.day,
+          status: "stopped",
+        };
+      }
 
-    const dispatch = await invokeRuntimeApi<
-      SequenceDispatchResponse,
-      RunLeaseOptionSequenceStepPayload & LeaseOptionSequenceStep
-    >("/marketing/internal/lease-option-sequence/step", {
-      ...payload,
-      ...currentStep,
-    });
-
-    if (currentStep.manualCallCheckpoint) {
-      await tasks.trigger("marketing-create-manual-call-task", {
-        leadId: payload.leadId,
-        businessId: payload.businessId,
-        environment: payload.environment,
-        sequenceDay: currentStep.day,
-        reason: "lease_option_sequence_checkpoint",
-      });
-    }
-
-    const nextStep = findNextStep(currentStep.day);
-    if (nextStep) {
-      await tasks.trigger("marketing-run-lease-option-sequence-step", {
+      const dispatch = await invokeRuntimeApi<
+        SequenceDispatchResponse,
+        RunLeaseOptionSequenceStepPayload & LeaseOptionSequenceStep
+      >("/marketing/internal/lease-option-sequence/step", {
         ...payload,
-        day: nextStep.day,
-      }, {
-        queue: leadSequenceQueueKey(payload.businessId, payload.environment, payload.leadId),
-        delay: `${nextStep.day - currentStep.day}d`,
+        ...currentStep,
       });
-    }
 
-    return {
-      leadId: payload.leadId,
-      day: currentStep.day,
-      messageId: dispatch.messageId,
-      channel: dispatch.channel,
-      status: dispatch.status,
-      nextDay: nextStep?.day,
-    };
+      if (currentStep.manualCallCheckpoint) {
+        await tasks.trigger("marketing-create-manual-call-task", {
+          leadId: payload.leadId,
+          businessId: payload.businessId,
+          environment: payload.environment,
+          sequenceDay: currentStep.day,
+          reason: "lease_option_sequence_checkpoint",
+        }, {
+          queue: leadSequenceQueueKey(payload.businessId, payload.environment, payload.leadId),
+        });
+      }
+
+      const nextStep = findNextStep(currentStep.day);
+      if (nextStep) {
+        await tasks.trigger("marketing-run-lease-option-sequence-step", {
+          leadId: payload.leadId,
+          businessId: payload.businessId,
+          environment: payload.environment,
+          day: nextStep.day,
+        }, {
+          queue: leadSequenceQueueKey(payload.businessId, payload.environment, payload.leadId),
+          delay: `${nextStep.day - currentStep.day}d`,
+        });
+      }
+
+      return {
+        leadId: payload.leadId,
+        day: currentStep.day,
+        messageId: dispatch.messageId,
+        channel: dispatch.channel,
+        status: dispatch.status,
+        nextDay: nextStep?.day,
+      };
+    });
   },
 });

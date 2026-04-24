@@ -204,6 +204,20 @@ def reset_control_plane_store(store: InMemoryControlPlaneStore | None = None) ->
     target.provider_webhook_keys.clear()
     target.tasks.clear()
     target.task_keys.clear()
+    for dynamic_attr in (
+        "marketing_contact_rows",
+        "marketing_contact_keys",
+        "marketing_conversation_rows",
+        "marketing_conversation_keys",
+        "marketing_message_rows",
+        "marketing_message_keys",
+        "marketing_booking_rows",
+        "marketing_booking_keys",
+        "marketing_sequence_rows",
+        "marketing_sequence_keys",
+    ):
+        if hasattr(target, dynamic_attr):
+            getattr(target, dynamic_attr).clear()
     if hasattr(target, "opportunity_rows"):
         target.opportunity_rows.clear()
     if hasattr(target, "opportunity_keys"):

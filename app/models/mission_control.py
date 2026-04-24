@@ -89,6 +89,7 @@ class MissionControlDashboardResponse(BaseModel):
     opportunity_count: int | None = Field(default=None, ge=0)
     opportunity_stage_summaries: list[MissionControlOpportunityStageSummary] | None = None
     opportunity_pipeline_summary: MissionControlOpportunityPipelineSummary | None = None
+    provider_failure_task_count: int | None = Field(default=None, ge=0)
     system_status: Literal["healthy", "watch", "degraded"] = "healthy"
     updated_at: str
 
@@ -353,6 +354,11 @@ class MissionControlTaskSummary(BaseModel):
     manual_call_due_at: str
     recent_reply_preview: str | None = None
     reply_needs_review: bool = False
+    task_id: str | None = None
+    task_type: str | None = None
+    priority: str | None = None
+    provider_failure: bool | None = None
+    error_message: str | None = None
 
 
 class MissionControlTaskActionResponse(BaseModel):

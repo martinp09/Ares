@@ -34,6 +34,7 @@ export interface DashboardSummaryData {
   repliesNeedingReviewCount?: number;
   opportunityCount?: number;
   opportunityStageSummaries?: OpportunityStageSummary[];
+  providerFailureTaskCount?: number;
   outboundProbateSummary?: OutboundProbateSummary;
   inboundLeaseOptionSummary?: InboundLeaseOptionSummary;
   opportunityPipelineSummary?: OpportunityPipelineSummary;
@@ -521,6 +522,7 @@ interface DashboardPayload {
   due_manual_call_count?: number;
   replies_needing_review_count?: number;
   opportunity_count?: number;
+  provider_failure_task_count?: number;
   opportunity_stage_summaries?: Array<{
     source_lane?: string;
     stage?: string;
@@ -624,6 +626,11 @@ export interface TaskItem {
   manualCallDueAt: string;
   recentReplyPreview: string | null;
   replyNeedsReview: boolean;
+  taskId?: string | null;
+  taskType?: string | null;
+  priority?: string | null;
+  providerFailure?: boolean;
+  errorMessage?: string | null;
 }
 
 export interface TasksData {
@@ -641,6 +648,11 @@ interface TaskPayload {
   manual_call_due_at?: string;
   recent_reply_preview?: string | null;
   reply_needs_review?: boolean;
+  task_id?: string | null;
+  task_type?: string | null;
+  priority?: string | null;
+  provider_failure?: boolean | null;
+  error_message?: string | null;
 }
 
 interface TasksPayload {
@@ -1020,7 +1032,6 @@ interface AgentInstallResponsePayload {
 }
 
 const defaultBaseUrl = import.meta.env.VITE_RUNTIME_API_BASE_URL ?? "";
-const defaultRuntimeApiKey = import.meta.env.VITE_RUNTIME_API_KEY;
 
 function trimTrailingSlash(value: string): string {
   return value.replace(/\/$/, "");
@@ -1306,6 +1317,7 @@ function mapDashboard(payload: DashboardPayload): DashboardSummaryData {
     dueManualCallCount: asNumber(payload.due_manual_call_count),
     repliesNeedingReviewCount: asNumber(payload.replies_needing_review_count),
     opportunityCount: asNumber(payload.opportunity_count),
+    providerFailureTaskCount: asNumber(payload.provider_failure_task_count),
     opportunityStageSummaries: stageSummaries,
     outboundProbateSummary: payload.outbound_probate_summary
       ? {
@@ -1493,6 +1505,11 @@ function mapTasks(payload: TasksPayload): TasksData {
     manualCallDueAt: asString(task.manual_call_due_at, "Unknown"),
     recentReplyPreview: asNullableString(task.recent_reply_preview),
     replyNeedsReview: asBoolean(task.reply_needs_review),
+    taskId: asNullableString(task.task_id),
+    taskType: asNullableString(task.task_type),
+    priority: asNullableString(task.priority),
+    providerFailure: asBoolean(task.provider_failure),
+    errorMessage: asNullableString(task.error_message),
   }));
 
   return {
@@ -2032,7 +2049,7 @@ export function createMissionControlApi(
 ): MissionControlApi {
   const resolvedOptions: MissionControlApiOptions = {
     baseUrl: options.baseUrl ?? defaultBaseUrl,
-    runtimeApiKey: options.runtimeApiKey ?? defaultRuntimeApiKey,
+    runtimeApiKey: options.runtimeApiKey,
     fetchImpl: options.fetchImpl,
     orgId: options.orgId,
     businessId: options.businessId,

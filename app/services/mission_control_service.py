@@ -252,6 +252,13 @@ class MissionControlService:
             for task in self.tasks_repository.list(business_id=business_id, environment=environment)
             if task.lead_id in lead_machine_lead_ids and task.status == TaskStatus.OPEN
         )
+        provider_failure_task_count = len(
+            self.get_visible_provider_failure_tasks(
+                org_id=org_id,
+                business_id=business_id,
+                environment=environment,
+            )
+        )
         has_marketing_context = any(self._has_marketing_context(thread.context) for thread in threads)
         has_lead_machine_context = lead_machine_summary is not None
         has_opportunity_context = bool(opportunity_stage_summaries)
@@ -288,7 +295,7 @@ class MissionControlService:
         )
         if failed_run_count > 0:
             system_status = "degraded"
-        elif approvals or unread_conversation_count or active_run_count:
+        elif approvals or unread_conversation_count or active_run_count or provider_failure_task_count:
             system_status = "watch"
         else:
             system_status = "healthy"
@@ -312,6 +319,7 @@ class MissionControlService:
             opportunity_count=(sum(summary.count for summary in opportunity_stage_summaries) if has_opportunity_context else None),
             opportunity_stage_summaries=(opportunity_stage_summaries if has_opportunity_context else None),
             opportunity_pipeline_summary=opportunity_pipeline_summary,
+            provider_failure_task_count=provider_failure_task_count,
             system_status=system_status,
             updated_at=latest_updated_at.isoformat(),
         )
@@ -419,8 +427,48 @@ class MissionControlService:
                 )
             )
 
+        for task in self.get_visible_provider_failure_tasks(
+            org_id=org_id,
+            business_id=business_id,
+            environment=environment,
+        ):
+            tasks.append(
+                MissionControlTaskSummary(
+                    thread_id=task.lead_id or task.id or "provider_failure",
+                    lead_name=str(task.details.get("phone") or task.lead_id or "Unknown lead"),
+                    channel=str(task.details.get("side_effect") or "provider"),
+                    booking_status=None,
+                    sequence_status=None,
+                    next_sequence_step=None,
+                    manual_call_due_at=task.created_at.isoformat(),
+                    recent_reply_preview=str(task.details.get("error_message") or ""),
+                    reply_needs_review=True,
+                    task_id=task.id,
+                    task_type=str(task.task_type.value),
+                    priority=str(task.priority.value),
+                    provider_failure=True,
+                    error_message=str(task.details.get("error_message") or ""),
+                )
+            )
+
         ordered_tasks = sorted(tasks, key=lambda task: task.manual_call_due_at)
         return MissionControlTasksResponse(due_count=len(ordered_tasks), tasks=ordered_tasks)
+
+    def get_visible_provider_failure_tasks(
+        self,
+        *,
+        org_id: str | None = None,
+        business_id: str | None = None,
+        environment: str | None = None,
+    ):
+        return [
+            task
+            for task in self.tasks_repository.list(business_id=business_id, environment=environment)
+            if task.status == TaskStatus.OPEN
+            and task.task_type == TaskType.MANUAL_REVIEW
+            and bool(task.details.get("visible_in_mission_control"))
+            and self._matches_actor_org(self._payload_org_id(task.details), org_id)
+        ]
 
     def complete_task_for_thread(
         self,

@@ -24,7 +24,16 @@ from app.providers.textgrid import build_outbound_sms_request, normalize_incomin
 
 SmsAction = Literal["ignore", "qualify", "pause", "stop"]
 LEASE_OPTION_SEQUENCE_KEY = "lease_option_non_booker_v1"
-RequestSender = Callable[[dict[str, Any]], None]
+RequestSender = Callable[[dict[str, Any]], Any]
+
+
+def _extract_provider_message_id(response: Any) -> str | None:
+    if isinstance(response, dict):
+        for key in ("sid", "message_sid", "MessageSid", "id"):
+            value = response.get(key)
+            if value:
+                return str(value)
+    return None
 
 
 @dataclass(slots=True)
@@ -78,6 +87,8 @@ class MessageRepository(Protocol):
         provider_thread_id: str | None = None,
     ) -> None: ...
 
+    def update_status_by_external_id(self, event: NormalizedSmsEvent) -> None: ...
+
 
 class SequenceReplyService(Protocol):
     def stop(
@@ -119,6 +130,7 @@ class MessageLoggingHook(Protocol):
         channel: Literal["sms", "email"],
         body: str,
         provider: str,
+        external_message_id: str | None = None,
     ) -> None: ...
 
 
@@ -193,6 +205,17 @@ class _MarketingMessageRepository:
             channel="sms",
             provider="textgrid",
             body=event.body,
+        )
+
+    def update_status_by_external_id(self, event: NormalizedSmsEvent) -> None:
+        if event.event_type != "status" or not event.external_id:
+            return
+        metadata = dict(event.metadata or {})
+        self.messages.update_status_by_external_id(
+            provider="textgrid",
+            external_message_id=event.external_id,
+            status=str(metadata.get("status") or "queued"),
+            metadata=metadata,
         )
 
 
@@ -343,6 +366,7 @@ class _NoopMessageLoggingHook:
         channel: Literal["sms", "email"],
         body: str,
         provider: str,
+        external_message_id: str | None = None,
     ) -> None:
         return None
 
@@ -366,6 +390,7 @@ class _RepositoryMessageLoggingHook:
         channel: Literal["sms", "email"],
         body: str,
         provider: str,
+        external_message_id: str | None = None,
     ) -> None:
         lead = self.contacts.get_lead(lead_id)
         if lead is None:
@@ -384,6 +409,7 @@ class _RepositoryMessageLoggingHook:
             channel=channel,
             provider=provider,
             body=body,
+            external_message_id=external_message_id,
         )
 
 
@@ -462,6 +488,15 @@ class InboundSmsService:
         if not self.textgrid_adapter.verify_signature(payload, signature=signature, request_url=request_url):
             raise ValueError("Invalid TextGrid webhook signature")
         event = self.textgrid_adapter.normalize(payload)
+        if event.event_type == "status":
+            self.message_repository.update_status_by_external_id(event)
+            receipt_id, _deduped = self.webhook_receipts.record_textgrid_event(
+                event=event,
+                lead=None,
+                payload=payload,
+            )
+            self.webhook_receipts.mark_processed(receipt_id)
+            return {"status": "processed", "event_type": event.event_type, "action": "ignore"}
         resolved = self._resolve_inbound_lead(event)
         should_record_receipt = (
             not lead_machine_backend_enabled(self.settings)
@@ -516,17 +551,19 @@ class InboundSmsService:
                 to_number=lead.phone,
                 body=message_body,
                 base_url=self.settings.textgrid_sms_url or "https://api.textgrid.com",
+                status_callback_url=self.settings.textgrid_status_callback_url,
             )
-            self.request_sender(outbound_request)
-            self.message_logging_hook.log_sequence_dispatch(
+            send_response = self.request_sender(outbound_request)
+            self._log_sequence_dispatch(
                 lead_id=lead.id,
                 channel="sms",
                 body=message_body,
                 provider="textgrid",
+                external_message_id=_extract_provider_message_id(send_response),
             )
         elif request.channel == "email" and lead.email and self.settings.resend_api_key and self.settings.resend_from_email:
             message_body = f"Hi {lead.first_name}, just checking in on your lease-option request."
-            self.request_sender(
+            send_response = self.request_sender(
                 build_send_email_request(
                     api_key=self.settings.resend_api_key,
                     from_email=self.settings.resend_from_email,
@@ -535,15 +572,41 @@ class InboundSmsService:
                     text_body=message_body,
                 )
             )
-            self.message_logging_hook.log_sequence_dispatch(
+            self._log_sequence_dispatch(
                 lead_id=lead.id,
                 channel="email",
                 body=message_body,
                 provider="resend",
+                external_message_id=_extract_provider_message_id(send_response),
             )
         else:
             return {"message_id": f"msg_{request.lead_id}_{request.day}_{request.channel}", "channel": request.channel, "status": "queued"}
         return {"message_id": f"msg_{request.lead_id}_{request.day}_{request.channel}", "channel": request.channel, "status": "queued"}
+
+    def _log_sequence_dispatch(
+        self,
+        *,
+        lead_id: str,
+        channel: Literal["sms", "email"],
+        body: str,
+        provider: str,
+        external_message_id: str | None,
+    ) -> None:
+        try:
+            self.message_logging_hook.log_sequence_dispatch(
+                lead_id=lead_id,
+                channel=channel,
+                body=body,
+                provider=provider,
+                external_message_id=external_message_id,
+            )
+        except TypeError:
+            self.message_logging_hook.log_sequence_dispatch(
+                lead_id=lead_id,
+                channel=channel,
+                body=body,
+                provider=provider,
+            )
 
     def _resolve_inbound_lead(self, event: NormalizedSmsEvent) -> ResolvedInboundLead:
         metadata = dict(event.metadata or {})
@@ -706,7 +769,7 @@ class InboundSmsService:
         return "qualify"
 
 
-def _default_request_sender(outbound_request: dict[str, Any]) -> None:
+def _default_request_sender(outbound_request: dict[str, Any]) -> Any:
     headers = {
         str(key): str(value)
         for key, value in dict(outbound_request.get("headers") or {}).items()
@@ -725,8 +788,14 @@ def _default_request_sender(outbound_request: dict[str, Any]) -> None:
         headers=headers,
         method="POST",
     )
-    with request.urlopen(req, timeout=10):
+    with request.urlopen(req, timeout=10) as response:
+        response_body = response.read()
+    if not response_body:
         return None
+    try:
+        return json.loads(response_body.decode("utf-8"))
+    except (json.JSONDecodeError, UnicodeDecodeError):
+        return response_body.decode("utf-8", errors="replace")
 
 
 inbound_sms_service = InboundSmsService()

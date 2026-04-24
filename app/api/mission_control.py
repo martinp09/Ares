@@ -98,7 +98,7 @@ def get_autonomy_visibility(
     )
 
 
-@router.get("/tasks", response_model=MissionControlTasksResponse)
+@router.get("/tasks", response_model=MissionControlTasksResponse, response_model_exclude_none=True)
 def get_tasks(
     business_id: str | None = Query(default=None),
     environment: str | None = Query(default=None),

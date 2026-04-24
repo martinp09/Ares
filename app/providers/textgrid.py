@@ -89,7 +89,7 @@ def normalize_incoming_webhook(payload: Mapping[str, Any]) -> dict[str, Any]:
 
     return {
         "external_id": external_id,
-        "metadata": metadata,
+        "metadata": {**metadata, "status": normalize_status(None if status is None else str(status))},
         "status": normalize_status(None if status is None else str(status)),
         "type": "message.status",
     }

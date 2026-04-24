@@ -71,6 +71,57 @@ class MessagesRepository:
             metadata=metadata,
         )
 
+    def get(self, message_id: str | None) -> MessageRecord | None:
+        if not message_id:
+            return None
+        if marketing_backend_enabled(self.settings) and not self._force_memory:
+            return self._get_in_supabase(message_id)
+        with self.client.transaction() as store:
+            message_rows: dict[str, MessageRecord] = getattr(
+                store, "marketing_message_rows", {}
+            )
+            return message_rows.get(message_id)
+
+    def update_status_by_external_id(
+        self,
+        *,
+        provider: str,
+        external_message_id: str,
+        status: str,
+        metadata: dict[str, object] | None = None,
+    ) -> MessageRecord | None:
+        normalized_status = MessageStatus(status)
+        if marketing_backend_enabled(self.settings) and not self._force_memory:
+            return self._update_status_by_external_id_in_supabase(
+                provider=provider,
+                external_message_id=external_message_id,
+                status=normalized_status,
+                metadata=metadata,
+            )
+        with self.client.transaction() as store:
+            message_rows: dict[str, MessageRecord] = getattr(
+                store, "marketing_message_rows", {}
+            )
+            message_keys: dict[tuple[str, str, str, str, str], str] = getattr(
+                store, "marketing_message_keys", {}
+            )
+            for key, message_id in message_keys.items():
+                key_business_id, key_environment, key_provider, _direction, key_external_id = key
+                if key_provider == provider and key_external_id == external_message_id:
+                    existing = message_rows.get(message_id)
+                    if existing is None:
+                        continue
+                    updated = existing.model_copy(
+                        update={
+                            "status": normalized_status,
+                            "metadata": {**existing.metadata, **(metadata or {})},
+                        }
+                    )
+                    message_rows[message_id] = updated
+                    message_keys[key] = message_id
+                    return updated
+        return None
+
     def _append(
         self,
         *,
@@ -246,3 +297,64 @@ class MessagesRepository:
             created_at=row["created_at"],
             updated_at=row["updated_at"],
         )
+
+    def _get_in_supabase(self, message_id: str) -> MessageRecord | None:
+        if not message_id.startswith("msg_"):
+            return None
+        rows = fetch_rows(
+            "messages",
+            params={"select": "*", "id": f"eq.{message_id.removeprefix('msg_')}", "limit": "1"},
+            settings=self.settings,
+        )
+        if not rows:
+            return None
+        row = rows[0]
+        return MessageRecord(
+            id=f"msg_{row['id']}",
+            business_id=str(row["business_id"]),
+            environment=str(row["environment"]),
+            contact_id=str(row["contact_id"]),
+            conversation_id=str(row["conversation_id"]),
+            channel=str(row["channel"]),
+            direction=MessageDirection(str(row["direction"])),
+            provider=row.get("provider"),
+            external_message_id=row.get("external_message_id"),
+            body=str(row.get("body") or ""),
+            status=MessageStatus(str(row.get("status") or "queued")),
+            metadata=dict(row.get("metadata") or {}),
+            created_at=row["created_at"],
+            updated_at=row["updated_at"],
+        )
+
+    def _update_status_by_external_id_in_supabase(
+        self,
+        *,
+        provider: str,
+        external_message_id: str,
+        status: MessageStatus,
+        metadata: dict[str, object] | None = None,
+    ) -> MessageRecord | None:
+        from app.db.marketing_supabase import patch_rows
+
+        rows = fetch_rows(
+            "messages",
+            params={
+                "select": "id,metadata",
+                "provider": f"eq.{provider}",
+                "external_message_id": f"eq.{external_message_id}",
+                "limit": "1",
+            },
+            settings=self.settings,
+        )
+        if not rows:
+            return None
+        row = rows[0]
+        updated_metadata = {**dict(row.get("metadata") or {}), **(metadata or {})}
+        updated = patch_rows(
+            "messages",
+            params={"id": f"eq.{row['id']}"},
+            row={"status": status.value, "metadata": updated_metadata},
+            select="*",
+            settings=self.settings,
+        )[0]
+        return self._get_in_supabase(f"msg_{updated['id']}")

@@ -8,6 +8,7 @@ from app.core.config import Settings
 from app.db.client import InMemoryControlPlaneClient, InMemoryControlPlaneStore
 from app.db.contacts import ContactsRepository
 from app.db.conversations import ConversationsRepository
+from app.db.messages import MessagesRepository
 from app.db.sequences import SequencesRepository
 from app.db.tasks import TasksRepository
 from app.models.conversations import ConversationRecord
@@ -133,6 +134,66 @@ def test_inbound_sms_stop_reply_does_not_mutate_sequence_when_phone_is_ambiguous
         receipts = getattr(store, "provider_webhooks", {})
         assert len(receipts) == 1
         assert next(iter(receipts.values())).processed is True
+
+
+def test_textgrid_status_webhook_updates_known_message_status() -> None:
+    client = InMemoryControlPlaneClient(InMemoryControlPlaneStore())
+    contacts = ContactsRepository(client)
+    conversations = ConversationsRepository(client)
+    messages = MessagesRepository(client)
+    lead = contacts.upsert_lead(
+        LeadUpsertRequest(
+            business_id="limitless",
+            environment="dev",
+            first_name="Maya",
+            phone="+15551234567",
+            email="maya@example.com",
+            property_address="123 Main St, Houston, TX",
+        )
+    )
+    conversation = conversations.get_or_create(
+        business_id=lead.business_id,
+        environment=lead.environment,
+        contact_id=lead.id,
+        channel="sms",
+    )
+    message = messages.append_outbound(
+        business_id=lead.business_id,
+        environment=lead.environment,
+        contact_id=lead.id,
+        conversation_id=conversation.provider_thread_id,
+        channel="sms",
+        provider="textgrid",
+        body="Thanks Maya",
+        external_message_id="SM123",
+    )
+
+    service = InboundSmsService(
+        textgrid_adapter=_StubTextgridAdapter(
+            event=NormalizedSmsEvent(
+                event_type="status",
+                body="",
+                from_number="",
+                to_number="",
+                external_id="SM123",
+                metadata={"status": "delivered", "business_id": lead.business_id, "environment": lead.environment},
+            )
+        ),
+        contacts=contacts,
+    )
+
+    result = service.handle_textgrid_webhook({}, signature=None)
+
+    assert result == {"status": "processed", "event_type": "status", "action": "ignore"}
+    updated = messages.get(message.id)
+    assert updated is not None
+    assert updated.status.value == "delivered"
+    assert TasksRepository(client).list() == []
+    with client.transaction() as store:
+        receipts = list(getattr(store, "provider_webhooks", {}).values())
+    assert len(receipts) == 1
+    assert receipts[0].event_type == "status"
+    assert receipts[0].processed is True
 
 
 def test_inbound_sms_service_skips_live_backend_review_writes_without_tenant_metadata() -> None:
