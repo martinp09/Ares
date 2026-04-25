@@ -18,3 +18,7 @@
 ## [2026-04-13] ingest | agent-first company batch
 - Captured Sierra, Cognition AI, Harvey AI, and Glean homepage/product themes in raw/articles/
 - Added entity pages plus a cross-company comparison page
+
+## [2026-04-25] ingest | Ares CRM control-plane research
+- Captured Go High Level and DataSift/REISift source research in raw/articles/
+- Added Ares CRM control-plane concept page and linked the planning branch spec/roadmap

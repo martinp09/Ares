@@ -27,7 +27,12 @@
 
 ## Current Direction
 
-- `/Users/solomartin/Projects/Ares` on `main` is the active checkout.
+- `/Users/solomartin/Projects/Ares` on `feature/ares-crm-control-plane-planning` is the active planning checkout.
+- Current CRM control-plane planning branch is pushed to `origin/feature/ares-crm-control-plane-planning`.
+- CRM control-plane draft spec: `docs/superpowers/specs/2026-04-25-ares-crm-control-plane-design.md`.
+- CRM control-plane roadmap: `docs/superpowers/plans/2026-04-25-ares-crm-control-plane-roadmap.md`.
+- CRM source research: `docs/mission-control-wiki/raw/articles/2026-04-25-ghl-datasift-crm-research.md`.
+- CRM concept note: `docs/mission-control-wiki/concepts/ares-crm-control-plane.md`.
 - Ares production runtime is deployed at `https://production-readiness-afternoon.vercel.app`.
 - Mission Control is deployed at `https://mission-control-g8un1ly0w-martins-projects-9600e79e.vercel.app`.
 - Trigger project `proj_puouljyhwiraonjkpiki` has worker version `20260425.6` deployed to prod with runtime callback env vars targeting production Ares.
@@ -179,13 +184,25 @@
 
 ## Open Work
 
-1. build the ARES themed dashboard UI from `docs/design/ares-dashboard-theme-2026-04-25.md`
-2. optionally replace the REST rollback bundle with native pg_dump once Supabase CLI container DNS is fixed
-3. add production monitoring/alerts for provider callback failures
-4. preserve the production evidence files as the handoff source of truth
-5. keep browser acquisition and ambiguous research in Hermes or other driver agents, not inside Ares
+1. review and approve or revise `docs/superpowers/specs/2026-04-25-ares-crm-control-plane-design.md`
+2. implement CRM shell over current Mission Control state before adding schema-heavy owner/property graph work
+3. add configurable pipelines and stage history before map/research expansion
+4. defer map UI until owner/property/opportunity workflows are stable
+5. preserve production evidence files as the handoff source of truth
 
 ## Change Log
+
+### 2026-04-25 CRM Control-Plane Planning
+
+- Created and pushed planning branch `feature/ares-crm-control-plane-planning`.
+- Researched current Go High Level docs for opportunities, pipelines, task reminders, multi-object tasks, contact detail, opportunity filtering, and forecasting.
+- Researched DataSift/REISift docs for owner records, SiftMap, owner/property detail separation, statuses, phone status, and activity tracking.
+- Captured YouTube resource metadata and chapters for both provided GoHighLevel tutorials; transcript download for the first video hit YouTube HTTP 429, so planning uses the official docs plus video chapters/descriptions.
+- Added repo research note `docs/mission-control-wiki/raw/articles/2026-04-25-ghl-datasift-crm-research.md`.
+- Added repo concept note `docs/mission-control-wiki/concepts/ares-crm-control-plane.md`.
+- Added draft spec `docs/superpowers/specs/2026-04-25-ares-crm-control-plane-design.md`.
+- Added roadmap `docs/superpowers/plans/2026-04-25-ares-crm-control-plane-roadmap.md`.
+- Added vault notes under `30-Resources/Articles/2026-04-25 GoHighLevel DataSift CRM Research for Ares.md` and `wiki/Concepts/Ares CRM Control Plane.md`.
 
 ### 2026-04-25 Dashboard Theme Direction
 

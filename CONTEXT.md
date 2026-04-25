@@ -3,7 +3,7 @@
 ## Stable Facts
 - Repo: `martinp09/Ares`
 - Active checkout: `/Users/solomartin/Projects/Ares`
-- Branch: `main`
+- Branch: `feature/ares-crm-control-plane-planning`
 - Baseline before production patch: `902570240f777e9be0c16db59927042d16a48755`
 - Runtime production URL: `https://production-readiness-afternoon.vercel.app`
 - Mission Control URL: `https://mission-control-g8un1ly0w-martins-projects-9600e79e.vercel.app`
@@ -11,18 +11,22 @@
 - Trigger project: `proj_puouljyhwiraonjkpiki`
 
 ## Current Scope
-- Production wiring is live for runtime health/auth, Supabase-backed state, Trigger callbacks, Instantly reply webhooks, TextGrid SMS/status callbacks, Cal.com booking callbacks, and Resend email smoke.
-- Dashboard utility polish is the next product slice; approved visual direction is `docs/design/ares-dashboard-theme-2026-04-25.md`.
-- Production evidence: `docs/rollout-evidence/production-2026-04-25.json`
-- Preview/current-main evidence: `docs/rollout-evidence/preview-2026-04-25.json`
-- Finish-today plan: `docs/superpowers/plans/2026-04-25-ares-production-readiness-finish-today.md`
+- Planning branch for the Ares CRM/control-plane product slice.
+- Production wiring is live and must remain untouched while planning.
+- CRM control-plane draft spec: `docs/superpowers/specs/2026-04-25-ares-crm-control-plane-design.md`
+- CRM roadmap: `docs/superpowers/plans/2026-04-25-ares-crm-control-plane-roadmap.md`
+- Source research: `docs/mission-control-wiki/raw/articles/2026-04-25-ghl-datasift-crm-research.md`
+- Vault wiki concept: `wiki/Concepts/Ares CRM Control Plane.md`
 
 ## Current TODO
-1. Build the ARES themed dashboard UI from `docs/design/ares-dashboard-theme-2026-04-25.md`.
-2. Optionally replace the REST rollback bundle with a native `pg_dump` once Supabase container DNS is fixed.
-3. Preserve production evidence files as the handoff source of truth.
+1. Review and approve or revise the CRM control-plane spec.
+2. Start implementation with CRM shell over current state, then configurable pipelines/stage history.
+3. Defer owner/property graph, research cockpit, and map UI until the CRM shell and stage model are stable.
 
 ## Recent Change
+- 2026-04-25: Created and pushed `feature/ares-crm-control-plane-planning`.
+- 2026-04-25: Researched Go High Level and DataSift/REISift patterns for Ares CRM/control-plane planning.
+- 2026-04-25: Added repo and vault wiki notes plus CRM control-plane draft spec/roadmap.
 - 2026-04-25: Production Ares deployed to public Vercel URL with provider-compatible callback auth/parsing.
 - 2026-04-25: Instantly webhook `019dc29e-bd0f-7ceb-a8f6-1dd9af1a7645` configured to production Ares and provider test returned 200.
 - 2026-04-25: TextGrid live SMS to `+13467725914` was received; signed form-encoded TextGrid callback returned 200.

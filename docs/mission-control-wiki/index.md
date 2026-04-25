@@ -1,7 +1,7 @@
 # Wiki Index
 
 > Content catalog for the Hermes Mission Control research wiki.
-> Last updated: 2026-04-15 | Total pages: 22
+> Last updated: 2026-04-25 | Total pages: 24
 >
 > Current branch note: the phase-6 Mission Control read models and native cockpit shell are already reflected in Ares; these pages remain the research and design companion.
 
@@ -26,6 +26,7 @@
 - [[enterprise-agent-governance]] — Enterprise controls for agent revisions, approvals, sessions, and operator oversight.
 - [[managed-agent-runtime-patterns]] — Reusable patterns from Claude Managed Agents and similar runtimes.
 - [[mission-control-ui]] — The operator cockpit needed for inbox, runs, approvals, and visibility.
+- [[ares-crm-control-plane]] — Ares as a CRM-backed real-estate operating control plane.
 
 ## Comparisons
 - [[agent-first-company-patterns]] — Cross-company benchmark of agent-first product patterns.
