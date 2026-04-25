@@ -37,6 +37,14 @@ export function DashboardPage({ data }: DashboardPageProps) {
             <strong className="summary-card__value">{data.repliesNeedingReviewCount ?? 0}</strong>
           </article>
           <article className="summary-card summary-card--compact">
+            <p className="summary-card__label">Inventory records</p>
+            <strong className="summary-card__value">{data.recordInventorySummary?.totalCount ?? 0}</strong>
+          </article>
+          <article className="summary-card summary-card--compact">
+            <p className="summary-card__label">Needs skip trace</p>
+            <strong className="summary-card__value">{data.recordInventorySummary?.needsSkipTraceCount ?? 0}</strong>
+          </article>
+          <article className="summary-card summary-card--compact">
             <p className="summary-card__label">Provider failures</p>
             <strong className="summary-card__value">{data.providerFailureTaskCount ?? 0}</strong>
           </article>

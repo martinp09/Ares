@@ -7,6 +7,7 @@ export type MissionControlView =
   | "catalog"
   | "settings"
   | "tasks"
+  | "records"
   | "pipeline"
   | "suppression";
 export type MissionControlDataSource = "api" | "fixture";
@@ -38,6 +39,7 @@ export interface DashboardSummaryData {
   outboundProbateSummary?: OutboundProbateSummary;
   inboundLeaseOptionSummary?: InboundLeaseOptionSummary;
   opportunityPipelineSummary?: OpportunityPipelineSummary;
+  recordInventorySummary?: RecordInventorySummary;
   systemStatus: SystemStatus;
   updatedAt: string;
 }
@@ -68,6 +70,44 @@ export interface InboundLeaseOptionSummary {
 export interface OpportunityPipelineSummary {
   totalOpportunityCount: number;
   laneStageSummaries: OpportunityStageSummary[];
+}
+
+export interface RecordInventorySummary {
+  totalCount: number;
+  activeCount: number;
+  suppressedCount: number;
+  needsSkipTraceCount: number;
+  noPhoneCount: number;
+  promotedCount: number;
+  openTaskCount: number;
+}
+
+export interface CrmRecordSummary {
+  id: string;
+  recordType: string;
+  displayName: string;
+  ownerName?: string | null;
+  propertyAddress?: string | null;
+  mailingAddress?: string | null;
+  source: string;
+  lifecycleStatus: string;
+  recordStatus: string;
+  promotionStatus: string;
+  opportunityId?: string | null;
+  pipelineStage?: string | null;
+  assignedTo?: string | null;
+  phone?: string | null;
+  email?: string | null;
+  hasPhone: boolean;
+  hasEmail: boolean;
+  openTaskCount: number;
+  lastActivityAt: string;
+  dataQualityScore: number;
+}
+
+export interface RecordsData {
+  kpis: RecordInventorySummary;
+  records: CrmRecordSummary[];
 }
 
 export interface ConversationSummary {
@@ -472,6 +512,7 @@ export interface CatalogInstallResult {
 
 export interface MissionControlSnapshot {
   dashboard: DashboardSummaryData;
+  records: RecordsData;
   inbox: InboxData;
   tasks: TasksData;
   approvals: ApprovalItem[];
@@ -485,6 +526,7 @@ export interface MissionControlSnapshot {
 export interface MissionControlApi {
   getOrganizations(): Promise<OrganizationSummary[]>;
   getDashboard(): Promise<DashboardSummaryData>;
+  getRecords(): Promise<RecordsData>;
   getInbox(selectedThreadId?: string): Promise<InboxData>;
   getTasks(): Promise<TasksData>;
   getApprovals(): Promise<ApprovalItem[]>;
@@ -551,8 +593,47 @@ interface DashboardPayload {
       count?: number;
     }>;
   };
+  record_inventory_summary?: RecordInventorySummaryPayload;
   system_status?: string;
   updated_at?: string;
+}
+
+interface RecordInventorySummaryPayload {
+  total_count?: number;
+  active_count?: number;
+  suppressed_count?: number;
+  needs_skip_trace_count?: number;
+  no_phone_count?: number;
+  promoted_count?: number;
+  open_task_count?: number;
+}
+
+interface RecordSummaryPayload {
+  id?: string;
+  record_type?: string;
+  display_name?: string;
+  owner_name?: string | null;
+  property_address?: string | null;
+  mailing_address?: string | null;
+  source?: string;
+  lifecycle_status?: string;
+  record_status?: string;
+  promotion_status?: string;
+  opportunity_id?: string | null;
+  pipeline_stage?: string | null;
+  assigned_to?: string | null;
+  phone?: string | null;
+  email?: string | null;
+  has_phone?: boolean;
+  has_email?: boolean;
+  open_task_count?: number;
+  last_activity_at?: string;
+  data_quality_score?: number;
+}
+
+interface RecordsPayload {
+  kpis?: RecordInventorySummaryPayload;
+  records?: RecordSummaryPayload[];
 }
 
 interface InboxContactPayload {
@@ -1352,8 +1433,51 @@ function mapDashboard(payload: DashboardPayload): DashboardSummaryData {
           })),
         }
       : undefined,
+    recordInventorySummary: payload.record_inventory_summary
+      ? mapRecordInventorySummary(payload.record_inventory_summary)
+      : undefined,
     systemStatus: normalizeSystemStatus(payload.system_status),
     updatedAt: asString(payload.updated_at, "Updated just now"),
+  };
+}
+
+function mapRecordInventorySummary(payload: RecordInventorySummaryPayload = {}): RecordInventorySummary {
+  return {
+    totalCount: asNumber(payload.total_count),
+    activeCount: asNumber(payload.active_count),
+    suppressedCount: asNumber(payload.suppressed_count),
+    needsSkipTraceCount: asNumber(payload.needs_skip_trace_count),
+    noPhoneCount: asNumber(payload.no_phone_count),
+    promotedCount: asNumber(payload.promoted_count),
+    openTaskCount: asNumber(payload.open_task_count),
+  };
+}
+
+function mapRecords(payload: RecordsPayload): RecordsData {
+  return {
+    kpis: mapRecordInventorySummary(payload.kpis),
+    records: asArray<RecordSummaryPayload>(payload.records).map((record) => ({
+      id: asString(record.id),
+      recordType: asString(record.record_type, "lead"),
+      displayName: asString(record.display_name, "Unknown record"),
+      ownerName: record.owner_name ?? null,
+      propertyAddress: record.property_address ?? null,
+      mailingAddress: record.mailing_address ?? null,
+      source: asString(record.source),
+      lifecycleStatus: asString(record.lifecycle_status),
+      recordStatus: asString(record.record_status),
+      promotionStatus: asString(record.promotion_status),
+      opportunityId: record.opportunity_id ?? null,
+      pipelineStage: record.pipeline_stage ?? null,
+      assignedTo: record.assigned_to ?? null,
+      phone: record.phone ?? null,
+      email: record.email ?? null,
+      hasPhone: Boolean(record.has_phone),
+      hasEmail: Boolean(record.has_email),
+      openTaskCount: asNumber(record.open_task_count),
+      lastActivityAt: asString(record.last_activity_at),
+      dataQualityScore: asNumber(record.data_quality_score),
+    })),
   };
 }
 
@@ -2061,6 +2185,8 @@ export function createMissionControlApi(
       mapOrganizations(await requestJson<OrganizationListPayload | OrganizationPayload[]>("/organizations", resolvedOptions)),
     getDashboard: async () =>
       mapDashboard(await requestJson<DashboardPayload>("/mission-control/dashboard", resolvedOptions, "mission-control")),
+    getRecords: async () =>
+      mapRecords(await requestJson<RecordsPayload>("/mission-control/records", resolvedOptions, "mission-control")),
     getInbox: async (selectedThreadId?: string) => {
       const inboxPath = selectedThreadId
         ? `/mission-control/inbox?selected_thread_id=${encodeURIComponent(selectedThreadId)}`
