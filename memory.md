@@ -179,13 +179,28 @@
 
 ## Open Work
 
-1. build the ARES themed dashboard UI from `docs/design/ares-dashboard-theme-2026-04-25.md`
-2. optionally replace the REST rollback bundle with native pg_dump once Supabase CLI container DNS is fixed
-3. add production monitoring/alerts for provider callback failures
-4. preserve the production evidence files as the handoff source of truth
-5. keep browser acquisition and ambiguous research in Hermes or other driver agents, not inside Ares
+1. finish full backend verification for `feature/probate-intake-supabase-wiring`
+2. build the ARES themed dashboard UI from `docs/design/ares-dashboard-theme-2026-04-25.md`
+3. optionally replace the REST rollback bundle with native pg_dump once Supabase CLI container DNS is fixed
+4. add production monitoring/alerts for provider callback failures
+5. preserve the production evidence files as the handoff source of truth
+6. keep browser acquisition and ambiguous research in Hermes or other driver agents, not inside Ares
+
+## Completed Branch Work
+
+- `feature/probate-intake-supabase-wiring` rebuilds the stale `origin/feature/lead-machine-probate-intake` title-packet slice onto current `origin/main`.
+- Added first-class `TitlePacketRecord`, `TitlePacketsRepository`, `POST /mission-control/lead-machine/title-packets/import`, and migration `20260425182943_title_packets_lead_machine_wiring.sql`.
+- Title-packet imports normalize old `"source": "manual"` payloads into `probate_intake` leads so Mission Control's current lead-machine projection surfaces the generated manual-review task.
+- `TasksRepository` now treats `lead_machine_backend=supabase` as a Supabase-backed task path so title-packet review tasks persist with lead-machine records.
 
 ## Change Log
+
+### 2026-04-25 Probate Title-Packet Supabase Wiring
+
+- Created isolated worktree `/Users/solomartin/Projects/Ares/.worktrees/probate-intake-supabase-wiring` on `feature/probate-intake-supabase-wiring` from current `origin/main`.
+- Rebuilt the stale probate intake branch as current-main code instead of merging the old branch directly.
+- Added Supabase-backed title-packet persistence, import API, schema migration, package exports, and targeted tests for schema, repository, service, and Mission Control API behavior.
+- Targeted verification passed: `pytest tests/api/test_mission_control_title_packet_import.py tests/api/test_mission_control_lead_machine.py tests/api/test_lead_machine.py tests/db/test_title_packets_schema.py tests/db/test_title_packets_repository.py tests/db/test_leads_repository.py tests/db/test_probate_leads_repository.py tests/db/test_tasks_supabase_adapter.py tests/services/test_title_packet_import_service.py tests/test_package_layout.py -q` (`35 passed, 1 warning`).
 
 ### 2026-04-25 Dashboard Theme Direction
 

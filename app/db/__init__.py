@@ -26,6 +26,7 @@ from app.db.runs import RunsRepository
 from app.db.sessions import SessionsRepository
 from app.db.suppression import SuppressionRepository
 from app.db.tasks import TasksRepository
+from app.db.title_packets import TitlePacketsRepository
 
 __all__ = [
     "AgentAssetsRepository",
@@ -52,6 +53,7 @@ __all__ = [
     "SuppressionRepository",
     "SupabaseControlPlaneClient",
     "TasksRepository",
+    "TitlePacketsRepository",
     "get_control_plane_client",
     "reset_control_plane_store",
 ]

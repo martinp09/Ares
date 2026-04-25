@@ -87,6 +87,8 @@ class InMemoryControlPlaneStore:
     provider_webhook_keys: dict[tuple[str, str, str, str], str] = field(default_factory=dict)
     tasks: dict[str, object] = field(default_factory=dict)
     task_keys: dict[tuple[str, str, str], str] = field(default_factory=dict)
+    title_packets: dict[str, object] = field(default_factory=dict)
+    title_packet_keys: dict[tuple[str, str, str], str] = field(default_factory=dict)
     marketing_task_rows: dict[str, object] = field(init=False, repr=False)
     marketing_task_scope: dict[str, tuple[str, str, str]] = field(init=False, repr=False)
     skills: dict[str, object] = field(default_factory=dict)
@@ -204,6 +206,8 @@ def reset_control_plane_store(store: InMemoryControlPlaneStore | None = None) ->
     target.provider_webhook_keys.clear()
     target.tasks.clear()
     target.task_keys.clear()
+    target.title_packets.clear()
+    target.title_packet_keys.clear()
     for dynamic_attr in (
         "marketing_contact_rows",
         "marketing_contact_keys",

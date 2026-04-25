@@ -283,6 +283,16 @@ class MissionControlLeadMachineResponse(BaseModel):
     updated_at: str
 
 
+class MissionControlTitlePacketImportResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    imported_count: int = Field(ge=0)
+    updated_count: int = Field(ge=0)
+    lead_ids: list[str] = Field(default_factory=list)
+    title_packet_ids: list[str] = Field(default_factory=list)
+    task_ids: list[str] = Field(default_factory=list)
+
+
 class MissionControlInboxSummary(BaseModel):
     model_config = ConfigDict(extra="forbid")
 

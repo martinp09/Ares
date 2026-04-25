@@ -2,8 +2,8 @@
 
 ## Stable Facts
 - Repo: `martinp09/Ares`
-- Active checkout: `/Users/solomartin/Projects/Ares`
-- Branch: `main`
+- Active checkout: `/Users/solomartin/Projects/Ares/.worktrees/probate-intake-supabase-wiring`
+- Branch: `feature/probate-intake-supabase-wiring`
 - Baseline before production patch: `902570240f777e9be0c16db59927042d16a48755`
 - Runtime production URL: `https://production-readiness-afternoon.vercel.app`
 - Mission Control URL: `https://mission-control-g8un1ly0w-martins-projects-9600e79e.vercel.app`
@@ -16,10 +16,11 @@
 - Production evidence: `docs/rollout-evidence/production-2026-04-25.json`
 - Preview/current-main evidence: `docs/rollout-evidence/preview-2026-04-25.json`
 - Finish-today plan: `docs/superpowers/plans/2026-04-25-ares-production-readiness-finish-today.md`
+- This branch wires Harris title-packet/probate intake imports to Supabase-backed lead-machine persistence.
 
 ## Current TODO
-1. Build the ARES themed dashboard UI from `docs/design/ares-dashboard-theme-2026-04-25.md`.
-2. Optionally replace the REST rollback bundle with a native `pg_dump` once Supabase container DNS is fixed.
+1. Finish verification for `feature/probate-intake-supabase-wiring`.
+2. Build the ARES themed dashboard UI from `docs/design/ares-dashboard-theme-2026-04-25.md`.
 3. Preserve production evidence files as the handoff source of truth.
 
 ## Recent Change
@@ -32,6 +33,7 @@
 - 2026-04-25: Trigger prod env targets production Ares and worker version `20260425.6` is deployed; `run_4` callback smoke completed.
 - 2026-04-25: Verification passed: backend pytest, Mission Control test/typecheck/build, Trigger typecheck, lock/diff checks, no-live full-stack smoke.
 - 2026-04-25: Saved approved polished ARES dashboard theme mockup under `docs/design/`.
+- 2026-04-25: Added title-packet import route, Supabase schema/repository wiring, and review-task creation for probate intake.
 
 ## Read These Sections In `memory.md`
 1. `## Current Direction`
