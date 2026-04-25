@@ -27,7 +27,12 @@
 
 ## Current Direction
 
-- `/Users/solomartin/Projects/Ares` on `main` is the active checkout.
+- `/Users/solomartin/Projects/Ares` on `feature/ares-crm-control-plane-planning` is the active planning checkout.
+- Current CRM control-plane planning branch is pushed to `origin/feature/ares-crm-control-plane-planning`.
+- CRM control-plane draft spec: `docs/superpowers/specs/2026-04-25-ares-crm-control-plane-design.md`.
+- CRM control-plane roadmap: `docs/superpowers/plans/2026-04-25-ares-crm-control-plane-roadmap.md`.
+- CRM source research: `docs/mission-control-wiki/raw/articles/2026-04-25-ghl-datasift-crm-research.md`.
+- CRM concept note: `docs/mission-control-wiki/concepts/ares-crm-control-plane.md`.
 - Ares production runtime is deployed at `https://production-readiness-afternoon.vercel.app`.
 - Mission Control is deployed at `https://mission-control-g8un1ly0w-martins-projects-9600e79e.vercel.app`.
 - Trigger project `proj_puouljyhwiraonjkpiki` has worker version `20260425.6` deployed to prod with runtime callback env vars targeting production Ares.
@@ -179,21 +184,39 @@
 
 ## Open Work
 
-1. finish full backend verification for `feature/probate-intake-supabase-wiring`
-2. build the ARES themed dashboard UI from `docs/design/ares-dashboard-theme-2026-04-25.md`
-3. optionally replace the REST rollback bundle with native pg_dump once Supabase CLI container DNS is fixed
-4. add production monitoring/alerts for provider callback failures
-5. preserve the production evidence files as the handoff source of truth
-6. keep browser acquisition and ambiguous research in Hermes or other driver agents, not inside Ares
+1. validate and continue the CRM Records shell/read-model slice
+2. add canonical Records registry tables/migrations after validating the read-model shell
+3. add configurable pipelines and stage history before map/research expansion
+4. defer owner/property graph, research cockpit, and map UI until Records and stage model are stable
+5. preserve production evidence files as the handoff source of truth
+6. optionally replace the REST rollback bundle with native pg_dump once Supabase CLI container DNS is fixed
+7. add production monitoring/alerts for provider callback failures
+8. keep browser acquisition and ambiguous research in Hermes or other driver agents, not inside Ares
 
 ## Completed Branch Work
 
-- `feature/probate-intake-supabase-wiring` rebuilds the stale `origin/feature/lead-machine-probate-intake` title-packet slice onto current `origin/main`.
+- `feature/probate-intake-supabase-wiring` rebuilt the stale `origin/feature/lead-machine-probate-intake` title-packet slice onto current `origin/main` and landed on main as `1bdd260`.
 - Added first-class `TitlePacketRecord`, `TitlePacketsRepository`, `POST /mission-control/lead-machine/title-packets/import`, and migration `20260425182943_title_packets_lead_machine_wiring.sql`.
 - Title-packet imports normalize old `"source": "manual"` payloads into `probate_intake` leads so Mission Control's current lead-machine projection surfaces the generated manual-review task.
 - `TasksRepository` now treats `lead_machine_backend=supabase` as a Supabase-backed task path so title-packet review tasks persist with lead-machine records.
 
 ## Change Log
+
+### 2026-04-29 CRM Branch Rebase
+
+- Rebased `feature/ares-crm-control-plane-planning` onto current `origin/main` so CRM work includes the landed probate title-packet persistence commit `1bdd260`.
+
+### 2026-04-25 CRM Control-Plane Planning
+
+- Created and pushed planning branch `feature/ares-crm-control-plane-planning`.
+- Researched current Go High Level docs for opportunities, pipelines, task reminders, multi-object tasks, contact detail, opportunity filtering, and forecasting.
+- Researched DataSift/REISift docs for owner records, SiftMap, owner/property detail separation, statuses, phone status, and activity tracking.
+- Captured YouTube resource metadata and chapters for both provided GoHighLevel tutorials; transcript download for the first video hit YouTube HTTP 429, so planning uses the official docs plus video chapters/descriptions.
+- Added repo research note `docs/mission-control-wiki/raw/articles/2026-04-25-ghl-datasift-crm-research.md`.
+- Added repo concept note `docs/mission-control-wiki/concepts/ares-crm-control-plane.md`.
+- Added draft spec `docs/superpowers/specs/2026-04-25-ares-crm-control-plane-design.md`.
+- Added roadmap `docs/superpowers/plans/2026-04-25-ares-crm-control-plane-roadmap.md`.
+- Added vault notes under `30-Resources/Articles/2026-04-25 GoHighLevel DataSift CRM Research for Ares.md` and `wiki/Concepts/Ares CRM Control Plane.md`.
 
 ### 2026-04-25 Probate Title-Packet Supabase Wiring
 
