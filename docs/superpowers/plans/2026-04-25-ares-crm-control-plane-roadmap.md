@@ -4,7 +4,7 @@
 
 **Goal:** Turn Ares Mission Control into a CRM-backed business control plane for real-estate operations and agent supervision.
 
-**Architecture:** Keep Ares as the deterministic runtime and source of truth. Extend Mission Control into a CRM shell, then add canonical CRM graph tables, pipeline configuration, activity/timeline models, task/reminder associations, and scoped agent workbench actions.
+**Architecture:** Keep Ares as the deterministic runtime and source of truth. Extend Mission Control into a CRM shell, add Records as the high-volume prospecting/inventory layer, then add pipeline configuration, activity/timeline models, task/reminder associations, and scoped agent workbench actions.
 
 **Tech Stack:** FastAPI, Pydantic, Supabase/Postgres, React, Tailwind CSS, Trigger.dev, provider adapters.
 
@@ -34,12 +34,13 @@
 **Outcome:** Mission Control feels like a working CRM shell without new schema risk.
 
 **Backend:**
-- Extend `/mission-control/dashboard` read model to include stale opportunities, opportunities without next task, due reminders placeholder, provider failures, and active agent run cards.
+- Extend `/mission-control/dashboard` read model to include record stats, stale opportunities, opportunities without next task, due reminders placeholder, provider failures, and active agent run cards.
 - Extend `/mission-control/lead-machine`, `/mission-control/tasks`, `/mission-control/runs`, and `/mission-control/inbox` into reusable CRM read-model inputs.
 - Add tests around read-model aggregation from current repositories.
 
 **Frontend:**
 - Upgrade `DashboardPage`, `PipelinePage`, `TasksPage`, and `InboxPage`.
+- Add a lightweight `RecordsPage` shell backed by current lead/probate/source data if canonical record tables are not created yet.
 - Add `OpportunitiesPage` if the existing `PipelinePage` is too narrow.
 - Keep styling aligned with `docs/design/ares-dashboard-theme-2026-04-25.md`.
 
@@ -49,7 +50,34 @@
 - `npm --prefix apps/mission-control run typecheck`
 - `npm --prefix apps/mission-control run build`
 
-## Phase 2: Configurable Pipelines And Stage History
+## Phase 2: Records Registry And Records Workspace
+
+**Outcome:** Ares has a first-class place where imported, researched, and acquired records live before they become opportunities.
+
+**Backend:**
+- Add migrations for `crm_records`, `crm_source_records`, `crm_record_source_memberships`, `crm_record_links`, `crm_record_status_history`, `crm_record_saved_views`, and `crm_record_promotions`.
+- Model built-in record types: `property_record`, `owner_record`, `contact_record`, `probate_case_record`, and `tax_delinquency_record`.
+- Preserve source evidence and list/source memberships when records are deduped.
+- Add record status values for `new`, `incomplete`, `clean`, `needs_skip_trace`, `marketable`, `suppressed`, `promoted`, and `archived`.
+- Add typed commands:
+  - `crm.record.import`
+  - `crm.record.create`
+  - `crm.record.update_status`
+  - `crm.record.suppress`
+  - `crm.record.promote_to_opportunity`
+
+**Frontend:**
+- Add `RecordsPage` with tabs for All, Property, Owner, Contact, Incomplete, Suppressed, Marketable, and Promoted.
+- Add saved filters for stacked records, vacant, tax delinquent, probate, high equity, no phone, skip traced with no numbers, owner with multiple properties, DNC/opt-out, and stale records.
+- Add row indicators for data quality, source/list memberships, phone status, task status, assignee, marketing attempts, and promotion state.
+- Add bulk actions for assign, tag, suppress, queue skip trace, create task, run research agent, and promote.
+
+**Verification:**
+- migration/repository tests for record create, dedupe, source membership preservation, saved views, and promotion history
+- API tests for record import/update/suppress/promote commands
+- Mission Control Records page UI tests
+
+## Phase 3: Configurable Pipelines And Stage History
 
 **Outcome:** Opportunities are no longer constrained to hard-coded enum stages only.
 
@@ -58,6 +86,7 @@
 - Add repositories and services for pipeline CRUD, stage reorder/archive/remap, and stage moves.
 - Keep existing `opportunities.stage` until migration/read-model compatibility is proven.
 - Add typed command: `crm.opportunity.move_stage`.
+- Link opportunity creation to record promotion where applicable.
 
 **Frontend:**
 - Add pipeline selector, list view toggle, stage age, card count, and stage remap/admin surface.
@@ -68,7 +97,7 @@
 - focused API tests for stage move events
 - Mission Control pipeline UI tests
 
-## Phase 3: Owner, Property, Contact, And Opportunity Graph
+## Phase 4: Owner, Property, Contact, And Opportunity Graph
 
 **Outcome:** Ares models real-estate identities correctly instead of flattening everything into contacts.
 
@@ -77,6 +106,7 @@
 - Preserve separate owner, property, contact, and opportunity identities.
 - Add owner/property dedupe and relationship services.
 - Add source record resolution workflow.
+- Resolve records into owners, properties, contacts, and opportunities without deleting the record inventory history.
 
 **Frontend:**
 - Add Owners, Properties, and Contacts/Phonebook surfaces.
@@ -89,12 +119,12 @@
 - tenant isolation tests
 - UI tests for linked detail navigation
 
-## Phase 4: Multi-Entity Tasks, Reminders, Notes, And Activity
+## Phase 5: Multi-Entity Tasks, Reminders, Notes, And Activity
 
 **Outcome:** Operators and agents can attach work to the correct business object and see one timeline.
 
 **Backend:**
-- Add task associations for owners, properties, contacts, opportunities, runs, and sessions.
+- Add task associations for records, owners, properties, contacts, opportunities, runs, and sessions.
 - Add reminder policy fields and scheduled reminder events.
 - Add normalized `crm_activity_events` read/write model.
 - Add notes linked to multiple entities.
@@ -110,23 +140,27 @@
 - timeline aggregation tests
 - Tasks page UI tests
 
-## Phase 5: Agent Workbench Inside CRM
+## Phase 6: Agent Workbench Inside CRM
 
 **Outcome:** The operator can spawn useful scoped agents from the dashboard, pipeline, or record detail page.
 
 **Backend:**
 - Add typed CRM agent commands:
+  - `crm.record.clean`
+  - `crm.record.dedupe`
+  - `crm.record.enrich`
+  - `crm.record.propose_promotion`
   - `crm.research.start`
   - `crm.research.record_finding`
   - `crm.task.create`
   - `crm.activity.append`
   - `crm.owner.resolve`
   - `crm.property.resolve`
-- Link agent runs to owners, properties, opportunities, and research sessions.
+- Link agent runs to records, owners, properties, opportunities, and research sessions.
 - Preserve approval gates for high-risk actions.
 
 **Frontend:**
-- Add "Run agent" actions on dashboard cards and detail pages.
+- Add "Run agent" actions on dashboard cards, record rows, and detail pages.
 - Show active agent run status and output artifacts inline.
 - Add research findings and proposed actions panel.
 
@@ -136,17 +170,17 @@
 - approval-gated action tests
 - UI tests for spawned run visibility
 
-## Phase 6: Research Cockpit
+## Phase 7: Research Cockpit
 
 **Outcome:** Ares has a native research surface for owner/property enrichment before map UI exists.
 
 **Backend:**
-- Add research sessions, source records, findings, confidence, evidence links, and review states.
+- Add research sessions, source records, record links, findings, confidence, evidence links, and review states.
 - Support batch research jobs and Activity Center visibility.
 
 **Frontend:**
 - Add Research page.
-- Add owner/property research queues.
+- Add record, owner, and property research queues.
 - Add evidence review and promote-to-record actions.
 
 **Verification:**
@@ -154,7 +188,7 @@
 - source record promotion tests
 - UI tests for research queue and finding review
 
-## Phase 7: Map-Ready Expansion
+## Phase 8: Map-Ready Expansion
 
 **Outcome:** The system can support a REISift/SiftMap-style UI when needed.
 
@@ -175,4 +209,4 @@
 
 ## Sequencing Recommendation
 
-Start with Phase 1 and Phase 2 in the next implementation branch. They create the visible CRM flow and pipeline semantics without taking on the entire owner/property graph at once.
+Start with Phase 1 and Phase 2 in the next implementation branch. They create the visible CRM shell and the missing Records foundation before deeper pipeline, owner/property graph, or map work.

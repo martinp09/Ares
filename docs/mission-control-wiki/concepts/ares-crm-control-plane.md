@@ -12,7 +12,7 @@ sources:
 
 Ares should become a CRM-backed control plane for a real-estate operating business.
 
-The CRM layer owns durable business state: owners, properties, contacts, opportunities, pipelines, stages, tasks, activities, communications, files, and research sources.
+The CRM layer owns durable business state: records, owners, properties, contacts, opportunities, pipelines, stages, tasks, activities, communications, files, and research sources.
 
 The control-plane layer owns execution: agents, runs, approvals, provider callbacks, audit, replay, release state, and operator supervision.
 
@@ -23,25 +23,29 @@ The Mission Control UI should merge those layers into one working system.
 1. **Research creates source records.**
    - county data, SiftMap-style pulls, uploaded lists, owner/property lookups, web research, and agent findings enter as raw evidence-backed source records.
 
-2. **Source records resolve into the CRM graph.**
+2. **Source records become visible CRM records.**
+   - records are the high-volume prospecting inventory where data is filtered, cleaned, enriched, assigned, suppressed, marketed, or promoted.
+
+3. **Records resolve into the CRM graph.**
    - owners, properties, contacts, companies/trusts/estates, phone numbers, email addresses, and mailing addresses stay separate but linked.
 
-3. **Qualified work becomes opportunities.**
+4. **Qualified records become opportunities.**
    - opportunities are the moving business process, not the raw property or the owner.
 
-4. **Pipelines and stages govern motion.**
+5. **Pipelines and stages govern motion.**
    - stage transitions trigger tasks, reminders, agent runs, follow-up, approvals, and reporting.
 
-5. **Activities explain what happened.**
+6. **Activities explain what happened.**
    - calls, texts, emails, agent runs, imports, exports, skip traces, direct mail, notes, stage moves, and provider events are normalized into timeline read models.
 
-6. **Agents operate through the CRM.**
+7. **Agents operate through the CRM.**
    - agents spawn research, enrichment, follow-up drafting, task creation, and status movement through typed commands with human approval where risk requires it.
 
 ## Core Rule
 
-Do not flatten the real-estate model into "contacts." Ares needs four separate but linked primitives:
+Do not flatten the real-estate model into "contacts." Ares needs five separate but linked primitives:
 
+- **Record:** prospecting/inventory object that can be filtered, enriched, marketed, suppressed, or promoted.
 - **Owner:** legal or human decision-maker.
 - **Property:** asset and address.
 - **Contact:** reachable person/channel entry.
@@ -60,14 +64,17 @@ Do not flatten the real-estate model into "contacts." Ares needs four separate b
 9. Human approves high-risk actions before outreach, provider changes, or irreversible state changes.
 10. Every action writes to the timeline.
 
+Records remain the place for high-volume prospecting and data hygiene. Pipeline boards remain the place for qualified active deal flow.
+
 ## Build Order
 
-1. CRM graph and configurable pipeline foundation.
-2. Opportunity board and detail workspace.
-3. Multi-entity tasks, reminders, and activity timeline.
-4. Agent workbench embedded into CRM records.
-5. Owner/property research cockpit.
-6. Map-backed research and farm-area acquisition.
+1. Records registry and Records workspace.
+2. Configurable pipeline foundation.
+3. Opportunity board and detail workspace.
+4. Multi-entity tasks, reminders, and activity timeline.
+5. Agent workbench embedded into records and opportunities.
+6. Owner/property research cockpit.
+7. Map-backed research and farm-area acquisition.
 
 Related:
 - [[mission-control-ui]]
