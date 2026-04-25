@@ -48,6 +48,7 @@ def test_lead_machine_endpoint_surfaces_generated_tasks_timeline_and_filters(cli
     body = response.json()
     assert body["summary"] == {
         "lead_count": 1,
+        "title_packet_count": 0,
         "task_count": 1,
         "open_task_count": 1,
         "event_count": 1,
@@ -125,6 +126,7 @@ def test_lead_machine_endpoint_shows_reply_suppression_without_creating_extra_ta
     body = response.json()
     assert body["summary"] == {
         "lead_count": 1,
+        "title_packet_count": 0,
         "task_count": 1,
         "open_task_count": 1,
         "event_count": 2,

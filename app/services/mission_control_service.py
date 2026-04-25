@@ -11,6 +11,7 @@ from app.db.lead_events import LeadEventsRepository
 from app.db.leads import LeadsRepository
 from app.db.suppression import SuppressionRepository
 from app.db.tasks import TasksRepository
+from app.db.title_packets import TitlePacketsRepository
 from app.models.approvals import ApprovalStatus
 from app.models.mission_control import (
     MissionControlAgentSummary,
@@ -23,6 +24,7 @@ from app.models.mission_control import (
     MissionControlEmailTestRequest,
     MissionControlInboxResponse,
     MissionControlInboxSummary,
+    MissionControlLeadMachineLeadRecord,
     MissionControlLeadMachineResponse,
     MissionControlLeadMachineSummary,
     MissionControlLeadMachineTaskRecord,
@@ -64,6 +66,7 @@ class MissionControlService:
         self.lead_events_repository = LeadEventsRepository(self.client)
         self.suppression_repository = SuppressionRepository(self.client)
         self.tasks_repository = TasksRepository(self.client)
+        self.title_packets_repository = TitlePacketsRepository(self.client)
 
     def upsert_thread_projection(self, thread: MissionControlThreadRecord) -> MissionControlThreadRecord:
         with self.client.transaction() as store:
@@ -339,11 +342,13 @@ class MissionControlService:
             ]
         campaign_scope_ids = self._resolve_campaign_filter_ids(campaigns, campaign_id)
         leads = self.leads_repository.list(business_id=business_id, environment=environment)
+        title_packets = self.title_packets_repository.list(business_id=business_id, environment=environment)
         events = self.lead_events_repository.list(business_id=business_id, environment=environment)
         tasks = self.tasks_repository.list(business_id=business_id, environment=environment, lead_id=lead_id)
         suppressions = self.suppression_repository.list_active(business_id=business_id, environment=environment)
 
         lead_by_id = {lead.id: lead for lead in leads if lead.id is not None}
+        packet_by_lead_id = {packet.lead_id: packet for packet in title_packets if packet.lead_id is not None}
         event_by_id = {event.id: event for event in events if event.id is not None}
 
         scoped_leads = [
@@ -386,7 +391,13 @@ class MissionControlService:
                 requested_campaign_ids=campaign_scope_ids,
             )
         ]
+        scoped_lead_ids = {lead.id for lead in scoped_leads if lead.id is not None}
+        scoped_title_packets = [packet for packet in title_packets if packet.lead_id in scoped_lead_ids]
 
+        ordered_leads = sorted(
+            scoped_leads,
+            key=lambda lead: (-(lead.score or 0), lead.updated_at, lead.id or ""),
+        )
         ordered_tasks = sorted(
             scoped_tasks,
             key=lambda task: (task.due_at or task.created_at, task.created_at, task.id or ""),
@@ -397,8 +408,46 @@ class MissionControlService:
             reverse=True,
         )
         if limit is not None:
+            ordered_leads = ordered_leads[:limit]
             ordered_tasks = ordered_tasks[:limit]
             ordered_events = ordered_events[:limit]
+
+        lead_rows = []
+        for lead in ordered_leads:
+            packet = packet_by_lead_id.get(lead.id or "")
+            custom_variables = lead.custom_variables
+            personalization = lead.personalization
+            lead_rows.append(
+                MissionControlLeadMachineLeadRecord(
+                    id=lead.id or "",
+                    business_id=lead.business_id,
+                    environment=lead.environment,
+                    external_key=lead.external_key,
+                    lead_name=self._lead_display_name(lead),
+                    email=lead.email,
+                    phone=lead.phone,
+                    company_name=lead.company_name,
+                    property_address=lead.property_address,
+                    mailing_address=lead.mailing_address,
+                    probate_case_number=lead.probate_case_number,
+                    score=lead.score,
+                    lifecycle_status=lead.lifecycle_status,
+                    verification_status=lead.verification_status,
+                    enrichment_status=lead.enrichment_status,
+                    upload_method=lead.upload_method,
+                    assigned_to=lead.assigned_to,
+                    operator_lane=personalization.get("operator_lane"),
+                    why_now=personalization.get("why_now"),
+                    tax_due=custom_variables.get("tax_due"),
+                    delinquent_years=custom_variables.get("delinquent_years"),
+                    manual_pull_queue=custom_variables.get("manual_pull_queue"),
+                    title_packet_id=(packet.id if packet is not None else None),
+                    title_packet_status=(packet.status if packet is not None else None),
+                    hctax_account=custom_variables.get("hctax_account") or (packet.hctax_account if packet is not None else None),
+                    created_at=lead.created_at,
+                    updated_at=lead.updated_at,
+                )
+            )
 
         task_rows = []
         for task in ordered_tasks:
@@ -451,11 +500,13 @@ class MissionControlService:
         return MissionControlLeadMachineResponse(
             summary=MissionControlLeadMachineSummary(
                 lead_count=len(scoped_leads),
+                title_packet_count=len(scoped_title_packets),
                 task_count=len(scoped_tasks),
                 open_task_count=sum(1 for task in scoped_tasks if task.status == TaskStatus.OPEN),
                 event_count=len(scoped_events),
                 suppression_count=len(scoped_suppressions),
             ),
+            leads=lead_rows,
             tasks=task_rows,
             timeline=timeline_rows,
         )

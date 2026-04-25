@@ -33,6 +33,7 @@ def test_db_modules_are_importable():
         HostAdapterDispatchesRepository,
         SuppressionRepository,
         TasksRepository,
+        TitlePacketsRepository,
         UsageRepository,
     )
     from app.db.agent_assets import AgentAssetsRepository as agent_assets_repository_module
@@ -59,6 +60,7 @@ def test_db_modules_are_importable():
     from app.db.audit import AuditRepository as audit_repository_module
     from app.db.suppression import SuppressionRepository as suppression_repository_module
     from app.db.tasks import TasksRepository as tasks_repository_module
+    from app.db.title_packets import TitlePacketsRepository as title_packets_repository_module
     from app.db.usage import UsageRepository as usage_repository_module
 
     assert AgentAssetsRepository is agent_assets_repository_module
@@ -85,6 +87,7 @@ def test_db_modules_are_importable():
     assert SkillsRepository is skills_repository_module
     assert SuppressionRepository is suppression_repository_module
     assert TasksRepository is tasks_repository_module
+    assert TitlePacketsRepository is title_packets_repository_module
     assert UsageRepository is usage_repository_module
 
 
@@ -135,6 +138,7 @@ def test_lead_machine_models_are_exported():
         ProviderWebhookReceiptRecord,
         SuppressionRecord,
         TaskRecord,
+        TitlePacketRecord,
     )
     from app.models.automation_runs import AutomationRunRecord as automation_run_record_module
     from app.models.campaigns import CampaignMembershipRecord as campaign_membership_record_module
@@ -145,6 +149,7 @@ def test_lead_machine_models_are_exported():
     from app.models.probate_leads import ProbateLeadRecord as probate_lead_record_module
     from app.models.suppression import SuppressionRecord as suppression_record_module
     from app.models.tasks import TaskRecord as task_record_module
+    from app.models.title_packets import TitlePacketRecord as title_packet_record_module
 
     assert AutomationRunRecord is automation_run_record_module
     assert CampaignMembershipRecord is campaign_membership_record_module
@@ -155,3 +160,4 @@ def test_lead_machine_models_are_exported():
     assert ProviderWebhookReceiptRecord is provider_webhook_receipt_record_module
     assert SuppressionRecord is suppression_record_module
     assert TaskRecord is task_record_module
+    assert TitlePacketRecord is title_packet_record_module

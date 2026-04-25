@@ -20,6 +20,7 @@ from app.models.probate_leads import (
 )
 from app.models.suppression import SuppressionRecord, SuppressionScope, SuppressionSource
 from app.models.tasks import TaskPriority, TaskRecord, TaskStatus, TaskType
+from app.models.title_packets import TitlePacketPriority, TitlePacketRecord, TitlePacketStatus
 
 __all__ = [
     "AutomationRunRecord",
@@ -48,4 +49,7 @@ __all__ = [
     "TaskRecord",
     "TaskStatus",
     "TaskType",
+    "TitlePacketPriority",
+    "TitlePacketRecord",
+    "TitlePacketStatus",
 ]

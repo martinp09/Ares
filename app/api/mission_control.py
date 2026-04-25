@@ -91,6 +91,8 @@ def import_title_packet_leads(payload: dict) -> MissionControlTitlePacketImportR
         imported_count=result.imported_count,
         updated_count=result.updated_count,
         lead_ids=result.lead_ids,
+        title_packet_ids=result.title_packet_ids,
+        task_ids=result.task_ids,
     )
 
 

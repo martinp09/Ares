@@ -1,10 +1,14 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any, Mapping
 
 from app.db.leads import LeadsRepository
+from app.db.tasks import TasksRepository
+from app.db.title_packets import TitlePacketsRepository
 from app.models.leads import LeadLifecycleStatus, LeadRecord, LeadSource
+from app.models.tasks import TaskPriority, TaskRecord, TaskStatus, TaskType
+from app.models.title_packets import TitlePacketPriority, TitlePacketRecord, TitlePacketStatus
 
 _SCHEMA = "ares.lead_import.v1"
 
@@ -14,13 +18,22 @@ class TitlePacketImportResult:
     imported_count: int
     updated_count: int
     lead_ids: list[str]
+    title_packet_ids: list[str] = field(default_factory=list)
+    task_ids: list[str] = field(default_factory=list)
 
 
 class TitlePacketImportService:
     """Import operator-built title packet leads into Ares canonical lead storage."""
 
-    def __init__(self, repository: LeadsRepository | None = None):
+    def __init__(
+        self,
+        repository: LeadsRepository | None = None,
+        title_packets_repository: TitlePacketsRepository | None = None,
+        tasks_repository: TasksRepository | None = None,
+    ):
         self.repository = repository or LeadsRepository()
+        self.title_packets_repository = title_packets_repository or TitlePacketsRepository()
+        self.tasks_repository = tasks_repository or TasksRepository()
 
     def import_payload(self, payload: Mapping[str, Any]) -> TitlePacketImportResult:
         schema = payload.get("schema")
@@ -35,6 +48,8 @@ class TitlePacketImportService:
         imported_count = 0
         updated_count = 0
         lead_ids: list[str] = []
+        title_packet_ids: list[str] = []
+        task_ids: list[str] = []
 
         for item in records:
             if not isinstance(item, Mapping):
@@ -57,10 +72,21 @@ class TitlePacketImportService:
             if saved.id is not None:
                 lead_ids.append(saved.id)
 
+            packet = self.title_packets_repository.upsert(
+                self._build_title_packet(item, lead=saved, import_source=source)
+            )
+            if packet.id is not None:
+                title_packet_ids.append(packet.id)
+            task = self._create_review_task(packet=packet, lead=saved)
+            if task.id is not None:
+                task_ids.append(task.id)
+
         return TitlePacketImportResult(
             imported_count=imported_count,
             updated_count=updated_count,
             lead_ids=lead_ids,
+            title_packet_ids=title_packet_ids,
+            task_ids=task_ids,
         )
 
     @staticmethod
@@ -98,4 +124,74 @@ class TitlePacketImportService:
             verification_status=item.get("verification_status"),
             enrichment_status=item.get("enrichment_status"),
             upload_method=item.get("upload_method"),
+        )
+
+    @staticmethod
+    def _build_title_packet(item: Mapping[str, Any], *, lead: LeadRecord, import_source: str) -> TitlePacketRecord:
+        custom_variables = dict(item.get("custom_variables") or {})
+        personalization = dict(item.get("personalization") or {})
+        raw_payload = dict(item.get("raw_payload") or {})
+        source_row = dict(raw_payload.get("source_row") or {})
+        artifact_refs = [str(ref) for ref in raw_payload.get("packet_source_files") or []]
+        facts = {
+            "rank": custom_variables.get("rank"),
+            "score": item.get("score"),
+            "tax_due": custom_variables.get("tax_due"),
+            "delinquent_years": custom_variables.get("delinquent_years"),
+            "market_value": custom_variables.get("market_value"),
+            "debt_to_value_pct": custom_variables.get("debt_to_value_pct"),
+            "manual_pull_queue": custom_variables.get("manual_pull_queue"),
+            "why_now": personalization.get("why_now"),
+            "operator_posture": personalization.get("operator_posture"),
+            "title_flags": personalization.get("title_flags"),
+        }
+        facts = {key: value for key, value in facts.items() if value is not None}
+        priority = TitlePacketPriority.HIGH if str(personalization.get("operator_lane") or "").startswith("A") else TitlePacketPriority.NORMAL
+        return TitlePacketRecord(
+            business_id=lead.business_id,
+            environment=lead.environment,
+            external_key=str(lead.external_key or item["external_key"]),
+            lead_id=lead.id,
+            status=TitlePacketStatus.NEEDS_REVIEW,
+            priority=priority,
+            owner_name=lead.company_name or source_row.get("owner_tax"),
+            estate_name=lead.company_name if "ESTATE" in str(lead.company_name or "").upper() else None,
+            property_address=lead.property_address,
+            mailing_address=lead.mailing_address,
+            probate_case_number=lead.probate_case_number,
+            hctax_account=custom_variables.get("hctax_account"),
+            packet_source=import_source,
+            operator_lane=personalization.get("operator_lane"),
+            assigned_to=lead.assigned_to,
+            artifact_refs=artifact_refs,
+            facts=facts,
+            raw_payload={"source_row": source_row, "custom_variables": custom_variables, "personalization": personalization},
+        )
+
+    def _create_review_task(self, *, packet: TitlePacketRecord, lead: LeadRecord) -> TaskRecord:
+        title_subject = packet.property_address or packet.owner_name or packet.external_key
+        return self.tasks_repository.create(
+            TaskRecord(
+                business_id=packet.business_id,
+                environment=packet.environment,
+                lead_id=lead.id,
+                title=f"Review title packet: {title_subject}",
+                status=TaskStatus.OPEN,
+                task_type=TaskType.MANUAL_REVIEW,
+                priority=TaskPriority.HIGH if packet.priority in {TitlePacketPriority.HIGH, TitlePacketPriority.URGENT} else TaskPriority.NORMAL,
+                assigned_to=packet.assigned_to,
+                idempotency_key=f"title-packet-review:{packet.identity_key()}",
+                details={
+                    "source": "title_packet_import",
+                    "title_packet_id": packet.id,
+                    "external_key": packet.external_key,
+                    "property_address": packet.property_address,
+                    "probate_case_number": packet.probate_case_number,
+                    "hctax_account": packet.hctax_account,
+                    "operator_lane": packet.operator_lane,
+                    "manual_pull_queue": packet.facts.get("manual_pull_queue"),
+                    "packet_status": packet.status,
+                },
+            ),
+            dedupe_key=f"title-packet-review:{packet.identity_key()}",
         )

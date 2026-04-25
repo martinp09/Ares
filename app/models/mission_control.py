@@ -285,10 +285,43 @@ class MissionControlLeadMachineSummary(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     lead_count: int = Field(ge=0)
+    title_packet_count: int = Field(default=0, ge=0)
     task_count: int = Field(ge=0)
     open_task_count: int = Field(ge=0)
     event_count: int = Field(ge=0)
     suppression_count: int = Field(ge=0)
+
+
+class MissionControlLeadMachineLeadRecord(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    id: str
+    business_id: str
+    environment: str
+    external_key: str | None = None
+    lead_name: str | None = None
+    email: str | None = None
+    phone: str | None = None
+    company_name: str | None = None
+    property_address: str | None = None
+    mailing_address: str | None = None
+    probate_case_number: str | None = None
+    score: float | None = None
+    lifecycle_status: str
+    verification_status: str | None = None
+    enrichment_status: str | None = None
+    upload_method: str | None = None
+    assigned_to: str | None = None
+    operator_lane: str | None = None
+    why_now: str | None = None
+    tax_due: float | None = None
+    delinquent_years: str | None = None
+    manual_pull_queue: str | None = None
+    title_packet_id: str | None = None
+    title_packet_status: str | None = None
+    hctax_account: str | None = None
+    created_at: datetime
+    updated_at: datetime
 
 
 class MissionControlLeadMachineTaskRecord(BaseModel):
@@ -336,6 +369,7 @@ class MissionControlLeadMachineResponse(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     summary: MissionControlLeadMachineSummary
+    leads: list[MissionControlLeadMachineLeadRecord] = Field(default_factory=list)
     tasks: list[MissionControlLeadMachineTaskRecord] = Field(default_factory=list)
     timeline: list[MissionControlLeadMachineTimelineRecord] = Field(default_factory=list)
 
@@ -346,6 +380,8 @@ class MissionControlTitlePacketImportResponse(BaseModel):
     imported_count: int = Field(ge=0)
     updated_count: int = Field(ge=0)
     lead_ids: list[str] = Field(default_factory=list)
+    title_packet_ids: list[str] = Field(default_factory=list)
+    task_ids: list[str] = Field(default_factory=list)
 
 
 class MissionControlAgentSummary(BaseModel):
