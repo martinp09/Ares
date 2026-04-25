@@ -203,6 +203,7 @@
 - Added draft spec `docs/superpowers/specs/2026-04-25-ares-crm-control-plane-design.md`.
 - Added roadmap `docs/superpowers/plans/2026-04-25-ares-crm-control-plane-roadmap.md`.
 - Added vault notes under `30-Resources/Articles/2026-04-25 GoHighLevel DataSift CRM Research for Ares.md` and `wiki/Concepts/Ares CRM Control Plane.md`.
+- Follow-up correction: Records must be a first-class Ares workspace and Supabase-backed canonical inventory layer. REISift uses Records for high-volume prospecting before SiftLine/lead boards; HighLevel custom objects show that non-contact business objects like properties should have first-class records, fields, relationships, workflows, dashboards, and imports. Ares opportunities should usually be promoted from records instead of every raw/source record becoming a pipeline card.
 
 ### 2026-04-25 Dashboard Theme Direction
 

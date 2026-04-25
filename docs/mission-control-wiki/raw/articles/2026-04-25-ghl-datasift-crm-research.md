@@ -11,9 +11,15 @@ sources:
   - https://help.gohighlevel.com/support/solutions/articles/155000006651-the-contact-details-page
   - https://help.gohighlevel.com/support/solutions/articles/155000001241-how-to-filtering-opportunities
   - https://help.gohighlevel.com/support/solutions/articles/155000007649-opportunity-forecasting
+  - https://help.gohighlevel.com/support/solutions/articles/155000003896-getting-started-with-custom-objects
+  - https://help.gohighlevel.com/support/solutions/articles/155000003897-creating-and-editing-custom-objects
+  - https://help.gohighlevel.com/support/solutions/articles/155000004023-creating-and-updating-custom-object-records
   - https://www.datasift.ai/features/owner-records
   - https://intercom.help/reisift/en/articles/9519141-getting-started-with-siftmap
   - https://intercom.help/reisift/en/articles/6516091-owner-records-overview
+  - https://intercom.help/reisift/en/articles/6209588-filter-records-overview
+  - https://intercom.help/reisift/en/articles/13251458-dashboard-overview
+  - https://intercom.help/reisift/en/articles/6640844-siftline-overview
   - https://intercom.help/reisift/en/articles/6449998-property-details-vs-owner-details
   - https://intercom.help/reisift/en/articles/6350615-activity-page-overview
   - https://intercom.help/reisift/en/articles/6418251-statuses-explained
@@ -29,7 +35,7 @@ Ares already has production-backed runtime state, provider callbacks, lead-machi
 
 The best model is not a generic CRM clone. The useful shape is:
 - Go High Level for opportunity, pipeline, stage, dashboard, communication, task, reminder, and automation semantics.
-- DataSift/REISift for real-estate owner/property/contact separation, property statuses, filtering, SiftMap-style research, and bulk activity visibility.
+- DataSift/REISift for records as the high-volume prospecting inventory, real-estate owner/property/contact separation, property statuses, filtering, SiftMap-style research, and bulk activity visibility.
 - Ares for deterministic runtime, typed commands, approvals, agent runs, provider adapters, and Supabase-backed audit.
 
 ## Go High Level Patterns Worth Pulling
@@ -43,6 +49,17 @@ Ares implication:
 - Add configurable opportunity statuses and lost/abandoned reasons.
 - Preserve notes, tasks, communications, and stage history on the opportunity.
 - Let one contact/owner/property participate in multiple opportunities when the business process genuinely differs.
+
+### Records And Custom Objects
+
+HighLevel's newer Custom Objects model treats non-contact business entities as first-class CRM records with fields, associations, workflows, forms, reporting, and dashboards. It specifically calls out real-estate properties as a good use case and warns against cramming unrelated data into Contacts or Opportunities. Custom object records can be created, updated, imported, related to other objects, and used as workflow triggers.
+
+Ares implication:
+- Records cannot be only hidden import plumbing; Ares needs a visible `Records` section.
+- Ares should not make arbitrary custom object building the first slice, but it should adopt the same principle: records are first-class typed objects with their own fields, lifecycle, associations, and automation triggers.
+- Real-estate `Record` is the canonical inventory object for prospecting and data hygiene before something becomes an `Opportunity`.
+- `PropertyRecord`, `OwnerRecord`, and future custom record types should be queryable from one Records workspace.
+- Records need import, update, related-object association, filtering, dashboarding, and workflow hooks.
 
 ### Pipelines And Stages
 
@@ -82,6 +99,18 @@ The second linked video is a 2:36:45 full course with chapters for subaccounts/s
 The durable product lesson is that Go High Level flows because contacts, conversations, calendars, opportunities, payments, marketing, AI agents, and automations are surfaced inside one operating shell. For Ares, the equivalent should be owners/properties/opportunities/tasks/agents/research/runs inside one Mission Control shell.
 
 ## DataSift / REISift Patterns Worth Pulling
+
+### Records Workspace
+
+REISift centers prospecting around the Records page. Records are where uploaded or acquired data lives before it becomes a lead-management board card. REISift filters records by lists, tags, phone status, phone type, skip trace state, absentee/vacant flags, DNC/opt-out, task count, property fields, owner fields, marketing attempts, offers, distressor fields, and saved filter presets. Its SiftLine board is explicitly for managing records after they become leads, not for prospecting or high-volume record management.
+
+Ares implication:
+- `Records` must be its own top-level Mission Control area.
+- Records are the high-volume inventory/prospecting layer; opportunities and pipeline boards are the lower-volume deal execution layer.
+- Records should support saved views and filters before pipeline promotion.
+- A record can be marketable, incomplete, suppressed, skip-trace needed, no-number, stacked, vacant, distressed, owned-by-multiple-property owner, or promoted.
+- Agents should be able to operate against records directly: clean, enrich, dedupe, classify, find contacts, suggest promotion, or suppress.
+- Ares dashboard should include record stats like total records, new records, incomplete records, records with no phone, records needing skip trace, records by list/source, and records promoted to opportunities.
 
 ### Owner Records
 
@@ -131,6 +160,9 @@ Current Ares already has:
 - Mission Control pages for dashboard, inbox, approvals, runs, agents, catalog, settings, tasks, and pipeline.
 
 Gaps for the CRM/control-plane slice:
+- records are not yet modeled as a first-class visible inventory/prospecting workspace.
+- current `SourceRecord` language is too raw/import-oriented and does not cover the operator-facing record lifecycle.
+- the product needs a clear rule that records live before opportunities, while opportunities only represent active deal processes.
 - pipelines and stages are not configurable records yet.
 - opportunity stage history is not first-class.
 - tasks are not multi-entity associations yet.
@@ -142,6 +174,8 @@ Gaps for the CRM/control-plane slice:
 ## Recommended Product Direction
 
 Build Ares as a CRM-backed control plane:
+- Records own the prospecting inventory and data hygiene workflow.
+- Opportunities own the active deal process after promotion from records or direct inbound qualification.
 - CRM primitives own the business state.
 - Mission Control owns operator interaction.
 - Agents work through typed commands against the CRM graph.
