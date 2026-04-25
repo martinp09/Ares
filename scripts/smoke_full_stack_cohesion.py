@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 from contextlib import contextmanager
 import json
+import os
 import sys
 from pathlib import Path
 from typing import Any
@@ -13,8 +14,18 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
+_MEMORY_SMOKE_ENV = {
+    "CONTROL_PLANE_BACKEND": "memory",
+    "MARKETING_BACKEND": "memory",
+    "LEAD_MACHINE_BACKEND": "memory",
+    "SITE_EVENTS_BACKEND": "memory",
+    "RUNTIME_API_KEY": "dev-runtime-key",
+    "HERMES_RUNTIME_API_KEY": "dev-runtime-key",
+}
+os.environ.update(_MEMORY_SMOKE_ENV)
+
 from app.api import marketing as marketing_api
-from app.core.config import Settings
+from app.core.config import Settings, get_settings
 from app.db.bookings import BookingsRepository
 from app.db.contacts import ContactsRepository
 from app.db.messages import MessagesRepository
@@ -111,12 +122,28 @@ def _no_live_marketing_services():
         marketing_api.inbound_sms_service = original_inbound_sms_service
 
 
+@contextmanager
+def _memory_smoke_runtime_env():
+    previous = {name: os.environ.get(name) for name in _MEMORY_SMOKE_ENV}
+    os.environ.update(_MEMORY_SMOKE_ENV)
+    get_settings.cache_clear()
+    try:
+        yield
+    finally:
+        for name, value in previous.items():
+            if value is None:
+                os.environ.pop(name, None)
+            else:
+                os.environ[name] = value
+        get_settings.cache_clear()
+
+
 def run_full_stack_cohesion_smoke(*, no_live_sends: bool = True) -> dict[str, Any]:
     if not no_live_sends:
         raise RuntimeError("Live provider smoke is not implemented in this harness; use scripts/smoke_provider_readiness.py first.")
 
-    reset_control_plane_state()
-    with _no_live_marketing_services():
+    with _memory_smoke_runtime_env(), _no_live_marketing_services():
+        reset_control_plane_state()
         return _run_no_live_stack_smoke(TestClient(app))
 
 

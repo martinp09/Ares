@@ -9,6 +9,11 @@ from pathlib import Path
 from typing import Any
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
+
+from scripts.rollout_evidence import validate_evidence
+
 SUPABASE_PROJECT_REF = REPO_ROOT / "supabase" / ".temp" / "project-ref"
 REQUIRED_PRODUCTION_ENV = (
     "RUNTIME_API_KEY",
@@ -105,6 +110,9 @@ def _evidence_commit(evidence: dict[str, Any] | None) -> str | None:
 def production_promotion_readiness(
     *,
     expected_project_ref: str | None = None,
+    expected_staging_project_ref: str | None = None,
+    expected_staging_runtime_url: str | None = None,
+    expected_staging_mission_control_url: str | None = None,
     staging_commit: str | None = None,
     current_commit: str | None = None,
     staging_evidence_path: Path | None = None,
@@ -118,6 +126,34 @@ def production_promotion_readiness(
     effective_current_commit = current_commit or _run_command(["git", "rev-parse", "HEAD"], timeout_seconds=15)["stdout"]
     staging_evidence = _load_staging_evidence(staging_evidence_path)
     evidence_commit = _evidence_commit(staging_evidence)
+    staging_evidence_validation = validate_evidence(staging_evidence) if staging_evidence is not None else None
+    staging_evidence_complete = bool(
+        staging_evidence_validation and staging_evidence_validation["status"] == "ready"
+    )
+    staging_environment = staging_evidence.get("environment") if staging_evidence else None
+    staging_evidence_environment_ready = staging_environment in {"preview", "staging"}
+    staging_project_ref = staging_evidence.get("supabase_project_ref") if staging_evidence else None
+    staging_runtime_url = staging_evidence.get("ares_runtime_url") if staging_evidence else None
+    staging_mission_control_url = staging_evidence.get("mission_control_url") if staging_evidence else None
+    staging_project_ref_matches = bool(
+        expected_staging_project_ref
+        and staging_project_ref == expected_staging_project_ref
+    )
+    staging_runtime_url_matches = bool(
+        expected_staging_runtime_url
+        and staging_runtime_url == expected_staging_runtime_url
+    )
+    staging_mission_control_url_matches = (
+        True
+        if expected_staging_mission_control_url is None
+        else staging_mission_control_url == expected_staging_mission_control_url
+    )
+    staging_evidence_targets_verified = bool(
+        staging_evidence_environment_ready
+        and staging_project_ref_matches
+        and staging_runtime_url_matches
+        and staging_mission_control_url_matches
+    )
     same_commit_as_staging = bool(
         staging_commit
         and effective_current_commit == staging_commit
@@ -151,8 +187,27 @@ def production_promotion_readiness(
         "evidence": {
             "staging_evidence_path": str(staging_evidence_path) if staging_evidence_path else None,
             "staging_evidence_exists": staging_evidence_exists,
+            "staging_evidence_complete": staging_evidence_complete,
+            "staging_evidence_missing_fields": staging_evidence_validation["missing_fields"]
+            if staging_evidence_validation
+            else [],
+            "staging_evidence_todo_fields": staging_evidence_validation["todo_fields"]
+            if staging_evidence_validation
+            else [],
             "staging_evidence_commit": evidence_commit,
             "staging_evidence_commit_matches": bool(staging_commit and evidence_commit == staging_commit),
+            "staging_evidence_environment": staging_environment,
+            "staging_evidence_environment_ready": staging_evidence_environment_ready,
+            "expected_staging_project_ref": expected_staging_project_ref,
+            "staging_evidence_project_ref": staging_project_ref,
+            "staging_evidence_project_ref_matches": staging_project_ref_matches,
+            "expected_staging_runtime_url": expected_staging_runtime_url,
+            "staging_evidence_runtime_url": staging_runtime_url,
+            "staging_evidence_runtime_url_matches": staging_runtime_url_matches,
+            "expected_staging_mission_control_url": expected_staging_mission_control_url,
+            "staging_evidence_mission_control_url": staging_mission_control_url,
+            "staging_evidence_mission_control_url_matches": staging_mission_control_url_matches,
+            "staging_evidence_targets_verified": staging_evidence_targets_verified,
             "backup_reference": backup_reference,
             "backup_ready": backup_ready,
             "production_acknowledged": production_ack_ready,
@@ -183,6 +238,8 @@ def production_promotion_readiness(
         and linked_target_verified
         and same_commit_as_staging
         and staging_evidence_exists
+        and staging_evidence_complete
+        and staging_evidence_targets_verified
         and backup_ready
         and result["env"]["all_required_production_present"]
         and result["env"]["backend_env_supabase"]
@@ -205,6 +262,9 @@ def production_promotion_readiness(
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--expected-project-ref", required=True)
+    parser.add_argument("--expected-staging-project-ref", required=True)
+    parser.add_argument("--expected-staging-runtime-url", required=True)
+    parser.add_argument("--expected-staging-mission-control-url")
     parser.add_argument("--staging-commit", required=True)
     parser.add_argument("--staging-evidence-path", type=Path, required=True)
     parser.add_argument("--backup-reference", required=True)
@@ -214,6 +274,9 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
     result = production_promotion_readiness(
         expected_project_ref=args.expected_project_ref,
+        expected_staging_project_ref=args.expected_staging_project_ref,
+        expected_staging_runtime_url=args.expected_staging_runtime_url,
+        expected_staging_mission_control_url=args.expected_staging_mission_control_url,
         staging_commit=args.staging_commit,
         staging_evidence_path=args.staging_evidence_path,
         backup_reference=args.backup_reference,

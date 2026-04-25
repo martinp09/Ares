@@ -173,6 +173,19 @@ Mission Control must point at Ares, not Supabase:
 VITE_RUNTIME_API_BASE_URL=https://<preview-ares>
 ```
 
+Standalone Vercel deploy once the hosted Ares runtime URL exists:
+
+```bash
+vercel deploy apps/mission-control \
+  --yes \
+  --build-env VITE_RUNTIME_API_BASE_URL=https://<preview-ares>
+```
+
+Notes:
+
+- `apps/mission-control/vercel.json` builds the standalone Vite app from `dist` and rewrites SPA deep links to `index.html`.
+- Do not set a public `VITE_RUNTIME_API_KEY`; runtime authentication must stay server-side or in the Ares host/proxy layer.
+
 Acceptance:
 
 - Dashboard loads from API source.
@@ -323,24 +336,88 @@ docs/rollout-evidence/staging-YYYY-MM-DD.json
 docs/rollout-evidence/production-YYYY-MM-DD.json
 ```
 
+Create the preview/staging skeleton before Gate 1:
+
+```bash
+uv run python scripts/rollout_evidence.py init \
+  docs/rollout-evidence/preview-YYYY-MM-DD.json \
+  --environment preview \
+  --commit "$(git rev-parse HEAD)"
+```
+
+Validate it after each gate update:
+
+```bash
+uv run python scripts/rollout_evidence.py validate \
+  docs/rollout-evidence/preview-YYYY-MM-DD.json
+```
+
+The validator is expected to return `blocked` while any field is still `TODO`. That is intentional. Production promotion also rejects staging evidence that still has TODO fields, missing required fields, or secret env-var names copied into the JSON.
+
 Each evidence file should include:
 
 ```json
 {
+  "ares_runtime_url": "https://<preview-ares>",
   "commit": "<git-sha>",
-  "environment": "preview|staging|production",
-  "supabase_project_ref": "<project-ref>",
-  "ares_runtime_url": "https://...",
-  "mission_control_url": "https://...",
-  "trigger_project_ref": "<trigger-ref>",
+  "environment": "preview",
+  "generated_at": "2026-04-25T00:00:00Z",
+  "live_provider_smoke": "not-run",
+  "live_provider_smoke_recipients": "not-run",
+  "migration_apply": "passed",
   "migration_dry_run": "passed",
-  "migration_apply": "passed|not-run",
+  "mission_control_api_source": "passed",
+  "mission_control_url": "https://<preview-mission-control>",
   "no_live_smoke": "passed",
+  "operator_inputs_required": [
+    "supabase_project_ref",
+    "ares_runtime_url",
+    "mission_control_url",
+    "trigger_project_ref",
+    "runtime_api_key_present",
+    "supabase_service_role_key_present",
+    "trigger_secret_key_present",
+    "textgrid_status_callback_url",
+    "provider_webhook_urls",
+    "operator_owned_phone",
+    "operator_owned_email"
+  ],
+  "operator_owned_email": "provided|not-run",
+  "operator_owned_phone": "provided|not-run",
   "provider_request_shape_smoke": "passed",
-  "live_provider_smoke": "passed|not-run",
-  "rollback_reference": "<backup-or-release-id>",
+  "provider_webhook_urls": {
+    "calcom": "https://<preview-ares>/marketing/webhooks/calcom",
+    "instantly": "https://<preview-ares>/lead-machine/webhooks/instantly",
+    "textgrid": "https://<preview-ares>/marketing/webhooks/textgrid"
+  },
+  "provider_webhooks_configured": "passed",
+  "rollback_reference": "not-required-for-preview",
+  "runtime_api_key_present": "yes",
+  "runtime_auth": "passed",
+  "runtime_health": "passed",
+  "supabase_project_ref": "<project-ref>",
+  "supabase_service_role_key_present": "yes",
+  "textgrid_status_callback_url": "https://<preview-ares>/marketing/webhooks/textgrid",
+  "trigger_project_ref": "<trigger-ref>",
+  "trigger_runtime_callbacks": "passed",
+  "trigger_secret_key_present": "yes",
   "notes": []
 }
+```
+
+Production promotion must also verify staging target identity:
+
+```bash
+uv run python scripts/production_promotion_readiness.py \
+  --expected-project-ref <production-project-ref> \
+  --expected-staging-project-ref <preview-project-ref> \
+  --expected-staging-runtime-url https://<preview-ares> \
+  --expected-staging-mission-control-url https://<preview-mission-control> \
+  --staging-commit <git-sha> \
+  --staging-evidence-path docs/rollout-evidence/preview-YYYY-MM-DD.json \
+  --backup-reference <backup-or-release-id> \
+  --acknowledge-production \
+  --run-linked-dry-run
 ```
 
 ## Operator summary

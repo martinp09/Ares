@@ -103,10 +103,23 @@ def test_marketing_lead_service_uses_settings_backed_gateways_when_configured() 
 
 def test_marketing_lead_service_dispatches_configured_provider_requests() -> None:
     sent_requests: list[dict[str, object]] = []
+    sent_email: list[dict[str, object]] = []
 
     class StubLeadRepository:
         def upsert_lead(self, payload: LeadIntakePayload) -> str:
             return "lead_abc123"
+
+    def fake_send_resend_email(settings, *, to: str, subject: str, text: str, html=None):
+        sent_email.append(
+            {
+                "settings": settings,
+                "to": to,
+                "subject": subject,
+                "text": text,
+                "html": html,
+            }
+        )
+        return {"provider_message_id": "email_123"}
 
     service = MarketingLeadService(
         settings=Settings(
@@ -122,6 +135,7 @@ def test_marketing_lead_service_dispatches_configured_provider_requests() -> Non
         ),
         lead_repository=StubLeadRepository(),
         request_sender=sent_requests.append,
+        resend_email_sender=fake_send_resend_email,
     )
 
     result = service.intake_lead(
@@ -135,7 +149,7 @@ def test_marketing_lead_service_dispatches_configured_provider_requests() -> Non
         )
     )
 
-    assert len(sent_requests) == 2
+    assert len(sent_requests) == 1
     assert sent_requests[0]["endpoint"] == "https://api.textgrid.com/custom/messages"
     assert sent_requests[0]["payload"] == {
         "Body": "Thanks Maya, we got your lease-option request and will follow up shortly.",
@@ -143,12 +157,19 @@ def test_marketing_lead_service_dispatches_configured_provider_requests() -> Non
         "StatusCallback": "https://runtime.example.com/marketing/webhooks/textgrid",
         "To": "+15551234567",
     }
-    assert sent_requests[1]["endpoint"] == "https://api.resend.com/emails"
-    assert sent_requests[1]["payload"] == {
-        "from": "Hermes <team@example.com>",
-        "to": ["maya@example.com"],
-        "subject": "Thanks for your lease-option inquiry",
-        "text": "Thanks Maya, we got your lease-option request and will follow up shortly.",
+    assert sent_email == [
+        {
+            "settings": service.settings,
+            "to": "maya@example.com",
+            "subject": "Thanks for your lease-option inquiry",
+            "text": "Thanks Maya, we got your lease-option request and will follow up shortly.",
+            "html": None,
+        }
+    ]
+    assert result["side_effects"][1] == {
+        "name": "confirmation_email",
+        "status": "queued",
+        "error_message": None,
     }
     assert parse_qs(urlparse(result["booking_url"]).query)["lead_id"] == ["lead_abc123"]
 
@@ -279,6 +300,7 @@ def test_marketing_lead_service_persists_lead_even_if_provider_requests_fail(mon
         ),
         lead_repository=StubLeadRepository(),
         request_sender=fail_request,
+        resend_email_sender=lambda *args, **kwargs: (_ for _ in ()).throw(RuntimeError("provider down")),
         tasks=TasksRepository(client),
     )
 
@@ -338,6 +360,54 @@ def test_marketing_lead_service_persists_lead_even_if_provider_requests_fail(mon
     assert dashboard.system_status == "watch"
 
 
+def test_configured_resend_confirmation_failure_creates_provider_failure_task() -> None:
+    client = InMemoryControlPlaneClient(InMemoryControlPlaneStore())
+
+    class StubLeadRepository:
+        def upsert_lead(self, payload) -> str:
+            return "lead_123"
+
+    def fail_resend(*args, **kwargs):
+        raise RuntimeError("Resend sender identity is not verified")
+
+    service = MarketingLeadService(
+        settings=Settings(
+            _env_file=None,
+            resend_api_key="re_123",
+            resend_from_email="Hermes <team@example.com>",
+        ),
+        lead_repository=StubLeadRepository(),
+        resend_email_sender=fail_resend,
+        tasks=TasksRepository(client),
+    )
+
+    result = service.intake_lead(
+        LeadIntakePayload(
+            business_id="limitless",
+            environment="dev",
+            first_name="Maya",
+            phone="+15551234567",
+            email="maya@example.com",
+            property_address="123 Main St, Houston, TX",
+        )
+    )
+
+    assert result["side_effects"] == [
+        {"name": "confirmation_sms", "status": "skipped", "error_message": None},
+        {
+            "name": "confirmation_email",
+            "status": "failed",
+            "error_message": "Resend sender identity is not verified",
+        },
+        {"name": "trigger_non_booker_check", "status": "skipped", "error_message": None},
+    ]
+    tasks = TasksRepository(client).list(lead_id="lead_123")
+    assert len(tasks) == 1
+    assert tasks[0].details["side_effect"] == "confirmation_email"
+    assert tasks[0].details["visible_in_mission_control"] is True
+    assert tasks[0].details["error_message"] == "Resend sender identity is not verified"
+
+
 def test_marketing_lead_service_logs_provider_message_ids_for_status_callbacks() -> None:
     client = InMemoryControlPlaneClient(InMemoryControlPlaneStore())
     contacts = ContactsRepository(client)
@@ -348,10 +418,13 @@ def test_marketing_lead_service_logs_provider_message_ids_for_status_callbacks()
         def upsert_lead(self, payload) -> str:
             return "lead_123"
 
-    def fake_send(outbound_request):
+    def fake_request_send(outbound_request):
         if outbound_request["headers"]["Content-Type"] == "application/x-www-form-urlencoded":
             return {"sid": "SM123"}
-        return {"id": "email_123"}
+        raise AssertionError("Resend should use the service provider path")
+
+    def fake_send_resend_email(*args, **kwargs):
+        return {"provider_message_id": "email_123"}
 
     service = MarketingLeadService(
         settings=Settings(
@@ -363,7 +436,8 @@ def test_marketing_lead_service_logs_provider_message_ids_for_status_callbacks()
             resend_from_email="Hermes <team@example.com>",
         ),
         lead_repository=StubLeadRepository(),
-        request_sender=fake_send,
+        request_sender=fake_request_send,
+        resend_email_sender=fake_send_resend_email,
         contacts=contacts,
         conversations=conversations,
         messages=messages_repository,

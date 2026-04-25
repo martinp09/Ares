@@ -13,3 +13,4 @@ coverage/
 *.pyo
 *.tsbuildinfo
 scripts/ralph/last-message.txt
+.vercel

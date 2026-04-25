@@ -184,3 +184,22 @@ def test_ares_api_route_is_registered_in_app():
     assert "/ares/plans" in route_paths
     assert "/ares/execution/run" in route_paths
     assert "/ares/operator/run" in route_paths
+
+
+def test_vercel_entrypoint_reexports_fastapi_app():
+    from fastapi import FastAPI
+
+    from app.index import app as vercel_app
+    from app.main import app as runtime_app
+
+    assert vercel_app is runtime_app
+    assert isinstance(vercel_app, FastAPI)
+
+
+def test_provider_http_client_is_a_runtime_dependency():
+    from pathlib import Path
+    import tomllib
+
+    pyproject = tomllib.loads(Path("pyproject.toml").read_text(encoding="utf-8"))
+
+    assert "httpx>=0.27,<1.0" in pyproject["project"]["dependencies"]

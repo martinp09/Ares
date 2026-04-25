@@ -15,7 +15,7 @@ from app.db.messages import MessagesRepository
 from app.db.tasks import TasksRepository
 from app.models.marketing_leads import LeadUpsertRequest
 from app.models.tasks import TaskPriority, TaskRecord, TaskStatus, TaskType
-from app.providers.resend import build_send_email_request
+from app.services.providers.resend import send_test_email as send_resend_email
 from app.providers.textgrid import build_outbound_sms_request
 
 _DEFAULT_TRIGGER_API_URL = "https://api.trigger.dev"
@@ -55,6 +55,7 @@ class TriggerScheduler(Protocol):
 
 
 RequestSender = Callable[[dict[str, Any]], Any]
+ResendEmailSender = Callable[..., dict[str, Any]]
 
 
 class SideEffectStatus(dict[str, str | None]):
@@ -63,7 +64,7 @@ class SideEffectStatus(dict[str, str | None]):
 
 def _extract_provider_message_id(response: Any) -> str | None:
     if isinstance(response, dict):
-        for key in ("sid", "message_sid", "MessageSid", "id"):
+        for key in ("sid", "message_sid", "MessageSid", "id", "provider_message_id"):
             value = response.get(key)
             if value:
                 return str(value)
@@ -140,26 +141,21 @@ class _ConfiguredResendEmailGateway:
     def __init__(
         self,
         *,
-        api_key: str,
-        from_email: str,
-        request_sender: RequestSender,
+        settings: Settings,
+        email_sender: ResendEmailSender,
     ) -> None:
-        self.api_key = api_key
-        self.from_email = from_email
-        self.request_sender = request_sender
+        self.settings = settings
+        self.email_sender = email_sender
 
     def send_confirmation(self, payload: LeadIntakePayload) -> str | None:
         if not payload.email:
             return None
         return _extract_provider_message_id(
-            self.request_sender(
-                build_send_email_request(
-                    api_key=self.api_key,
-                    from_email=self.from_email,
-                    to_email=payload.email,
-                    subject="Thanks for your lease-option inquiry",
-                    text_body=_build_confirmation_message(payload),
-                )
+            self.email_sender(
+                self.settings,
+                to=payload.email,
+                subject="Thanks for your lease-option inquiry",
+                text=_build_confirmation_message(payload),
             )
         )
 
@@ -364,6 +360,7 @@ class MarketingLeadService:
         booking_link_provider: BookingLinkProvider | None = None,
         trigger_scheduler: TriggerScheduler | None = None,
         request_sender: RequestSender | None = None,
+        resend_email_sender: ResendEmailSender | None = None,
         tasks: TasksRepository | None = None,
         contacts: ContactsRepository | None = None,
         conversations: ConversationsRepository | None = None,
@@ -371,6 +368,7 @@ class MarketingLeadService:
     ) -> None:
         active_settings = settings or get_settings()
         active_request_sender = request_sender or _default_request_sender
+        self.settings = active_settings
         self.contacts = contacts or ContactsRepository()
         self.lead_repository = lead_repository or _ContactsLeadRepository(self.contacts)
         self.sms_gateway = sms_gateway or self._build_sms_gateway(
@@ -379,7 +377,7 @@ class MarketingLeadService:
         )
         self.email_gateway = email_gateway or self._build_email_gateway(
             active_settings,
-            request_sender=active_request_sender,
+            email_sender=resend_email_sender or send_resend_email,
         )
         self.booking_link_provider = booking_link_provider or self._build_booking_link_provider(active_settings)
         self.trigger_scheduler = trigger_scheduler or _build_default_trigger_scheduler(active_settings)
@@ -489,12 +487,11 @@ class MarketingLeadService:
         return _NoopSmsGateway()
 
     @staticmethod
-    def _build_email_gateway(settings: Settings, *, request_sender: RequestSender) -> EmailGateway:
+    def _build_email_gateway(settings: Settings, *, email_sender: ResendEmailSender) -> EmailGateway:
         if settings.resend_api_key and settings.resend_from_email:
             return _ConfiguredResendEmailGateway(
-                api_key=settings.resend_api_key,
-                from_email=settings.resend_from_email,
-                request_sender=request_sender,
+                settings=settings,
+                email_sender=email_sender,
             )
         return _NoopEmailGateway()
 

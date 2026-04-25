@@ -133,7 +133,7 @@ Not completed live:
 - [x] Run first local live provider smoke with AWF credentials and memory-backed Ares state.
 - [x] Confirm TextGrid SMS can queue through marketing lead intake.
 - [x] Confirm direct Mission Control Resend email test can queue.
-- [ ] Fix marketing lead confirmation email side-effect path: local smoke showed `HTTP Error 403: Forbidden` there while `/mission-control/outbound/email/test` succeeded through the direct Resend provider service.
+- [x] Fix marketing lead confirmation email side-effect path: lead intake now uses the shared Resend provider service path and targeted provider regressions pass locally.
 - [ ] Confirm operator-owned phone/email recipients for hosted smoke.
 - [ ] Set explicit live smoke recipient flags for hosted smoke.
 - [ ] Send exactly controlled hosted test SMS/email.

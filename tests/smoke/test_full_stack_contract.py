@@ -28,6 +28,11 @@ def test_full_stack_cohesion_smoke_contract() -> None:
 
 
 def test_full_stack_cohesion_smoke_is_repeatable_with_live_env_present(monkeypatch) -> None:
+    monkeypatch.setenv("CONTROL_PLANE_BACKEND", "supabase")
+    monkeypatch.setenv("MARKETING_BACKEND", "supabase")
+    monkeypatch.setenv("LEAD_MACHINE_BACKEND", "supabase")
+    monkeypatch.setenv("SITE_EVENTS_BACKEND", "supabase")
+    monkeypatch.setenv("RUNTIME_API_KEY", "live_runtime_key")
     monkeypatch.setenv("TEXTGRID_ACCOUNT_SID", "acct_live_should_not_send")
     monkeypatch.setenv("TEXTGRID_AUTH_TOKEN", "token_live_should_not_send")
     monkeypatch.setenv("TEXTGRID_FROM_NUMBER", "+15550000000")

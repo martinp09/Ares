@@ -1,0 +1,50 @@
+{
+  "ares_runtime_url": "TODO",
+  "commit": "06d111f6043e3d69fc5019a3d7c6038cedc209c3",
+  "environment": "preview",
+  "generated_at": "2026-04-25T01:13:23Z",
+  "live_provider_smoke": "TODO",
+  "live_provider_smoke_recipients": "TODO",
+  "migration_apply": "passed:202604200001,202604230001,202604230002,202604230003,202604240001",
+  "migration_dry_run": "passed:202604200001,202604230001,202604230002,202604230003,202604240001",
+  "mission_control_api_source": "TODO",
+  "mission_control_url": "TODO",
+  "no_live_smoke": "passed:local-memory-safe",
+  "notes": [
+    "2026-04-25: Supabase CLI listed project awmsrjeawcxndfnggoxw as Hermes Central Command, but `supabase link --project-ref awmsrjeawcxndfnggoxw` returned `project is paused`; migration dry-run/apply cannot proceed until the project is restored or a new preview/staging project ref is chosen.",
+    "2026-04-25: Supabase project awmsrjeawcxndfnggoxw restored enough for CLI link; guarded preview dry-run passed and `supabase db push --linked` applied migrations 202604200001, 202604230001, 202604230002, 202604230003, and 202604240001.",
+    "2026-04-25: Local no-live smoke passed with memory-safe harness even when live Supabase/provider env is present; provider request-shape smoke passed without live sends."
+  ],
+  "operator_inputs_required": [
+    "supabase_project_ref",
+    "ares_runtime_url",
+    "mission_control_url",
+    "trigger_project_ref",
+    "runtime_api_key_present",
+    "supabase_service_role_key_present",
+    "trigger_secret_key_present",
+    "textgrid_status_callback_url",
+    "provider_webhook_urls",
+    "operator_owned_phone",
+    "operator_owned_email"
+  ],
+  "operator_owned_email": "TODO",
+  "operator_owned_phone": "TODO",
+  "provider_request_shape_smoke": "passed:local-shape-only",
+  "provider_webhook_urls": {
+    "calcom": "TODO",
+    "instantly": "TODO",
+    "textgrid": "TODO"
+  },
+  "provider_webhooks_configured": "TODO",
+  "rollback_reference": "not-required-for-preview",
+  "runtime_api_key_present": "yes:local-env",
+  "runtime_auth": "TODO",
+  "runtime_health": "TODO",
+  "supabase_project_ref": "awmsrjeawcxndfnggoxw",
+  "supabase_service_role_key_present": "yes:local-env",
+  "textgrid_status_callback_url": "TODO",
+  "trigger_project_ref": "TODO",
+  "trigger_runtime_callbacks": "TODO",
+  "trigger_secret_key_present": "yes:local-env"
+}

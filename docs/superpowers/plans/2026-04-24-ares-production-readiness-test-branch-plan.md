@@ -46,9 +46,21 @@ Primary handoff doc: `docs/production-readiness-handoff.md`
 - Read: `supabase/config.toml`
 - Read: `supabase/.temp/project-ref` after linking
 - Use: `scripts/preview_rollout_readiness.py`
+- Use: `scripts/rollout_evidence.py`
 - Evidence: `docs/rollout-evidence/preview-YYYY-MM-DD.json`
 
-- [ ] **Step 1: Link the preview/staging Supabase project**
+- [ ] **Step 1: Create the non-secret preview evidence skeleton**
+
+```bash
+uv run python scripts/rollout_evidence.py init \
+  docs/rollout-evidence/preview-YYYY-MM-DD.json \
+  --environment preview \
+  --commit "$(git rev-parse HEAD)"
+```
+
+Expected: JSON file exists with explicit `TODO` statuses and no secret values.
+
+- [ ] **Step 2: Link the preview/staging Supabase project**
 
 ```bash
 supabase link --project-ref <preview-project-ref>
@@ -56,7 +68,7 @@ supabase link --project-ref <preview-project-ref>
 
 Expected: `supabase/.temp/project-ref` contains `<preview-project-ref>`.
 
-- [ ] **Step 2: Run the guarded preview dry-run**
+- [ ] **Step 3: Run the guarded preview dry-run**
 
 ```bash
 uv run python scripts/preview_rollout_readiness.py \
@@ -66,11 +78,11 @@ uv run python scripts/preview_rollout_readiness.py \
 
 Expected: readiness output reports the linked ref matches and the dry-run passed.
 
-- [ ] **Step 3: Stop if the project ref mismatches**
+- [ ] **Step 4: Stop if the project ref mismatches**
 
 If the project ref is not exactly `<preview-project-ref>`, stop. Do not run `supabase db push`.
 
-- [ ] **Step 4: Apply preview/staging migrations**
+- [ ] **Step 5: Apply preview/staging migrations**
 
 ```bash
 supabase db push --linked
@@ -79,9 +91,9 @@ supabase migration list --linked
 
 Expected: migration chain includes the Ares runtime migrations, including core control-plane, lead-machine, managed-agent, and command agent revision scope migrations.
 
-- [ ] **Step 5: Write preview evidence JSON**
+- [ ] **Step 6: Fill preview evidence JSON**
 
-Create `docs/rollout-evidence/preview-YYYY-MM-DD.json`:
+Patch `docs/rollout-evidence/preview-YYYY-MM-DD.json`:
 
 ```json
 {
@@ -94,7 +106,15 @@ Create `docs/rollout-evidence/preview-YYYY-MM-DD.json`:
 }
 ```
 
-- [ ] **Step 6: Commit preview evidence without secrets**
+- [ ] **Step 7: Validate preview evidence still names the remaining TODOs**
+
+```bash
+uv run python scripts/rollout_evidence.py validate docs/rollout-evidence/preview-YYYY-MM-DD.json
+```
+
+Expected: `blocked` until later gates replace every `TODO`; `todo_fields` is the remaining operator checklist.
+
+- [ ] **Step 8: Commit preview evidence without secrets**
 
 ```bash
 git add docs/rollout-evidence/preview-YYYY-MM-DD.json
@@ -297,7 +317,15 @@ VITE_RUNTIME_API_BASE_URL=https://<preview-ares>
 
 - [ ] **Step 4: Deploy Mission Control**
 
-Deploy the built app to the preview/staging hosting target.
+Deploy the standalone Vite app to the preview/staging hosting target:
+
+```bash
+vercel deploy apps/mission-control \
+  --yes \
+  --build-env VITE_RUNTIME_API_BASE_URL=https://<preview-ares>
+```
+
+Expected: Vercel builds `apps/mission-control`, serves `dist`, and uses the app-level SPA rewrite for direct client-side route loads.
 
 - [ ] **Step 5: Prove API source**
 
@@ -454,6 +482,7 @@ git commit -m "docs: record preview live provider smoke evidence"
 **Files:**
 - Read: `docs/production-promotion.md`
 - Use: `scripts/production_promotion_readiness.py`
+- Use: `scripts/rollout_evidence.py`
 - Evidence: `docs/rollout-evidence/production-YYYY-MM-DD.json`
 
 - [ ] **Step 1: Create production backup/rollback reference**
@@ -470,9 +499,20 @@ Expected: `supabase/.temp/project-ref` contains `<production-project-ref>`.
 
 - [ ] **Step 3: Run production readiness gate**
 
+First validate the completed staging evidence:
+
+```bash
+uv run python scripts/rollout_evidence.py validate docs/rollout-evidence/preview-YYYY-MM-DD.json
+```
+
+Expected: `ready`. If it returns `blocked`, do not run production promotion.
+
 ```bash
 uv run python scripts/production_promotion_readiness.py \
   --expected-project-ref <production-project-ref> \
+  --expected-staging-project-ref <preview-project-ref> \
+  --expected-staging-runtime-url https://<preview-ares> \
+  --expected-staging-mission-control-url https://<preview-mission-control> \
   --staging-commit <commit-sha-proven-in-staging> \
   --staging-evidence-path docs/rollout-evidence/preview-YYYY-MM-DD.json \
   --backup-reference <backup-or-rollback-id> \
@@ -516,19 +556,49 @@ Create `docs/rollout-evidence/production-YYYY-MM-DD.json`:
 
 ```json
 {
+  "ares_runtime_url": "https://<production-ares>",
   "commit": "<git-sha>",
   "environment": "production",
-  "supabase_project_ref": "<production-project-ref>",
-  "ares_runtime_url": "https://<production-ares>",
-  "mission_control_url": "https://<production-mission-control>",
-  "trigger_project_ref": "<trigger-ref>",
-  "migration_dry_run": "passed",
-  "migration_apply": "passed",
-  "runtime_health": "passed",
-  "runtime_auth": "passed",
-  "no_live_smoke": "passed",
+  "generated_at": "2026-04-25T00:00:00Z",
   "live_provider_smoke": "passed|not-run",
+  "live_provider_smoke_recipients": "provided|not-run",
+  "migration_apply": "passed",
+  "migration_dry_run": "passed",
+  "mission_control_api_source": "passed",
+  "mission_control_url": "https://<production-mission-control>",
+  "no_live_smoke": "passed",
+  "operator_inputs_required": [
+    "supabase_project_ref",
+    "ares_runtime_url",
+    "mission_control_url",
+    "trigger_project_ref",
+    "runtime_api_key_present",
+    "supabase_service_role_key_present",
+    "trigger_secret_key_present",
+    "textgrid_status_callback_url",
+    "provider_webhook_urls",
+    "operator_owned_phone",
+    "operator_owned_email"
+  ],
+  "operator_owned_email": "provided|not-run",
+  "operator_owned_phone": "provided|not-run",
+  "provider_request_shape_smoke": "passed",
+  "provider_webhook_urls": {
+    "calcom": "https://<production-ares>/marketing/webhooks/calcom",
+    "instantly": "https://<production-ares>/lead-machine/webhooks/instantly",
+    "textgrid": "https://<production-ares>/marketing/webhooks/textgrid"
+  },
+  "provider_webhooks_configured": "passed",
   "rollback_reference": "<backup-or-rollback-id>",
+  "runtime_api_key_present": "yes",
+  "runtime_auth": "passed",
+  "runtime_health": "passed",
+  "supabase_project_ref": "<production-project-ref>",
+  "supabase_service_role_key_present": "yes",
+  "textgrid_status_callback_url": "https://<production-ares>/marketing/webhooks/textgrid",
+  "trigger_project_ref": "<trigger-ref>",
+  "trigger_runtime_callbacks": "passed",
+  "trigger_secret_key_present": "yes",
   "notes": []
 }
 ```

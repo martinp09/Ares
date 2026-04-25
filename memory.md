@@ -27,6 +27,7 @@
 
 ## Current Direction
 
+- `codex/production-readiness-afternoon` in `/Users/solomartin/Projects/Ares/.worktrees/production-readiness-afternoon` is the active execution branch for the production-readiness handoff.
 - `test/production-readiness-handoff` is the current test/handoff branch for converting code-wired Ares into live production readiness gates.
 - `feature/ares-full-stack-cohesion-clean` completed the full-stack cohesion implementation and merged to `origin/main` at `0c14769`.
 - Production-readiness handoff: `docs/production-readiness-handoff.md`.
@@ -174,15 +175,32 @@
 
 ## Open Work
 
-1. execute `docs/superpowers/plans/2026-04-24-ares-production-readiness-test-branch-plan.md` in hosted preview/staging before production
-2. hosted rollout remains blocked until verified linked targets, env, staging evidence, and backup references are supplied
-3. create rollout evidence under `docs/rollout-evidence/` as each Supabase/Ares/Trigger/Mission Control/provider gate is proven
-4. keep post-merge Supabase follow-up scope narrow to persistence regressions and real hosted smoke only
-5. keep browser acquisition and ambiguous research in Hermes or other driver agents, not inside Ares
-6. add durable Trigger lead-machine jobs only where sync paths become operationally risky
-7. keep using `supabase start -x vector` on this machine until the Colima mount issue is fixed
+1. deploy Ares runtime preview after explicit approval to transmit required env secrets to Vercel project `production-readiness-afternoon`
+2. run hosted runtime health/auth/tools and `scripts/smoke_hermes_runtime_adapter.py`
+3. deploy Trigger worker and Mission Control preview against hosted Ares
+4. configure provider webhooks and run no-live/provider-shape evidence
+5. run guarded live provider smoke only after explicit operator-owned phone/email flags
+6. execute production promotion gate only after completed preview evidence, backup reference, exact commit match, and verified production Supabase target
+7. keep post-merge Supabase follow-up scope narrow to persistence regressions and real hosted smoke only
+8. keep browser acquisition and ambiguous research in Hermes or other driver agents, not inside Ares
 
 ## Change Log
+
+### 2026-04-25 Production Readiness Execution
+
+- Created isolated worktree `/Users/solomartin/Projects/Ares/.worktrees/production-readiness-afternoon` on `codex/production-readiness-afternoon` from `origin/test/production-readiness-handoff`.
+- Fixed marketing lead confirmation email to use the shared Resend provider path, moved `httpx` into runtime dependencies for provider imports, added `app/index.py` as the Vercel FastAPI entrypoint, and added focused regressions.
+- Added fail-closed hosted smoke assertions in `scripts/smoke_hermes_runtime_adapter.py`, rollout evidence skeleton/validator tooling, and stronger production promotion checks for completed preview/staging evidence identity.
+- Linked preview Supabase project `awmsrjeawcxndfnggoxw`, passed the guarded preview dry-run, and applied migrations `202604200001`, `202604230001`, `202604230002`, `202604230003`, and `202604240001`.
+- Verified locally with `uv run pytest -q` (`579 passed, 5 warnings`), Trigger typecheck, Mission Control typecheck/tests/build, `vercel build --yes`, `uv lock --check`, and `git diff --check`.
+- Remaining blocker is explicit approval to transmit required runtime/Supabase/provider secrets from local `.env` to Vercel preview project `production-readiness-afternoon`, then hosted deploy/smoke/Trigger/Mission Control/provider evidence.
+
+### 2026-04-24 Provider Confirmation Email Readiness Fix
+
+- Fixed `MarketingLeadService` confirmation email sending to use the service-level Resend provider path shared with Mission Control outbound email tests instead of the generic urllib request sender.
+- Added focused regression coverage proving configured Resend confirmation email dispatch uses the provider sender, preserves provider message IDs, and still creates visible provider-failure manual-review tasks when Resend raises.
+- Verified with `uv run pytest tests/api/test_marketing_leads.py tests/api/test_marketing_webhooks.py tests/api/test_marketing_runtime.py tests/api/test_marketing_sequence.py tests/domains/marketing/test_marketing_flow.py tests/services/test_booking_service.py tests/providers/test_resend.py tests/api/test_mission_control.py::test_provider_status_endpoint_reflects_configured_sms_and_email tests/api/test_mission_control.py::test_email_test_endpoint_returns_provider_acceptance -q` (`42 passed`) and `git diff --check`.
+- Remaining caveat: the guarded live provider smoke from `docs/rollout-evidence/local-live-provider-smoke-2026-04-24.md` still needs rerun evidence against approved live recipients.
 
 ### 2026-04-24 Tax Overlay Adapter Slice
 
