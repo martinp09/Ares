@@ -1,7 +1,7 @@
 ---
 title: "Ares Production Readiness TODO / Handoff"
 status: active
-updated_at: "2026-04-24T13:00:33Z"
+updated_at: "2026-04-25T01:55:00Z"
 repo: "martinp09/Ares"
 local_checkout: "/tmp/ares-production-readiness"
 current_branch: "test/production-readiness-handoff"
@@ -54,7 +54,7 @@ Existing source plans remain background:
 
 ## Current status
 
-Ares is **code-wired** but **not yet live-production-wired**.
+Ares is **preview-wired** but **not yet production-promoted**.
 
 Completed in code:
 
@@ -67,15 +67,18 @@ Completed in code:
 - Guarded preview and production readiness scripts exist.
 - Python backend suite passed on latest main: `558 passed, 5 warnings`.
 
+Completed preview wiring:
+
+- Supabase preview project `awmsrjeawcxndfnggoxw` is linked and migrated through `202604240001`.
+- Ares preview runtime is deployed at `https://production-readiness-afternoon-g1ul6k5zv.vercel.app`.
+- Protected Vercel checks passed for runtime health, auth rejection/acceptance, Hermes tools, Mission Control dashboard, and Hermes run invoke/readback.
+- Mission Control preview is deployed at `https://mission-control-k73vipe98-martins-projects-9600e79e.vercel.app` and points at the Ares preview runtime.
+- Trigger project `proj_puouljyhwiraonjkpiki` has worker version `20260425.3` deployed after syncing runtime callback env vars.
+
 Not completed live:
 
-- no verified hosted Supabase migration apply
-- no deployed Ares runtime with all backends set to `supabase`
-- no deployed Trigger workers calling hosted Ares
-- no deployed Mission Control proven against hosted Ares API source
-- no provider webhooks proven against hosted Ares
-- no no-live hosted smoke evidence
-- no guarded live provider smoke evidence
+- no provider webhooks configured/proven against hosted Ares
+- no guarded live provider smoke evidence with operator-owned phone/email
 - no production rollback/backup evidence
 
 ## Production-readiness TODO

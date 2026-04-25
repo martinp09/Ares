@@ -28,6 +28,9 @@
 ## Current Direction
 
 - `codex/production-readiness-afternoon` in `/Users/solomartin/Projects/Ares/.worktrees/production-readiness-afternoon` is the active execution branch for the production-readiness handoff.
+- Ares preview runtime is deployed at `https://production-readiness-afternoon-g1ul6k5zv.vercel.app`.
+- Mission Control preview is deployed at `https://mission-control-k73vipe98-martins-projects-9600e79e.vercel.app` and its built bundle points at the Ares preview runtime.
+- Trigger project `proj_puouljyhwiraonjkpiki` has no staging environment and preview branches are disabled; worker version `20260425.3` is deployed to prod with runtime callback env vars synced.
 - `test/production-readiness-handoff` is the current test/handoff branch for converting code-wired Ares into live production readiness gates.
 - `feature/ares-full-stack-cohesion-clean` completed the full-stack cohesion implementation and merged to `origin/main` at `0c14769`.
 - Production-readiness handoff: `docs/production-readiness-handoff.md`.
@@ -175,14 +178,11 @@
 
 ## Open Work
 
-1. deploy Ares runtime preview after explicit approval to transmit required env secrets to Vercel project `production-readiness-afternoon`
-2. run hosted runtime health/auth/tools and `scripts/smoke_hermes_runtime_adapter.py`
-3. deploy Trigger worker and Mission Control preview against hosted Ares
-4. configure provider webhooks and run no-live/provider-shape evidence
-5. run guarded live provider smoke only after explicit operator-owned phone/email flags
-6. execute production promotion gate only after completed preview evidence, backup reference, exact commit match, and verified production Supabase target
-7. keep post-merge Supabase follow-up scope narrow to persistence regressions and real hosted smoke only
-8. keep browser acquisition and ambiguous research in Hermes or other driver agents, not inside Ares
+1. configure provider webhooks to the Ares preview URLs in `docs/rollout-evidence/preview-2026-04-25.json`
+2. run guarded live provider smoke only after explicit operator-owned phone/email flags
+3. execute production promotion gate only after completed preview evidence, backup reference, exact commit match, and verified production Supabase target
+4. keep post-merge Supabase follow-up scope narrow to persistence regressions and real hosted smoke only
+5. keep browser acquisition and ambiguous research in Hermes or other driver agents, not inside Ares
 
 ## Change Log
 
@@ -192,8 +192,12 @@
 - Fixed marketing lead confirmation email to use the shared Resend provider path, moved `httpx` into runtime dependencies for provider imports, added `app/index.py` as the Vercel FastAPI entrypoint, and added focused regressions.
 - Added fail-closed hosted smoke assertions in `scripts/smoke_hermes_runtime_adapter.py`, rollout evidence skeleton/validator tooling, and stronger production promotion checks for completed preview/staging evidence identity.
 - Linked preview Supabase project `awmsrjeawcxndfnggoxw`, passed the guarded preview dry-run, and applied migrations `202604200001`, `202604230001`, `202604230002`, `202604230003`, and `202604240001`.
-- Verified locally with `uv run pytest -q` (`579 passed, 5 warnings`), Trigger typecheck, Mission Control typecheck/tests/build, `vercel build --yes`, `uv lock --check`, and `git diff --check`.
-- Remaining blocker is explicit approval to transmit required runtime/Supabase/provider secrets from local `.env` to Vercel preview project `production-readiness-afternoon`, then hosted deploy/smoke/Trigger/Mission Control/provider evidence.
+- Fixed Supabase hosted runtime persistence regressions where generic synchronization tried to update/delete append-only `events` rows and projected `name` into `memberships_runtime`.
+- Deployed Ares preview to Vercel as `dpl_HwBeYrGfehtsi5Mbsf9ieuPkCntw`, passed protected `vercel curl` checks for `/health`, missing runtime auth 401, authorized `/hermes/tools`, authorized `/mission-control/dashboard`, and `run_market_research` invoke/readback.
+- Deployed Mission Control preview to Vercel as `dpl_FMuudqSDGp4Pz8p5XH9izfAm1hAj`; protected static checks confirmed the bundle points at the Ares preview runtime.
+- Synced Trigger prod env vars with the Trigger management API and deployed worker version `20260425.3` to project `proj_puouljyhwiraonjkpiki`.
+- Verified locally with `uv run pytest -q` (`580 passed, 5 warnings`), Trigger typecheck, Mission Control typecheck/tests/build, `vercel build --yes`, `uv lock --check`, and `git diff --check`.
+- Rollout evidence now blocks only on provider webhook configuration, operator-owned phone/email, and guarded live provider smoke before production promotion.
 
 ### 2026-04-24 Provider Confirmation Email Readiness Fix
 

@@ -1,9 +1,6 @@
 import { defineConfig } from "@trigger.dev/sdk";
 
-const triggerProjectRef = process.env.TRIGGER_PROJECT_REF;
-if (!triggerProjectRef) {
-  throw new Error("Missing TRIGGER_PROJECT_REF environment variable.");
-}
+const triggerProjectRef = process.env.TRIGGER_PROJECT_REF ?? "proj_puouljyhwiraonjkpiki";
 
 export default defineConfig({
   project: triggerProjectRef,
