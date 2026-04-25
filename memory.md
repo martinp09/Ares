@@ -178,13 +178,28 @@
 
 ## Open Work
 
-1. configure provider webhooks to the Ares preview URLs in `docs/rollout-evidence/preview-2026-04-25.json`
-2. run guarded live provider smoke only after explicit operator-owned phone/email flags
-3. execute production promotion gate only after completed preview evidence, backup reference, exact commit match, and verified production Supabase target
-4. keep post-merge Supabase follow-up scope narrow to persistence regressions and real hosted smoke only
+1. commit and push the provider-compatible production webhook fixes plus evidence docs from `/Users/solomartin/Projects/Ares` on `main`
+2. optionally replace the REST rollback bundle with native pg_dump once Supabase CLI container DNS is fixed
+3. keep dashboard utility polish deferred until the dashboard-focused slice
+4. preserve the production evidence files as the handoff source of truth
 5. keep browser acquisition and ambiguous research in Hermes or other driver agents, not inside Ares
 
 ## Change Log
+
+### 2026-04-25 Main Production Provider Wiring
+
+- On `/Users/solomartin/Projects/Ares` `main`, production Ares now runs at `https://production-readiness-afternoon.vercel.app` with Supabase-backed runtime env and Trigger project `proj_puouljyhwiraonjkpiki`.
+- Added provider-compatible runtime auth: protected routes still accept `Authorization: Bearer ...`, and provider callback URLs can use `runtime_api_key` query auth for providers that do not reliably preserve custom headers.
+- Added raw Instantly provider payload support at `/lead-machine/webhooks/instantly?business_id=...&environment=...` while preserving the wrapped internal contract.
+- Added form-encoded TextGrid webhook parsing for real status callbacks.
+- Configured Instantly webhook `019dc29e-bd0f-7ceb-a8f6-1dd9af1a7645`; provider-side test returned success true / HTTP 200.
+- Live TextGrid hosted smoke to operator phone `+13467725914` was received; signed form-encoded status callback smoke returned HTTP 200.
+- Trigger prod env points at production Ares, worker version `20260425.6` deployed, and production `run_4` callback smoke reached completed status.
+- Evidence files `docs/rollout-evidence/preview-2026-04-25.json` and `docs/rollout-evidence/production-2026-04-25.json` validate as ready; Cal.com, operator email smoke, and rollback bundle evidence are now captured.
+- Cal.com webhook `3d941b34-6943-44ed-b9b0-8904ebab0978` was created through API v2 for booking created/rescheduled/cancelled, and synthetic production booking webhook returned HTTP 200.
+- Resend live email smoke to `dejesusperales16@gmail.com` queued with provider id `4a9172b4-dd9d-403e-9b59-2cb2304cb7e1`.
+- Supabase rollback bundle created at `/Users/solomartin/Projects/Ares-backups/2026-04-25-awmsrjeawcxndfnggoxw` with 50 REST-exported public tables, schema migrations, `manifest.json`, and `SHA256SUMS`; native `supabase db dump` was attempted after starting Colima but failed because the container could not resolve `db.awmsrjeawcxndfnggoxw.supabase.co`.
+- Verification passed: `uv run pytest -q` (`583 passed, 6 warnings`), Mission Control vitest/typecheck/build, Trigger typecheck, `git diff --check`, `uv lock --check`, and no-live full-stack smoke.
 
 ### 2026-04-25 Production Readiness Execution
 

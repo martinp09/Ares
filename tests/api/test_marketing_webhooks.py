@@ -69,6 +69,32 @@ def test_post_textgrid_webhook_processes_inbound_sms(monkeypatch) -> None:
     assert stub.calls[0][2] == "http://testserver/marketing/webhooks/textgrid"
 
 
+def test_post_textgrid_webhook_accepts_form_encoded_status_callback(monkeypatch) -> None:
+    class StubInboundSmsService:
+        def __init__(self) -> None:
+            self.calls = []
+
+        def handle_textgrid_webhook(self, payload, *, signature, request_url=None):
+            self.calls.append((payload, signature, request_url))
+            return {"status": "processed", "event_type": "status", "action": "ignore"}
+
+    from app.api import marketing as marketing_api
+
+    stub = StubInboundSmsService()
+    monkeypatch.setattr(marketing_api, "inbound_sms_service", stub)
+    client = TestClient(app)
+
+    response = client.post(
+        "/marketing/webhooks/textgrid",
+        data={"MessageSid": "SM123", "MessageStatus": "delivered"},
+        headers={**AUTH_HEADERS, "content-type": "application/x-www-form-urlencoded"},
+    )
+
+    assert response.status_code == 200
+    assert response.json() == {"status": "processed", "event_type": "status", "action": "ignore"}
+    assert stub.calls[0][0] == {"MessageSid": "SM123", "MessageStatus": "delivered"}
+
+
 def test_post_non_booker_check_runs_internal_check(monkeypatch) -> None:
     class StubBookingService:
         def __init__(self) -> None:

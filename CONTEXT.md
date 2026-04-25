@@ -2,32 +2,36 @@
 
 ## Stable Facts
 - Repo: `martinp09/Ares`
-- Active worktree: `/Users/solomartin/Projects/Ares/.worktrees/production-readiness-afternoon`
-- Branch: `codex/production-readiness-afternoon`
-- Source branch: `origin/test/production-readiness-handoff`
-- Production-readiness handoff: `docs/production-readiness-handoff.md`
-- Production-readiness plan: `docs/superpowers/plans/2026-04-24-ares-production-readiness-test-branch-plan.md`
-- Preview evidence: `docs/rollout-evidence/preview-2026-04-25.json`
+- Active checkout: `/Users/solomartin/Projects/Ares`
+- Branch: `main`
+- Baseline before production patch: `902570240f777e9be0c16db59927042d16a48755`
+- Runtime production URL: `https://production-readiness-afternoon.vercel.app`
+- Mission Control URL: `https://mission-control-g8un1ly0w-martins-projects-9600e79e.vercel.app`
+- Supabase project ref: `awmsrjeawcxndfnggoxw`
+- Trigger project: `proj_puouljyhwiraonjkpiki`
 
 ## Current Scope
-- This branch is a test/handoff branch for the remaining live-production wiring gates.
-- Preview Supabase target `awmsrjeawcxndfnggoxw` is linked and migrations through `202604240001` are applied.
-- Ares preview runtime is live at `https://production-readiness-afternoon-g1ul6k5zv.vercel.app`; Mission Control preview is live at `https://mission-control-k73vipe98-martins-projects-9600e79e.vercel.app`.
-- Trigger project `proj_puouljyhwiraonjkpiki` deployed prod worker version `20260425.3`; preview branches/staging are unavailable in Trigger.
-- Ares is not production-ready until provider webhooks, live-recipient smoke, rollback, and production evidence are proven.
-- No live provider sends are allowed without explicit operator-owned recipient flags.
-- Mission Control must point at Ares runtime APIs; it must not call Supabase directly.
+- Production wiring is live for runtime health/auth, Supabase-backed state, Trigger callbacks, Instantly reply webhooks, TextGrid SMS/status callbacks, Cal.com booking callbacks, and Resend email smoke.
+- Dashboard utility polish is intentionally deferred.
+- Production evidence: `docs/rollout-evidence/production-2026-04-25.json`
+- Preview/current-main evidence: `docs/rollout-evidence/preview-2026-04-25.json`
+- Finish-today plan: `docs/superpowers/plans/2026-04-25-ares-production-readiness-finish-today.md`
 
 ## Current TODO
-1. Configure provider webhooks to the Ares preview URLs in `docs/rollout-evidence/preview-2026-04-25.json`.
-2. Run guarded live provider smoke only with explicit operator-owned phone/email values.
-3. Run production promotion evidence after provider gates, rollback reference, exact commit match, and verified production Supabase target.
-4. Do not call Ares production-ready until production promotion evidence is complete.
+1. Commit/push the provider-webhook production fixes and evidence updates.
+2. Commit/push the updated Cal.com, Resend, and rollback evidence.
+3. Decide whether to replace the REST rollback bundle with a native pg_dump once Supabase container DNS is fixed.
+4. Keep dashboard utility polish deferred until the next dashboard-focused slice.
 
 ## Recent Change
-- 2026-04-25: Hardened preview evidence/production gates, moved `httpx` into runtime dependencies, added Vercel FastAPI entrypoint, linked Supabase preview project, applied five pending migrations, and verified full local backend/frontend/Trigger gates.
-- 2026-04-25: Deployed Ares preview, Mission Control preview, and Trigger prod worker; protected Vercel smoke passed for health/auth/tools/dashboard/run readback. Evidence is blocked only on provider webhook configuration and operator-owned live-recipient smoke.
-- 2026-04-24: Fixed the marketing lead confirmation-email path to use the same service-level Resend provider behavior as Mission Control's outbound email test; focused marketing/provider regressions pass locally, but a guarded live provider smoke still needs rerun evidence.
+- 2026-04-25: Production Ares deployed to public Vercel URL with provider-compatible callback auth/parsing.
+- 2026-04-25: Instantly webhook `019dc29e-bd0f-7ceb-a8f6-1dd9af1a7645` configured to production Ares and provider test returned 200.
+- 2026-04-25: TextGrid live SMS to `+13467725914` was received; signed form-encoded TextGrid callback returned 200.
+- 2026-04-25: Cal.com webhook `3d941b34-6943-44ed-b9b0-8904ebab0978` is active and synthetic booking webhook returned 200.
+- 2026-04-25: Resend live email smoke to `dejesusperales16@gmail.com` queued with provider id `4a9172b4-dd9d-403e-9b59-2cb2304cb7e1`.
+- 2026-04-25: Supabase rollback bundle saved at `/Users/solomartin/Projects/Ares-backups/2026-04-25-awmsrjeawcxndfnggoxw`.
+- 2026-04-25: Trigger prod env targets production Ares and worker version `20260425.6` is deployed; `run_4` callback smoke completed.
+- 2026-04-25: Verification passed: backend pytest, Mission Control test/typecheck/build, Trigger typecheck, lock/diff checks, no-live full-stack smoke.
 
 ## Read These Sections In `memory.md`
 1. `## Current Direction`

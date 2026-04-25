@@ -54,107 +54,45 @@ Existing source plans remain background:
 
 ## Current status
 
-Ares is **preview-wired** but **not yet production-promoted**.
+Ares production runtime is live at `https://production-readiness-afternoon.vercel.app` and is wired to Supabase-backed runtime state, Trigger callbacks, Instantly reply webhooks, and TextGrid SMS/status callbacks.
 
-Completed in code:
+Completed current-main production wiring:
 
-- Supabase control-plane hydrate/persist adapter exists.
-- Runtime API routes are mounted.
-- Trigger runtime callbacks exist.
-- Mission Control API routes and frontend API client exist.
-- Lead-machine runtime routes exist.
-- Provider adapters/readiness surfaces exist.
-- Guarded preview and production readiness scripts exist.
-- Python backend suite passed on latest main: `558 passed, 5 warnings`.
+- Runtime production health returns 200; protected routes reject missing auth and accept runtime auth.
+- Supabase project `awmsrjeawcxndfnggoxw` is linked and migrated; `limitless/prod` tenant exists.
+- Trigger project `proj_puouljyhwiraonjkpiki` prod env points at production Ares; worker version `20260425.6` deployed.
+- Instantly webhook `019dc29e-bd0f-7ceb-a8f6-1dd9af1a7645` targets production Ares and provider-side test returned 200.
+- TextGrid live SMS to operator phone `+13467725914` was received; signed form-encoded status callback returned 200.
+- Evidence files validate as ready:
+  - `docs/rollout-evidence/preview-2026-04-25.json`
+  - `docs/rollout-evidence/production-2026-04-25.json`
+- Verification passed: backend pytest, Mission Control tests/typecheck/build, Trigger typecheck, lock/diff checks, no-live full-stack smoke.
 
-Completed preview wiring:
+Remaining caveats:
 
-- Supabase preview project `awmsrjeawcxndfnggoxw` is linked and migrated through `202604240001`.
-- Ares preview runtime is deployed at `https://production-readiness-afternoon-g1ul6k5zv.vercel.app`.
-- Protected Vercel checks passed for runtime health, auth rejection/acceptance, Hermes tools, Mission Control dashboard, and Hermes run invoke/readback.
-- Mission Control preview is deployed at `https://mission-control-k73vipe98-martins-projects-9600e79e.vercel.app` and points at the Ares preview runtime.
-- Trigger project `proj_puouljyhwiraonjkpiki` has worker version `20260425.3` deployed after syncing runtime callback env vars.
-
-Not completed live:
-
-- no provider webhooks configured/proven against hosted Ares
-- no guarded live provider smoke evidence with operator-owned phone/email
-- no production rollback/backup evidence
+- Native `pg_dump` backup is not captured because the Supabase CLI container could not resolve the Supabase DB host from Colima; a REST table-export rollback bundle exists instead.
+- Dashboard utility polish is still intentionally deferred.
 
 ## Production-readiness TODO
 
-### 1. Preview/staging Supabase gate
+### 1. Commit and push current production fixes
 
-- [ ] Link preview/staging Supabase project.
-- [ ] Confirm `supabase/.temp/project-ref` equals the expected preview/staging ref.
-- [ ] Run `scripts/preview_rollout_readiness.py --run-linked-dry-run`.
-- [ ] Apply migrations with `supabase db push --linked` only after the dry-run passes.
-- [ ] Record evidence in `docs/rollout-evidence/preview-YYYY-MM-DD.json`.
+- [ ] Review current diff on `main`.
+- [ ] Commit provider-compatible webhook/runtime auth fixes and evidence docs.
+- [ ] Push to `origin/main` or open PR, depending on branch policy.
 
-### 2. Preview/staging Ares runtime gate
+### 2. Provider completion evidence
 
-- [ ] Deploy Ares from the same commit used for Supabase migration evidence.
-- [ ] Set runtime backends to `supabase`:
-  - `CONTROL_PLANE_BACKEND=supabase`
-  - `MARKETING_BACKEND=supabase`
-  - `LEAD_MACHINE_BACKEND=supabase`
-  - `SITE_EVENTS_BACKEND=supabase`
-- [ ] Verify `/health`.
-- [ ] Verify protected routes reject unauthenticated calls.
-- [ ] Verify protected routes accept `Authorization: Bearer <runtime-key>`.
-- [ ] Prove Ares reads/writes Supabase-backed state.
-- [ ] Append Ares runtime evidence to the preview evidence JSON.
+- [x] Register Cal.com booking webhook to production Ares.
+- [x] Send a booked test event with `lead_id` metadata.
+- [x] Run exactly one controlled hosted Resend smoke to operator email.
+- [x] Record provider IDs/status evidence in `docs/rollout-evidence/production-2026-04-25.json`.
 
-### 3. Trigger.dev gate
+### 3. Promotion discipline hardening
 
-- [ ] Configure Trigger with hosted Ares `RUNTIME_API_BASE_URL` and `RUNTIME_API_KEY`.
-- [ ] Run `npm --prefix trigger run typecheck`.
-- [ ] Deploy Trigger workers to preview/staging.
-- [ ] Prove lifecycle callbacks update Ares runs/events/artifacts.
-- [ ] Append Trigger evidence to the preview evidence JSON.
-
-### 4. Mission Control gate
-
-- [ ] Install frontend dependencies if missing.
-- [ ] Run Mission Control typecheck/tests/build.
-- [ ] Deploy Mission Control pointed at hosted Ares with `VITE_RUNTIME_API_BASE_URL`.
-- [ ] Prove dashboard/inbox/runs/tasks load from Ares API source, not fixture fallback.
-- [ ] Append Mission Control evidence to the preview evidence JSON.
-
-### 5. Provider webhook / no-live smoke gate
-
-- [ ] Configure TextGrid inbound/status webhook to hosted Ares.
-- [ ] Configure Cal.com booking webhook to hosted Ares.
-- [ ] Configure Instantly webhook to hosted Ares if cold outbound is in scope.
-- [ ] Run `uv run python scripts/smoke_provider_readiness.py`.
-- [ ] Run `uv run python scripts/smoke_full_stack_cohesion.py --no-live-sends`.
-- [ ] Prove Mission Control shows runs/leads/tasks/audit/usage/provider failures.
-- [ ] Append no-live/provider evidence to preview evidence JSON.
-
-### 6. Guarded live provider smoke gate
-
-- [x] Run first local live provider smoke with AWF credentials and memory-backed Ares state.
-- [x] Confirm TextGrid SMS can queue through marketing lead intake.
-- [x] Confirm direct Mission Control Resend email test can queue.
-- [x] Fix marketing lead confirmation email side-effect path: lead intake now uses the shared Resend provider service path and targeted provider regressions pass locally.
-- [ ] Confirm operator-owned phone/email recipients for hosted smoke.
-- [ ] Set explicit live smoke recipient flags for hosted smoke.
-- [ ] Send exactly controlled hosted test SMS/email.
-- [ ] Prove provider IDs/statuses/webhooks/receipts are captured.
-- [ ] Append live provider smoke evidence to preview evidence JSON.
-
-### 7. Production promotion gate
-
-- [ ] Create production backup/rollback reference.
-- [ ] Link production Supabase project.
-- [ ] Run `scripts/production_promotion_readiness.py` with expected project ref, staged commit, staging evidence, backup reference, and `--acknowledge-production`.
-- [ ] Apply production migrations only if the gate passes.
-- [ ] Deploy production Ares from the exact staged commit.
-- [ ] Deploy production Trigger workers from the exact staged commit.
-- [ ] Deploy production Mission Control pointed at production Ares.
-- [ ] Run production no-live smoke.
-- [ ] Run optional guarded live provider smoke.
-- [ ] Record production evidence in `docs/rollout-evidence/production-YYYY-MM-DD.json`.
+- [x] Capture rollback bundle for `awmsrjeawcxndfnggoxw` under `/Users/solomartin/Projects/Ares-backups/2026-04-25-awmsrjeawcxndfnggoxw`.
+- [ ] Optionally replace REST export bundle with native `pg_dump` once Colima/Supabase DB DNS is fixed.
+- [ ] Keep `docs/rollout-evidence/production-2026-04-25.json` updated with any new evidence.
 
 ## Hard rules
 

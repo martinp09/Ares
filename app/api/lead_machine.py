@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any, Literal
 
-from fastapi import APIRouter, Header, HTTPException, Request, status
+from fastapi import APIRouter, Header, HTTPException, Query, Request, status
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from app.core.config import get_settings
@@ -283,12 +283,29 @@ def enqueue_outbound_leads(request: OutboundEnqueueRequest) -> OutboundEnqueueRe
 @router.post("/webhooks/instantly", response_model=InstantlyWebhookResponse)
 async def ingest_instantly_webhook(
     request: Request,
-    body: InstantlyWebhookRequest,
+    body: InstantlyWebhookRequest | dict[str, Any],
+    business_id: str | None = Query(default=None, min_length=1),
+    environment: str | None = Query(default=None, min_length=1),
     x_instantly_signature: str | None = Header(default=None),
 ) -> InstantlyWebhookResponse:
     settings = get_settings()
-    trusted = body.trusted
-    trust_reason = body.trust_reason
+    if isinstance(body, InstantlyWebhookRequest):
+        request_business_id = body.business_id
+        request_environment = body.environment
+        payload = body.payload
+        trusted = body.trusted
+        trust_reason = body.trust_reason
+    else:
+        if not business_id or not environment:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="business_id and environment query parameters are required for raw Instantly webhooks",
+            )
+        request_business_id = business_id
+        request_environment = environment
+        payload = body
+        trusted = False
+        trust_reason = None
     if not isinstance(trust_reason, str) or not trust_reason.strip():
         if x_instantly_signature:
             trust_reason = "signature_present_unverified"
@@ -298,9 +315,9 @@ async def ingest_instantly_webhook(
             trust_reason = "signature_verification_not_configured"
 
     result = _build_write_path_service().handle_instantly_webhook(
-        business_id=body.business_id,
-        environment=body.environment,
-        payload=body.payload,
+        business_id=request_business_id,
+        environment=request_environment,
+        payload=payload,
         headers=dict(request.headers),
         trusted=trusted,
         trust_reason=str(trust_reason),

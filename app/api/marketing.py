@@ -1,6 +1,7 @@
 from typing import Any
 
 import inspect
+from urllib.parse import parse_qs
 
 from fastapi import APIRouter, Header, HTTPException, Request, status
 from pydantic import BaseModel, ConfigDict, Field
@@ -164,7 +165,16 @@ async def handle_textgrid_webhook(
     x_textgrid_signature: str | None = Header(default=None),
 ) -> SmsWebhookResponse:
     raw_body = await request.body()
-    payload = await request.json()
+    content_type = request.headers.get("content-type", "")
+    if content_type.startswith("application/x-www-form-urlencoded"):
+        payload = {
+            key: values[-1]
+            for key, values in parse_qs(raw_body.decode("utf-8"), keep_blank_values=True).items()
+        }
+    elif content_type.startswith("multipart/form-data"):
+        payload = dict(await request.form())
+    else:
+        payload = await request.json()
     handler = inbound_sms_service.handle_textgrid_webhook
     kwargs: dict[str, Any] = {"signature": x_textgrid_signature}
     signature_params = inspect.signature(handler).parameters

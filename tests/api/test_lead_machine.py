@@ -347,6 +347,49 @@ def test_post_instantly_webhook_records_headers_and_trust_metadata(monkeypatch) 
     assert stub.calls[0]["trust_reason"] == "signature_present_unverified"
 
 
+def test_post_instantly_webhook_accepts_raw_provider_payload_with_tenant_query(monkeypatch) -> None:
+    class StubWritePathService:
+        def __init__(self) -> None:
+            self.calls = []
+
+        def handle_instantly_webhook(self, **kwargs):
+            self.calls.append(kwargs)
+            return {
+                "status": "processed",
+                "receipt_id": "wh_123",
+                "event_id": "evt_123",
+                "lead_id": "lead_123",
+                "suppression_id": None,
+                "membership_id": None,
+                "task_id": None,
+            }
+
+    from app.api import lead_machine as lead_machine_api
+
+    stub = StubWritePathService()
+    monkeypatch.setattr(lead_machine_api, "_build_write_path_service", lambda: stub)
+    client = TestClient(app)
+
+    response = client.post(
+        "/lead-machine/webhooks/instantly?business_id=limitless&environment=prod",
+        json={
+            "event_type": "reply_received",
+            "campaign_id": "camp_123",
+            "lead_email": "lane@example.com",
+        },
+        headers={**AUTH_HEADERS, "x-instantly-signature": "sig_123"},
+    )
+
+    assert response.status_code == 200
+    assert response.json()["status"] == "processed"
+    assert len(stub.calls) == 1
+    assert stub.calls[0]["business_id"] == "limitless"
+    assert stub.calls[0]["environment"] == "prod"
+    assert stub.calls[0]["payload"]["event_type"] == "reply_received"
+    assert stub.calls[0]["trusted"] is False
+    assert stub.calls[0]["trust_reason"] == "signature_present_unverified"
+
+
 def test_post_instantly_webhook_is_replay_safe(monkeypatch) -> None:
     from app.api import lead_machine as lead_machine_api
 

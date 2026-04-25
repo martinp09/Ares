@@ -1,4 +1,4 @@
-from fastapi import Header, HTTPException, status
+from fastapi import Header, HTTPException, Query, status
 
 from app.core.config import Settings, get_settings
 from app.models.actors import ActorContext
@@ -8,10 +8,13 @@ def settings_dependency() -> Settings:
     return get_settings()
 
 
-def runtime_api_key_dependency(authorization: str | None = Header(default=None)) -> Settings:
+def runtime_api_key_dependency(
+    authorization: str | None = Header(default=None),
+    runtime_api_key: str | None = Query(default=None),
+) -> Settings:
     settings = get_settings()
     expected = f"Bearer {settings.runtime_api_key}"
-    if authorization != expected:
+    if authorization != expected and runtime_api_key != settings.runtime_api_key:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Unauthorized")
     return settings
 
