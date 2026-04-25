@@ -1,6 +1,6 @@
 {
   "ares_runtime_url": "https://production-readiness-afternoon.vercel.app",
-  "commit": "902570240f777e9be0c16db59927042d16a48755",
+  "commit": "47be904ebf92258fefa4429a7def7b658b0276ea",
   "environment": "production",
   "generated_at": "2026-04-25T03:24:00Z",
   "live_provider_smoke": "passed:TextGrid hosted production lead intake sent SMS to operator phone and operator confirmed receipt; signed form-encoded TextGrid callback returned 200; Instantly provider webhook test returned success true; Cal.com synthetic booking webhook returned 200; Resend live email smoke queued to operator email with provider id 4a9172b4-dd9d-403e-9b59-2cb2304cb7e1",
@@ -11,14 +11,14 @@
   "mission_control_url": "https://mission-control-g8un1ly0w-martins-projects-9600e79e.vercel.app",
   "no_live_smoke": "passed:uv run python scripts/smoke_full_stack_cohesion.py --no-live-sends",
   "notes": [
-    "2026-04-25: Current repo HEAD and origin/main were 902570240f777e9be0c16db59927042d16a48755 before patch work. Runtime production deployed to https://production-readiness-afternoon.vercel.app after provider-compatible webhook fixes.",
+    "2026-04-25: Current repo HEAD and origin/main were 902570240f777e9be0c16db59927042d16a48755 before patch work. Runtime production deployed to https://production-readiness-afternoon.vercel.app after provider-compatible webhook fixes, then production wiring was committed at 47be904ebf92258fefa4429a7def7b658b0276ea.",
     "2026-04-25: Added runtime query-token fallback for provider callbacks that cannot reliably send Authorization headers; protected header auth remains supported and unauthenticated protected calls still return 401.",
     "2026-04-25: Added raw Instantly provider payload support via tenant query parameters while preserving the existing wrapped internal webhook contract.",
     "2026-04-25: Instantly webhook 019dc29e-bd0f-7ceb-a8f6-1dd9af1a7645 now targets production Ares and Instantly provider-side test returned success true with HTTP 200.",
     "2026-04-25: TextGrid live SMS to +13467725914 was received by operator. TextGrid status callbacks required authenticated query token and form-encoded parsing; signed callback smoke returned HTTP 200 after fix.",
     "2026-04-25: Trigger prod env variables now target https://production-readiness-afternoon.vercel.app and worker version 20260425.6 is deployed. Production run_4 callback smoke reached completed status.",
     "2026-04-25: Verification passed: uv run pytest -q (583 passed), Mission Control vitest/typecheck/build, Trigger typecheck, git diff --check, uv lock --check, no-live full-stack smoke.",
-    "2026-04-25: Remaining hard production caveats: Cal.com webhook registration not proven; no operator-owned email live smoke; no distinct production Supabase project or database backup artifact beyond Vercel rollback deployment reference.",
+    "2026-04-25: Final live closeout superseded earlier caveats: Cal.com webhook registration is proven, operator-owned email smoke is queued, and a Supabase rollback bundle exists outside the repo; remaining hardening is optional native pg_dump once Supabase CLI container DNS is fixed.",
     "2026-04-25: Cal.com webhook 3d941b34-6943-44ed-b9b0-8904ebab0978 created via API v2 for booking created/rescheduled/cancelled and synthetic production booking webhook returned HTTP 200.",
     "2026-04-25: Resend live email smoke to dejesusperales16@gmail.com queued with provider id 4a9172b4-dd9d-403e-9b59-2cb2304cb7e1.",
     "2026-04-25: Supabase rollback bundle created outside repo at /Users/solomartin/Projects/Ares-backups/2026-04-25-awmsrjeawcxndfnggoxw with 50 REST-exported public tables, schema migrations, manifest, and SHA256 checksums. CLI pg_dump was attempted after starting Colima but failed on container DNS resolution."

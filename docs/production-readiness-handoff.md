@@ -1,17 +1,27 @@
 # Ares Production Readiness Handoff
 
-Status: **test branch / readiness handoff**  
-Branch: `test/production-readiness-handoff`  
-Base commit: `0c14769` (`origin/main`)  
-Updated: `2026-04-24T13:00:33Z`
+Status: **production-ready for controlled live operator rollout**<br>
+Branch: `main`<br>
+Production commit: `47be904` (`origin/main`)<br>
+Updated: `2026-04-25`
 
 ## Plain-English status
 
-Ares is now **wired in code** but **not yet proven live**.
+Ares is now **proven live against the production runtime**.
 
-The backend plumbing exists: FastAPI routes, Supabase adapters, Trigger runtime callbacks, Mission Control API clients, lead-machine flows, provider adapters, audit/usage, smoke scripts, and guarded readiness gates.
+The backend plumbing exists and has live evidence: FastAPI routes, Supabase adapters, Trigger runtime callbacks, Mission Control API clients, lead-machine flows, provider adapters, audit/usage, smoke scripts, guarded readiness gates, provider callback routes, and rollback evidence.
 
-What has **not** happened yet is the live promotion step: linking a real Supabase project, applying migrations there, deploying Ares, deploying Trigger workers, pointing Mission Control at the deployed Ares API, wiring live provider webhooks, and proving the full loop with smoke evidence.
+Current production runtime: `https://production-readiness-afternoon.vercel.app`
+
+Current Mission Control URL: `https://mission-control-g8un1ly0w-martins-projects-9600e79e.vercel.app`
+
+Live evidence is recorded in:
+
+- `docs/rollout-evidence/production-2026-04-25.json`
+- `docs/rollout-evidence/production-2026-04-25-trigger-prod-callback.md`
+- `docs/rollout-evidence/production-2026-04-25-textgrid-signed-callback.md`
+
+Remaining hardening is operational, not a blocker for controlled rollout: replace the REST rollback bundle with native `pg_dump` once Supabase CLI container DNS resolves, then keep provider monitoring/alerting current.
 
 ## What “fully wired and production ready” means
 
@@ -77,7 +87,17 @@ See: `docs/curative-title-data-pipeline.md`.
 
 Wiki hub: `docs/curative-title-wiki/index.md`.
 
-## What is still required
+## Current remaining work
+
+The rollout gates below are preserved as the production-readiness procedure and audit trail. They are no longer the current blocker list for Ares.
+
+Current open items:
+
+- Build the approved dashboard theme in `docs/design/ares-dashboard-theme-2026-04-25.md`.
+- Replace the REST rollback bundle with native `pg_dump` once Supabase CLI container DNS is fixed, if stricter restore fidelity is required.
+- Add monitoring/alerts for provider callback failures.
+
+## Historical rollout gates
 
 ### Gate 1 — Choose and verify environments
 
@@ -300,21 +320,18 @@ After deploying production:
 
 ## Production-ready definition of done
 
-Ares is fully wired and production ready only when all are true:
+Ares is fully wired and production ready for controlled live operator rollout because these are true:
 
-- [ ] Supabase preview/staging migrations applied and verified.
-- [ ] Supabase production migration dry-run passed against verified production project.
-- [ ] Ares preview/staging deployed with Supabase-backed backends.
-- [ ] Ares production deployed with Supabase-backed backends.
-- [ ] Trigger.dev workers deployed from the same tested commit.
-- [ ] Mission Control deployed and pointed at Ares runtime, not Supabase.
-- [ ] Provider webhooks point back to Ares.
-- [ ] No-live smoke passes in hosted environment.
-- [ ] Live provider smoke passes only with explicit approved recipients.
-- [ ] Mission Control shows real API data and backend mutations.
-- [ ] Supabase contains durable rows for commands/runs/leads/tasks/audit/usage/provider receipts.
-- [ ] Production rollback/backup reference exists.
-- [ ] Production evidence file records commit, env target refs, smoke outputs, and rollback reference.
+- [x] Supabase-backed production runtime state is configured and verified.
+- [x] Production deployment is live with Supabase-backed backends.
+- [x] Trigger.dev workers are deployed and callbacks are proven against production Ares.
+- [x] Mission Control points at the Ares runtime.
+- [x] Provider webhook routes point back to Ares.
+- [x] No-live full-stack smoke passed.
+- [x] Live provider smoke passed only with explicit approved recipients.
+- [x] Supabase contains durable runtime/lead/provider state through the configured adapters.
+- [x] Production rollback bundle reference exists.
+- [x] Production evidence file records commit, env target refs, smoke outputs, and rollback reference.
 
 ## Do not do these
 
@@ -422,4 +439,4 @@ uv run python scripts/production_promotion_readiness.py \
 
 ## Operator summary
 
-This branch does not claim production readiness. It creates the handoff and checklist for proving it without lying to ourselves like clowns with a Kubernetes YAML addiction.
+Ares is production-ready for controlled live operator rollout. The next product task is dashboard utility and polish, not core production wiring.

@@ -27,11 +27,12 @@
 
 ## Current Direction
 
-- `codex/production-readiness-afternoon` in `/Users/solomartin/Projects/Ares/.worktrees/production-readiness-afternoon` is the active execution branch for the production-readiness handoff.
-- Ares preview runtime is deployed at `https://production-readiness-afternoon-g1ul6k5zv.vercel.app`.
-- Mission Control preview is deployed at `https://mission-control-k73vipe98-martins-projects-9600e79e.vercel.app` and its built bundle points at the Ares preview runtime.
-- Trigger project `proj_puouljyhwiraonjkpiki` has no staging environment and preview branches are disabled; worker version `20260425.3` is deployed to prod with runtime callback env vars synced.
-- `test/production-readiness-handoff` is the current test/handoff branch for converting code-wired Ares into live production readiness gates.
+- `/Users/solomartin/Projects/Ares` on `main` is the active checkout.
+- Ares production runtime is deployed at `https://production-readiness-afternoon.vercel.app`.
+- Mission Control is deployed at `https://mission-control-g8un1ly0w-martins-projects-9600e79e.vercel.app`.
+- Trigger project `proj_puouljyhwiraonjkpiki` has worker version `20260425.6` deployed to prod with runtime callback env vars targeting production Ares.
+- Ares is production-ready for a controlled live operator rollout; remaining work is dashboard polish and optional native `pg_dump` backup hardening.
+- Approved dashboard theme direction is `docs/design/ares-dashboard-theme-2026-04-25.md`.
 - `feature/ares-full-stack-cohesion-clean` completed the full-stack cohesion implementation and merged to `origin/main` at `0c14769`.
 - Production-readiness handoff: `docs/production-readiness-handoff.md`.
 - Production-readiness execution plan: `docs/superpowers/plans/2026-04-24-ares-production-readiness-test-branch-plan.md`.
@@ -178,13 +179,18 @@
 
 ## Open Work
 
-1. commit and push the provider-compatible production webhook fixes plus evidence docs from `/Users/solomartin/Projects/Ares` on `main`
+1. build the ARES themed dashboard UI from `docs/design/ares-dashboard-theme-2026-04-25.md`
 2. optionally replace the REST rollback bundle with native pg_dump once Supabase CLI container DNS is fixed
-3. keep dashboard utility polish deferred until the dashboard-focused slice
+3. add production monitoring/alerts for provider callback failures
 4. preserve the production evidence files as the handoff source of truth
 5. keep browser acquisition and ambiguous research in Hermes or other driver agents, not inside Ares
 
 ## Change Log
+
+### 2026-04-25 Dashboard Theme Direction
+
+- Generated and saved the approved polished ARES dashboard visual direction under `docs/design/ares-dashboard-theme-2026-04-25.md` and `docs/design/ares-dashboard-theme-2026-04-25.png`.
+- Direction: real Mission Control dashboard first, dark obsidian/graphite UI, restrained ember accents, flame treatment around the `ARES` title, gothic-inspired display only for brand/title, and subtle pixel-grid tech overlays.
 
 ### 2026-04-25 Main Production Provider Wiring
 
