@@ -27,8 +27,8 @@
 
 ## Current Direction
 
-- `/Users/solomartin/Projects/Ares` on `feature/ares-crm-control-plane-planning` is the active planning checkout.
-- Current CRM control-plane planning branch is pushed to `origin/feature/ares-crm-control-plane-planning`.
+- `/Users/solomartin/Projects/Ares` on `feature/ares-crm-control-plane-planning` is the active CRM implementation checkout.
+- Current CRM control-plane branch is pushed to `origin/feature/ares-crm-control-plane-planning`.
 - CRM control-plane draft spec: `docs/superpowers/specs/2026-04-25-ares-crm-control-plane-design.md`.
 - CRM control-plane roadmap: `docs/superpowers/plans/2026-04-25-ares-crm-control-plane-roadmap.md`.
 - CRM source research: `docs/mission-control-wiki/raw/articles/2026-04-25-ghl-datasift-crm-research.md`.
@@ -64,7 +64,7 @@
   - inbound lease-option marketing as a separate first-class lane
 - Supabase should be the canonical backend for both live MVP lanes
 - The runtime should preserve a thin contract-to-close skeleton even while the MVP stays focused on lead intake, outreach, replies, and operator handoff
-- Mission Control stays fixture-backed until the live backend slice is intentionally enabled later
+- Mission Control now has the first CRM Records read-model slice: `/mission-control/records`, dashboard record inventory stats, and a Records page beside Pipeline. It is derived from current leads, tasks, and opportunities until canonical Records tables land.
 - The host-adapter/skill seam is now in-memory and additive, with trigger_dev as the default enabled adapter; dispatch requires published revisions and preserves per-revision host adapter config
 - Phase-0 docs now lock the product model: agents are the product unit, skills are reusable procedures, host runtimes are adapters, and Mission Control is the operator cockpit
 
@@ -185,12 +185,20 @@
 ## Open Work
 
 1. review and approve or revise `docs/superpowers/specs/2026-04-25-ares-crm-control-plane-design.md`
-2. implement CRM shell over current Mission Control state before adding schema-heavy owner/property graph work
+2. validate the Records read-model shell and then add canonical Records registry tables/migrations
 3. add configurable pipelines and stage history before map/research expansion
 4. defer map UI until owner/property/opportunity workflows are stable
 5. preserve production evidence files as the handoff source of truth
 
 ## Change Log
+
+### 2026-04-25 CRM Records Read Model
+
+- Started CRM buildout on `feature/ares-crm-control-plane-planning`.
+- Added backend `/mission-control/records` read model derived from existing lead-machine leads, open tasks, and linked opportunities.
+- Added `record_inventory_summary` to the dashboard response so the overview can show business-wide inventory stats without replacing pipeline management.
+- Added Mission Control frontend Records page, Records API client types/mapping, fixtures, and dashboard inventory cards.
+- Verified: `uv run pytest tests/api/test_mission_control.py -q`, `npm --prefix apps/mission-control test -- --run src/lib/api.test.ts src/App.test.tsx src/pages/RecordsPage.test.tsx src/pages/DashboardPage.test.tsx`, `npm --prefix apps/mission-control run typecheck`, and `npm --prefix apps/mission-control run build`.
 
 ### 2026-04-25 CRM Control-Plane Planning
 

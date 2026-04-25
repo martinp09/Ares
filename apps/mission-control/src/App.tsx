@@ -30,6 +30,7 @@ import { CatalogPage } from "./pages/CatalogPage";
 import { DashboardPage } from "./pages/DashboardPage";
 import { InboxPage } from "./pages/InboxPage";
 import { PipelinePage } from "./pages/PipelinePage";
+import { RecordsPage } from "./pages/RecordsPage";
 import { RunsPage } from "./pages/RunsPage";
 import { SettingsPage } from "./pages/SettingsPage";
 import { SuppressionPage } from "./pages/SuppressionPage";
@@ -182,7 +183,28 @@ function buildPendingScopeSnapshot(scope: MissionControlScopeState): MissionCont
         totalOpportunityCount: 0,
         laneStageSummaries: [],
       },
+      recordInventorySummary: {
+        totalCount: 0,
+        activeCount: 0,
+        suppressedCount: 0,
+        needsSkipTraceCount: 0,
+        noPhoneCount: 0,
+        promotedCount: 0,
+        openTaskCount: 0,
+      },
       updatedAt: "Loading scope...",
+    },
+    records: {
+      kpis: {
+        totalCount: 0,
+        activeCount: 0,
+        suppressedCount: 0,
+        needsSkipTraceCount: 0,
+        noPhoneCount: 0,
+        promotedCount: 0,
+        openTaskCount: 0,
+      },
+      records: [],
     },
     inbox: {
       conversations: [],
@@ -243,6 +265,10 @@ function normalizeSnapshotForScope(
       shouldNeutralizeForOrgFallback("dashboard") || shouldNeutralizeForSecondaryScope("dashboard")
         ? pendingSnapshot.dashboard
         : snapshot.dashboard,
+    records:
+      shouldNeutralizeForOrgFallback("records") || shouldNeutralizeForSecondaryScope("records")
+        ? pendingSnapshot.records
+        : snapshot.records,
     inbox:
       shouldNeutralizeForOrgFallback("inbox") || shouldNeutralizeForSecondaryScope("inbox")
         ? pendingSnapshot.inbox
@@ -456,11 +482,16 @@ export default function App() {
     async function load() {
       setIsLoading(true);
 
-      const [dashboard, inbox, tasks, approvals, runs, catalog, assets, governance] = await Promise.all([
+      const [dashboard, records, inbox, tasks, approvals, runs, catalog, assets, governance] = await Promise.all([
         queryClient.fetch(
           `dashboard:${selectedOrgId ?? "default"}:${selectedBusinessId ?? "all"}:${selectedEnvironment ?? "all"}`,
           api.getDashboard,
           missionControlFixtures.dashboard,
+        ),
+        queryClient.fetch(
+          `records:${selectedOrgId ?? "default"}:${selectedBusinessId ?? "all"}:${selectedEnvironment ?? "all"}`,
+          api.getRecords,
+          missionControlFixtures.records,
         ),
         queryClient.fetch(
           `inbox:${selectedOrgId ?? "default"}:${selectedBusinessId ?? "all"}:${selectedEnvironment ?? "all"}:${selectedConversationId || "default"}`,
@@ -527,6 +558,7 @@ export default function App() {
       const pendingSnapshot = buildPendingScopeSnapshot(scope);
       const loadedSnapshot = {
         dashboard: dashboard.data,
+        records: records.data,
         inbox: inbox.source === "fixture" && selectedConversationId ? pendingSnapshot.inbox : inbox.data,
         tasks: tasks.data,
         approvals: approvals.data,
@@ -1418,6 +1450,11 @@ export default function App() {
           title: "Pipeline",
           items: [
             {
+              id: "records",
+              label: "Records",
+              badge: snapshot.records.kpis.totalCount,
+            },
+            {
               id: "pipeline",
               label: "Board",
               badge:
@@ -1439,6 +1476,21 @@ export default function App() {
         },
       ],
       pages: {
+        records: {
+          title: "Records",
+          subtitle: "High-volume owner and prospect inventory before records are promoted into opportunities.",
+          mainContent: <RecordsPage data={snapshot.records} />,
+          contextContent: (
+            <ContextPanel
+              eyebrow="Inventory layer"
+              title="Records feed opportunities"
+              items={[
+                `${snapshot.records.kpis.needsSkipTraceCount} records need phone enrichment before outreach`,
+                `${snapshot.records.kpis.promotedCount} records are linked to downstream opportunities`,
+              ]}
+            />
+          ),
+        },
         pipeline: {
           title: "Pipeline Board",
           subtitle: "Minimal downstream opportunity stages without collapsing lane boundaries.",

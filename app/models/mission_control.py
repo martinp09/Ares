@@ -25,6 +25,8 @@ MissionControlApprovalRisk = Literal["low", "medium", "high"]
 MissionControlProviderName = Literal["textgrid", "resend"]
 MissionControlProviderChannel = Literal["sms", "email"]
 MissionControlOutboundSendStatus = Literal["queued", "sent", "failed"]
+MissionControlRecordStatus = Literal["new", "active", "needs_skip_trace", "suppressed", "closed"]
+MissionControlRecordPromotionStatus = Literal["not_promoted", "promoted"]
 
 
 class MissionControlContactRecord(BaseModel):
@@ -89,9 +91,54 @@ class MissionControlDashboardResponse(BaseModel):
     opportunity_count: int | None = Field(default=None, ge=0)
     opportunity_stage_summaries: list[MissionControlOpportunityStageSummary] | None = None
     opportunity_pipeline_summary: MissionControlOpportunityPipelineSummary | None = None
+    record_inventory_summary: MissionControlRecordInventorySummary | None = None
     provider_failure_task_count: int | None = Field(default=None, ge=0)
     system_status: Literal["healthy", "watch", "degraded"] = "healthy"
     updated_at: str
+
+
+class MissionControlRecordInventorySummary(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    total_count: int = Field(default=0, ge=0)
+    active_count: int = Field(default=0, ge=0)
+    suppressed_count: int = Field(default=0, ge=0)
+    needs_skip_trace_count: int = Field(default=0, ge=0)
+    no_phone_count: int = Field(default=0, ge=0)
+    promoted_count: int = Field(default=0, ge=0)
+    open_task_count: int = Field(default=0, ge=0)
+
+
+class MissionControlRecordSummary(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    id: str
+    record_type: str
+    display_name: str
+    owner_name: str | None = None
+    property_address: str | None = None
+    mailing_address: str | None = None
+    source: str
+    lifecycle_status: str
+    record_status: MissionControlRecordStatus
+    promotion_status: MissionControlRecordPromotionStatus
+    opportunity_id: str | None = None
+    pipeline_stage: str | None = None
+    assigned_to: str | None = None
+    phone: str | None = None
+    email: str | None = None
+    has_phone: bool = False
+    has_email: bool = False
+    open_task_count: int = Field(default=0, ge=0)
+    last_activity_at: datetime
+    data_quality_score: int = Field(default=0, ge=0, le=100)
+
+
+class MissionControlRecordsResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    kpis: MissionControlRecordInventorySummary
+    records: list[MissionControlRecordSummary] = Field(default_factory=list)
 
 
 class MissionControlProviderStatus(BaseModel):

@@ -10,6 +10,7 @@ from app.models.mission_control import (
 )
 from app.models.campaigns import CampaignMembershipRecord, CampaignMembershipStatus, CampaignRecord, CampaignStatus
 from app.models.leads import LeadLifecycleStatus, LeadRecord, LeadSource
+from app.models.opportunities import OpportunityRecord, OpportunitySourceLane, OpportunityStage
 from app.models.tasks import TaskPriority, TaskRecord, TaskStatus, TaskType
 from app.services.mission_control_service import mission_control_service
 from app.services.run_service import reset_control_plane_state
@@ -166,6 +167,104 @@ def test_dashboard_endpoint_returns_operator_counts(client) -> None:
     assert "inbound_lease_option_summary" not in body
     assert "opportunity_pipeline_summary" not in body
     assert "updated_at" in body
+
+
+def test_records_endpoint_projects_inventory_without_replacing_opportunities(client) -> None:
+    reset_control_plane_state()
+    base_time = datetime(2026, 4, 25, 10, 0, tzinfo=UTC)
+
+    alpha_lead = mission_control_service.leads_repository.upsert(
+        LeadRecord(
+            business_id="limitless",
+            environment="dev",
+            source=LeadSource.PROBATE_INTAKE,
+            lifecycle_status=LeadLifecycleStatus.ACTIVE,
+            external_key="records-alpha",
+            phone="+15550001010",
+            first_name="Avery",
+            last_name="Stone",
+            property_address="123 Skyview Dr",
+            mailing_address="PO Box 12",
+            created_at=base_time,
+            updated_at=base_time + timedelta(minutes=5),
+        )
+    )
+    beta_lead = mission_control_service.leads_repository.upsert(
+        LeadRecord(
+            business_id="limitless",
+            environment="dev",
+            source=LeadSource.INSTANTLY_IMPORT,
+            lifecycle_status=LeadLifecycleStatus.NEW,
+            external_key="records-beta",
+            email="beta@example.com",
+            first_name="Blake",
+            last_name="North",
+            created_at=base_time + timedelta(minutes=1),
+            updated_at=base_time + timedelta(minutes=4),
+        )
+    )
+    mission_control_service.leads_repository.upsert(
+        LeadRecord(
+            business_id="otherco",
+            environment="dev",
+            source=LeadSource.PROBATE_INTAKE,
+            lifecycle_status=LeadLifecycleStatus.ACTIVE,
+            external_key="records-other",
+            phone="+15550009999",
+            first_name="Other",
+            last_name="Scope",
+            created_at=base_time,
+            updated_at=base_time,
+        )
+    )
+    mission_control_service.tasks_repository.create(
+        TaskRecord(
+            business_id="limitless",
+            environment="dev",
+            lead_id=alpha_lead.id,
+            title="Verify seller phone",
+            status=TaskStatus.OPEN,
+            task_type=TaskType.DATA_ENRICHMENT,
+            priority=TaskPriority.HIGH,
+            created_at=base_time,
+        )
+    )
+    opportunity = mission_control_service.opportunities_repository.upsert(
+        OpportunityRecord(
+            business_id="limitless",
+            environment="dev",
+            source_lane=OpportunitySourceLane.PROBATE,
+            stage=OpportunityStage.CONTRACT_SENT,
+            lead_id=alpha_lead.id,
+            created_at=base_time + timedelta(minutes=2),
+            updated_at=base_time + timedelta(minutes=3),
+        )
+    )
+
+    records_response = client.get(
+        "/mission-control/records?business_id=limitless&environment=dev",
+        headers=AUTH_HEADERS,
+    )
+    dashboard_response = client.get(
+        "/mission-control/dashboard?business_id=limitless&environment=dev",
+        headers=AUTH_HEADERS,
+    )
+
+    assert records_response.status_code == 200
+    records_body = records_response.json()
+    assert records_body["kpis"]["total_count"] == 2
+    assert records_body["kpis"]["promoted_count"] == 1
+    assert records_body["kpis"]["needs_skip_trace_count"] == 1
+    assert [record["id"] for record in records_body["records"]] == [alpha_lead.id, beta_lead.id]
+    assert records_body["records"][0]["promotion_status"] == "promoted"
+    assert records_body["records"][0]["opportunity_id"] == opportunity.id
+    assert records_body["records"][0]["pipeline_stage"] == "contract_sent"
+    assert records_body["records"][0]["open_task_count"] == 1
+    assert records_body["records"][1]["promotion_status"] == "not_promoted"
+
+    dashboard_body = dashboard_response.json()
+    assert dashboard_body["record_inventory_summary"]["total_count"] == 2
+    assert dashboard_body["record_inventory_summary"]["promoted_count"] == 1
 
 
 def test_dashboard_endpoint_hides_other_org_records_with_same_scope(client) -> None:

@@ -42,6 +42,15 @@ describe("DashboardPage", () => {
           unreadConversationCount: 28,
           busyChannelCount: 9,
           recentCompletedCount: 77,
+          recordInventorySummary: {
+            totalCount: 128,
+            activeCount: 84,
+            suppressedCount: 11,
+            needsSkipTraceCount: 19,
+            noPhoneCount: 19,
+            promotedCount: 6,
+            openTaskCount: 14,
+          },
           providerFailureTaskCount: 3,
           systemStatus: "degraded",
           updatedAt: "2026-04-13T20:09:00+00:00",
@@ -57,6 +66,10 @@ describe("DashboardPage", () => {
     expect(within(summary).getByText("9")).toBeInTheDocument();
     expect(screen.getByText("Recent completions")).toBeInTheDocument();
     expect(screen.getByText("77")).toBeInTheDocument();
+    expect(screen.getByText("Inventory records")).toBeInTheDocument();
+    expect(screen.getByText("128")).toBeInTheDocument();
+    expect(screen.getByText("Needs skip trace")).toBeInTheDocument();
+    expect(screen.getByText("19")).toBeInTheDocument();
     expect(screen.getByText("Provider failures")).toBeInTheDocument();
     expect(screen.getByText("3")).toBeInTheDocument();
     expect(screen.getByText("degraded")).toBeInTheDocument();

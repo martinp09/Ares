@@ -11,8 +11,8 @@
 - Trigger project: `proj_puouljyhwiraonjkpiki`
 
 ## Current Scope
-- Planning branch for the Ares CRM/control-plane product slice.
-- Production wiring is live and must remain untouched while planning.
+- Implementation branch for the Ares CRM/control-plane product slice.
+- Production wiring is live and must remain untouched unless explicitly requested.
 - CRM control-plane draft spec: `docs/superpowers/specs/2026-04-25-ares-crm-control-plane-design.md`
 - CRM roadmap: `docs/superpowers/plans/2026-04-25-ares-crm-control-plane-roadmap.md`
 - Source research: `docs/mission-control-wiki/raw/articles/2026-04-25-ghl-datasift-crm-research.md`
@@ -20,11 +20,12 @@
 
 ## Current TODO
 1. Review and approve or revise the CRM control-plane spec.
-2. Start implementation with CRM shell over current state, then Records workspace/registry.
+2. Add canonical Records registry tables/migrations after validating the read-model shell.
 3. Add configurable pipelines/stage history after Records are modeled.
-4. Defer owner/property graph, research cockpit, and map UI until the CRM shell, Records, and stage model are stable.
+4. Defer owner/property graph, research cockpit, and map UI until Records and stage model are stable.
 
 ## Recent Change
+- 2026-04-25: Started CRM buildout with `/mission-control/records`, dashboard record inventory stats, and a Records page beside Pipeline.
 - 2026-04-25: Added Records as a first-class top-level workspace and canonical Supabase-backed inventory layer in the CRM spec/roadmap.
 - 2026-04-25: Created and pushed `feature/ares-crm-control-plane-planning`.
 - 2026-04-25: Researched Go High Level and DataSift/REISift patterns for Ares CRM/control-plane planning.

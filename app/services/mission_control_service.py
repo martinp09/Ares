@@ -52,6 +52,9 @@ from app.models.mission_control import (
     MissionControlOutboundSendResponse,
     MissionControlProviderStatus,
     MissionControlProvidersStatusResponse,
+    MissionControlRecordInventorySummary,
+    MissionControlRecordSummary,
+    MissionControlRecordsResponse,
     MissionControlReleaseEvaluationSummary,
     MissionControlRevisionSecretsHealthSummary,
     MissionControlRunReplaySummary,
@@ -319,10 +322,158 @@ class MissionControlService:
             opportunity_count=(sum(summary.count for summary in opportunity_stage_summaries) if has_opportunity_context else None),
             opportunity_stage_summaries=(opportunity_stage_summaries if has_opportunity_context else None),
             opportunity_pipeline_summary=opportunity_pipeline_summary,
+            record_inventory_summary=(
+                self._build_record_inventory_summary(
+                    lead_machine_leads,
+                    self.tasks_repository.list(business_id=business_id, environment=environment),
+                    self.opportunities_repository.list(business_id=business_id, environment=environment),
+                )
+                if has_lead_machine_context
+                else None
+            ),
             provider_failure_task_count=provider_failure_task_count,
             system_status=system_status,
             updated_at=latest_updated_at.isoformat(),
         )
+
+    def get_records(
+        self,
+        *,
+        org_id: str | None = None,
+        business_id: str | None = None,
+        environment: str | None = None,
+    ) -> MissionControlRecordsResponse:
+        if not self._can_expose_unscoped_context(org_id):
+            return MissionControlRecordsResponse(kpis=MissionControlRecordInventorySummary(), records=[])
+
+        projection = self._load_lead_machine_projection(
+            org_id=org_id,
+            business_id=business_id,
+            environment=environment,
+        )
+        leads = list(projection["leads"])
+        tasks = list(projection["tasks"])
+        opportunities = self.opportunities_repository.list(business_id=business_id, environment=environment)
+        tasks_by_lead_id: dict[str, list[Any]] = {}
+        for task in tasks:
+            if task.lead_id is not None and task.status == TaskStatus.OPEN:
+                tasks_by_lead_id.setdefault(task.lead_id, []).append(task)
+        opportunities_by_lead_id = {
+            opportunity.lead_id: opportunity
+            for opportunity in opportunities
+            if opportunity.lead_id is not None
+        }
+
+        records = [
+            self._build_record_summary(
+                lead,
+                open_tasks=tasks_by_lead_id.get(lead.id or "", []),
+                opportunity=opportunities_by_lead_id.get(lead.id),
+            )
+            for lead in leads
+            if lead.id is not None
+        ]
+        records.sort(
+            key=lambda record: (
+                record.promotion_status == "promoted",
+                record.last_activity_at,
+                record.id,
+            ),
+            reverse=True,
+        )
+        return MissionControlRecordsResponse(
+            kpis=self._build_record_inventory_summary(leads, tasks, opportunities),
+            records=records,
+        )
+
+    def _build_record_inventory_summary(
+        self,
+        leads: list[LeadRecord],
+        tasks: list[Any],
+        opportunities: list[Any],
+    ) -> MissionControlRecordInventorySummary:
+        lead_ids = {lead.id for lead in leads if lead.id is not None}
+        promoted_lead_ids = {opportunity.lead_id for opportunity in opportunities if opportunity.lead_id in lead_ids}
+        open_task_count = sum(1 for task in tasks if task.lead_id in lead_ids and task.status == TaskStatus.OPEN)
+        no_phone_count = sum(1 for lead in leads if not self._lead_has_phone(lead))
+        return MissionControlRecordInventorySummary(
+            total_count=len(leads),
+            active_count=sum(1 for lead in leads if lead.lifecycle_status == LeadLifecycleStatus.ACTIVE),
+            suppressed_count=sum(1 for lead in leads if lead.lifecycle_status == LeadLifecycleStatus.SUPPRESSED),
+            needs_skip_trace_count=sum(1 for lead in leads if self._record_needs_skip_trace(lead)),
+            no_phone_count=no_phone_count,
+            promoted_count=len(promoted_lead_ids),
+            open_task_count=open_task_count,
+        )
+
+    def _build_record_summary(
+        self,
+        lead: LeadRecord,
+        *,
+        open_tasks: list[Any],
+        opportunity: Any | None,
+    ) -> MissionControlRecordSummary:
+        display_name = self._lead_display_name(lead)
+        has_phone = self._lead_has_phone(lead)
+        has_email = bool((lead.email or "").strip())
+        return MissionControlRecordSummary(
+            id=lead.id or "",
+            record_type="lead",
+            display_name=display_name,
+            owner_name=display_name,
+            property_address=lead.property_address,
+            mailing_address=lead.mailing_address,
+            source=str(lead.source),
+            lifecycle_status=str(lead.lifecycle_status),
+            record_status=self._record_status(lead),
+            promotion_status=("promoted" if opportunity is not None else "not_promoted"),
+            opportunity_id=(opportunity.id if opportunity is not None else None),
+            pipeline_stage=(str(opportunity.stage) if opportunity is not None else None),
+            assigned_to=lead.assigned_to,
+            phone=lead.phone,
+            email=lead.email,
+            has_phone=has_phone,
+            has_email=has_email,
+            open_task_count=len(open_tasks),
+            last_activity_at=lead.last_touched_at or lead.last_contacted_at or lead.updated_at,
+            data_quality_score=self._record_data_quality_score(lead),
+        )
+
+    @staticmethod
+    def _lead_display_name(lead: LeadRecord) -> str:
+        name = " ".join(part for part in [lead.first_name, lead.last_name] if part)
+        return name or lead.company_name or lead.email or lead.phone or lead.external_key or lead.id or "Unknown record"
+
+    @staticmethod
+    def _lead_has_phone(lead: LeadRecord) -> bool:
+        return bool((lead.phone or "").strip())
+
+    def _record_needs_skip_trace(self, lead: LeadRecord) -> bool:
+        return (
+            lead.lifecycle_status not in {LeadLifecycleStatus.SUPPRESSED, LeadLifecycleStatus.CLOSED}
+            and not self._lead_has_phone(lead)
+        )
+
+    def _record_status(self, lead: LeadRecord) -> str:
+        if lead.lifecycle_status == LeadLifecycleStatus.SUPPRESSED:
+            return "suppressed"
+        if lead.lifecycle_status == LeadLifecycleStatus.CLOSED:
+            return "closed"
+        if self._record_needs_skip_trace(lead):
+            return "needs_skip_trace"
+        if lead.lifecycle_status == LeadLifecycleStatus.NEW:
+            return "new"
+        return "active"
+
+    def _record_data_quality_score(self, lead: LeadRecord) -> int:
+        available_fields = [
+            lead.first_name or lead.last_name or lead.company_name,
+            lead.phone,
+            lead.email,
+            lead.property_address,
+            lead.mailing_address,
+        ]
+        return int((sum(1 for value in available_fields if value) / len(available_fields)) * 100)
 
     def get_inbox(
         self,

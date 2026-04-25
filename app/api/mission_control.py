@@ -16,6 +16,7 @@ from app.models.mission_control import (
     MissionControlLeadUnsuppressionRequest,
     MissionControlOutboundSendResponse,
     MissionControlProvidersStatusResponse,
+    MissionControlRecordsResponse,
     MissionControlRunsResponse,
     MissionControlSmsTestRequest,
     MissionControlTaskCompletionRequest,
@@ -105,6 +106,19 @@ def get_tasks(
     actor_context: ActorContext = Depends(actor_context_dependency),
 ) -> MissionControlTasksResponse:
     return mission_control_service.get_tasks(
+        org_id=actor_context.org_id,
+        business_id=business_id,
+        environment=environment,
+    )
+
+
+@router.get("/records", response_model=MissionControlRecordsResponse, response_model_exclude_none=True)
+def get_records(
+    business_id: str | None = Query(default=None),
+    environment: str | None = Query(default=None),
+    actor_context: ActorContext = Depends(actor_context_dependency),
+) -> MissionControlRecordsResponse:
+    return mission_control_service.get_records(
         org_id=actor_context.org_id,
         business_id=business_id,
         environment=environment,
