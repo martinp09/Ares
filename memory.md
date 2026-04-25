@@ -39,7 +39,9 @@
 - Campaign webhook ingestion now keeps campaign, lead, and membership state transitions aligned in-memory, including replay-safe completion handling for provider campaign-complete events
 - Mission Control now has a backend-only lead-machine surface that projects in-memory leads, tasks, events, and suppressions with redacted timeline metadata and deterministic ordering
 - Instantly provider extras are now scaffolded as a backend-only Mission Control projection driven by settings and in-memory records only, with feature-family capability/status snapshots and no live extras wiring
+- `POST /mission-control/lead-machine/title-packets/import` upserts `ares.lead_import.v1` HOT/title-packet payloads into canonical leads by stable external key while keeping live Supabase wiring deferred.
 - Mission Control stays fixture-backed on this machine until live backend wiring is intentionally enabled later
+- Runtime storage is still in-memory in this worktree; lead artifacts with live operator data stay outside the public repo under `/root/.hermes/output/harris_tax_verify/` unless explicitly promoted.
 - The host-adapter/skill seam is now in-memory and additive, with trigger_dev as the default enabled adapter; dispatch requires published revisions and preserves per-revision host adapter config
 - Phase-0 docs now lock the product model: agents are the product unit, skills are reusable procedures, host runtimes are adapters, and Mission Control is the operator cockpit
 
@@ -98,6 +100,7 @@
   - `GET /mission-control/dashboard`
   - `GET /mission-control/inbox`
   - `GET /mission-control/lead-machine`
+  - `POST /mission-control/lead-machine/title-packets/import`
   - `GET /mission-control/providers/instantly/extras`
   - `GET /mission-control/runs`
   - `POST /site-events`
@@ -131,10 +134,17 @@
 
 1. execute `docs/superpowers/specs/2026-04-16-ares-lead-machine-superfile.md`
 2. build the Instantly transport/client and lead-machine services on top of the new in-memory lane-1 repositories
-3. keep the broader Ares enterprise platform backlog archived until the next explicit reopen
-4. continue using the repo-root TODO as the live handoff pointer instead of ad hoc chat notes
+3. promote title-packet raw payload into first-class property/tax/probate/clerk/title-packet/operator-task records after canonical lead import proves useful
+4. keep the broader Ares enterprise platform backlog archived until the next explicit reopen
+5. continue using the repo-root TODO as the live handoff pointer instead of ad hoc chat notes
 
 ## Change Log
+
+### 2026-04-25 Harris HOT Title Packet Import
+
+- Added `TitlePacketImportService` so Hermes-built `ares.lead_import.v1` title-packet payloads upsert into canonical `LeadRecord` rows by stable `external_key`/identity key
+- Exposed `POST /mission-control/lead-machine/title-packets/import` for Mission Control to ingest HOT curative-title packet queues without live Supabase wiring
+- Added `docs/superpowers/plans/2026-04-25-harris-hot-title-packet-import-runbook.md` documenting the HOT 18 local artifacts, import payload shape, field mapping, privacy boundary, and next first-class title-packet ledger slice
 
 ### 2026-04-16 Instantly Provider Extras Projection
 

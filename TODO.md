@@ -1,10 +1,10 @@
 ---
 title: "Ares TODO / Handoff"
 status: active
-updated_at: "2026-04-16T17:51:37Z"
+updated_at: "2026-04-25T14:06:36Z"
 repo: "martinp09/Ares"
-local_checkout: "/home/workspace/Hermes-Central-Command"
-current_branch: "feature/ares-enterprise-platform"
+local_checkout: "/home/workspace/Hermes-Central-Command/.worktrees/lead-machine-probate-intake"
+current_branch: "feature/lead-machine-probate-intake"
 ---
 
 # Ares TODO / Handoff
@@ -40,6 +40,8 @@ current_branch: "feature/ares-enterprise-platform"
 4. Enforce the hard rule that only `email.sent` creates a manual call task.
 5. Build Mission Control fixture views for the inbox, lead timeline, suppression state, and exceptions.
 6. Verify idempotency, duplicate suppression, and webhook replay safety.
+7. [done] Track Hermes-built Harris HOT title packets in Ares via `POST /mission-control/lead-machine/title-packets/import` and `TitlePacketImportService`; see `docs/superpowers/plans/2026-04-25-harris-hot-title-packet-import-runbook.md`.
+8. [next] Promote title-packet `raw_payload` into first-class property/tax/probate/clerk/title-packet/operator-task records after canonical lead import proves useful.
 
 ## Notes
 

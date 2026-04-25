@@ -340,6 +340,14 @@ class MissionControlLeadMachineResponse(BaseModel):
     timeline: list[MissionControlLeadMachineTimelineRecord] = Field(default_factory=list)
 
 
+class MissionControlTitlePacketImportResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    imported_count: int = Field(ge=0)
+    updated_count: int = Field(ge=0)
+    lead_ids: list[str] = Field(default_factory=list)
+
+
 class MissionControlAgentSummary(BaseModel):
     model_config = ConfigDict(extra="forbid")
 

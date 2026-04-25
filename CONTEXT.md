@@ -29,6 +29,7 @@
 13. campaign lifecycle orchestration is now in-memory with explicit state transitions, outbound enrollment gating for inactive campaigns, and webhook-driven completion handling
 14. lead-machine Mission Control now exposes backend-only in-memory task/timeline read models for operator review without frontend or Supabase coupling
 15. Instantly provider extras are now scaffolded as a backend-only Mission Control projection using settings plus in-memory data only; live provider extras wiring remains deferred
+16. HOT title-packet imports now upsert Hermes-built curative-title packets into canonical Ares lead records through Mission Control; live Supabase wiring remains deferred
 
 ## Current TODO
 

@@ -15,6 +15,7 @@ from app.models.mission_control import (
     MissionControlRunsResponse,
     MissionControlSmsTestRequest,
     MissionControlTasksResponse,
+    MissionControlTitlePacketImportResponse,
     MissionControlTurnsResponse,
 )
 from app.models.audit import AuditListResponse
@@ -22,6 +23,7 @@ from app.models.provider_extras import InstantlyProviderExtrasSnapshot
 from app.models.secrets import SecretBindingListResponse, SecretListResponse
 from app.models.usage import UsageEventKind, UsageResponse
 from app.services.mission_control_service import mission_control_service
+from app.services.title_packet_import_service import TitlePacketImportService
 
 router = APIRouter(prefix="/mission-control", tags=["mission-control"])
 
@@ -72,6 +74,23 @@ def get_lead_machine(
         lead_id=lead_id,
         campaign_id=campaign_id,
         limit=limit,
+    )
+
+
+@router.post(
+    "/lead-machine/title-packets/import",
+    response_model=MissionControlTitlePacketImportResponse,
+    status_code=201,
+)
+def import_title_packet_leads(payload: dict) -> MissionControlTitlePacketImportResponse:
+    try:
+        result = TitlePacketImportService().import_payload(payload)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return MissionControlTitlePacketImportResponse(
+        imported_count=result.imported_count,
+        updated_count=result.updated_count,
+        lead_ids=result.lead_ids,
     )
 
 
