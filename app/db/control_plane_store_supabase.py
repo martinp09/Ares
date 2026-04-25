@@ -64,7 +64,6 @@ COMMON_NORMALIZED_FIELDS = (
     "session_id",
     "turn_id",
     "tool_name",
-    "name",
     "role_id",
     "binding_name",
     "status",
@@ -73,10 +72,14 @@ COMMON_NORMALIZED_FIELDS = (
 )
 
 TABLE_NORMALIZED_FIELDS: dict[str, tuple[str, ...]] = {
-    "organizations_runtime": ("slug", "is_internal"),
+    "agents_runtime": ("name",),
+    "organizations_runtime": ("name", "slug", "is_internal"),
     "memberships_runtime": ("actor_id", "actor_type", "role_name"),
-    "catalog_entries_runtime": ("slug",),
+    "catalog_entries_runtime": ("name", "slug"),
     "agent_installs_runtime": ("catalog_entry_id", "installed_agent_id"),
+    "org_roles_runtime": ("name",),
+    "secrets_runtime": ("name",),
+    "skills_runtime": ("name",),
 }
 
 PERSISTED_TEXT_TABLES = (
@@ -290,6 +293,7 @@ def _capture_runtime_table_snapshots(settings: Settings) -> dict[str, dict[str, 
 CORE_TABLES = ("commands", "approvals", "runs", "events", "artifacts")
 CORE_DELETE_ORDER = ("artifacts", "events", "runs", "approvals", "commands")
 CORE_UPSERT_ORDER = ("commands", "approvals", "runs", "events", "artifacts")
+CORE_APPEND_ONLY_TABLES = {"events"}
 
 
 def _capture_core_table_snapshots(settings: Settings) -> dict[str, dict[str, dict]]:
@@ -306,6 +310,8 @@ def _snapshot_rows(table: str, settings: Settings) -> dict[str, dict]:
 def _persist_core_rows(desired_rows: dict[str, dict[str, dict]], settings: Settings) -> None:
     existing = {table: _snapshot_rows(table, settings) for table in CORE_TABLES}
     for table in CORE_DELETE_ORDER:
+        if table in CORE_APPEND_ONLY_TABLES:
+            continue
         for row_id in sorted(set(existing[table]) - set(desired_rows[table]), key=_numeric_sort_key, reverse=True):
             delete_rows(table, params={"id": f"eq.{row_id}"}, settings=settings)
     for table in CORE_UPSERT_ORDER:
@@ -320,6 +326,8 @@ def _upsert_core_prepared_rows(
 ) -> None:
     for row in rows.values():
         if row["id"] in existing:
+            if table in CORE_APPEND_ONLY_TABLES:
+                continue
             patch_rows(table, params={"id": f"eq.{row['id']}"}, row=row, select="id", settings=settings)
         else:
             insert_rows(table, [row], select="id", settings=settings)

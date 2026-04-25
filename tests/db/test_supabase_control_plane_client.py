@@ -321,7 +321,6 @@ def test_supabase_control_plane_client_persists_core_runtime_deletions(monkeypat
 
     assert deleted == [
         ("artifacts", {"id": "eq.401"}),
-        ("events", {"id": "eq.301"}),
         ("runs", {"id": "eq.201"}),
         ("commands", {"id": "eq.101"}),
     ]
@@ -769,9 +768,11 @@ def test_supabase_control_plane_client_persists_enterprise_tables(monkeypatch) -
     membership_row = rows_by_table["memberships_runtime"]["mbr_alpha_actor"]
     assert membership_row["org_id"] == "org_alpha"
     assert membership_row["actor_id"] == "actor_alpha"
+    assert "name" not in membership_row
 
     catalog_row = rows_by_table["catalog_entries_runtime"]["cat_alpha"]
     assert catalog_row["org_id"] == "org_alpha"
+    assert catalog_row["name"] == "Alpha Runtime"
     assert catalog_row["slug"] == "alpha-runtime"
 
     install_row = rows_by_table["agent_installs_runtime"]["ins_alpha"]
