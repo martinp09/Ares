@@ -1,7 +1,8 @@
 # Agent Platform Product Model
 
 > Phase 0 product-language lock for Ares.
-> Scope: documentation only for the current no-Supabase dogfood slice.
+> Historical scope: documentation only for the April 15 dogfood slice.
+> Superseded on 2026-04-25 by production Supabase/provider wiring evidence in `docs/rollout-evidence/production-2026-04-25.json`.
 
 ## Goal
 
@@ -41,13 +42,13 @@ It exists to:
 
 `apps/mission-control/` is therefore a platform surface, not the packaging unit for deployment.
 
-## Current Phase-0 Boundary
+## Historical Phase-0 Boundary
 
-This branch stays aligned to the current no-Supabase dogfood slice:
+This branch originally stayed aligned to the April 15 dogfood slice:
 - keep the in-memory agent, session, permission, outcome, asset, and Mission Control scaffolds
 - keep current `business_id` and `environment` runtime contracts intact
 - keep the Mission Control happy path fixture-backed where the branch already does so
-- defer live Supabase wiring and org/auth expansion intentionally
+- defer production Supabase wiring and org/auth expansion until later phases
 
 ## Non-Goals In This Phase
 
@@ -61,7 +62,7 @@ This branch stays aligned to the current no-Supabase dogfood slice:
 - `app/` = deterministic platform runtime and typed APIs
 - `apps/mission-control/` = operator cockpit
 - `trigger/` = current host infrastructure adapter path
-- `supabase/` = deferred system-of-record target for later phases
+- `supabase/` = system-of-record schema and production persistence target
 
 ## Phase-0 Decision
 
@@ -72,4 +73,4 @@ When Ares is described in docs, code comments, or UI copy:
 - say host runtimes are adapters
 - say Mission Control is the operator cockpit
 - say Trigger.dev is current infrastructure, not the platform identity
-- say Supabase/live wiring is intentionally deferred in this slice
+- say Supabase-backed production wiring is live for the runtime/provider lanes proven in production evidence, while local development can still use memory-backed stores

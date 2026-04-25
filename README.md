@@ -64,14 +64,14 @@ Ares is a self-hosted operating system for distressed real-estate lead managemen
 
 Current implementation notes:
 
-- FastAPI runtime uses an in-memory control-plane store for now, with repository seams under `app/db/`
-- Trigger.dev marketing worker chain is scaffolded under `trigger/`
+- FastAPI runtime supports memory-backed local development and Supabase-backed production persistence through repository seams under `app/db/`
+- Trigger.dev marketing worker chain is deployed for production callbacks and remains the async host infrastructure, not the platform identity
 - Trigger.dev is the current host infrastructure, not the platform identity
-- Mission Control has native backend read models plus an `apps/mission-control/` cockpit scaffold
-- The new Intake view fronts the fixture-backed happy path: submission -> appointment -> confirmation SMS -> reminder SMS
+- Mission Control has native backend read models plus an `apps/mission-control/` cockpit
+- Intake and provider flows are backed by deterministic Ares APIs; fixture paths remain for local/dev resilience only
 - Mission Control UI now follows the approved dark industrial terminal / pixel CRT style system
 - site-event ingestion is append-only and non-blocking at the API layer
-- Supabase remains the intended system of record, but live wiring is intentionally deferred in this slice
+- Production wiring is live for Supabase-backed runtime state, Trigger callbacks, Instantly reply webhooks, TextGrid SMS/status callbacks, Cal.com booking callbacks, and Resend email smoke. Evidence is in `docs/rollout-evidence/production-2026-04-25.json`.
 
 ## Local Runtime Contract
 

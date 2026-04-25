@@ -1,7 +1,7 @@
 ---
 title: Agent Platform Product Model
 created: 2026-04-15
-updated: 2026-04-15
+updated: 2026-04-25
 type: concept
 tags: [agents, product-model, runtime, host-adapters, mission-control]
 sources:
@@ -21,7 +21,7 @@ The model is:
 - Mission Control is the operator cockpit
 - apps are operator surfaces, not the product unit
 
-Current branch note: Trigger.dev is the active execution infrastructure, but it is not the platform identity. Supabase/live wiring is intentionally deferred in this no-Supabase dogfood slice.
+Current branch note: Trigger.dev is the active execution infrastructure, but it is not the platform identity. Supabase-backed production wiring is live for the runtime/provider lanes proven in `docs/rollout-evidence/production-2026-04-25.json`; local development can still use memory-backed stores.
 
 Related pages:
 - [[agentic-first-command-center]]

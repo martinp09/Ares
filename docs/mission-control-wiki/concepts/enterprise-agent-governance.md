@@ -1,7 +1,7 @@
 ---
 title: Enterprise Agent Governance
 created: 2026-04-15
-updated: 2026-04-15
+updated: 2026-04-25
 type: concept
 tags: [governance, approvals, audit, agents, enterprise, mission-control]
 sources:
@@ -22,7 +22,7 @@ What needs governance:
 
 Mission Control is the operator cockpit for that governance. It should expose approvals, run state, session history, artifacts, and operator intervention without redefining the product model.
 
-Current branch note: the governance seams are scaffolded in-memory today through revisions, sessions, permissions, outcomes, assets, and Mission Control read models. Live Supabase persistence, org tenancy, and broader enterprise wiring are intentionally deferred in this slice.
+Current branch note: governance seams exist through revisions, sessions, permissions, outcomes, assets, and Mission Control read models. Production Ares now runs with Supabase-backed runtime state and live provider wiring; remaining governance hardening is monitoring, alerting, and deeper operator workflow polish.
 
 Related pages:
 - [[agent-platform-product-model]]
