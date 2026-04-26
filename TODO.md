@@ -1,10 +1,10 @@
 ---
 title: "Ares TODO / Handoff"
 status: active
-updated_at: "2026-04-25T04:10:00Z"
+updated_at: "2026-04-25T18:30:00Z"
 repo: "martinp09/Ares"
-local_checkout: "/Users/solomartin/Projects/Ares"
-current_branch: "main"
+local_checkout: "/Users/solomartin/Projects/Ares/.worktrees/probate-intake-supabase-wiring"
+current_branch: "feature/probate-intake-supabase-wiring"
 production_wiring_commit: "47be904"
 ---
 
@@ -39,6 +39,15 @@ Known caveat:
 - Native `pg_dump` backup is not captured because the Supabase CLI container could not resolve the Supabase DB host from Colima. A REST table-export rollback bundle exists instead.
 
 ## Next product slice
+
+### 0. Probate title-packet Supabase wiring
+
+- [done] Rebuild `origin/feature/lead-machine-probate-intake` onto current `origin/main`.
+- [done] Add `title_packets` Supabase migration with tenant FK, lead FK, RLS, indexes, and idempotent identity key.
+- [done] Add `TitlePacketsRepository` with memory and `lead_machine_backend=supabase` paths.
+- [done] Add `POST /mission-control/lead-machine/title-packets/import`.
+- [done] Normalize title-packet imports into probate-intake leads and create idempotent manual-review tasks.
+- [ ] Run final full backend verification before merge.
 
 ### 1. Dashboard UI polish
 

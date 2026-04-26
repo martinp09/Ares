@@ -15,6 +15,7 @@ from app.db.control_plane_supabase import (
     resolve_tenant,
     row_id_from_external_id,
 )
+from app.db.lead_machine_supabase import lead_machine_backend_enabled
 from app.db.marketing_supabase import marketing_backend_enabled
 from app.models.commands import generate_id, generate_stable_id
 from app.models.tasks import TaskPriority, TaskRecord, TaskStatus, TaskType
@@ -377,7 +378,11 @@ class TasksRepository:
     def _supabase_tasks_enabled(self) -> bool:
         if self._force_memory:
             return False
-        return control_plane_backend_enabled(self.settings) or marketing_backend_enabled(self.settings)
+        return (
+            control_plane_backend_enabled(self.settings)
+            or marketing_backend_enabled(self.settings)
+            or lead_machine_backend_enabled(self.settings)
+        )
 
     @staticmethod
     def _is_duplicate_insert_error(exc: Exception) -> bool:
