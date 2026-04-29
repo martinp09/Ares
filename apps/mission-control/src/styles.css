@@ -340,6 +340,41 @@ textarea:focus-visible {
   color: #f1f6ff;
 }
 
+.record-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.record-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid rgba(141, 165, 199, 0.18);
+  background: rgba(10, 20, 34, 0.72);
+  color: #c0d2eb;
+  border-radius: 999px;
+  padding: 8px 12px;
+}
+
+.record-tab strong {
+  color: var(--amber-soft);
+  font-variant-numeric: tabular-nums;
+}
+
+.record-tab--active {
+  border-color: rgba(255, 140, 0, 0.44);
+  background: rgba(255, 140, 0, 0.14);
+  color: var(--text-strong);
+}
+
+.record-badge-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 12px 0 4px;
+}
+
 .shell__content {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 332px;

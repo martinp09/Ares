@@ -184,9 +184,9 @@
 
 ## Open Work
 
-1. validate canonical Records registry against Supabase and Mission Control integration
-2. add configurable pipelines and stage history before map/research expansion
-3. add Records workspace saved views, filters, and bulk actions
+1. add Records action API / promotion path for import, status changes, suppression, and record-to-opportunity promotion
+2. add configurable pipelines and stage history after Records actions are stable
+3. add Records saved views once filter semantics are backed by API state
 4. defer owner/property graph, research cockpit, and map UI until Records and stage model are stable
 5. preserve production evidence files as the handoff source of truth
 6. optionally replace the REST rollback bundle with native pg_dump once Supabase CLI container DNS is fixed
@@ -201,6 +201,12 @@
 - `TasksRepository` now treats `lead_machine_backend=supabase` as a Supabase-backed task path so title-packet review tasks persist with lead-machine records.
 
 ## Change Log
+
+### 2026-04-29 Records UI Polish
+
+- Polished the Mission Control Records workspace with read-only operator tabs for All, Needs Skip Trace, Marketable, Suppressed, Promoted, and Incomplete.
+- Expanded Records KPIs to include active/marketable inventory and no-phone counts alongside total, skip-trace, promoted, and open-task counts.
+- Added record badges for record type, source, contactability, data quality, and promotion state while keeping write actions explicitly deferred until the Records command API lands.
 
 ### 2026-04-29 CRM Records Registry
 

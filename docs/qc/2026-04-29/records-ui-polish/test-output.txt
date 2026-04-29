@@ -1,0 +1,55 @@
+### git diff --check
+### records page test
+
+> @hermes/mission-control@0.1.0 test
+> vitest --run src/pages/RecordsPage.test.tsx
+
+
+ RUN  v2.1.9 /opt/ares/worktrees/ares-crm-control-plane-planning/apps/mission-control
+
+ ✓ src/pages/RecordsPage.test.tsx (2 tests) 172ms
+
+ Test Files  1 passed (1)
+      Tests  2 passed (2)
+   Start at  18:23:41
+   Duration  1.01s (transform 102ms, setup 65ms, collect 158ms, tests 172ms, environment 388ms, prepare 56ms)
+
+### dashboard+records tests
+
+> @hermes/mission-control@0.1.0 test
+> vitest --run src/pages/RecordsPage.test.tsx src/pages/DashboardPage.test.tsx
+
+
+ RUN  v2.1.9 /opt/ares/worktrees/ares-crm-control-plane-planning/apps/mission-control
+
+ ✓ src/pages/DashboardPage.test.tsx (2 tests) 68ms
+ ✓ src/pages/RecordsPage.test.tsx (2 tests) 163ms
+
+ Test Files  2 passed (2)
+      Tests  4 passed (4)
+   Start at  18:23:42
+   Duration  1.00s (transform 139ms, setup 129ms, collect 314ms, tests 231ms, environment 778ms, prepare 132ms)
+
+### mission-control typecheck
+
+> @hermes/mission-control@0.1.0 typecheck
+> tsc --noEmit
+
+### mission-control build
+
+> @hermes/mission-control@0.1.0 build
+> vite build
+
+vite v5.4.21 building for production...
+transforming...
+✓ 65 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/index.html                   0.41 kB │ gzip:  0.27 kB
+dist/assets/index-BLVL-R0H.css   12.02 kB │ gzip:  3.25 kB
+dist/assets/index-DBIo3bhN.js   276.89 kB │ gzip: 74.96 kB
+✓ built in 925ms
+### backend api regression
+warning: `VIRTUAL_ENV=/usr/local/lib/hermes-agent/venv` does not match the project environment path `.venv` and will be ignored; use `--active` to target the active environment instead
+..............................                                           [100%]
+30 passed in 0.63s

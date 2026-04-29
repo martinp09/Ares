@@ -18,12 +18,13 @@
 - CRM concept: `docs/mission-control-wiki/concepts/ares-crm-control-plane.md`
 
 ## Current TODO
-1. Validate canonical Records registry against Supabase and Mission Control integration.
-2. Add configurable pipelines/stage history after Records are modeled.
-3. Add Records workspace saved views, filters, and bulk actions.
+1. Add Records action API / promotion path for import, status changes, suppression, and record-to-opportunity promotion.
+2. Add configurable pipelines/stage history after Records actions are stable.
+3. Add Records saved views once filter semantics are backed by API state.
 4. Defer owner/property graph, research cockpit, and map UI until Records and stage model are stable.
 
 ## Recent Change
+- 2026-04-29: Polished Records UI with operator tabs, KPI expansion, read-only action messaging, contactability/data-quality/source badges, and filtered record views.
 - 2026-04-29: Added canonical CRM Records registry models/repository/migration and wired Mission Control Records to prefer canonical CRM records when present.
 - 2026-04-29: Rebased CRM branch onto current `origin/main` to include probate title-packet persistence before continuing CRM work.
 - 2026-04-25: Started CRM buildout with `/mission-control/records`, dashboard record inventory stats, and a Records page beside Pipeline.
