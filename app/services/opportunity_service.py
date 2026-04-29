@@ -1,20 +1,28 @@
 from __future__ import annotations
 
 from app.db.opportunities import OpportunitiesRepository
-from app.models.opportunities import OpportunityLaneStageSummary, OpportunityRecord, OpportunitySourceLane, OpportunityStage
+from app.models.opportunities import (
+    OpportunityLaneStageSummary,
+    OpportunityPipelineConfig,
+    OpportunityPipelineStageConfig,
+    OpportunityRecord,
+    OpportunitySourceLane,
+    OpportunityStage,
+    OpportunityStageHistoryRecord,
+)
 
-_STAGE_ORDER = {
-    OpportunityStage.QUALIFIED_OPPORTUNITY: 0,
-    OpportunityStage.OFFER_PATH_SELECTED: 1,
-    OpportunityStage.UNDER_NEGOTIATION: 2,
-    OpportunityStage.CONTRACT_SENT: 3,
-    OpportunityStage.CONTRACT_SIGNED: 4,
-    OpportunityStage.TITLE_OPEN: 5,
-    OpportunityStage.CURATIVE_REVIEW: 6,
-    OpportunityStage.DISPO_READY: 7,
-    OpportunityStage.CLOSED: 8,
-    OpportunityStage.DEAD: 8,
-}
+_DEFAULT_STAGE_CONFIGS = [
+    OpportunityPipelineStageConfig(stage=OpportunityStage.QUALIFIED_OPPORTUNITY, label="Qualified Opportunity", order=0),
+    OpportunityPipelineStageConfig(stage=OpportunityStage.OFFER_PATH_SELECTED, label="Offer Path Selected", order=1),
+    OpportunityPipelineStageConfig(stage=OpportunityStage.UNDER_NEGOTIATION, label="Under Negotiation", order=2),
+    OpportunityPipelineStageConfig(stage=OpportunityStage.CONTRACT_SENT, label="Contract Sent", order=3),
+    OpportunityPipelineStageConfig(stage=OpportunityStage.CONTRACT_SIGNED, label="Contract Signed", order=4),
+    OpportunityPipelineStageConfig(stage=OpportunityStage.TITLE_OPEN, label="Title Open", order=5),
+    OpportunityPipelineStageConfig(stage=OpportunityStage.CURATIVE_REVIEW, label="Curative Review", order=6),
+    OpportunityPipelineStageConfig(stage=OpportunityStage.DISPO_READY, label="Dispo Ready", order=7),
+    OpportunityPipelineStageConfig(stage=OpportunityStage.CLOSED, label="Closed", order=8, terminal=True),
+    OpportunityPipelineStageConfig(stage=OpportunityStage.DEAD, label="Dead", order=9, terminal=True),
+]
 
 
 class OpportunityService:
@@ -63,17 +71,82 @@ class OpportunityService:
             )
         )
 
-    def advance_stage(self, opportunity_id: str, stage: OpportunityStage) -> OpportunityRecord:
+    def upsert_pipeline_config(self, config: OpportunityPipelineConfig) -> OpportunityPipelineConfig:
+        return self.opportunities_repository.upsert_pipeline_config(config)
+
+    def get_pipeline_config(
+        self,
+        *,
+        business_id: str,
+        environment: str,
+        source_lane: OpportunitySourceLane,
+    ) -> OpportunityPipelineConfig:
+        configured = self.opportunities_repository.get_active_pipeline_config(
+            business_id=business_id,
+            environment=environment,
+            source_lane=source_lane.value,
+        )
+        if configured is not None:
+            return configured
+        return OpportunityPipelineConfig(
+            business_id=business_id,
+            environment=environment,
+            source_lane=source_lane,
+            name=f"{source_lane.value.replace('_', ' ').title()} Pipeline",
+            stages=list(_DEFAULT_STAGE_CONFIGS),
+        )
+
+    def list_pipeline_configs(
+        self,
+        *,
+        business_id: str | None = None,
+        environment: str | None = None,
+    ) -> list[OpportunityPipelineConfig]:
+        return self.opportunities_repository.list_pipeline_configs(business_id=business_id, environment=environment)
+
+    def advance_stage(
+        self,
+        opportunity_id: str,
+        stage: OpportunityStage,
+        *,
+        actor_id: str | None = None,
+        actor_type: str | None = None,
+        reason: str | None = None,
+        metadata: dict | None = None,
+    ) -> OpportunityRecord:
         record = self.opportunities_repository.get(opportunity_id)
         if record is None:
             raise KeyError(opportunity_id)
-        current_rank = _STAGE_ORDER[record.stage]
-        target_rank = _STAGE_ORDER[stage]
+        config = self.get_pipeline_config(
+            business_id=record.business_id,
+            environment=record.environment,
+            source_lane=record.source_lane,
+        )
+        current_rank = config.stage_rank(record.stage)
+        target_rank = config.stage_rank(stage)
         if target_rank < current_rank:
             raise ValueError(f"cannot move opportunity backward from {record.stage} to {stage}")
-        if record.stage in {OpportunityStage.CLOSED, OpportunityStage.DEAD} and stage != record.stage:
+        if config.is_terminal_stage(record.stage) and stage != record.stage:
             raise ValueError(f"cannot move terminal opportunity from {record.stage} to {stage}")
-        return self.opportunities_repository.upsert(record.model_copy(update={"stage": stage}))
+        updated = self.opportunities_repository.upsert(record.model_copy(update={"stage": stage}))
+        if record.stage != stage:
+            self.opportunities_repository.append_stage_history(
+                OpportunityStageHistoryRecord(
+                    business_id=record.business_id,
+                    environment=record.environment,
+                    opportunity_id=record.id or opportunity_id,
+                    from_stage=record.stage,
+                    to_stage=stage,
+                    actor_id=actor_id,
+                    actor_type=actor_type,
+                    reason=reason,
+                    metadata=dict(metadata or {}),
+                )
+            )
+        return updated
+
+    def list_stage_history(self, opportunity_id: str) -> list[OpportunityStageHistoryRecord]:
+        return self.opportunities_repository.list_stage_history(opportunity_id)
 
     def summarize_by_lane_and_stage(
         self,

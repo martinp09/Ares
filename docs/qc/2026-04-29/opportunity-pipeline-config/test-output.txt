@@ -1,0 +1,57 @@
+### git diff --check
+### focused opportunity pipeline tests
+warning: `VIRTUAL_ENV=/usr/local/lib/hermes-agent/venv` does not match the project environment path `.venv` and will be ignored; use `--active` to target the active environment instead
+............                                                             [100%]
+12 passed in 0.07s
+### mission control/opportunity regression
+warning: `VIRTUAL_ENV=/usr/local/lib/hermes-agent/venv` does not match the project environment path `.venv` and will be ignored; use `--active` to target the active environment instead
+...................................................                      [100%]
+51 passed in 0.84s
+### full backend pytest
+warning: `VIRTUAL_ENV=/usr/local/lib/hermes-agent/venv` does not match the project environment path `.venv` and will be ignored; use `--active` to target the active environment instead
+........................................................................ [ 12%]
+........................................................................ [ 24%]
+........................................................................ [ 36%]
+........................................................................ [ 48%]
+........................................................................ [ 60%]
+........................................................................ [ 72%]
+........................................................................ [ 84%]
+........................................................................ [ 96%]
+........................                                                 [100%]
+=============================== warnings summary ===============================
+tests/api/test_commands.py::test_create_safe_command_with_invalid_agent_revision_fails_closed_before_persisting_queue_records
+tests/api/test_commands.py::test_create_safe_command_with_disabled_adapter_revision_fails_closed_before_persisting_queue_records
+tests/api/test_hermes_tools.py::test_invoke_hermes_tool_with_draft_agent_revision_fails_closed_before_persisting_queue_records
+tests/api/test_hermes_tools.py::test_invoke_hermes_tool_with_archived_agent_revision_fails_closed_before_persisting_queue_records
+tests/api/test_hermes_tools.py::test_invoke_hermes_tool_with_disabled_adapter_revision_fails_closed_before_persisting_queue_records
+  /opt/ares/worktrees/ares-crm-control-plane-planning/.venv/lib/python3.12/site-packages/anyio/_backends/_asyncio.py:1002: DeprecationWarning: 'HTTP_422_UNPROCESSABLE_ENTITY' is deprecated. Use 'HTTP_422_UNPROCESSABLE_CONTENT' instead.
+    result = context.run(func, *args)
+
+tests/api/test_lead_machine.py::test_post_instantly_webhook_rejects_malformed_payload
+  /opt/ares/worktrees/ares-crm-control-plane-planning/.venv/lib/python3.12/site-packages/fastapi/routing.py:328: DeprecationWarning: 'HTTP_422_UNPROCESSABLE_ENTITY' is deprecated. Use 'HTTP_422_UNPROCESSABLE_CONTENT' instead.
+    return await dependant.call(**values)
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+600 passed, 6 warnings in 6.69s
+### python compile
+warning: `VIRTUAL_ENV=/usr/local/lib/hermes-agent/venv` does not match the project environment path `.venv` and will be ignored; use `--active` to target the active environment instead
+Listing 'app'...
+Listing 'app/api'...
+Listing 'app/core'...
+Listing 'app/db'...
+Listing 'app/domains'...
+Listing 'app/domains/ares'...
+Listing 'app/domains/ares_workflows'...
+Listing 'app/domains/marketing'...
+Listing 'app/domains/site_events'...
+Listing 'app/host_adapters'...
+Listing 'app/models'...
+Listing 'app/policies'...
+Listing 'app/providers'...
+Listing 'app/services'...
+Listing 'app/services/providers'...
+### mission-control typecheck
+
+> @hermes/mission-control@0.1.0 typecheck
+> tsc --noEmit
+

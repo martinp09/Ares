@@ -98,6 +98,9 @@ class InMemoryControlPlaneStore:
     crm_record_status_history: dict[str, object] = field(default_factory=dict)
     crm_record_promotions: dict[str, object] = field(default_factory=dict)
     crm_record_promotion_keys: dict[tuple[str, str, str, str], str] = field(default_factory=dict)
+    opportunity_pipeline_configs: dict[str, object] = field(default_factory=dict)
+    opportunity_pipeline_config_keys: dict[tuple[str, str, str], str] = field(default_factory=dict)
+    opportunity_stage_history: dict[str, object] = field(default_factory=dict)
     marketing_task_rows: dict[str, object] = field(init=False, repr=False)
     marketing_task_scope: dict[str, tuple[str, str, str]] = field(init=False, repr=False)
     skills: dict[str, object] = field(default_factory=dict)
@@ -226,6 +229,9 @@ def reset_control_plane_store(store: InMemoryControlPlaneStore | None = None) ->
     target.crm_record_status_history.clear()
     target.crm_record_promotions.clear()
     target.crm_record_promotion_keys.clear()
+    target.opportunity_pipeline_configs.clear()
+    target.opportunity_pipeline_config_keys.clear()
+    target.opportunity_stage_history.clear()
     for dynamic_attr in (
         "marketing_contact_rows",
         "marketing_contact_keys",

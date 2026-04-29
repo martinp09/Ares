@@ -52,6 +52,74 @@ class OpportunityDispoStatus(StrEnum):
     BLOCKED = "blocked"
 
 
+class OpportunityPipelineStageConfig(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    stage: OpportunityStage
+    label: str = Field(min_length=1)
+    order: int = Field(ge=0)
+    terminal: bool = False
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class OpportunityPipelineConfig(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    id: str | None = None
+    business_id: str = Field(min_length=1)
+    environment: str = Field(min_length=1)
+    source_lane: OpportunitySourceLane
+    name: str = Field(min_length=1)
+    stages: list[OpportunityPipelineStageConfig] = Field(min_length=1)
+    is_active: bool = True
+    created_at: datetime = Field(default_factory=utc_now)
+    updated_at: datetime = Field(default_factory=utc_now)
+
+    @model_validator(mode="after")
+    def _validate_stage_config(self) -> OpportunityPipelineConfig:
+        stage_values = [stage.stage for stage in self.stages]
+        if len(stage_values) != len(set(stage_values)):
+            raise ValueError("OpportunityPipelineConfig stages must be unique")
+        orders = [stage.order for stage in self.stages]
+        if len(orders) != len(set(orders)):
+            raise ValueError("OpportunityPipelineConfig stage orders must be unique")
+        return self
+
+    def ordered_stages(self) -> list[OpportunityPipelineStageConfig]:
+        return sorted(self.stages, key=lambda stage: (stage.order, stage.stage.value))
+
+    def stage_rank(self, stage: OpportunityStage) -> int:
+        for configured_stage in self.ordered_stages():
+            if configured_stage.stage == stage:
+                return configured_stage.order
+        raise KeyError(f"stage {stage} is not configured for {self.source_lane}")
+
+    def is_terminal_stage(self, stage: OpportunityStage) -> bool:
+        for configured_stage in self.stages:
+            if configured_stage.stage == stage:
+                return configured_stage.terminal
+        raise KeyError(f"stage {stage} is not configured for {self.source_lane}")
+
+    def identity_key(self) -> str:
+        return f"pipeline:{self.source_lane.value}"
+
+
+class OpportunityStageHistoryRecord(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    id: str | None = None
+    business_id: str = Field(min_length=1)
+    environment: str = Field(min_length=1)
+    opportunity_id: str = Field(min_length=1)
+    from_stage: OpportunityStage | None = None
+    to_stage: OpportunityStage
+    actor_id: str | None = None
+    actor_type: str | None = None
+    reason: str | None = None
+    metadata: dict[str, Any] = Field(default_factory=dict)
+    created_at: datetime = Field(default_factory=utc_now)
+
+
 class OpportunityRecord(BaseModel):
     model_config = ConfigDict(extra="forbid")
 

@@ -184,14 +184,13 @@
 
 ## Open Work
 
-1. validate Records action API / promotion path against Supabase and then wire Mission Control buttons
-2. add configurable pipelines and stage history after Records actions are stable
-3. add Records saved views once filter semantics are backed by API state
-4. defer owner/property graph, research cockpit, and map UI until Records and stage model are stable
-5. preserve production evidence files as the handoff source of truth
-6. optionally replace the REST rollback bundle with native pg_dump once Supabase CLI container DNS is fixed
-7. add production monitoring/alerts for provider callback failures
-8. keep browser acquisition and ambiguous research in Hermes or other driver agents, not inside Ares
+1. validate Records action API and pipeline/stage config against Supabase, then wire Mission Control buttons
+2. add Records saved views once filter semantics are backed by API state
+3. defer owner/property graph, research cockpit, and map UI until Records and stage model are stable
+4. preserve production evidence files as the handoff source of truth
+5. optionally replace the REST rollback bundle with native pg_dump once Supabase CLI container DNS is fixed
+6. add production monitoring/alerts for provider callback failures
+7. keep browser acquisition and ambiguous research in Hermes or other driver agents, not inside Ares
 
 ## Completed Branch Work
 
@@ -201,6 +200,12 @@
 - `TasksRepository` now treats `lead_machine_backend=supabase` as a Supabase-backed task path so title-packet review tasks persist with lead-machine records.
 
 ## Change Log
+
+### 2026-04-29 Opportunity Pipeline Config
+
+- Added configurable opportunity pipeline configs scoped by business/environment/source lane with ordered stage definitions.
+- Added stage history persistence for opportunity stage transitions and wired `OpportunityService.advance_stage` to use configured stage order/terminal semantics.
+- Added Supabase migration and repository/service/schema regression tests for pipeline config and stage history.
 
 ### 2026-04-29 Records Action API
 
