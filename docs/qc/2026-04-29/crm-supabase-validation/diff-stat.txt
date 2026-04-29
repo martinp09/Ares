@@ -1,0 +1,4 @@
+ CONTEXT.md            | 3 ++-
+ app/db/crm_records.py | 5 +----
+ memory.md             | 8 +++++++-
+ 3 files changed, 10 insertions(+), 6 deletions(-)

@@ -34,10 +34,7 @@ class CrmRecordsRepository:
     ) -> None:
         self.settings = settings or get_settings()
         self.client = client or get_control_plane_client(self.settings)
-        if force_memory is None:
-            self._force_memory = client is not None and getattr(client, "backend", "memory") != "supabase"
-        else:
-            self._force_memory = force_memory
+        self._force_memory = bool(force_memory) if force_memory is not None else False
 
     def upsert_record(self, record: CrmRecord, *, dedupe_key: str | None = None) -> CrmRecord:
         if lead_machine_backend_enabled(self.settings) and not self._force_memory:

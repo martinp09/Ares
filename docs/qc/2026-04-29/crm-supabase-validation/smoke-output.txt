@@ -1,0 +1,19 @@
+Stopped services: [supabase_imgproxy_Hermes_Central_Command supabase_pooler_Hermes_Central_Command]
+A new version of Supabase CLI is available: v2.95.4 (currently installed v2.90.0)
+We recommend updating regularly for new features and bug fixes: https://supabase.com/docs/guides/cli/getting-started#updating-the-supabase-cli
+Local Supabase CRM validation passed
+{
+  "business_id": "10",
+  "counts": {
+    "crm_record_promotions": 1,
+    "crm_record_saved_views": 1,
+    "crm_record_status_history": 3,
+    "crm_records": 1,
+    "crm_source_records": 1,
+    "opportunities": 1,
+    "opportunity_pipeline_configs": 1,
+    "opportunity_stage_history": 1
+  },
+  "opportunity_id": "opp_3",
+  "record_id": "crmrec_3"
+}

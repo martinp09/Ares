@@ -184,7 +184,7 @@
 
 ## Open Work
 
-1. validate Records action API, saved views, and pipeline/stage config against Supabase
+1. remote Supabase validation/deploy requires explicitly linked target project credentials; local Supabase validation is complete
 2. defer owner/property graph, research cockpit, and map UI until Records and stage model are stable
 3. add explicit canonical source-lane metadata for CRM records before broadening promote routing beyond probate/lease-option lanes
 4. preserve production evidence files as the handoff source of truth
@@ -200,6 +200,12 @@
 - `TasksRepository` now treats `lead_machine_backend=supabase` as a Supabase-backed task path so title-packet review tasks persist with lead-machine records.
 
 ## Change Log
+
+### 2026-04-29 CRM Supabase Validation
+
+- Validated CRM Records import, saved views, status updates, promotion, opportunity pipeline config, and stage history against a local Supabase stack with the latest CRM migrations applied.
+- Found and fixed a persistence boundary bug where `CrmRecordsRepository` silently forced memory mode when `MissionControlService` supplied the shared memory-backed control-plane client, even with `LEAD_MACHINE_BACKEND=supabase` enabled.
+- Confirmed local Supabase row creation across CRM records/source records/saved views/status history/promotions/opportunities/pipeline configs/stage history; evidence lives under `docs/qc/2026-04-29/crm-supabase-validation/`.
 
 ### 2026-04-29 Records Promotion UI
 
