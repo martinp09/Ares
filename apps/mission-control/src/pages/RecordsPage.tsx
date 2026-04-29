@@ -7,6 +7,7 @@ interface RecordsPageProps {
   actionState?: RecordActionState | null;
   onRecordStatusChange?: (record: CrmRecordSummary, status: CrmRecordStatus, reason: string) => void;
   onRecordSuppress?: (record: CrmRecordSummary, reason: string) => void;
+  onRecordPromote?: (record: CrmRecordSummary) => void;
 }
 
 interface RecordActionState {
@@ -88,7 +89,7 @@ function savedViewMatches(record: CrmRecordSummary, savedView: CrmRecordSavedVie
   });
 }
 
-export function RecordsPage({ data, actionState, onRecordStatusChange, onRecordSuppress }: RecordsPageProps) {
+export function RecordsPage({ data, actionState, onRecordStatusChange, onRecordSuppress, onRecordPromote }: RecordsPageProps) {
   const defaultSavedView = data.savedViews.find((view) => view.isDefault) ?? data.savedViews[0];
   const [activeSavedViewId, setActiveSavedViewId] = useState<string | null>(defaultSavedView?.id ?? null);
   const [activeTab, setActiveTab] = useState<RecordTabId>("all");
@@ -113,6 +114,8 @@ export function RecordsPage({ data, actionState, onRecordStatusChange, onRecordS
   const savedViewRecords = selectedSavedView ? data.records.filter((record) => savedViewMatches(record, selectedSavedView)) : data.records;
   const visibleRecords = savedViewRecords.filter(selectedTab.matches);
   const canRunRecordActions = Boolean(onRecordStatusChange && onRecordSuppress);
+  const canPromoteRecord = (record: CrmRecordSummary): boolean =>
+    Boolean(onRecordPromote && record.promotionStatus !== "promoted" && (record.sourceLeadId || record.sourceContactId));
 
   return (
     <section className="panel-stack">
@@ -203,7 +206,9 @@ export function RecordsPage({ data, actionState, onRecordStatusChange, onRecordS
             <p className="list-card__body">
               {record.promotionStatus === "promoted"
                 ? `Pipeline: ${formatLabel(record.pipelineStage ?? "qualified_opportunity")}`
-                : "Record actions now call the CRM command API; promotion stays gated until source identity is exposed to the row."}
+                : record.sourceLeadId || record.sourceContactId
+                  ? "Record actions call the CRM command API; promotion is available for rows with source identity."
+                  : "Record actions call the CRM command API; promotion is gated until source identity is exposed to the row."}
             </p>
             <div className="record-badge-row" aria-label={`record-${record.id}-actions`}>
               <button
@@ -230,8 +235,14 @@ export function RecordsPage({ data, actionState, onRecordStatusChange, onRecordS
               >
                 Suppress
               </button>
-              <button type="button" className="button button--ghost" disabled title="Promotion requires source lead/contact identity on the Records row.">
-                Promote gated
+              <button
+                type="button"
+                className="button button--ghost"
+                disabled={actionState?.status === "running" || !canPromoteRecord(record)}
+                title={canPromoteRecord(record) ? "Promote this record into the opportunity pipeline." : "Promotion requires source lead/contact identity on the Records row."}
+                onClick={() => onRecordPromote?.(record)}
+              >
+                {canPromoteRecord(record) ? "Promote" : "Promote gated"}
               </button>
               {actionState?.recordId === record.id ? <span className={`status-badge status-badge--${actionState.status === "error" ? "red" : "amber"}`}>{actionState.message}</span> : null}
             </div>

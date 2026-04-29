@@ -474,7 +474,17 @@ class MissionControlService:
                 tags=payload.tags,
                 data_quality_score=payload.data_quality_score,
                 source_record_ids=[source_record.id or ""],
-                facts=payload.facts,
+                facts={
+                    **payload.facts,
+                    **{
+                        key: value
+                        for key, value in {
+                            "lead_id": payload.source_lead_id,
+                            "contact_id": payload.source_contact_id,
+                        }.items()
+                        if value is not None
+                    },
+                },
                 raw_payload=payload.raw_payload,
             )
         )
@@ -488,6 +498,14 @@ class MissionControlService:
                 source_key=payload.source_key,
                 list_name=payload.list_name,
                 campaign_id=payload.campaign_id,
+                metadata={
+                    key: value
+                    for key, value in {
+                        "lead_id": payload.source_lead_id,
+                        "contact_id": payload.source_contact_id,
+                    }.items()
+                    if value is not None
+                },
             )
         )
         self.crm_records_repository.append_status_history(
@@ -678,6 +696,7 @@ class MissionControlService:
     def _build_crm_record_summary(self, record: CrmRecord) -> MissionControlRecordSummary:
         has_phone = bool((record.phone or "").strip())
         has_email = bool((record.email or "").strip())
+        source_lead_id, source_contact_id = self._crm_record_source_identity(record)
         return MissionControlRecordSummary(
             id=record.id or "",
             record_type=record.record_type.value,
@@ -689,6 +708,8 @@ class MissionControlService:
             lifecycle_status=record.status.value,
             record_status=record.status.value if record.status.value in {"new", "needs_skip_trace", "suppressed"} else "active",
             promotion_status=("promoted" if record.status == "promoted" else "not_promoted"),
+            source_lead_id=source_lead_id,
+            source_contact_id=source_contact_id,
             assigned_to=record.assigned_to,
             phone=record.phone,
             email=record.email,
@@ -698,6 +719,25 @@ class MissionControlService:
             last_activity_at=record.last_activity_at or record.updated_at,
             data_quality_score=record.data_quality_score,
         )
+
+    def _crm_record_source_identity(self, record: CrmRecord) -> tuple[str | None, str | None]:
+        lead_id = self._string_value(record.facts.get("lead_id") or record.raw_payload.get("lead_id"))
+        contact_id = self._string_value(record.facts.get("contact_id") or record.raw_payload.get("contact_id"))
+        if lead_id or contact_id or not record.id:
+            return lead_id, contact_id
+        for membership in self.crm_records_repository.list_source_memberships(record.id):
+            lead_id = lead_id or self._string_value(membership.metadata.get("lead_id"))
+            contact_id = contact_id or self._string_value(membership.metadata.get("contact_id"))
+            if lead_id or contact_id:
+                return lead_id, contact_id
+        return lead_id, contact_id
+
+    @staticmethod
+    def _string_value(value: Any) -> str | None:
+        if value is None:
+            return None
+        text = str(value).strip()
+        return text or None
 
     def _build_record_summary(
         self,
@@ -722,6 +762,7 @@ class MissionControlService:
             promotion_status=("promoted" if opportunity is not None else "not_promoted"),
             opportunity_id=(opportunity.id if opportunity is not None else None),
             pipeline_stage=(str(opportunity.stage) if opportunity is not None else None),
+            source_lead_id=lead.id,
             assigned_to=lead.assigned_to,
             phone=lead.phone,
             email=lead.email,

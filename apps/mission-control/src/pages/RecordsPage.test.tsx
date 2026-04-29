@@ -1,4 +1,5 @@
 import { fireEvent, render, screen, within } from "@testing-library/react";
+import { vi } from "vitest";
 
 import { RecordsPage } from "./RecordsPage";
 import { missionControlFixtures } from "../lib/fixtures";
@@ -22,7 +23,7 @@ describe("RecordsPage", () => {
     expect(within(promotedRecord).getByText("High quality")).toBeInTheDocument();
 
     const inventoryRecord = screen.getByLabelText("record-lead-1002");
-    expect(within(inventoryRecord).getByText("Record actions now call the CRM command API; promotion stays gated until source identity is exposed to the row.")).toBeInTheDocument();
+    expect(within(inventoryRecord).getByText("Record actions call the CRM command API; promotion is gated until source identity is exposed to the row.")).toBeInTheDocument();
     expect(within(inventoryRecord).getByRole("button", { name: "Mark marketable" })).toBeDisabled();
     expect(within(inventoryRecord).getByRole("button", { name: "Promote gated" })).toBeDisabled();
     expect(within(inventoryRecord).getByText("Email only")).toBeInTheDocument();
@@ -45,5 +46,21 @@ describe("RecordsPage", () => {
     expect(screen.queryByLabelText("record-lead-1002")).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /^Promote$/i })).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: /^Promote gated$/i })).toBeDisabled();
+  });
+
+  it("enables promotion only for records with source identity", () => {
+    const onRecordPromote = vi.fn();
+    const records = {
+      ...missionControlFixtures.records,
+      records: missionControlFixtures.records.records.map((record) =>
+        record.id === "lead-1002" ? { ...record, sourceLeadId: "lead_1002" } : record,
+      ),
+    };
+    render(<RecordsPage data={records} onRecordPromote={onRecordPromote} />);
+
+    const promotableRecord = screen.getByLabelText("record-lead-1002");
+    fireEvent.click(within(promotableRecord).getByRole("button", { name: /^Promote$/i }));
+
+    expect(onRecordPromote).toHaveBeenCalledWith(expect.objectContaining({ id: "lead-1002", sourceLeadId: "lead_1002" }));
   });
 });

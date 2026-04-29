@@ -1,0 +1,10 @@
+M	CONTEXT.md
+M	app/db/crm_records.py
+M	app/models/mission_control.py
+M	app/services/mission_control_service.py
+M	apps/mission-control/src/App.tsx
+M	apps/mission-control/src/lib/api.ts
+M	apps/mission-control/src/pages/RecordsPage.test.tsx
+M	apps/mission-control/src/pages/RecordsPage.tsx
+M	memory.md
+M	tests/api/test_mission_control.py

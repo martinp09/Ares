@@ -721,6 +721,35 @@ export default function App() {
     }
   }
 
+  function sourceLaneForRecord(record: CrmRecordSummary): "probate" | "lease_option_inbound" {
+    const source = `${record.source} ${record.recordType}`.toLowerCase();
+    return source.includes("lease") ? "lease_option_inbound" : "probate";
+  }
+
+  async function handleRecordPromote(record: CrmRecordSummary): Promise<void> {
+    if (!record.sourceLeadId && !record.sourceContactId) {
+      setRecordActionState({ recordId: record.id, status: "error", message: "Promotion requires source identity" });
+      return;
+    }
+    setRecordActionState({ recordId: record.id, status: "running", message: `Promoting ${record.displayName}...` });
+    try {
+      const result = await api.promoteRecord(record.id, {
+        sourceLane: sourceLaneForRecord(record),
+        leadId: record.sourceLeadId ?? null,
+        contactId: record.sourceLeadId ? null : record.sourceContactId ?? null,
+        reason: "Promoted from Mission Control Records workspace",
+      });
+      await refreshRecordsAfterAction(result.record);
+      setRecordActionState({ recordId: record.id, status: "success", message: "Promoted" });
+    } catch (error) {
+      setRecordActionState({
+        recordId: record.id,
+        status: "error",
+        message: error instanceof Error ? error.message : "Record promotion failed",
+      });
+    }
+  }
+
   const normalizedSearchValue = searchValue.trim().toLowerCase();
   const businessFilterOptions = useMemo(
     () => toFilterOptions(scopeOptionValues.businessIds, "All businesses", selectedBusinessId),
@@ -1545,6 +1574,9 @@ export default function App() {
               }}
               onRecordSuppress={(record, reason) => {
                 void handleRecordSuppress(record, reason);
+              }}
+              onRecordPromote={(record) => {
+                void handleRecordPromote(record);
               }}
             />
           ),

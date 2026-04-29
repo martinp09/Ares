@@ -1,0 +1,30 @@
+## npm --prefix apps/mission-control run typecheck
+
+> @hermes/mission-control@0.1.0 typecheck
+> tsc --noEmit
+
+
+## npm --prefix apps/mission-control test -- --run src/App.test.tsx src/pages/RecordsPage.test.tsx src/lib/api.test.ts
+
+> @hermes/mission-control@0.1.0 test
+> vitest --run src/App.test.tsx src/pages/RecordsPage.test.tsx src/lib/api.test.ts
+
+
+ RUN  v2.1.9 /opt/ares/worktrees/ares-crm-control-plane-planning/apps/mission-control
+
+ ✓ src/lib/api.test.ts (8 tests) 39ms
+ ✓ src/pages/RecordsPage.test.tsx (3 tests) 272ms
+ ✓ src/App.test.tsx (23 tests) 2706ms
+
+ Test Files  3 passed (3)
+      Tests  34 passed (34)
+   Start at  21:39:20
+   Duration  4.05s (transform 733ms, setup 181ms, collect 1.20s, tests 3.02s, environment 1.29s, prepare 228ms)
+
+
+## uv run pytest tests/api/test_mission_control.py tests/db/test_crm_records_repository.py -q
+warning: `VIRTUAL_ENV=/usr/local/lib/hermes-agent/venv` does not match the project environment path `.venv` and will be ignored; use `--active` to target the active environment instead
+...................................                                      [100%]
+35 passed in 0.97s
+
+## git diff --check

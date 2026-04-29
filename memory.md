@@ -184,9 +184,9 @@
 
 ## Open Work
 
-1. expose source lead/contact identity on canonical Records rows, then wire full promote-from-record UI
-2. validate Records action API, saved views, and pipeline/stage config against Supabase
-3. defer owner/property graph, research cockpit, and map UI until Records and stage model are stable
+1. validate Records action API, saved views, and pipeline/stage config against Supabase
+2. defer owner/property graph, research cockpit, and map UI until Records and stage model are stable
+3. add explicit canonical source-lane metadata for CRM records before broadening promote routing beyond probate/lease-option lanes
 4. preserve production evidence files as the handoff source of truth
 5. optionally replace the REST rollback bundle with native pg_dump once Supabase CLI container DNS is fixed
 6. add production monitoring/alerts for provider callback failures
@@ -200,6 +200,14 @@
 - `TasksRepository` now treats `lead_machine_backend=supabase` as a Supabase-backed task path so title-packet review tasks persist with lead-machine records.
 
 ## Change Log
+
+### 2026-04-29 Records Promotion UI
+
+- Exposed source lead/contact identity on canonical Mission Control Records rows from record facts, raw payload, or CRM source memberships.
+- Stored imported source identity in both canonical record facts and source-membership metadata so promotion eligibility survives read-model rebuilds.
+- Enabled Mission Control `Promote` row actions only for non-promoted records with source identity; identity-less rows remain disabled as `Promote gated`.
+- Wired promote-from-record UI through the existing backend record promotion endpoint and refreshed Records/dashboard state after success.
+- Verified Mission Control typecheck, App/Records/API frontend regressions, backend Mission Control/CRM repository tests, and `git diff --check`; evidence lives under `docs/qc/2026-04-29/records-promotion-ui/`.
 
 ### 2026-04-29 Records Action UI
 

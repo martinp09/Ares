@@ -95,6 +95,8 @@ export interface CrmRecordSummary {
   promotionStatus: string;
   opportunityId?: string | null;
   pipelineStage?: string | null;
+  sourceLeadId?: string | null;
+  sourceContactId?: string | null;
   assignedTo?: string | null;
   phone?: string | null;
   email?: string | null;
@@ -120,7 +122,7 @@ export interface RecordsData {
   savedViews: CrmRecordSavedView[];
 }
 
-export type CrmRecordStatus = "new" | "needs_skip_trace" | "marketable" | "suppressed" | "promoted" | "archived";
+export type CrmRecordStatus = "new" | "incomplete" | "clean" | "needs_skip_trace" | "marketable" | "suppressed" | "promoted" | "archived";
 
 export interface RecordStatusUpdateRequest {
   status: CrmRecordStatus;
@@ -660,6 +662,8 @@ interface RecordSummaryPayload {
   promotion_status?: string;
   opportunity_id?: string | null;
   pipeline_stage?: string | null;
+  source_lead_id?: string | null;
+  source_contact_id?: string | null;
   assigned_to?: string | null;
   phone?: string | null;
   email?: string | null;
@@ -1520,6 +1524,8 @@ function mapRecordSummary(record: RecordSummaryPayload = {}): CrmRecordSummary {
     promotionStatus: asString(record.promotion_status),
     opportunityId: record.opportunity_id ?? null,
     pipelineStage: record.pipeline_stage ?? null,
+    sourceLeadId: record.source_lead_id ?? null,
+    sourceContactId: record.source_contact_id ?? null,
     assignedTo: record.assigned_to ?? null,
     phone: record.phone ?? null,
     email: record.email ?? null,

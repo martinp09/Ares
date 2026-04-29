@@ -160,6 +160,23 @@ class CrmRecordsRepository:
             store.crm_record_source_membership_keys[lookup_key] = membership_id
             return created
 
+    def list_source_memberships(self, record_id: str) -> list[CrmRecordSourceMembership]:
+        if lead_machine_backend_enabled(self.settings) and not self._force_memory:
+            row_id = row_id_from_external_id(record_id, "crmrec")
+            if row_id is None:
+                return []
+            return [
+                self._membership_from_supabase(row)
+                for row in fetch_rows(
+                    "crm_record_source_memberships",
+                    params={"select": "*", "record_id": f"eq.{row_id}", "order": "created_at.asc,id.asc"},
+                    settings=self.settings,
+                )
+            ]
+        with self.client.transaction() as store:
+            memberships = list(store.crm_record_source_memberships.values())
+        return [membership for membership in memberships if membership.record_id == record_id]
+
     def append_status_history(self, event: CrmRecordStatusHistory) -> CrmRecordStatusHistory:
         if lead_machine_backend_enabled(self.settings) and not self._force_memory:
             return self._insert_status_history_in_supabase(event)

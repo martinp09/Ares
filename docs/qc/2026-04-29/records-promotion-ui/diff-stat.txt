@@ -1,0 +1,11 @@
+ CONTEXT.md                                         |  7 ++--
+ app/db/crm_records.py                              | 17 +++++++++
+ app/models/mission_control.py                      |  4 ++
+ app/services/mission_control_service.py            | 43 +++++++++++++++++++++-
+ apps/mission-control/src/App.tsx                   | 32 ++++++++++++++++
+ apps/mission-control/src/lib/api.ts                |  8 +++-
+ .../mission-control/src/pages/RecordsPage.test.tsx | 19 +++++++++-
+ apps/mission-control/src/pages/RecordsPage.tsx     | 19 ++++++++--
+ memory.md                                          | 14 +++++--
+ tests/api/test_mission_control.py                  |  4 ++
+ 10 files changed, 154 insertions(+), 13 deletions(-)

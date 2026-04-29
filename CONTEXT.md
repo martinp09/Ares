@@ -18,11 +18,12 @@
 - CRM concept: `docs/mission-control-wiki/concepts/ares-crm-control-plane.md`
 
 ## Current TODO
-1. Expose source lead/contact identity on canonical Records rows, then wire full promote-from-record UI.
-2. Validate Records action API, saved views, and pipeline/stage config against Supabase.
-3. Defer owner/property graph, research cockpit, and map UI until Records and stage model are stable.
+1. Validate Records action API, saved views, and pipeline/stage config against Supabase.
+2. Defer owner/property graph, research cockpit, and map UI until Records and stage model are stable.
+3. Keep promotion source-lane selection explicit once canonical source-lane metadata is added to records.
 
 ## Recent Change
+- 2026-04-29: Exposed source lead/contact identity on canonical Records rows and enabled Mission Control promote-from-record actions when identity is present.
 - 2026-04-29: Wired Mission Control Records row actions to the real CRM command API for status changes and suppression; promotion remains gated until source identity is present on rows.
 - 2026-04-29: Added CRM record saved views plus a Mission Control saved-view rail for stable Records filters.
 - 2026-04-29: Replaced deprecated FastAPI `HTTP_422_UNPROCESSABLE_ENTITY` use and installed a request validation handler to eliminate 422 deprecation warnings.

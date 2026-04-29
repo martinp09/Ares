@@ -125,6 +125,8 @@ class MissionControlRecordSummary(BaseModel):
     promotion_status: MissionControlRecordPromotionStatus
     opportunity_id: str | None = None
     pipeline_stage: str | None = None
+    source_lead_id: str | None = None
+    source_contact_id: str | None = None
     assigned_to: str | None = None
     phone: str | None = None
     email: str | None = None
@@ -173,6 +175,8 @@ class MissionControlRecordImportRequest(BaseModel):
     environment: str = Field(min_length=1)
     source_system: str = Field(min_length=1)
     source_key: str = Field(min_length=1)
+    source_lead_id: str | None = None
+    source_contact_id: str | None = None
     source_type: str | None = None
     source_payload: dict[str, Any] = Field(default_factory=dict)
     record_type: CrmRecordType

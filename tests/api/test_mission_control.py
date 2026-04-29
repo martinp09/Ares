@@ -278,6 +278,7 @@ def test_records_action_api_imports_updates_suppresses_and_promotes_records(clie
             "environment": "dev",
             "source_system": "harris_probate",
             "source_key": "case-456",
+            "source_lead_id": "lead_456",
             "source_type": "probate_case",
             "source_payload": {"case_number": "456"},
             "record_type": "probate_case_record",
@@ -294,6 +295,8 @@ def test_records_action_api_imports_updates_suppresses_and_promotes_records(clie
     imported = import_response.json()
     record_id = imported["record"]["id"]
     assert imported["record"]["record_status"] == "needs_skip_trace"
+    assert imported["record"]["source_lead_id"] == "lead_456"
+    assert imported["record"].get("source_contact_id") is None
 
     status_response = client.post(
         f"/mission-control/records/{record_id}/status",
@@ -344,6 +347,7 @@ def test_records_action_api_imports_updates_suppresses_and_promotes_records(clie
         headers=AUTH_HEADERS,
     )
     assert records_response.json()["kpis"]["promoted_count"] == 1
+    assert records_response.json()["records"][0]["source_lead_id"] == "lead_456"
 
 
 def test_records_saved_views_can_be_created_and_return_with_records(client) -> None:
