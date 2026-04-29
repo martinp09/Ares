@@ -11,6 +11,8 @@ import {
   createMissionControlApi,
   type AgentDetailData,
   type CatalogEntrySummary,
+  type CrmRecordStatus,
+  type CrmRecordSummary,
   type MissionControlDataSource,
   type MissionControlSnapshot,
   type MissionControlView,
@@ -377,6 +379,11 @@ export default function App() {
   const [selectedAgentId, setSelectedAgentId] = useState<string | null>(null);
   const [selectedAgentDetail, setSelectedAgentDetail] = useState<AgentDetailData | null>(null);
   const [selectedAgentDetailSource, setSelectedAgentDetailSource] = useState<"api" | "fixture" | "degraded">("fixture");
+  const [recordActionState, setRecordActionState] = useState<{
+    recordId: string;
+    status: "running" | "success" | "error";
+    message: string;
+  } | null>(null);
   const [isAgentDetailLoading, setIsAgentDetailLoading] = useState(false);
   const [fallbackViews, setFallbackViews] = useState<MissionControlView[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -453,6 +460,7 @@ export default function App() {
     setCatalogEntries([]);
     setSelectedConversationId("");
     setSelectedAgentId(null);
+    setRecordActionState(null);
     setCatalogInstallStates({});
   }, [scope]);
 
@@ -664,6 +672,54 @@ export default function App() {
       isMounted = false;
     };
   }, [activeView, agentsDataSource, api]);
+
+  async function refreshRecordsAfterAction(updatedRecord: CrmRecordSummary): Promise<void> {
+    setSnapshot((current) => ({
+      ...current,
+      records: {
+        ...current.records,
+        records: current.records.records.map((record) => (record.id === updatedRecord.id ? updatedRecord : record)),
+      },
+    }));
+
+    queryClient.clear();
+    const [records, dashboard] = await Promise.all([api.getRecords(), api.getDashboard()]);
+    setSnapshot((current) => ({
+      ...current,
+      dashboard,
+      records,
+    }));
+  }
+
+  async function handleRecordStatusChange(record: CrmRecordSummary, status: CrmRecordStatus, reason: string): Promise<void> {
+    setRecordActionState({ recordId: record.id, status: "running", message: `Updating ${record.displayName}...` });
+    try {
+      const result = await api.updateRecordStatus(record.id, { status, reason });
+      await refreshRecordsAfterAction(result.record);
+      setRecordActionState({ recordId: record.id, status: "success", message: `Updated to ${status.replaceAll("_", " ")}` });
+    } catch (error) {
+      setRecordActionState({
+        recordId: record.id,
+        status: "error",
+        message: error instanceof Error ? error.message : "Record update failed",
+      });
+    }
+  }
+
+  async function handleRecordSuppress(record: CrmRecordSummary, reason: string): Promise<void> {
+    setRecordActionState({ recordId: record.id, status: "running", message: `Suppressing ${record.displayName}...` });
+    try {
+      const result = await api.suppressRecord(record.id, { reason });
+      await refreshRecordsAfterAction(result.record);
+      setRecordActionState({ recordId: record.id, status: "success", message: "Suppressed" });
+    } catch (error) {
+      setRecordActionState({
+        recordId: record.id,
+        status: "error",
+        message: error instanceof Error ? error.message : "Record suppression failed",
+      });
+    }
+  }
 
   const normalizedSearchValue = searchValue.trim().toLowerCase();
   const businessFilterOptions = useMemo(
@@ -1480,7 +1536,18 @@ export default function App() {
         records: {
           title: "Records",
           subtitle: "High-volume owner and prospect inventory before records are promoted into opportunities.",
-          mainContent: <RecordsPage data={snapshot.records} />,
+          mainContent: (
+            <RecordsPage
+              data={snapshot.records}
+              actionState={recordActionState}
+              onRecordStatusChange={(record, status, reason) => {
+                void handleRecordStatusChange(record, status, reason);
+              }}
+              onRecordSuppress={(record, reason) => {
+                void handleRecordSuppress(record, reason);
+              }}
+            />
+          ),
           contextContent: (
             <ContextPanel
               eyebrow="Inventory layer"

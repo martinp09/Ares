@@ -1,0 +1,30 @@
+## mission-control typecheck
+
+> @hermes/mission-control@0.1.0 typecheck
+> tsc --noEmit
+
+
+## mission-control focused tests
+
+> @hermes/mission-control@0.1.0 test
+> vitest --run src/App.test.tsx src/pages/RecordsPage.test.tsx src/lib/api.test.ts
+
+
+ RUN  v2.1.9 /opt/ares/worktrees/ares-crm-control-plane-planning/apps/mission-control
+
+ ✓ src/lib/api.test.ts (8 tests) 44ms
+ ✓ src/pages/RecordsPage.test.tsx (2 tests) 268ms
+ ✓ src/App.test.tsx (23 tests) 2726ms
+
+ Test Files  3 passed (3)
+      Tests  33 passed (33)
+   Start at  21:17:53
+   Duration  4.03s (transform 677ms, setup 205ms, collect 1.06s, tests 3.04s, environment 1.27s, prepare 226ms)
+
+
+## backend mission control regression
+warning: `VIRTUAL_ENV=/usr/local/lib/hermes-agent/venv` does not match the project environment path `.venv` and will be ignored; use `--active` to target the active environment instead
+.................................                                        [100%]
+33 passed in 0.71s
+
+## git diff check

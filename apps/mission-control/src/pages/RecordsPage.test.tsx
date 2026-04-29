@@ -22,7 +22,9 @@ describe("RecordsPage", () => {
     expect(within(promotedRecord).getByText("High quality")).toBeInTheDocument();
 
     const inventoryRecord = screen.getByLabelText("record-lead-1002");
-    expect(within(inventoryRecord).getByText("Read-only inventory row — action buttons land after the Records command API.")).toBeInTheDocument();
+    expect(within(inventoryRecord).getByText("Record actions now call the CRM command API; promotion stays gated until source identity is exposed to the row.")).toBeInTheDocument();
+    expect(within(inventoryRecord).getByRole("button", { name: "Mark marketable" })).toBeDisabled();
+    expect(within(inventoryRecord).getByRole("button", { name: "Promote gated" })).toBeDisabled();
     expect(within(inventoryRecord).getByText("Email only")).toBeInTheDocument();
     expect(within(inventoryRecord).getByText("Incomplete")).toBeInTheDocument();
   });
@@ -42,5 +44,6 @@ describe("RecordsPage", () => {
     expect(screen.getByLabelText("record-lead-1001")).toBeInTheDocument();
     expect(screen.queryByLabelText("record-lead-1002")).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /^Promote$/i })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /^Promote gated$/i })).toBeDisabled();
   });
 });

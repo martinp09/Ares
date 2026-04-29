@@ -1,9 +1,18 @@
 import { useMemo, useState } from "react";
 
-import type { CrmRecordSavedView, CrmRecordSummary, RecordsData } from "../lib/api";
+import type { CrmRecordSavedView, CrmRecordStatus, CrmRecordSummary, RecordsData } from "../lib/api";
 
 interface RecordsPageProps {
   data: RecordsData;
+  actionState?: RecordActionState | null;
+  onRecordStatusChange?: (record: CrmRecordSummary, status: CrmRecordStatus, reason: string) => void;
+  onRecordSuppress?: (record: CrmRecordSummary, reason: string) => void;
+}
+
+interface RecordActionState {
+  recordId: string;
+  status: "running" | "success" | "error";
+  message: string;
 }
 
 type RecordTabId = "all" | "needs_skip_trace" | "marketable" | "suppressed" | "promoted" | "incomplete";
@@ -79,7 +88,7 @@ function savedViewMatches(record: CrmRecordSummary, savedView: CrmRecordSavedVie
   });
 }
 
-export function RecordsPage({ data }: RecordsPageProps) {
+export function RecordsPage({ data, actionState, onRecordStatusChange, onRecordSuppress }: RecordsPageProps) {
   const defaultSavedView = data.savedViews.find((view) => view.isDefault) ?? data.savedViews[0];
   const [activeSavedViewId, setActiveSavedViewId] = useState<string | null>(defaultSavedView?.id ?? null);
   const [activeTab, setActiveTab] = useState<RecordTabId>("all");
@@ -103,6 +112,7 @@ export function RecordsPage({ data }: RecordsPageProps) {
   const selectedSavedView = data.savedViews.find((view) => view.id === activeSavedViewId) ?? defaultSavedView;
   const savedViewRecords = selectedSavedView ? data.records.filter((record) => savedViewMatches(record, selectedSavedView)) : data.records;
   const visibleRecords = savedViewRecords.filter(selectedTab.matches);
+  const canRunRecordActions = Boolean(onRecordStatusChange && onRecordSuppress);
 
   return (
     <section className="panel-stack">
@@ -193,8 +203,38 @@ export function RecordsPage({ data }: RecordsPageProps) {
             <p className="list-card__body">
               {record.promotionStatus === "promoted"
                 ? `Pipeline: ${formatLabel(record.pipelineStage ?? "qualified_opportunity")}`
-                : "Read-only inventory row — action buttons land after the Records command API."}
+                : "Record actions now call the CRM command API; promotion stays gated until source identity is exposed to the row."}
             </p>
+            <div className="record-badge-row" aria-label={`record-${record.id}-actions`}>
+              <button
+                type="button"
+                className="button button--ghost"
+                disabled={!canRunRecordActions || actionState?.status === "running" || record.recordStatus === "marketable"}
+                onClick={() => onRecordStatusChange?.(record, "marketable", "Operator marked record marketable from Mission Control")}
+              >
+                Mark marketable
+              </button>
+              <button
+                type="button"
+                className="button button--ghost"
+                disabled={!canRunRecordActions || actionState?.status === "running" || record.recordStatus === "needs_skip_trace"}
+                onClick={() => onRecordStatusChange?.(record, "needs_skip_trace", "Operator marked record for skip trace from Mission Control")}
+              >
+                Needs skip trace
+              </button>
+              <button
+                type="button"
+                className="button button--ghost"
+                disabled={!canRunRecordActions || actionState?.status === "running" || record.recordStatus === "suppressed"}
+                onClick={() => onRecordSuppress?.(record, "Suppressed from Mission Control Records workspace")}
+              >
+                Suppress
+              </button>
+              <button type="button" className="button button--ghost" disabled title="Promotion requires source lead/contact identity on the Records row.">
+                Promote gated
+              </button>
+              {actionState?.recordId === record.id ? <span className={`status-badge status-badge--${actionState.status === "error" ? "red" : "amber"}`}>{actionState.message}</span> : null}
+            </div>
             <div className="list-card__row list-card__row--muted">
               <span>{record.openTaskCount} open tasks</span>
               <span>{record.dataQualityScore}% data quality</span>

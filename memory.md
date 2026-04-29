@@ -184,12 +184,13 @@
 
 ## Open Work
 
-1. validate Records action API, saved views, and pipeline/stage config against Supabase, then wire Mission Control buttons
-2. defer owner/property graph, research cockpit, and map UI until Records and stage model are stable
-3. preserve production evidence files as the handoff source of truth
-4. optionally replace the REST rollback bundle with native pg_dump once Supabase CLI container DNS is fixed
-5. add production monitoring/alerts for provider callback failures
-6. keep browser acquisition and ambiguous research in Hermes or other driver agents, not inside Ares
+1. expose source lead/contact identity on canonical Records rows, then wire full promote-from-record UI
+2. validate Records action API, saved views, and pipeline/stage config against Supabase
+3. defer owner/property graph, research cockpit, and map UI until Records and stage model are stable
+4. preserve production evidence files as the handoff source of truth
+5. optionally replace the REST rollback bundle with native pg_dump once Supabase CLI container DNS is fixed
+6. add production monitoring/alerts for provider callback failures
+7. keep browser acquisition and ambiguous research in Hermes or other driver agents, not inside Ares
 
 ## Completed Branch Work
 
@@ -199,6 +200,13 @@
 - `TasksRepository` now treats `lead_machine_backend=supabase` as a Supabase-backed task path so title-packet review tasks persist with lead-machine records.
 
 ## Change Log
+
+### 2026-04-29 Records Action UI
+
+- Wired Mission Control Records row actions to the real CRM command API for status updates and suppression, with optimistic record replacement and Records/dashboard refetch after each command.
+- Added frontend API client methods for record status, suppression, and promotion endpoints; promotion remains UI-gated until canonical Records rows expose source lead/contact identity required by the backend contract.
+- Updated Records page tests to assert real action controls exist while bare promote remains unavailable.
+- Verified Mission Control typecheck, App/Records/API frontend regressions, backend Mission Control regression tests, and `git diff --check`; evidence lives under `docs/qc/2026-04-29/records-action-ui/`.
 
 ### 2026-04-29 Records Saved Views + 422 Warning Cleanup
 

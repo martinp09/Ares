@@ -120,6 +120,32 @@ export interface RecordsData {
   savedViews: CrmRecordSavedView[];
 }
 
+export type CrmRecordStatus = "new" | "needs_skip_trace" | "marketable" | "suppressed" | "promoted" | "archived";
+
+export interface RecordStatusUpdateRequest {
+  status: CrmRecordStatus;
+  reason?: string;
+}
+
+export interface RecordSuppressionRequest {
+  reason: string;
+}
+
+export interface RecordPromotionRequest {
+  sourceLane: string;
+  leadId?: string | null;
+  contactId?: string | null;
+  strategyLane?: string | null;
+  reason?: string;
+  metadata?: Record<string, unknown>;
+}
+
+export interface RecordActionResult {
+  record: CrmRecordSummary;
+  opportunityId?: string | null;
+  promotionId?: string | null;
+}
+
 export interface ConversationSummary {
   id: string;
   leadName: string;
@@ -537,6 +563,9 @@ export interface MissionControlApi {
   getOrganizations(): Promise<OrganizationSummary[]>;
   getDashboard(): Promise<DashboardSummaryData>;
   getRecords(): Promise<RecordsData>;
+  updateRecordStatus(recordId: string, request: RecordStatusUpdateRequest): Promise<RecordActionResult>;
+  suppressRecord(recordId: string, request: RecordSuppressionRequest): Promise<RecordActionResult>;
+  promoteRecord(recordId: string, request: RecordPromotionRequest): Promise<RecordActionResult>;
   getInbox(selectedThreadId?: string): Promise<InboxData>;
   getTasks(): Promise<TasksData>;
   getApprovals(): Promise<ApprovalItem[]>;
@@ -704,6 +733,12 @@ interface InboxThreadDetailPayload {
   contact?: InboxContactPayload;
   messages?: InboxMessagePayload[];
   context?: JsonRecord;
+}
+
+interface RecordActionPayload {
+  record?: RecordSummaryPayload;
+  opportunity_id?: string | null;
+  promotion_id?: string | null;
 }
 
 interface InboxPayload {
@@ -1471,31 +1506,35 @@ function mapRecordInventorySummary(payload: RecordInventorySummaryPayload = {}):
   };
 }
 
+function mapRecordSummary(record: RecordSummaryPayload = {}): CrmRecordSummary {
+  return {
+    id: asString(record.id),
+    recordType: asString(record.record_type, "lead"),
+    displayName: asString(record.display_name, "Unknown record"),
+    ownerName: record.owner_name ?? null,
+    propertyAddress: record.property_address ?? null,
+    mailingAddress: record.mailing_address ?? null,
+    source: asString(record.source),
+    lifecycleStatus: asString(record.lifecycle_status),
+    recordStatus: asString(record.record_status),
+    promotionStatus: asString(record.promotion_status),
+    opportunityId: record.opportunity_id ?? null,
+    pipelineStage: record.pipeline_stage ?? null,
+    assignedTo: record.assigned_to ?? null,
+    phone: record.phone ?? null,
+    email: record.email ?? null,
+    hasPhone: Boolean(record.has_phone),
+    hasEmail: Boolean(record.has_email),
+    openTaskCount: asNumber(record.open_task_count),
+    lastActivityAt: asString(record.last_activity_at),
+    dataQualityScore: asNumber(record.data_quality_score),
+  };
+}
+
 function mapRecords(payload: RecordsPayload): RecordsData {
   return {
     kpis: mapRecordInventorySummary(payload.kpis),
-    records: asArray<RecordSummaryPayload>(payload.records).map((record) => ({
-      id: asString(record.id),
-      recordType: asString(record.record_type, "lead"),
-      displayName: asString(record.display_name, "Unknown record"),
-      ownerName: record.owner_name ?? null,
-      propertyAddress: record.property_address ?? null,
-      mailingAddress: record.mailing_address ?? null,
-      source: asString(record.source),
-      lifecycleStatus: asString(record.lifecycle_status),
-      recordStatus: asString(record.record_status),
-      promotionStatus: asString(record.promotion_status),
-      opportunityId: record.opportunity_id ?? null,
-      pipelineStage: record.pipeline_stage ?? null,
-      assignedTo: record.assigned_to ?? null,
-      phone: record.phone ?? null,
-      email: record.email ?? null,
-      hasPhone: Boolean(record.has_phone),
-      hasEmail: Boolean(record.has_email),
-      openTaskCount: asNumber(record.open_task_count),
-      lastActivityAt: asString(record.last_activity_at),
-      dataQualityScore: asNumber(record.data_quality_score),
-    })),
+    records: asArray<RecordSummaryPayload>(payload.records).map(mapRecordSummary),
     savedViews: asArray<NonNullable<RecordsPayload["saved_views"]>[number]>(payload.saved_views).map((view) => ({
       id: asString(view.id),
       name: asString(view.name, "Saved view"),
@@ -1504,6 +1543,14 @@ function mapRecords(payload: RecordsPayload): RecordsData {
       sort: asString(view.sort, "last_activity_desc"),
       isDefault: asBoolean(view.is_default),
     })),
+  };
+}
+
+function mapRecordAction(payload: RecordActionPayload): RecordActionResult {
+  return {
+    record: mapRecordSummary(payload.record),
+    opportunityId: payload.opportunity_id ?? null,
+    promotionId: payload.promotion_id ?? null,
   };
 }
 
@@ -2213,6 +2260,52 @@ export function createMissionControlApi(
       mapDashboard(await requestJson<DashboardPayload>("/mission-control/dashboard", resolvedOptions, "mission-control")),
     getRecords: async () =>
       mapRecords(await requestJson<RecordsPayload>("/mission-control/records", resolvedOptions, "mission-control")),
+    updateRecordStatus: async (recordId, request) =>
+      mapRecordAction(
+        await requestJson<RecordActionPayload>(
+          `/mission-control/records/${encodeURIComponent(recordId)}/status`,
+          resolvedOptions,
+          "mission-control",
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ status: request.status, reason: request.reason }),
+          },
+        ),
+      ),
+    suppressRecord: async (recordId, request) =>
+      mapRecordAction(
+        await requestJson<RecordActionPayload>(
+          `/mission-control/records/${encodeURIComponent(recordId)}/suppress`,
+          resolvedOptions,
+          "mission-control",
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ reason: request.reason }),
+          },
+        ),
+      ),
+    promoteRecord: async (recordId, request) =>
+      mapRecordAction(
+        await requestJson<RecordActionPayload>(
+          `/mission-control/records/${encodeURIComponent(recordId)}/promote`,
+          resolvedOptions,
+          "mission-control",
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              source_lane: request.sourceLane,
+              lead_id: request.leadId ?? null,
+              contact_id: request.contactId ?? null,
+              strategy_lane: request.strategyLane ?? null,
+              reason: request.reason,
+              metadata: request.metadata ?? {},
+            }),
+          },
+        ),
+      ),
     getInbox: async (selectedThreadId?: string) => {
       const inboxPath = selectedThreadId
         ? `/mission-control/inbox?selected_thread_id=${encodeURIComponent(selectedThreadId)}`
