@@ -346,6 +346,43 @@ def test_records_action_api_imports_updates_suppresses_and_promotes_records(clie
     assert records_response.json()["kpis"]["promoted_count"] == 1
 
 
+def test_records_saved_views_can_be_created_and_return_with_records(client) -> None:
+    reset_control_plane_state()
+
+    create_response = client.post(
+        "/mission-control/records/saved-views",
+        json={
+            "business_id": "limitless",
+            "environment": "dev",
+            "name": "Skip trace queue",
+            "slug": "skip-trace-queue",
+            "filters": {"record_status": "needs_skip_trace"},
+            "sort": "last_activity_desc",
+            "is_default": True,
+        },
+        headers=AUTH_HEADERS,
+    )
+    assert create_response.status_code == 201
+    assert create_response.json()["slug"] == "skip-trace-queue"
+
+    records_response = client.get(
+        "/mission-control/records?business_id=limitless&environment=dev",
+        headers=AUTH_HEADERS,
+    )
+    assert records_response.status_code == 200
+    assert records_response.json()["saved_views"] == [
+        {
+            "id": create_response.json()["id"],
+            "name": "Skip trace queue",
+            "slug": "skip-trace-queue",
+            "filters": {"record_status": "needs_skip_trace"},
+            "sort": "last_activity_desc",
+            "is_default": True,
+        }
+    ]
+
+
+
 def test_records_promotion_rejects_missing_or_ambiguous_identity(client) -> None:
     reset_control_plane_state()
     import_response = client.post(

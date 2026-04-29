@@ -3,6 +3,7 @@ from app.db.crm_records import CrmRecordsRepository
 from app.models.crm_records import (
     CrmRecord,
     CrmRecordPromotion,
+    CrmRecordSavedView,
     CrmRecordSourceMembership,
     CrmRecordStatus,
     CrmRecordType,
@@ -125,6 +126,23 @@ def test_crm_records_repository_round_trips_registry_records(monkeypatch) -> Non
     assert rows_by_table["crm_records"]["1"]["business_id"] == 7
     assert rows_by_table["crm_records"]["1"]["source_record_ids"] == [1]
     assert rows_by_table["crm_record_status_history"]["1"]["to_status"] == "marketable"
+
+    saved_view = repository.upsert_saved_view(
+        CrmRecordSavedView(
+            business_id="limitless",
+            environment="dev",
+            name="Skip trace queue",
+            slug="skip-trace-queue",
+            filters={"record_status": "needs_skip_trace"},
+            is_default=True,
+        )
+    )
+    updated_view = repository.upsert_saved_view(saved_view.model_copy(update={"name": "Skip trace queue v2"}))
+
+    assert saved_view.id == "crmvw_1"
+    assert updated_view.id == saved_view.id
+    assert updated_view.name == "Skip trace queue v2"
+    assert repository.list_saved_views(business_id="limitless", environment="dev") == [updated_view]
 
 
 def test_promote_record_persists_history_and_marks_record_promoted() -> None:

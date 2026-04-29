@@ -24,6 +24,7 @@ from app.models.campaigns import CampaignMembershipStatus, CampaignStatus
 from app.models.crm_records import (
     CrmRecord,
     CrmRecordPromotion,
+    CrmRecordSavedView,
     CrmRecordSourceMembership,
     CrmRecordStatus,
     CrmRecordStatusHistory,
@@ -69,6 +70,8 @@ from app.models.mission_control import (
     MissionControlRecordPromotionRequest,
     MissionControlRecordStatusRequest,
     MissionControlRecordSuppressionRequest,
+    MissionControlRecordSavedView,
+    MissionControlRecordSavedViewRequest,
     MissionControlRecordsResponse,
     MissionControlReleaseEvaluationSummary,
     MissionControlRevisionSecretsHealthSummary,
@@ -368,11 +371,13 @@ class MissionControlService:
         if not self._can_expose_unscoped_context(org_id):
             return MissionControlRecordsResponse(kpis=MissionControlRecordInventorySummary(), records=[])
 
+        saved_views = self._record_saved_views(business_id=business_id, environment=environment)
         canonical_records = self.crm_records_repository.list_records(business_id=business_id, environment=environment)
         if canonical_records:
             return MissionControlRecordsResponse(
                 kpis=self._build_crm_record_inventory_summary(canonical_records),
                 records=[self._build_crm_record_summary(record) for record in canonical_records],
+                saved_views=saved_views,
             )
 
         projection = self._load_lead_machine_projection(
@@ -413,7 +418,28 @@ class MissionControlService:
         return MissionControlRecordsResponse(
             kpis=self._build_record_inventory_summary(leads, tasks, opportunities),
             records=records,
+            saved_views=saved_views,
         )
+
+    def save_record_view(
+        self,
+        payload: MissionControlRecordSavedViewRequest,
+        *,
+        actor_id: str | None = None,
+    ) -> MissionControlRecordSavedView:
+        saved_view = self.crm_records_repository.upsert_saved_view(
+            CrmRecordSavedView(
+                business_id=payload.business_id,
+                environment=payload.environment,
+                name=payload.name,
+                slug=payload.slug,
+                filters=payload.filters,
+                sort=payload.sort,
+                is_default=payload.is_default,
+                created_by=actor_id,
+            )
+        )
+        return self._build_record_saved_view(saved_view)
 
     def import_record(
         self,
@@ -584,6 +610,58 @@ class MissionControlService:
             no_phone_count=no_phone_count,
             promoted_count=len(promoted_lead_ids),
             open_task_count=open_task_count,
+        )
+
+    def _record_saved_views(
+        self,
+        *,
+        business_id: str | None,
+        environment: str | None,
+    ) -> list[MissionControlRecordSavedView]:
+        saved_views = self.crm_records_repository.list_saved_views(business_id=business_id, environment=environment)
+        if saved_views:
+            return [self._build_record_saved_view(saved_view) for saved_view in saved_views]
+        return [
+            MissionControlRecordSavedView(
+                id="records-view-all",
+                name="All records",
+                slug="all",
+                filters={},
+                sort="last_activity_desc",
+                is_default=True,
+            ),
+            MissionControlRecordSavedView(
+                id="records-view-needs-skip-trace",
+                name="Needs skip trace",
+                slug="needs-skip-trace",
+                filters={"record_status": "needs_skip_trace"},
+                sort="last_activity_desc",
+            ),
+            MissionControlRecordSavedView(
+                id="records-view-marketable",
+                name="Marketable",
+                slug="marketable",
+                filters={"lifecycle_status": "marketable"},
+                sort="last_activity_desc",
+            ),
+            MissionControlRecordSavedView(
+                id="records-view-promoted",
+                name="Promoted",
+                slug="promoted",
+                filters={"promotion_status": "promoted"},
+                sort="last_activity_desc",
+            ),
+        ]
+
+    @staticmethod
+    def _build_record_saved_view(saved_view: CrmRecordSavedView) -> MissionControlRecordSavedView:
+        return MissionControlRecordSavedView(
+            id=saved_view.id or saved_view.slug,
+            name=saved_view.name,
+            slug=saved_view.slug,
+            filters=saved_view.filters,
+            sort=saved_view.sort,
+            is_default=saved_view.is_default,
         )
 
     def _build_crm_record_inventory_summary(self, records: list[CrmRecord]) -> MissionControlRecordInventorySummary:

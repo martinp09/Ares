@@ -135,11 +135,35 @@ class MissionControlRecordSummary(BaseModel):
     data_quality_score: int = Field(default=0, ge=0, le=100)
 
 
+class MissionControlRecordSavedView(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    id: str
+    name: str
+    slug: str
+    filters: dict[str, Any] = Field(default_factory=dict)
+    sort: str
+    is_default: bool = False
+
+
 class MissionControlRecordsResponse(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     kpis: MissionControlRecordInventorySummary
     records: list[MissionControlRecordSummary] = Field(default_factory=list)
+    saved_views: list[MissionControlRecordSavedView] = Field(default_factory=list)
+
+
+class MissionControlRecordSavedViewRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    business_id: str = Field(min_length=1)
+    environment: str = Field(min_length=1)
+    name: str = Field(min_length=1)
+    slug: str = Field(min_length=1)
+    filters: dict[str, Any] = Field(default_factory=dict)
+    sort: str = Field(default="last_activity_desc", min_length=1)
+    is_default: bool = False
 
 
 class MissionControlRecordImportRequest(BaseModel):

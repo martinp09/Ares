@@ -217,7 +217,7 @@ def intake_lead(request: LeadMachineIntakeRequest) -> LeadMachineIntakeResponse:
             ServiceLeadIntakeRequest(**request.model_dump(mode="python"))
         )
     except ValueError as exc:
-        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)) from exc
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(exc)) from exc
     return LeadMachineIntakeResponse(
         status=result.status,
         lead_id=result.lead.id or "",
@@ -270,7 +270,7 @@ def enqueue_outbound_leads(request: OutboundEnqueueRequest) -> OutboundEnqueueRe
     except KeyError as exc:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Lead not found: {exc.args[0]}") from exc
     except ValueError as exc:
-        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)) from exc
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(exc)) from exc
 
     return OutboundEnqueueResponse(
         automation_run_ids=[run.id for run in result.automation_runs if run.id],
@@ -298,7 +298,7 @@ async def ingest_instantly_webhook(
     else:
         if not business_id or not environment:
             raise HTTPException(
-                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
                 detail="business_id and environment query parameters are required for raw Instantly webhooks",
             )
         request_business_id = business_id

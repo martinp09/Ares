@@ -1,4 +1,7 @@
-from fastapi import Depends, FastAPI
+from fastapi import Depends, FastAPI, Request
+from fastapi.exceptions import RequestValidationError
+from fastapi.encoders import jsonable_encoder
+from fastapi.responses import JSONResponse
 
 from app.api.ares import router as ares_router
 from app.api.agent_assets import router as agent_assets_router
@@ -36,6 +39,13 @@ def create_app() -> FastAPI:
     autonomous_operator_service.initialize_surface()
 
     protected_dependencies = [Depends(runtime_api_key_dependency)]
+
+    @app.exception_handler(RequestValidationError)
+    async def request_validation_exception_handler(
+        _request: Request,
+        exc: RequestValidationError,
+    ) -> JSONResponse:
+        return JSONResponse(status_code=422, content={"detail": jsonable_encoder(exc.errors())})
 
     app.include_router(commands_router, dependencies=protected_dependencies)
     app.include_router(approvals_router, dependencies=protected_dependencies)

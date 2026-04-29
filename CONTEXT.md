@@ -18,11 +18,12 @@
 - CRM concept: `docs/mission-control-wiki/concepts/ares-crm-control-plane.md`
 
 ## Current TODO
-1. Validate Records action API and pipeline/stage config against Supabase, then wire Mission Control buttons.
-2. Add Records saved views once filter semantics are backed by API state.
-3. Defer owner/property graph, research cockpit, and map UI until Records and stage model are stable.
+1. Validate Records action API, saved views, and pipeline/stage config against Supabase, then wire Mission Control buttons.
+2. Defer owner/property graph, research cockpit, and map UI until Records and stage model are stable.
 
 ## Recent Change
+- 2026-04-29: Added CRM record saved views plus a Mission Control saved-view rail for stable Records filters.
+- 2026-04-29: Replaced deprecated FastAPI `HTTP_422_UNPROCESSABLE_ENTITY` use and installed a request validation handler to eliminate 422 deprecation warnings.
 - 2026-04-29: Added configurable opportunity pipeline configs and stage history for pipeline/stage transitions.
 - 2026-04-29: Added deterministic Records action API for import, status changes, suppression, and record-to-opportunity promotion.
 - 2026-04-29: Polished Records UI with operator tabs, KPI expansion, read-only action messaging, contactability/data-quality/source badges, and filtered record views.

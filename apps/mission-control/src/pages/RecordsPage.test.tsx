@@ -9,7 +9,8 @@ describe("RecordsPage", () => {
 
     expect(screen.getByText("Records")).toBeInTheDocument();
     expect(screen.getByText("128 inventory records")).toBeInTheDocument();
-    expect(screen.getByText("Needs skip trace")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /All records/i })).toBeInTheDocument();
+    expect(screen.getAllByText("Needs skip trace").length).toBeGreaterThan(0);
     expect(screen.getByText("Marketable / active")).toBeInTheDocument();
     expect(screen.getByText("No phone")).toBeInTheDocument();
     expect(screen.getAllByText("Promoted").length).toBeGreaterThan(0);
@@ -26,15 +27,17 @@ describe("RecordsPage", () => {
     expect(within(inventoryRecord).getByText("Incomplete")).toBeInTheDocument();
   });
 
-  it("filters records with operator tabs without adding fake write actions", () => {
+  it("filters records with saved views and operator tabs without adding fake write actions", () => {
     render(<RecordsPage data={missionControlFixtures.records} />);
 
-    fireEvent.click(screen.getByRole("button", { name: /Needs Skip Trace/i }));
+    const savedViews = screen.getByLabelText("Saved record views");
+    fireEvent.click(within(savedViews).getByRole("button", { name: /Needs skip trace 1/i }));
 
     expect(screen.queryByLabelText("record-lead-1001")).not.toBeInTheDocument();
     expect(screen.getByLabelText("record-lead-1002")).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("button", { name: /Promoted/i }));
+    fireEvent.click(screen.getByRole("button", { name: /All records/i }));
+    fireEvent.click(screen.getAllByRole("button", { name: /Promoted/i })[0]);
 
     expect(screen.getByLabelText("record-lead-1001")).toBeInTheDocument();
     expect(screen.queryByLabelText("record-lead-1002")).not.toBeInTheDocument();

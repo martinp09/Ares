@@ -105,9 +105,19 @@ export interface CrmRecordSummary {
   dataQualityScore: number;
 }
 
+export interface CrmRecordSavedView {
+  id: string;
+  name: string;
+  slug: string;
+  filters: Record<string, unknown>;
+  sort: string;
+  isDefault: boolean;
+}
+
 export interface RecordsData {
   kpis: RecordInventorySummary;
   records: CrmRecordSummary[];
+  savedViews: CrmRecordSavedView[];
 }
 
 export interface ConversationSummary {
@@ -634,6 +644,14 @@ interface RecordSummaryPayload {
 interface RecordsPayload {
   kpis?: RecordInventorySummaryPayload;
   records?: RecordSummaryPayload[];
+  saved_views?: Array<{
+    id?: string;
+    name?: string;
+    slug?: string;
+    filters?: Record<string, unknown>;
+    sort?: string;
+    is_default?: boolean;
+  }>;
 }
 
 interface InboxContactPayload {
@@ -1477,6 +1495,14 @@ function mapRecords(payload: RecordsPayload): RecordsData {
       openTaskCount: asNumber(record.open_task_count),
       lastActivityAt: asString(record.last_activity_at),
       dataQualityScore: asNumber(record.data_quality_score),
+    })),
+    savedViews: asArray<NonNullable<RecordsPayload["saved_views"]>[number]>(payload.saved_views).map((view) => ({
+      id: asString(view.id),
+      name: asString(view.name, "Saved view"),
+      slug: asString(view.slug),
+      filters: view.filters && isRecord(view.filters) ? view.filters : {},
+      sort: asString(view.sort, "last_activity_desc"),
+      isDefault: asBoolean(view.is_default),
     })),
   };
 }

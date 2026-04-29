@@ -167,6 +167,25 @@ export const missionControlFixtures: MissionControlSnapshot = {
         dataQualityScore: 40,
       },
     ],
+    savedViews: [
+      { id: "records-view-all", name: "All records", slug: "all", filters: {}, sort: "last_activity_desc", isDefault: true },
+      {
+        id: "records-view-skip-trace",
+        name: "Needs skip trace",
+        slug: "needs-skip-trace",
+        filters: { record_status: "needs_skip_trace" },
+        sort: "last_activity_desc",
+        isDefault: false,
+      },
+      {
+        id: "records-view-promoted",
+        name: "Promoted",
+        slug: "promoted",
+        filters: { promotion_status: "promoted" },
+        sort: "last_activity_desc",
+        isDefault: false,
+      },
+    ],
   },
   inbox: {
     selectedConversationId: "conv-1001",

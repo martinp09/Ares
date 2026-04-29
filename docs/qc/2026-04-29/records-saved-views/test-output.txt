@@ -1,0 +1,62 @@
+## backend focused saved views + warning gate
+warning: `VIRTUAL_ENV=/usr/local/lib/hermes-agent/venv` does not match the project environment path `.venv` and will be ignored; use `--active` to target the active environment instead
+....................................                                     [100%]
+36 passed in 0.71s
+
+## validation handler regression
+warning: `VIRTUAL_ENV=/usr/local/lib/hermes-agent/venv` does not match the project environment path `.venv` and will be ignored; use `--active` to target the active environment instead
+....                                                                     [100%]
+4 passed in 0.06s
+
+## full backend suite
+warning: `VIRTUAL_ENV=/usr/local/lib/hermes-agent/venv` does not match the project environment path `.venv` and will be ignored; use `--active` to target the active environment instead
+........................................................................ [ 11%]
+........................................................................ [ 23%]
+........................................................................ [ 35%]
+........................................................................ [ 47%]
+........................................................................ [ 59%]
+........................................................................ [ 71%]
+........................................................................ [ 83%]
+........................................................................ [ 95%]
+..........................                                               [100%]
+602 passed in 6.42s
+
+## python compileall
+warning: `VIRTUAL_ENV=/usr/local/lib/hermes-agent/venv` does not match the project environment path `.venv` and will be ignored; use `--active` to target the active environment instead
+Listing 'app'...
+Listing 'app/api'...
+Listing 'app/core'...
+Listing 'app/db'...
+Listing 'app/domains'...
+Listing 'app/domains/ares'...
+Listing 'app/domains/ares_workflows'...
+Listing 'app/domains/marketing'...
+Listing 'app/domains/site_events'...
+Listing 'app/host_adapters'...
+Listing 'app/models'...
+Listing 'app/policies'...
+Listing 'app/providers'...
+Listing 'app/services'...
+Listing 'app/services/providers'...
+
+## mission-control typecheck
+
+> @hermes/mission-control@0.1.0 typecheck
+> tsc --noEmit
+
+
+## mission-control records page test
+
+> @hermes/mission-control@0.1.0 test
+> vitest RecordsPage.test.tsx --run
+
+
+ RUN  v2.1.9 /opt/ares/worktrees/ares-crm-control-plane-planning/apps/mission-control
+
+ ✓ src/pages/RecordsPage.test.tsx (2 tests) 203ms
+
+ Test Files  1 passed (1)
+      Tests  2 passed (2)
+   Start at  20:06:50
+   Duration  1.01s (transform 103ms, setup 71ms, collect 149ms, tests 203ms, environment 364ms, prepare 62ms)
+

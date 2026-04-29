@@ -155,7 +155,7 @@ async def handle_calcom_webhook(
     try:
         result = handler(payload, **kwargs)
     except ValueError as exc:
-        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)) from exc
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(exc)) from exc
     return BookingWebhookResponse(**result)
 
 
@@ -198,7 +198,7 @@ async def handle_textgrid_webhook(
     try:
         result = handler(payload, **kwargs)
     except ValueError as exc:
-        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)) from exc
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(exc)) from exc
     return SmsWebhookResponse(**result)
 
 

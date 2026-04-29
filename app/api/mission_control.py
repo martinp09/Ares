@@ -21,6 +21,8 @@ from app.models.mission_control import (
     MissionControlRecordPromotionRequest,
     MissionControlRecordStatusRequest,
     MissionControlRecordSuppressionRequest,
+    MissionControlRecordSavedView,
+    MissionControlRecordSavedViewRequest,
     MissionControlRecordsResponse,
     MissionControlRunsResponse,
     MissionControlSmsTestRequest,
@@ -130,6 +132,14 @@ def get_records(
         business_id=business_id,
         environment=environment,
     )
+
+
+@router.post("/records/saved-views", response_model=MissionControlRecordSavedView, response_model_exclude_none=True, status_code=201)
+def save_record_view(
+    payload: MissionControlRecordSavedViewRequest,
+    actor_context: ActorContext = Depends(actor_context_dependency),
+) -> MissionControlRecordSavedView:
+    return mission_control_service.save_record_view(payload, actor_id=actor_context.actor_id)
 
 
 @router.post("/records/import", response_model=MissionControlRecordActionResponse, response_model_exclude_none=True, status_code=201)

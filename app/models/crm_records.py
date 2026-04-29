@@ -145,3 +145,22 @@ class CrmRecordPromotion(BaseModel):
     reason: str | None = None
     metadata: dict[str, Any] = Field(default_factory=dict)
     created_at: datetime = Field(default_factory=utc_now)
+
+
+class CrmRecordSavedView(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    id: str | None = None
+    business_id: str = Field(min_length=1)
+    environment: str = Field(min_length=1)
+    name: str = Field(min_length=1)
+    slug: str = Field(min_length=1)
+    filters: dict[str, Any] = Field(default_factory=dict)
+    sort: str = Field(default="last_activity_desc", min_length=1)
+    is_default: bool = False
+    created_by: str | None = None
+    created_at: datetime = Field(default_factory=utc_now)
+    updated_at: datetime = Field(default_factory=utc_now)
+
+    def identity_key(self) -> str:
+        return f"saved_view:{self.slug.strip().casefold()}"

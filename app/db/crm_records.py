@@ -17,6 +17,7 @@ from app.models.commands import generate_stable_id
 from app.models.crm_records import (
     CrmRecord,
     CrmRecordPromotion,
+    CrmRecordSavedView,
     CrmRecordSourceMembership,
     CrmRecordStatus,
     CrmRecordStatusHistory,
@@ -87,6 +88,42 @@ class CrmRecordsRepository:
             records = [record for record in records if record.status == status]
         records.sort(key=lambda record: (record.business_id, record.environment, record.updated_at, record.id or ""), reverse=True)
         return records
+
+    def upsert_saved_view(self, saved_view: CrmRecordSavedView) -> CrmRecordSavedView:
+        if lead_machine_backend_enabled(self.settings) and not self._force_memory:
+            return self._upsert_saved_view_in_supabase(saved_view)
+        now = utc_now()
+        lookup_key = (saved_view.business_id, saved_view.environment, saved_view.identity_key())
+        with self.client.transaction() as store:
+            existing_id = store.crm_record_saved_view_keys.get(lookup_key)
+            if existing_id is not None:
+                existing = store.crm_record_saved_views[existing_id]
+                updates = saved_view.model_dump(exclude={"id", "business_id", "environment", "created_at", "updated_at"})
+                updated = existing.model_copy(update={**updates, "updated_at": now})
+                store.crm_record_saved_views[existing_id] = updated
+                return updated
+            saved_view_id = saved_view.id or generate_stable_id("crmvw", saved_view.business_id, saved_view.environment, saved_view.identity_key())
+            created = saved_view.model_copy(update={"id": saved_view_id, "updated_at": now})
+            store.crm_record_saved_views[saved_view_id] = created
+            store.crm_record_saved_view_keys[lookup_key] = saved_view_id
+            return created
+
+    def list_saved_views(
+        self,
+        *,
+        business_id: str | None = None,
+        environment: str | None = None,
+    ) -> list[CrmRecordSavedView]:
+        if lead_machine_backend_enabled(self.settings) and not self._force_memory:
+            return self._list_saved_views_in_supabase(business_id=business_id, environment=environment)
+        with self.client.transaction() as store:
+            views = list(store.crm_record_saved_views.values())
+        if business_id is not None:
+            views = [view for view in views if view.business_id == business_id]
+        if environment is not None:
+            views = [view for view in views if view.environment == environment]
+        views.sort(key=lambda view: (not view.is_default, view.name.casefold(), view.id or ""))
+        return views
 
     def upsert_source_record(self, source_record: CrmSourceRecord, *, dedupe_key: str | None = None) -> CrmSourceRecord:
         if lead_machine_backend_enabled(self.settings) and not self._force_memory:
@@ -226,6 +263,47 @@ class CrmRecordsRepository:
         row = insert_rows("crm_records", [payload], select="*", settings=self.settings)[0]
         return self._record_from_supabase(row)
 
+    def _upsert_saved_view_in_supabase(self, saved_view: CrmRecordSavedView) -> CrmRecordSavedView:
+        tenant = resolve_tenant(saved_view.business_id, saved_view.environment, settings=self.settings)
+        payload = saved_view.model_dump(mode="json", exclude={"id", "business_id", "environment", "created_at", "updated_at"})
+        payload["business_id"] = tenant.business_pk
+        payload["environment"] = tenant.environment
+        existing = fetch_rows(
+            "crm_record_saved_views",
+            params={
+                "select": "*",
+                "business_id": f"eq.{tenant.business_pk}",
+                "environment": f"eq.{tenant.environment}",
+                "slug": f"eq.{saved_view.slug}",
+                "limit": "1",
+            },
+            settings=self.settings,
+        )
+        if existing:
+            row = patch_rows("crm_record_saved_views", params={"id": f"eq.{existing[0]['id']}"}, row=payload, select="*", settings=self.settings)[0]
+            return self._saved_view_from_supabase(row)
+        row = insert_rows("crm_record_saved_views", [payload], select="*", settings=self.settings)[0]
+        return self._saved_view_from_supabase(row)
+
+    def _list_saved_views_in_supabase(
+        self,
+        *,
+        business_id: str | None,
+        environment: str | None,
+    ) -> list[CrmRecordSavedView]:
+        params: dict[str, str] = {"select": "*", "order": "is_default.desc,name.asc"}
+        if business_id is not None and environment is not None:
+            tenant = resolve_tenant(business_id, environment, settings=self.settings)
+            params["business_id"] = f"eq.{tenant.business_pk}"
+            params["environment"] = f"eq.{tenant.environment}"
+        elif business_id is not None and business_id.isdigit():
+            params["business_id"] = f"eq.{business_id}"
+            if environment is not None:
+                params["environment"] = f"eq.{environment}"
+        elif environment is not None:
+            params["environment"] = f"eq.{environment}"
+        return [self._saved_view_from_supabase(row) for row in fetch_rows("crm_record_saved_views", params=params, settings=self.settings)]
+
     def _list_records_in_supabase(
         self,
         *,
@@ -357,6 +435,15 @@ class CrmRecordsRepository:
             payload["status"] = str(row["status"])
         payload["source_record_ids"] = [external_id("crmsrc", source_id) for source_id in row.get("source_record_ids") or []]
         return CrmRecord.model_validate(payload)
+
+    @staticmethod
+    def _saved_view_from_supabase(row: dict[str, Any]) -> CrmRecordSavedView:
+        allowed_fields = set(CrmRecordSavedView.model_fields)
+        payload = {key: value for key, value in dict(row).items() if key in allowed_fields}
+        payload["id"] = external_id("crmvw", row["id"])
+        payload["business_id"] = str(row["business_id"])
+        payload["environment"] = str(row["environment"])
+        return CrmRecordSavedView.model_validate(payload)
 
     @staticmethod
     def _source_record_from_supabase(row: dict[str, Any]) -> CrmSourceRecord:

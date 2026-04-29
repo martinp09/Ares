@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 
-import type { CrmRecordSummary, RecordsData } from "../lib/api";
+import type { CrmRecordSavedView, CrmRecordSummary, RecordsData } from "../lib/api";
 
 interface RecordsPageProps {
   data: RecordsData;
@@ -58,7 +58,30 @@ function qualityLabel(score: number): string {
   return "Incomplete";
 }
 
+function savedViewMatches(record: CrmRecordSummary, savedView: CrmRecordSavedView): boolean {
+  return Object.entries(savedView.filters).every(([key, value]) => {
+    if (key === "record_status") {
+      return record.recordStatus === value;
+    }
+    if (key === "lifecycle_status") {
+      return record.lifecycleStatus === value;
+    }
+    if (key === "promotion_status") {
+      return record.promotionStatus === value;
+    }
+    if (key === "record_type") {
+      return record.recordType === value;
+    }
+    if (key === "has_phone") {
+      return record.hasPhone === value;
+    }
+    return true;
+  });
+}
+
 export function RecordsPage({ data }: RecordsPageProps) {
+  const defaultSavedView = data.savedViews.find((view) => view.isDefault) ?? data.savedViews[0];
+  const [activeSavedViewId, setActiveSavedViewId] = useState<string | null>(defaultSavedView?.id ?? null);
   const [activeTab, setActiveTab] = useState<RecordTabId>("all");
   const promotedRecords = data.records.filter((record) => record.promotionStatus === "promoted");
   const tabCounts = useMemo(
@@ -77,7 +100,9 @@ export function RecordsPage({ data }: RecordsPageProps) {
     [data.records],
   );
   const selectedTab = RECORD_TABS.find((tab) => tab.id === activeTab) ?? RECORD_TABS[0];
-  const visibleRecords = data.records.filter(selectedTab.matches);
+  const selectedSavedView = data.savedViews.find((view) => view.id === activeSavedViewId) ?? defaultSavedView;
+  const savedViewRecords = selectedSavedView ? data.records.filter((record) => savedViewMatches(record, selectedSavedView)) : data.records;
+  const visibleRecords = savedViewRecords.filter(selectedTab.matches);
 
   return (
     <section className="panel-stack">
@@ -114,6 +139,23 @@ export function RecordsPage({ data }: RecordsPageProps) {
           <p className="summary-card__label">Open tasks</p>
           <strong className="summary-card__value">{data.kpis.openTaskCount}</strong>
         </article>
+      </div>
+
+      <div className="record-tabs" aria-label="Saved record views">
+        {data.savedViews.map((view) => (
+          <button
+            type="button"
+            key={view.id}
+            className={`record-tab${selectedSavedView?.id === view.id ? " record-tab--active" : ""}`}
+            onClick={() => {
+              setActiveSavedViewId(view.id);
+              setActiveTab("all");
+            }}
+          >
+            <span>{view.name}</span>
+            <strong>{data.records.filter((record) => savedViewMatches(record, view)).length}</strong>
+          </button>
+        ))}
       </div>
 
       <div className="record-tabs" aria-label="Record filters">
@@ -161,7 +203,7 @@ export function RecordsPage({ data }: RecordsPageProps) {
         ))}
       </div>
 
-      {visibleRecords.length === 0 ? <p className="panel-copy">No records match the {selectedTab.label} view.</p> : null}
+      {visibleRecords.length === 0 ? <p className="panel-copy">No records match the {selectedSavedView?.name ?? selectedTab.label} view.</p> : null}
       {promotedRecords.length > 0 ? (
         <p className="panel-copy">{promotedRecords.length} records are linked downstream into opportunities.</p>
       ) : null}

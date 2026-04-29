@@ -11,6 +11,6 @@ def create_command(request: CommandCreateRequest, response: Response) -> Command
     try:
         command_response, status_code = command_service.create_command(request)
     except ValueError as exc:
-        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)) from exc
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(exc)) from exc
     response.status_code = status_code
     return command_response

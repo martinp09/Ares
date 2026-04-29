@@ -27,7 +27,7 @@
 
 ## Current Direction
 
-- `/Users/solomartin/Projects/Ares` on `feature/ares-crm-control-plane-planning` is the active CRM implementation checkout.
+- `/opt/ares/worktrees/ares-crm-control-plane-planning` on `feature/ares-crm-control-plane-planning` is the active CRM implementation checkout.
 - Current CRM control-plane branch is pushed to `origin/feature/ares-crm-control-plane-planning`.
 - CRM control-plane draft spec: `docs/superpowers/specs/2026-04-25-ares-crm-control-plane-design.md`.
 - CRM control-plane roadmap: `docs/superpowers/plans/2026-04-25-ares-crm-control-plane-roadmap.md`.
@@ -184,13 +184,12 @@
 
 ## Open Work
 
-1. validate Records action API and pipeline/stage config against Supabase, then wire Mission Control buttons
-2. add Records saved views once filter semantics are backed by API state
-3. defer owner/property graph, research cockpit, and map UI until Records and stage model are stable
-4. preserve production evidence files as the handoff source of truth
-5. optionally replace the REST rollback bundle with native pg_dump once Supabase CLI container DNS is fixed
-6. add production monitoring/alerts for provider callback failures
-7. keep browser acquisition and ambiguous research in Hermes or other driver agents, not inside Ares
+1. validate Records action API, saved views, and pipeline/stage config against Supabase, then wire Mission Control buttons
+2. defer owner/property graph, research cockpit, and map UI until Records and stage model are stable
+3. preserve production evidence files as the handoff source of truth
+4. optionally replace the REST rollback bundle with native pg_dump once Supabase CLI container DNS is fixed
+5. add production monitoring/alerts for provider callback failures
+6. keep browser acquisition and ambiguous research in Hermes or other driver agents, not inside Ares
 
 ## Completed Branch Work
 
@@ -200,6 +199,13 @@
 - `TasksRepository` now treats `lead_machine_backend=supabase` as a Supabase-backed task path so title-packet review tasks persist with lead-machine records.
 
 ## Change Log
+
+### 2026-04-29 Records Saved Views + 422 Warning Cleanup
+
+- Added persisted CRM record saved views scoped by business/environment/slug, including repository support, Supabase migration `20260429184500_crm_record_saved_views.sql`, and Mission Control API endpoint `POST /mission-control/records/saved-views`.
+- Wired `/mission-control/records` to return saved views, with default operator views when none are persisted, and added a Mission Control saved-view rail that applies saved-view filters before operator tabs.
+- Removed deprecated FastAPI `HTTP_422_UNPROCESSABLE_ENTITY` usage and added a JSON-safe request validation handler so backend tests pass under `-W error::DeprecationWarning`.
+- Verified with focused saved-view tests, validation-handler regression tests, full backend suite, compileall, Mission Control typecheck, and Records page tests; evidence lives under `docs/qc/2026-04-29/records-saved-views/`.
 
 ### 2026-04-29 Opportunity Pipeline Config
 

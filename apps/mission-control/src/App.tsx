@@ -205,6 +205,7 @@ function buildPendingScopeSnapshot(scope: MissionControlScopeState): MissionCont
         openTaskCount: 0,
       },
       records: [],
+      savedViews: [],
     },
     inbox: {
       conversations: [],
