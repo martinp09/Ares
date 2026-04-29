@@ -16,6 +16,11 @@ from app.models.mission_control import (
     MissionControlLeadUnsuppressionRequest,
     MissionControlOutboundSendResponse,
     MissionControlProvidersStatusResponse,
+    MissionControlRecordActionResponse,
+    MissionControlRecordImportRequest,
+    MissionControlRecordPromotionRequest,
+    MissionControlRecordStatusRequest,
+    MissionControlRecordSuppressionRequest,
     MissionControlRecordsResponse,
     MissionControlRunsResponse,
     MissionControlSmsTestRequest,
@@ -125,6 +130,71 @@ def get_records(
         business_id=business_id,
         environment=environment,
     )
+
+
+@router.post("/records/import", response_model=MissionControlRecordActionResponse, response_model_exclude_none=True, status_code=201)
+def import_record(
+    payload: MissionControlRecordImportRequest,
+    actor_context: ActorContext = Depends(actor_context_dependency),
+) -> MissionControlRecordActionResponse:
+    return mission_control_service.import_record(
+        payload,
+        actor_id=actor_context.actor_id,
+        actor_type=actor_context.actor_type,
+    )
+
+
+@router.post("/records/{record_id}/status", response_model=MissionControlRecordActionResponse, response_model_exclude_none=True)
+def update_record_status(
+    record_id: str,
+    payload: MissionControlRecordStatusRequest,
+    actor_context: ActorContext = Depends(actor_context_dependency),
+) -> MissionControlRecordActionResponse:
+    try:
+        return mission_control_service.update_record_status(
+            record_id,
+            payload,
+            actor_id=actor_context.actor_id,
+            actor_type=actor_context.actor_type,
+        )
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail="CRM record not found") from exc
+
+
+@router.post("/records/{record_id}/suppress", response_model=MissionControlRecordActionResponse, response_model_exclude_none=True)
+def suppress_record(
+    record_id: str,
+    payload: MissionControlRecordSuppressionRequest,
+    actor_context: ActorContext = Depends(actor_context_dependency),
+) -> MissionControlRecordActionResponse:
+    try:
+        return mission_control_service.suppress_record(
+            record_id,
+            payload,
+            actor_id=actor_context.actor_id,
+            actor_type=actor_context.actor_type,
+        )
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail="CRM record not found") from exc
+
+
+@router.post("/records/{record_id}/promote", response_model=MissionControlRecordActionResponse, response_model_exclude_none=True, status_code=201)
+def promote_record(
+    record_id: str,
+    payload: MissionControlRecordPromotionRequest,
+    actor_context: ActorContext = Depends(actor_context_dependency),
+) -> MissionControlRecordActionResponse:
+    try:
+        return mission_control_service.promote_record(
+            record_id,
+            payload,
+            actor_id=actor_context.actor_id,
+            actor_type=actor_context.actor_type,
+        )
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail="CRM record not found") from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
 
 
 @router.post("/tasks/{thread_id}/complete", response_model=MissionControlTaskActionResponse)

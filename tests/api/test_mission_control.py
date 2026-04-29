@@ -268,6 +268,119 @@ def test_records_endpoint_projects_inventory_without_replacing_opportunities(cli
     assert dashboard_body["record_inventory_summary"]["promoted_count"] == 1
 
 
+def test_records_action_api_imports_updates_suppresses_and_promotes_records(client) -> None:
+    reset_control_plane_state()
+
+    import_response = client.post(
+        "/mission-control/records/import",
+        json={
+            "business_id": "limitless",
+            "environment": "dev",
+            "source_system": "harris_probate",
+            "source_key": "case-456",
+            "source_type": "probate_case",
+            "source_payload": {"case_number": "456"},
+            "record_type": "probate_case_record",
+            "status": "needs_skip_trace",
+            "display_name": "Estate of Casey Reed",
+            "owner_name": "Casey Reed Estate",
+            "property_address": "456 Probate Ln",
+            "data_quality_score": 65,
+            "list_name": "April probate",
+        },
+        headers=AUTH_HEADERS,
+    )
+    assert import_response.status_code == 201
+    imported = import_response.json()
+    record_id = imported["record"]["id"]
+    assert imported["record"]["record_status"] == "needs_skip_trace"
+
+    status_response = client.post(
+        f"/mission-control/records/{record_id}/status",
+        json={"status": "marketable", "reason": "phone found"},
+        headers=AUTH_HEADERS,
+    )
+    assert status_response.status_code == 200
+    assert status_response.json()["record"]["lifecycle_status"] == "marketable"
+    assert status_response.json()["record"]["record_status"] == "active"
+
+    suppress_response = client.post(
+        f"/mission-control/records/{record_id}/suppress",
+        json={"reason": "owner opted out"},
+        headers=AUTH_HEADERS,
+    )
+    assert suppress_response.status_code == 200
+    assert suppress_response.json()["record"]["record_status"] == "suppressed"
+
+    promotion_payload = {
+        "source_lane": "probate",
+        "lead_id": "lead_456",
+        "strategy_lane": "outbound_probate",
+        "reason": "seller qualified",
+        "metadata": {"operator": "mission-control"},
+    }
+    promote_response = client.post(
+        f"/mission-control/records/{record_id}/promote",
+        json=promotion_payload,
+        headers=AUTH_HEADERS,
+    )
+    assert promote_response.status_code == 201
+    body = promote_response.json()
+    assert body["record"]["promotion_status"] == "promoted"
+    assert body["opportunity_id"].startswith("opp_")
+    assert body["promotion_id"].startswith("crmpromo_")
+
+    repeated_promote_response = client.post(
+        f"/mission-control/records/{record_id}/promote",
+        json=promotion_payload,
+        headers=AUTH_HEADERS,
+    )
+    assert repeated_promote_response.status_code == 201
+    assert repeated_promote_response.json()["opportunity_id"] == body["opportunity_id"]
+    assert repeated_promote_response.json()["promotion_id"] == body["promotion_id"]
+
+    records_response = client.get(
+        "/mission-control/records?business_id=limitless&environment=dev",
+        headers=AUTH_HEADERS,
+    )
+    assert records_response.json()["kpis"]["promoted_count"] == 1
+
+
+def test_records_promotion_rejects_missing_or_ambiguous_identity(client) -> None:
+    reset_control_plane_state()
+    import_response = client.post(
+        "/mission-control/records/import",
+        json={
+            "business_id": "limitless",
+            "environment": "dev",
+            "source_system": "harris_probate",
+            "source_key": "case-789",
+            "record_type": "probate_case_record",
+            "display_name": "Estate of Morgan Hall",
+        },
+        headers=AUTH_HEADERS,
+    )
+    assert import_response.status_code == 201
+    record_id = import_response.json()["record"]["id"]
+
+    missing_identity_response = client.post(
+        f"/mission-control/records/{record_id}/promote",
+        json={"source_lane": "probate"},
+        headers=AUTH_HEADERS,
+    )
+    assert missing_identity_response.status_code == 422
+    assert "exactly one" in missing_identity_response.json()["detail"]
+
+    ambiguous_identity_response = client.post(
+        f"/mission-control/records/{record_id}/promote",
+        json={"source_lane": "probate", "lead_id": "lead_789", "contact_id": "ctc_789"},
+        headers=AUTH_HEADERS,
+    )
+    assert ambiguous_identity_response.status_code == 422
+    assert "exactly one" in ambiguous_identity_response.json()["detail"]
+
+
+
 def test_records_endpoint_prefers_canonical_crm_records_when_registry_exists(client) -> None:
     reset_control_plane_state()
     base_time = datetime(2026, 4, 29, 10, 0, tzinfo=UTC)

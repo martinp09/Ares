@@ -310,11 +310,27 @@ class CrmRecordsRepository:
 
     def _insert_promotion_in_supabase(self, promotion: CrmRecordPromotion) -> CrmRecordPromotion:
         tenant = resolve_tenant(promotion.business_id, promotion.environment, settings=self.settings)
+        record_row_id = row_id_from_external_id(promotion.record_id, "crmrec")
+        opportunity_row_id = row_id_from_external_id(promotion.opportunity_id, "opp")
+        existing = fetch_rows(
+            "crm_record_promotions",
+            params={
+                "select": "*",
+                "business_id": f"eq.{tenant.business_pk}",
+                "environment": f"eq.{tenant.environment}",
+                "record_id": f"eq.{record_row_id}",
+                "opportunity_id": f"eq.{opportunity_row_id}",
+                "limit": "1",
+            },
+            settings=self.settings,
+        )
+        if existing:
+            return self._promotion_from_supabase(existing[0])
         payload = promotion.model_dump(mode="json", exclude={"id", "business_id", "environment", "created_at"})
         payload["business_id"] = tenant.business_pk
         payload["environment"] = tenant.environment
-        payload["record_id"] = row_id_from_external_id(promotion.record_id, "crmrec")
-        payload["opportunity_id"] = row_id_from_external_id(promotion.opportunity_id, "opp")
+        payload["record_id"] = record_row_id
+        payload["opportunity_id"] = opportunity_row_id
         row = insert_rows("crm_record_promotions", [payload], select="*", settings=self.settings)[0]
         return self._promotion_from_supabase(row)
 

@@ -184,7 +184,7 @@
 
 ## Open Work
 
-1. add Records action API / promotion path for import, status changes, suppression, and record-to-opportunity promotion
+1. validate Records action API / promotion path against Supabase and then wire Mission Control buttons
 2. add configurable pipelines and stage history after Records actions are stable
 3. add Records saved views once filter semantics are backed by API state
 4. defer owner/property graph, research cockpit, and map UI until Records and stage model are stable
@@ -201,6 +201,12 @@
 - `TasksRepository` now treats `lead_machine_backend=supabase` as a Supabase-backed task path so title-packet review tasks persist with lead-machine records.
 
 ## Change Log
+
+### 2026-04-29 Records Action API
+
+- Added Mission Control Records action endpoints for canonical record import, status update, suppression, and promotion into opportunities.
+- Added service methods that preserve source records/source memberships, write status history, create/link opportunities, and mark promoted records through `crm_record_promotions`.
+- Added API regression coverage for import -> status -> suppress -> promote behavior.
 
 ### 2026-04-29 Records UI Polish
 

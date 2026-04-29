@@ -7,6 +7,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from app.domains.ares import AresPlannerPlan
 from app.models.agent_assets import AgentAssetStatus, AgentAssetType
+from app.models.crm_records import CrmRecordStatus, CrmRecordType
 from app.models.agents import AgentRevisionState
 from app.models.approvals import ApprovalStatus
 from app.models.audit import AuditRecord
@@ -139,6 +140,64 @@ class MissionControlRecordsResponse(BaseModel):
 
     kpis: MissionControlRecordInventorySummary
     records: list[MissionControlRecordSummary] = Field(default_factory=list)
+
+
+class MissionControlRecordImportRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    business_id: str = Field(min_length=1)
+    environment: str = Field(min_length=1)
+    source_system: str = Field(min_length=1)
+    source_key: str = Field(min_length=1)
+    source_type: str | None = None
+    source_payload: dict[str, Any] = Field(default_factory=dict)
+    record_type: CrmRecordType
+    status: CrmRecordStatus = CrmRecordStatus.NEW
+    display_name: str = Field(min_length=1)
+    owner_name: str | None = None
+    property_address: str | None = None
+    mailing_address: str | None = None
+    phone: str | None = None
+    email: str | None = None
+    assigned_to: str | None = None
+    list_name: str | None = None
+    campaign_id: str | None = None
+    tags: list[str] = Field(default_factory=list)
+    data_quality_score: int = Field(default=0, ge=0, le=100)
+    facts: dict[str, Any] = Field(default_factory=dict)
+    raw_payload: dict[str, Any] = Field(default_factory=dict)
+
+
+class MissionControlRecordStatusRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    status: CrmRecordStatus
+    reason: str | None = None
+
+
+class MissionControlRecordSuppressionRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    reason: str = Field(min_length=1)
+
+
+class MissionControlRecordPromotionRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    source_lane: str = Field(min_length=1)
+    lead_id: str | None = None
+    contact_id: str | None = None
+    strategy_lane: str | None = None
+    reason: str | None = None
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class MissionControlRecordActionResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    record: MissionControlRecordSummary
+    opportunity_id: str | None = None
+    promotion_id: str | None = None
 
 
 class MissionControlProviderStatus(BaseModel):

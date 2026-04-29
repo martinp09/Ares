@@ -21,9 +21,17 @@ from app.db.tasks import TasksRepository
 from app.host_adapters.registry import HostAdapterRegistry, host_adapter_registry
 from app.models.approvals import ApprovalStatus
 from app.models.campaigns import CampaignMembershipStatus, CampaignStatus
-from app.models.crm_records import CrmRecord
+from app.models.crm_records import (
+    CrmRecord,
+    CrmRecordPromotion,
+    CrmRecordSourceMembership,
+    CrmRecordStatus,
+    CrmRecordStatusHistory,
+    CrmSourceRecord,
+)
 from app.models.leads import LeadInterestStatus, LeadLifecycleStatus, LeadRecord, LeadSource
 from app.models.marketing_leads import MarketingLeadRecord
+from app.models.opportunities import OpportunitySourceLane
 from app.models.tasks import TaskStatus, TaskType
 from app.models.agents import AgentRevisionState
 from app.models.release_management import ReleaseEventType
@@ -56,6 +64,11 @@ from app.models.mission_control import (
     MissionControlProvidersStatusResponse,
     MissionControlRecordInventorySummary,
     MissionControlRecordSummary,
+    MissionControlRecordActionResponse,
+    MissionControlRecordImportRequest,
+    MissionControlRecordPromotionRequest,
+    MissionControlRecordStatusRequest,
+    MissionControlRecordSuppressionRequest,
     MissionControlRecordsResponse,
     MissionControlReleaseEvaluationSummary,
     MissionControlRevisionSecretsHealthSummary,
@@ -400,6 +413,157 @@ class MissionControlService:
         return MissionControlRecordsResponse(
             kpis=self._build_record_inventory_summary(leads, tasks, opportunities),
             records=records,
+        )
+
+    def import_record(
+        self,
+        payload: MissionControlRecordImportRequest,
+        *,
+        actor_id: str | None = None,
+        actor_type: str | None = None,
+    ) -> MissionControlRecordActionResponse:
+        source_record = self.crm_records_repository.upsert_source_record(
+            CrmSourceRecord(
+                business_id=payload.business_id,
+                environment=payload.environment,
+                source_system=payload.source_system,
+                source_key=payload.source_key,
+                source_type=payload.source_type,
+                payload=payload.source_payload,
+            )
+        )
+        record = self.crm_records_repository.upsert_record(
+            CrmRecord(
+                business_id=payload.business_id,
+                environment=payload.environment,
+                record_type=payload.record_type,
+                status=payload.status,
+                display_name=payload.display_name,
+                owner_name=payload.owner_name,
+                property_address=payload.property_address,
+                mailing_address=payload.mailing_address,
+                phone=payload.phone,
+                email=payload.email,
+                assigned_to=payload.assigned_to,
+                tags=payload.tags,
+                data_quality_score=payload.data_quality_score,
+                source_record_ids=[source_record.id or ""],
+                facts=payload.facts,
+                raw_payload=payload.raw_payload,
+            )
+        )
+        self.crm_records_repository.add_source_membership(
+            CrmRecordSourceMembership(
+                business_id=payload.business_id,
+                environment=payload.environment,
+                record_id=record.id or "",
+                source_record_id=source_record.id,
+                source_system=payload.source_system,
+                source_key=payload.source_key,
+                list_name=payload.list_name,
+                campaign_id=payload.campaign_id,
+            )
+        )
+        self.crm_records_repository.append_status_history(
+            CrmRecordStatusHistory(
+                business_id=record.business_id,
+                environment=record.environment,
+                record_id=record.id or "",
+                to_status=record.status,
+                actor_id=actor_id,
+                actor_type=actor_type,
+                reason="record imported",
+            )
+        )
+        return MissionControlRecordActionResponse(record=self._build_crm_record_summary(record))
+
+    def update_record_status(
+        self,
+        record_id: str,
+        payload: MissionControlRecordStatusRequest,
+        *,
+        actor_id: str | None = None,
+        actor_type: str | None = None,
+    ) -> MissionControlRecordActionResponse:
+        record = self.crm_records_repository.update_record_status(
+            record_id,
+            status=payload.status,
+            actor_id=actor_id,
+            actor_type=actor_type,
+            reason=payload.reason,
+        )
+        return MissionControlRecordActionResponse(record=self._build_crm_record_summary(record))
+
+    def suppress_record(
+        self,
+        record_id: str,
+        payload: MissionControlRecordSuppressionRequest,
+        *,
+        actor_id: str | None = None,
+        actor_type: str | None = None,
+    ) -> MissionControlRecordActionResponse:
+        return self.update_record_status(
+            record_id,
+            MissionControlRecordStatusRequest(status=CrmRecordStatus.SUPPRESSED, reason=payload.reason),
+            actor_id=actor_id,
+            actor_type=actor_type,
+        )
+
+    def promote_record(
+        self,
+        record_id: str,
+        payload: MissionControlRecordPromotionRequest,
+        *,
+        actor_id: str | None = None,
+        actor_type: str | None = None,
+    ) -> MissionControlRecordActionResponse:
+        record = self.crm_records_repository.get_record(record_id)
+        if record is None:
+            raise KeyError(f"CRM record {record_id} not found")
+        try:
+            source_lane = OpportunitySourceLane(payload.source_lane)
+        except ValueError as exc:
+            raise ValueError(f"unsupported opportunity source lane: {payload.source_lane}") from exc
+        metadata = {**payload.metadata, "crm_record_id": record_id}
+        if (payload.lead_id is None) == (payload.contact_id is None):
+            raise ValueError("promotion requires exactly one of lead_id or contact_id")
+        if payload.lead_id is not None:
+            opportunity = self.opportunity_service.create_for_lead(
+                business_id=record.business_id,
+                environment=record.environment,
+                lead_id=payload.lead_id,
+                source_lane=source_lane,
+                strategy_lane=payload.strategy_lane,
+                metadata=metadata,
+            )
+        else:
+            opportunity = self.opportunity_service.create_for_contact(
+                business_id=record.business_id,
+                environment=record.environment,
+                contact_id=payload.contact_id or "",
+                source_lane=source_lane,
+                strategy_lane=payload.strategy_lane,
+                metadata=metadata,
+            )
+        promotion = self.crm_records_repository.promote_record(
+            CrmRecordPromotion(
+                business_id=record.business_id,
+                environment=record.environment,
+                record_id=record_id,
+                opportunity_id=opportunity.id or "",
+                actor_id=actor_id,
+                actor_type=actor_type,
+                reason=payload.reason,
+                metadata=metadata,
+            ),
+            actor_id=actor_id,
+            actor_type=actor_type,
+        )
+        promoted = self.crm_records_repository.get_record(record_id) or record
+        return MissionControlRecordActionResponse(
+            record=self._build_crm_record_summary(promoted),
+            opportunity_id=opportunity.id,
+            promotion_id=promotion.id,
         )
 
     def _build_record_inventory_summary(
