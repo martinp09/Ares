@@ -9,6 +9,7 @@ from app.models.mission_control import (
     MissionControlThreadRecord,
 )
 from app.models.campaigns import CampaignMembershipRecord, CampaignMembershipStatus, CampaignRecord, CampaignStatus
+from app.models.crm_records import CrmRecord, CrmRecordStatus, CrmRecordType
 from app.models.leads import LeadLifecycleStatus, LeadRecord, LeadSource
 from app.models.opportunities import OpportunityRecord, OpportunitySourceLane, OpportunityStage
 from app.models.tasks import TaskPriority, TaskRecord, TaskStatus, TaskType
@@ -265,6 +266,61 @@ def test_records_endpoint_projects_inventory_without_replacing_opportunities(cli
     dashboard_body = dashboard_response.json()
     assert dashboard_body["record_inventory_summary"]["total_count"] == 2
     assert dashboard_body["record_inventory_summary"]["promoted_count"] == 1
+
+
+def test_records_endpoint_prefers_canonical_crm_records_when_registry_exists(client) -> None:
+    reset_control_plane_state()
+    base_time = datetime(2026, 4, 29, 10, 0, tzinfo=UTC)
+
+    mission_control_service.crm_records_repository.upsert_record(
+        CrmRecord(
+            business_id="limitless",
+            environment="dev",
+            record_type=CrmRecordType.PROBATE_CASE,
+            status=CrmRecordStatus.NEEDS_SKIP_TRACE,
+            display_name="Estate of Avery Stone",
+            owner_name="Avery Stone Estate",
+            property_address="123 Skyview Dr",
+            data_quality_score=70,
+            updated_at=base_time,
+        )
+    )
+    mission_control_service.crm_records_repository.upsert_record(
+        CrmRecord(
+            business_id="otherco",
+            environment="dev",
+            record_type=CrmRecordType.PROPERTY,
+            status=CrmRecordStatus.MARKETABLE,
+            display_name="Out of Scope Property",
+            property_address="999 Other St",
+            phone="+155****9999",
+            data_quality_score=90,
+            updated_at=base_time,
+        )
+    )
+
+    records_response = client.get(
+        "/mission-control/records?business_id=limitless&environment=dev",
+        headers=AUTH_HEADERS,
+    )
+    dashboard_response = client.get(
+        "/mission-control/dashboard?business_id=limitless&environment=dev",
+        headers=AUTH_HEADERS,
+    )
+
+    assert records_response.status_code == 200
+    records_body = records_response.json()
+    assert records_body["kpis"]["total_count"] == 1
+    assert records_body["kpis"]["needs_skip_trace_count"] == 1
+    assert records_body["kpis"]["no_phone_count"] == 1
+    assert records_body["records"][0]["record_type"] == "probate_case_record"
+    assert records_body["records"][0]["source"] == "canonical_crm"
+    assert records_body["records"][0]["record_status"] == "needs_skip_trace"
+
+    dashboard_body = dashboard_response.json()
+    assert dashboard_body["record_inventory_summary"]["total_count"] == 1
+    assert dashboard_body["record_inventory_summary"]["needs_skip_trace_count"] == 1
+
 
 
 def test_dashboard_endpoint_hides_other_org_records_with_same_scope(client) -> None:

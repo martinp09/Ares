@@ -15,11 +15,13 @@ from app.db.contacts import ContactsRepository
 from app.db.lead_events import LeadEventsRepository
 from app.db.leads import LeadsRepository
 from app.db.opportunities import OpportunitiesRepository
+from app.db.crm_records import CrmRecordsRepository
 from app.db.suppression import SuppressionRepository
 from app.db.tasks import TasksRepository
 from app.host_adapters.registry import HostAdapterRegistry, host_adapter_registry
 from app.models.approvals import ApprovalStatus
 from app.models.campaigns import CampaignMembershipStatus, CampaignStatus
+from app.models.crm_records import CrmRecord
 from app.models.leads import LeadInterestStatus, LeadLifecycleStatus, LeadRecord, LeadSource
 from app.models.marketing_leads import MarketingLeadRecord
 from app.models.tasks import TaskStatus, TaskType
@@ -121,6 +123,7 @@ class MissionControlService:
         lead_events_repository: LeadEventsRepository | None = None,
         automation_runs_repository: AutomationRunsRepository | None = None,
         tasks_repository: TasksRepository | None = None,
+        crm_records_repository: CrmRecordsRepository | None = None,
         host_adapter_registry_dependency: HostAdapterRegistry | None = None,
     ) -> None:
         self.client = client or get_control_plane_client()
@@ -137,6 +140,7 @@ class MissionControlService:
         self.lead_events_repository = lead_events_repository or LeadEventsRepository(client=self.client)
         self.automation_runs_repository = automation_runs_repository or AutomationRunsRepository(client=self.client)
         self.tasks_repository = tasks_repository or TasksRepository(client=self.client)
+        self.crm_records_repository = crm_records_repository or CrmRecordsRepository(client=self.client)
         self.host_adapter_registry = host_adapter_registry_dependency or host_adapter_registry
 
     def upsert_thread_projection(self, thread: MissionControlThreadRecord) -> MissionControlThreadRecord:
@@ -303,6 +307,19 @@ class MissionControlService:
         else:
             system_status = "healthy"
 
+        canonical_records = self.crm_records_repository.list_records(business_id=business_id, environment=environment)
+        record_inventory_summary = (
+            self._build_crm_record_inventory_summary(canonical_records)
+            if canonical_records
+            else self._build_record_inventory_summary(
+                lead_machine_leads,
+                self.tasks_repository.list(business_id=business_id, environment=environment),
+                self.opportunities_repository.list(business_id=business_id, environment=environment),
+            )
+            if has_lead_machine_context
+            else None
+        )
+
         return MissionControlDashboardResponse(
             approval_count=len(approvals),
             active_run_count=active_run_count,
@@ -322,15 +339,7 @@ class MissionControlService:
             opportunity_count=(sum(summary.count for summary in opportunity_stage_summaries) if has_opportunity_context else None),
             opportunity_stage_summaries=(opportunity_stage_summaries if has_opportunity_context else None),
             opportunity_pipeline_summary=opportunity_pipeline_summary,
-            record_inventory_summary=(
-                self._build_record_inventory_summary(
-                    lead_machine_leads,
-                    self.tasks_repository.list(business_id=business_id, environment=environment),
-                    self.opportunities_repository.list(business_id=business_id, environment=environment),
-                )
-                if has_lead_machine_context
-                else None
-            ),
+            record_inventory_summary=record_inventory_summary,
             provider_failure_task_count=provider_failure_task_count,
             system_status=system_status,
             updated_at=latest_updated_at.isoformat(),
@@ -345,6 +354,13 @@ class MissionControlService:
     ) -> MissionControlRecordsResponse:
         if not self._can_expose_unscoped_context(org_id):
             return MissionControlRecordsResponse(kpis=MissionControlRecordInventorySummary(), records=[])
+
+        canonical_records = self.crm_records_repository.list_records(business_id=business_id, environment=environment)
+        if canonical_records:
+            return MissionControlRecordsResponse(
+                kpis=self._build_crm_record_inventory_summary(canonical_records),
+                records=[self._build_crm_record_summary(record) for record in canonical_records],
+            )
 
         projection = self._load_lead_machine_projection(
             org_id=org_id,
@@ -404,6 +420,41 @@ class MissionControlService:
             no_phone_count=no_phone_count,
             promoted_count=len(promoted_lead_ids),
             open_task_count=open_task_count,
+        )
+
+    def _build_crm_record_inventory_summary(self, records: list[CrmRecord]) -> MissionControlRecordInventorySummary:
+        return MissionControlRecordInventorySummary(
+            total_count=len(records),
+            active_count=sum(1 for record in records if record.status not in {"suppressed", "archived"}),
+            suppressed_count=sum(1 for record in records if record.status == "suppressed"),
+            needs_skip_trace_count=sum(1 for record in records if record.status == "needs_skip_trace"),
+            no_phone_count=sum(1 for record in records if not (record.phone or "").strip()),
+            promoted_count=sum(1 for record in records if record.status == "promoted"),
+            open_task_count=0,
+        )
+
+    def _build_crm_record_summary(self, record: CrmRecord) -> MissionControlRecordSummary:
+        has_phone = bool((record.phone or "").strip())
+        has_email = bool((record.email or "").strip())
+        return MissionControlRecordSummary(
+            id=record.id or "",
+            record_type=record.record_type.value,
+            display_name=record.display_name,
+            owner_name=record.owner_name,
+            property_address=record.property_address,
+            mailing_address=record.mailing_address,
+            source="canonical_crm",
+            lifecycle_status=record.status.value,
+            record_status=record.status.value if record.status.value in {"new", "needs_skip_trace", "suppressed"} else "active",
+            promotion_status=("promoted" if record.status == "promoted" else "not_promoted"),
+            assigned_to=record.assigned_to,
+            phone=record.phone,
+            email=record.email,
+            has_phone=has_phone,
+            has_email=has_email,
+            open_task_count=0,
+            last_activity_at=record.last_activity_at or record.updated_at,
+            data_quality_score=record.data_quality_score,
         )
 
     def _build_record_summary(

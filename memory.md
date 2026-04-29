@@ -184,9 +184,9 @@
 
 ## Open Work
 
-1. validate and continue the CRM Records shell/read-model slice
-2. add canonical Records registry tables/migrations after validating the read-model shell
-3. add configurable pipelines and stage history before map/research expansion
+1. validate canonical Records registry against Supabase and Mission Control integration
+2. add configurable pipelines and stage history before map/research expansion
+3. add Records workspace saved views, filters, and bulk actions
 4. defer owner/property graph, research cockpit, and map UI until Records and stage model are stable
 5. preserve production evidence files as the handoff source of truth
 6. optionally replace the REST rollback bundle with native pg_dump once Supabase CLI container DNS is fixed
@@ -201,6 +201,13 @@
 - `TasksRepository` now treats `lead_machine_backend=supabase` as a Supabase-backed task path so title-packet review tasks persist with lead-machine records.
 
 ## Change Log
+
+### 2026-04-29 CRM Records Registry
+
+- Added canonical CRM Records models and repository for `crm_records`, `crm_source_records`, `crm_record_source_memberships`, `crm_record_status_history`, and `crm_record_promotions`.
+- Added Supabase migration `20260429180000_crm_records_registry.sql` with tenant-scoped tables, status/type checks, RLS policies, and record/source/promotion indexes.
+- Wired Mission Control Records/dashboard read models to prefer canonical CRM records when present while preserving the existing lead-machine projection shell for scopes that have not imported canonical records yet.
+- Added repository, migration, and Mission Control API regression tests for canonical Records registry behavior.
 
 ### 2026-04-29 CRM Branch Rebase
 
