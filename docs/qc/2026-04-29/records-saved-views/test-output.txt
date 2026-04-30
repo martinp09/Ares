@@ -59,4 +59,3 @@ Listing 'app/services/providers'...
       Tests  2 passed (2)
    Start at  20:06:50
    Duration  1.01s (transform 103ms, setup 71ms, collect 149ms, tests 203ms, environment 364ms, prepare 62ms)
-
