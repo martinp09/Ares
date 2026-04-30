@@ -377,8 +377,8 @@ function fallbackAgentDetailForSnapshot(
 }
 
 export default function App() {
-  const [activeWorkspace, setActiveWorkspace] = useState<WorkspaceId>("lead-machine");
-  const [activeView, setActiveView] = useState<MissionControlView>("agents");
+  const [activeWorkspace, setActiveWorkspace] = useState<WorkspaceId>("pipeline");
+  const [activeView, setActiveView] = useState<MissionControlView>("pipeline");
   const [searchValue, setSearchValue] = useState("");
   const [snapshot, setSnapshot] = useState<MissionControlSnapshot>(missionControlFixtures);
   const [catalogEntries, setCatalogEntries] = useState<CatalogEntrySummary[]>([]);
@@ -1766,6 +1766,7 @@ export default function App() {
       headerSlot={scopeControls}
       mainContent={activePage.mainContent}
       contextContent={activePage.contextContent}
+      surface={activeWorkspace === "pipeline" ? "crm" : "default"}
     />
   );
 }

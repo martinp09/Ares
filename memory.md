@@ -201,6 +201,14 @@
 
 ## Change Log
 
+### 2026-04-29 Full-Screen CRM Shell
+
+- Converted Mission Control Pipeline from an inner polished panel into the default full-screen CRM surface.
+- Added a CRM shell mode that uses a compact left rail, hides the legacy workspace header/context frame, and lets the Pipeline command center own the first viewport.
+- Set local Mission Control to boot directly into the Pipeline workspace and tightened CRM responsive breakpoints so command metrics stay dashboard-like on desktop-width browser windows.
+- Verified in browser against `http://127.0.0.1:5173/`: Pipeline opens by default and shows 482 records plus 8 opportunities from the live Supabase-backed local API after load.
+- Verification passed: Mission Control shell/Pipeline/Records/API tests, frontend typecheck, frontend build, and `git diff --check`.
+
 ### 2026-04-29 Polished CRM Concept Surface
 
 - Reworked the live Pipeline board visuals toward the generated enterprise CRM concept: light/charcoal cockpit surface, portfolio metrics, source-lane filters, full pipeline stage lanes including empty stages, polished cards, and a high-contrast opportunity drawer.

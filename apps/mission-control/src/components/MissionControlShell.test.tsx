@@ -24,7 +24,7 @@ const navSections: ShellNavSection[] = [
 
 describe("MissionControlShell", () => {
   it("renders nav sections, search entry, and the active workspace", () => {
-    render(
+    const { container } = render(
       <MissionControlShell
         navSections={navSections}
         workspaces={[
@@ -62,5 +62,34 @@ describe("MissionControlShell", () => {
     expect(screen.getByText("Org-aware scope controls")).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Lead Machine / Agents" })).toBeInTheDocument();
     expect(screen.getByText("Agents workspace")).toBeInTheDocument();
+    expect(container.querySelector(".shell")).not.toHaveClass("shell--crm");
+  });
+
+  it("can render the CRM shell surface for the Pipeline workspace", () => {
+    const { container } = render(
+      <MissionControlShell
+        navSections={navSections}
+        workspaces={[
+          { id: "lead-machine", label: "Lead Machine" },
+          { id: "pipeline", label: "Pipeline" },
+        ]}
+        activeWorkspaceId="pipeline"
+        onSelectWorkspace={vi.fn()}
+        activeItemId="pipeline"
+        onNavigate={vi.fn()}
+        searchValue=""
+        onSearchChange={vi.fn()}
+        workspaceTitle="Pipeline Board"
+        workspaceSubtitle="Opportunity board"
+        statusBadge="Live API"
+        footerNote="Live data"
+        mainContent={<div>CRM cockpit</div>}
+        contextContent={<div>Context rail</div>}
+        surface="crm"
+      />,
+    );
+
+    expect(container.querySelector(".shell")).toHaveClass("shell--crm");
+    expect(screen.getByText("CRM cockpit")).toBeInTheDocument();
   });
 });

@@ -33,6 +33,7 @@ interface MissionControlShellProps {
   footerNote: string;
   mainContent: ReactNode;
   contextContent: ReactNode;
+  surface?: "default" | "crm";
 }
 
 export function MissionControlShell({
@@ -51,9 +52,10 @@ export function MissionControlShell({
   footerNote,
   mainContent,
   contextContent,
+  surface = "default",
 }: MissionControlShellProps) {
   return (
-    <div className="shell">
+    <div className={`shell${surface === "crm" ? " shell--crm" : ""}`}>
       <aside className="shell__rail" aria-label="Mission Control">
         <div className="brand-block">
           <span className="brand-block__eyebrow">Ares</span>

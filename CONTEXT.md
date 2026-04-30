@@ -24,6 +24,7 @@
 4. Keep promotion source-lane selection explicit once canonical source-lane metadata is added to records.
 
 ## Recent Change
+- 2026-04-29: Converted Pipeline into the default full-screen CRM surface by giving Mission Control a CRM shell mode, compact CRM rail, hidden legacy header/context frame, responsive command metrics, and direct Pipeline boot.
 - 2026-04-29: Polished Pipeline into the target CRM concept surface with a light enterprise cockpit, source-lane controls, full stage lanes, metrics, and a charcoal opportunity drawer.
 - 2026-04-29: Rebuilt Pipeline into an enterprise CRM board with scoped opportunity rows, kanban stages, selected-opportunity detail, and real stage movement controls.
 - 2026-04-29: Applied CRM remote Supabase migrations and fixed Mission Control lead-machine projection to read repositories in Supabase mode; local Records now shows 482 live leads.
