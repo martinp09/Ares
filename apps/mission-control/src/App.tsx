@@ -113,6 +113,15 @@ function collectScopeOptionValues(snapshot: MissionControlSnapshot): { businessI
     }
   }
 
+  for (const opportunity of snapshot.opportunities) {
+    if (opportunity.businessId) {
+      businessValues.add(opportunity.businessId);
+    }
+    if (opportunity.environment) {
+      environmentValues.add(opportunity.environment);
+    }
+  }
+
   for (const revision of snapshot.governance.secretsHealth.revisions) {
     if (revision.businessId) {
       businessValues.add(revision.businessId);
@@ -210,6 +219,7 @@ function buildPendingScopeSnapshot(scope: MissionControlScopeState): MissionCont
       records: [],
       savedViews: [],
     },
+    opportunities: [],
     inbox: {
       conversations: [],
       selectedConversationId: "",
@@ -273,6 +283,10 @@ function normalizeSnapshotForScope(
       shouldNeutralizeForOrgFallback("records") || shouldNeutralizeForSecondaryScope("records")
         ? pendingSnapshot.records
         : snapshot.records,
+    opportunities:
+      shouldNeutralizeForOrgFallback("pipeline") || shouldNeutralizeForSecondaryScope("pipeline")
+        ? pendingSnapshot.opportunities
+        : snapshot.opportunities,
     inbox:
       shouldNeutralizeForOrgFallback("inbox") || shouldNeutralizeForSecondaryScope("inbox")
         ? pendingSnapshot.inbox
@@ -497,7 +511,7 @@ export default function App() {
     async function load() {
       setIsLoading(true);
 
-      const [dashboard, records, inbox, tasks, approvals, runs, catalog, assets, governance] = await Promise.all([
+      const [dashboard, records, opportunities, inbox, tasks, approvals, runs, catalog, assets, governance] = await Promise.all([
         queryClient.fetch(
           `dashboard:${selectedOrgId ?? "default"}:${selectedBusinessId ?? "all"}:${selectedEnvironment ?? "all"}`,
           api.getDashboard,
@@ -507,6 +521,11 @@ export default function App() {
           `records:${selectedOrgId ?? "default"}:${selectedBusinessId ?? "all"}:${selectedEnvironment ?? "all"}`,
           api.getRecords,
           missionControlFixtures.records,
+        ),
+        queryClient.fetch(
+          `opportunities:${selectedOrgId ?? "default"}:${selectedBusinessId ?? "all"}:${selectedEnvironment ?? "all"}`,
+          api.getOpportunities,
+          missionControlFixtures.opportunities,
         ),
         queryClient.fetch(
           `inbox:${selectedOrgId ?? "default"}:${selectedBusinessId ?? "all"}:${selectedEnvironment ?? "all"}:${selectedConversationId || "default"}`,
@@ -564,6 +583,7 @@ export default function App() {
           ["runs", runs.source],
           ["agents", agents.source],
           ["catalog", catalog.source],
+          ["pipeline", opportunities.source],
           ["settings", governance.source === "fixture" || assets.source === "fixture" ? "fixture" : "api"],
           ["suppression", dashboard.source],
         ] as const
@@ -574,6 +594,7 @@ export default function App() {
       const loadedSnapshot = {
         dashboard: dashboard.data,
         records: records.data,
+        opportunities: opportunities.data,
         inbox: inbox.source === "fixture" && selectedConversationId ? pendingSnapshot.inbox : inbox.data,
         tasks: tasks.data,
         approvals: approvals.data,
@@ -761,8 +782,12 @@ export default function App() {
     try {
       const result = await api.moveOpportunityStage(opportunityId, request);
       queryClient.clear();
-      const dashboard = await api.getDashboard();
-      setSnapshot((current) => ({ ...current, dashboard }));
+      const [dashboard, opportunities, records] = await Promise.all([
+        api.getDashboard(),
+        api.getOpportunities(),
+        api.getRecords(),
+      ]);
+      setSnapshot((current) => ({ ...current, dashboard, opportunities, records }));
       setPipelineActionState({
         opportunityId,
         status: "success",
@@ -1002,6 +1027,29 @@ export default function App() {
       snapshot.dashboard.opportunityPipelineSummary?.laneStageSummaries,
       snapshot.dashboard.opportunityStageSummaries,
     ],
+  );
+
+  const filteredOpportunities = useMemo(
+    () =>
+      snapshot.opportunities.filter((opportunity) =>
+        includesSearch(
+          [
+            opportunity.id,
+            opportunity.businessId,
+            opportunity.environment,
+            opportunity.sourceLane,
+            opportunity.strategyLane ?? "",
+            opportunity.stage,
+            opportunity.titleStatus,
+            opportunity.tcStatus,
+            opportunity.dispoStatus,
+            opportunity.leadId ?? "",
+            opportunity.contactId ?? "",
+          ],
+          normalizedSearchValue,
+        ),
+      ),
+    [normalizedSearchValue, snapshot.opportunities],
   );
 
   const isCatalogInstallEnabled = !fallbackViews.includes("catalog");
@@ -1570,10 +1618,7 @@ export default function App() {
             {
               id: "pipeline",
               label: "Board",
-              badge:
-                snapshot.dashboard.opportunityPipelineSummary?.totalOpportunityCount ??
-                snapshot.dashboard.opportunityCount ??
-                0,
+              badge: filteredOpportunities.length,
             },
             {
               id: "catalog",
@@ -1616,12 +1661,15 @@ export default function App() {
           title: "Pipeline Board",
           subtitle: "Minimal downstream opportunity stages without collapsing lane boundaries.",
           mainContent: (
-            <PipelinePage
-              stages={filteredOpportunityStages}
-              totalCount={
-                snapshot.dashboard.opportunityPipelineSummary?.totalOpportunityCount ??
-                snapshot.dashboard.opportunityCount ??
-                filteredOpportunityStages.length
+              <PipelinePage
+                stages={filteredOpportunityStages}
+                opportunities={filteredOpportunities}
+                records={snapshot.records.records}
+                totalCount={
+                  filteredOpportunities.length ||
+                  snapshot.dashboard.opportunityPipelineSummary?.totalOpportunityCount ||
+                  snapshot.dashboard.opportunityCount ||
+                  filteredOpportunityStages.length
               }
               actionState={pipelineActionState}
               onMoveStage={(opportunityId, request) => {

@@ -84,6 +84,7 @@ from app.models.mission_control import (
     MissionControlLeadMachineTasksSummary,
     MissionControlLeadMachineTimelineItem,
     MissionControlLeadMachineTimelineSummary,
+    MissionControlOpportunitiesResponse,
     MissionControlOpportunityPipelineSummary,
     MissionControlOpportunityStageHistoryResponse,
     MissionControlOpportunityStageMoveRequest,
@@ -644,6 +645,19 @@ class MissionControlService:
         if self.opportunities_repository.get(opportunity_id) is None:
             raise KeyError(opportunity_id)
         return MissionControlOpportunityStageHistoryResponse(items=self.opportunity_service.list_stage_history(opportunity_id))
+
+    def get_opportunities(
+        self,
+        *,
+        org_id: str | None = None,
+        business_id: str | None = None,
+        environment: str | None = None,
+    ) -> MissionControlOpportunitiesResponse:
+        if not self._can_expose_unscoped_context(org_id):
+            return MissionControlOpportunitiesResponse()
+        return MissionControlOpportunitiesResponse(
+            opportunities=self.opportunities_repository.list(business_id=business_id, environment=environment)
+        )
 
     def _build_record_inventory_summary(
         self,

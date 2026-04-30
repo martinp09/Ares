@@ -184,15 +184,13 @@
 
 ## Open Work
 
-1. add richer opportunity-list/detail controls so Pipeline moves no longer require manual opportunity ID entry
-2. consider an atomic backend bulk-record endpoint if large batch throughput/transaction semantics become necessary; current Records bulk UI fans out through real single-record command callbacks
-3. remote Supabase validation/deploy requires explicitly linked target project credentials; local Supabase validation is complete
-4. defer owner/property graph, research cockpit, and map UI until Records and stage model are stable
-5. add explicit canonical source-lane metadata for CRM records before broadening promote routing beyond probate/lease-option lanes
-6. preserve production evidence files as the handoff source of truth
-7. optionally replace the REST rollback bundle with native pg_dump once Supabase CLI container DNS is fixed
-8. add production monitoring/alerts for provider callback failures
-9. keep browser acquisition and ambiguous research in Hermes or other driver agents, not inside Ares
+1. consider an atomic backend bulk-record endpoint if large batch throughput/transaction semantics become necessary; current Records bulk UI fans out through real single-record command callbacks
+2. defer owner/property graph, research cockpit, and map UI until Records and stage model are stable
+3. add explicit canonical source-lane metadata for CRM records before broadening promote routing beyond probate/lease-option lanes
+4. preserve production evidence files as the handoff source of truth
+5. optionally replace the REST rollback bundle with native pg_dump once Supabase CLI container DNS is fixed
+6. add production monitoring/alerts for provider callback failures
+7. keep browser acquisition and ambiguous research in Hermes or other driver agents, not inside Ares
 
 ## Completed Branch Work
 
@@ -202,6 +200,14 @@
 - `TasksRepository` now treats `lead_machine_backend=supabase` as a Supabase-backed task path so title-packet review tasks persist with lead-machine records.
 
 ## Change Log
+
+### 2026-04-29 Enterprise CRM Pipeline UI
+
+- Added `GET /mission-control/opportunities` for scoped Pipeline opportunity rows.
+- Rebuilt the Mission Control Pipeline page into an enterprise CRM board with stage columns, opportunity cards, command metrics, a selected-opportunity detail drawer, and real stage-move controls.
+- Frontend now loads opportunities alongside dashboard/records and refreshes dashboard, records, and opportunities after a stage move.
+- Verified against the live local Supabase-backed server: Pipeline shows 8 opportunities and Records shows 482 live records.
+- Verification passed: focused backend opportunity tests, Mission Control Pipeline/Records/API tests, frontend typecheck, and frontend build.
 
 ### 2026-04-29 Remote CRM Supabase Live Data
 

@@ -387,6 +387,12 @@ class MissionControlOpportunityPipelineSummary(BaseModel):
     lane_stage_summaries: list[MissionControlOpportunityStageSummary] = Field(default_factory=list)
 
 
+class MissionControlOpportunitiesResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    opportunities: list[OpportunityRecord] = Field(default_factory=list)
+
+
 class MissionControlOpportunityStageMoveRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 

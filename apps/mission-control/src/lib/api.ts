@@ -59,7 +59,12 @@ export interface OpportunityRecordSummary {
   stage: string;
   leadId?: string | null;
   contactId?: string | null;
+  titleStatus: string;
+  tcStatus: string;
+  dispoStatus: string;
   metadata: Record<string, unknown>;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface OpportunityStageHistoryItem {
@@ -587,6 +592,7 @@ export interface CatalogInstallResult {
 export interface MissionControlSnapshot {
   dashboard: DashboardSummaryData;
   records: RecordsData;
+  opportunities: OpportunityRecordSummary[];
   inbox: InboxData;
   tasks: TasksData;
   approvals: ApprovalItem[];
@@ -601,6 +607,7 @@ export interface MissionControlApi {
   getOrganizations(): Promise<OrganizationSummary[]>;
   getDashboard(): Promise<DashboardSummaryData>;
   getRecords(): Promise<RecordsData>;
+  getOpportunities(): Promise<OpportunityRecordSummary[]>;
   updateRecordStatus(recordId: string, request: RecordStatusUpdateRequest): Promise<RecordActionResult>;
   suppressRecord(recordId: string, request: RecordSuppressionRequest): Promise<RecordActionResult>;
   promoteRecord(recordId: string, request: RecordPromotionRequest): Promise<RecordActionResult>;
@@ -791,7 +798,16 @@ interface OpportunityPayload {
   stage?: string;
   lead_id?: string | null;
   contact_id?: string | null;
+  title_status?: string;
+  tc_status?: string;
+  dispo_status?: string;
   metadata?: Record<string, unknown>;
+  created_at?: string;
+  updated_at?: string;
+}
+
+interface OpportunitiesPayload {
+  opportunities?: OpportunityPayload[];
 }
 
 interface OpportunityStageHistoryPayload {
@@ -1637,7 +1653,12 @@ function mapOpportunity(payload: OpportunityPayload = {}): OpportunityRecordSumm
     stage: asString(payload.stage),
     leadId: payload.lead_id ?? null,
     contactId: payload.contact_id ?? null,
+    titleStatus: asString(payload.title_status, "not_open"),
+    tcStatus: asString(payload.tc_status, "not_started"),
+    dispoStatus: asString(payload.dispo_status, "not_ready"),
     metadata: payload.metadata ?? {},
+    createdAt: asString(payload.created_at),
+    updatedAt: asString(payload.updated_at),
   };
 }
 
@@ -2369,6 +2390,9 @@ export function createMissionControlApi(
       mapDashboard(await requestJson<DashboardPayload>("/mission-control/dashboard", resolvedOptions, "mission-control")),
     getRecords: async () =>
       mapRecords(await requestJson<RecordsPayload>("/mission-control/records", resolvedOptions, "mission-control")),
+    getOpportunities: async () =>
+      (await requestJson<OpportunitiesPayload>("/mission-control/opportunities", resolvedOptions, "mission-control"))
+        .opportunities?.map(mapOpportunity) ?? [],
     updateRecordStatus: async (recordId, request) =>
       mapRecordAction(
         await requestJson<RecordActionPayload>(

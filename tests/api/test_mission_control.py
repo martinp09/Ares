@@ -384,6 +384,38 @@ def test_opportunity_stage_api_moves_stage_and_returns_history(client) -> None:
     assert history_response.json()["items"][0]["to_stage"] == "offer_path_selected"
 
 
+def test_opportunities_endpoint_returns_scoped_pipeline_rows(client) -> None:
+    reset_control_plane_state()
+    matching = mission_control_service.opportunities_repository.upsert(
+        OpportunityRecord(
+            business_id="limitless",
+            environment="dev",
+            source_lane=OpportunitySourceLane.PROBATE,
+            lead_id="lead_pipeline_row",
+            stage=OpportunityStage.OFFER_PATH_SELECTED,
+        )
+    )
+    mission_control_service.opportunities_repository.upsert(
+        OpportunityRecord(
+            business_id="otherco",
+            environment="dev",
+            source_lane=OpportunitySourceLane.LEASE_OPTION_INBOUND,
+            contact_id="ctc_other",
+        )
+    )
+
+    response = client.get(
+        "/mission-control/opportunities?business_id=limitless&environment=dev",
+        headers=AUTH_HEADERS,
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert [opportunity["id"] for opportunity in body["opportunities"]] == [matching.id]
+    assert body["opportunities"][0]["stage"] == "offer_path_selected"
+    assert body["opportunities"][0]["lead_id"] == "lead_pipeline_row"
+
+
 def test_opportunity_stage_api_rejects_backward_moves(client) -> None:
     reset_control_plane_state()
     opportunity = mission_control_service.opportunities_repository.upsert(

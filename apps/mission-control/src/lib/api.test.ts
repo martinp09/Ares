@@ -864,4 +864,46 @@ describe("Mission Control API client", () => {
     expect(result.latestStageEvent?.fromStage).toBe("qualified_opportunity");
     expect(result.stageHistory).toHaveLength(1);
   });
+
+  it("loads scoped opportunities for the pipeline board", async () => {
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+      const url = parseUrl(input);
+      expect(url.pathname).toBe("/mission-control/opportunities");
+      expect(url.searchParams.get("business_id")).toBe("limitless");
+      expect(url.searchParams.get("environment")).toBe("prod");
+      return jsonResponse({
+        opportunities: [
+          {
+            id: "opp_123",
+            business_id: "limitless",
+            environment: "prod",
+            source_lane: "probate",
+            strategy_lane: "cash_offer",
+            stage: "contract_sent",
+            lead_id: "lead_1",
+            contact_id: null,
+            title_status: "open",
+            tc_status: "active",
+            dispo_status: "not_ready",
+            metadata: { estimated_value: 220000 },
+            created_at: "2026-04-30T00:00:00+00:00",
+            updated_at: "2026-04-30T00:00:00+00:00",
+          },
+        ],
+      });
+    });
+
+    const api = createMissionControlApi({ fetchImpl: fetchMock as typeof fetch, businessId: "limitless", environment: "prod" });
+
+    await expect(api.getOpportunities()).resolves.toMatchObject([
+      {
+        id: "opp_123",
+        stage: "contract_sent",
+        sourceLane: "probate",
+        titleStatus: "open",
+        tcStatus: "active",
+        dispoStatus: "not_ready",
+      },
+    ]);
+  });
 });

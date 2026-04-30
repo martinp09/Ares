@@ -18,13 +18,13 @@
 - CRM concept: `docs/mission-control-wiki/concepts/ares-crm-control-plane.md`
 
 ## Current TODO
-1. Add richer opportunity-list/detail controls so Pipeline moves no longer require manual opportunity ID entry.
-2. Consider an atomic backend bulk-record endpoint if large batch throughput/transaction semantics become necessary; current Records bulk UI fans out through real single-record command callbacks.
-3. Remote Supabase CRM migrations are applied; restart local backend with `LEAD_MACHINE_BACKEND=supabase` to view live leads.
-4. Defer owner/property graph, research cockpit, and map UI until Records and stage model are stable.
-5. Keep promotion source-lane selection explicit once canonical source-lane metadata is added to records.
+1. Consider an atomic backend bulk-record endpoint if large batch throughput/transaction semantics become necessary; current Records bulk UI fans out through real single-record command callbacks.
+2. Remote Supabase CRM migrations are applied; restart local backend with `LEAD_MACHINE_BACKEND=supabase` to view live leads.
+3. Defer owner/property graph, research cockpit, and map UI until Records and stage model are stable.
+4. Keep promotion source-lane selection explicit once canonical source-lane metadata is added to records.
 
 ## Recent Change
+- 2026-04-29: Rebuilt Pipeline into an enterprise CRM board with scoped opportunity rows, kanban stages, selected-opportunity detail, and real stage movement controls.
 - 2026-04-29: Applied CRM remote Supabase migrations and fixed Mission Control lead-machine projection to read repositories in Supabase mode; local Records now shows 482 live leads.
 - 2026-04-29: Added Records bulk selection/actions for marketable, needs-skip-trace, and suppress flows using existing real CRM command callbacks.
 - 2026-04-29: Wired Mission Control Pipeline UI controls to the real opportunity stage movement API, with dashboard refresh and focused frontend/API tests.

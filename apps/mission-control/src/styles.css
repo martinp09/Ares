@@ -836,6 +836,276 @@ textarea:focus-visible {
   text-transform: uppercase;
 }
 
+.crm-board {
+  display: grid;
+  gap: 16px;
+}
+
+.crm-command-strip {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.crm-command-strip article,
+.pipeline-column,
+.opportunity-drawer {
+  border: 1px solid rgba(141, 165, 199, 0.16);
+  background: rgba(9, 13, 18, 0.92);
+  border-radius: 6px;
+}
+
+.crm-command-strip article {
+  padding: 14px;
+  display: grid;
+  gap: 4px;
+  min-height: 92px;
+}
+
+.crm-command-strip span,
+.crm-command-strip small,
+.pipeline-column__header span,
+.pipeline-column__empty,
+.opportunity-card small,
+.opportunity-drawer__header span,
+.opportunity-drawer__header p,
+.opportunity-detail-grid dt,
+.opportunity-next-actions p {
+  color: var(--muted-2);
+}
+
+.crm-command-strip span,
+.pipeline-column__header span,
+.opportunity-drawer__header span,
+.opportunity-detail-grid dt {
+  font-size: 0.74rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.crm-command-strip strong {
+  font-size: 1.65rem;
+  line-height: 1;
+  color: var(--text-strong);
+  font-variant-numeric: tabular-nums;
+}
+
+.crm-workspace {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(292px, 0.34fr);
+  gap: 16px;
+  align-items: start;
+}
+
+.pipeline-board {
+  min-width: 0;
+  overflow-x: auto;
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(232px, 1fr);
+  gap: 12px;
+  padding-bottom: 6px;
+}
+
+.pipeline-column {
+  min-height: 520px;
+  display: grid;
+  align-content: start;
+}
+
+.pipeline-column__header {
+  padding: 12px;
+  border-bottom: 1px solid rgba(141, 165, 199, 0.12);
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.pipeline-column__header h3,
+.opportunity-drawer__header h3,
+.opportunity-next-actions h4 {
+  margin: 0;
+  color: var(--text-strong);
+}
+
+.pipeline-column__header h3 {
+  font-size: 0.96rem;
+}
+
+.pipeline-column__header strong {
+  color: var(--amber-soft);
+  font-variant-numeric: tabular-nums;
+}
+
+.pipeline-column__cards {
+  display: grid;
+  gap: 10px;
+  padding: 10px;
+}
+
+.pipeline-column__empty {
+  margin: 0;
+  font-size: 0.88rem;
+  line-height: 1.45;
+}
+
+.opportunity-card {
+  width: 100%;
+  min-height: 158px;
+  text-align: left;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: linear-gradient(180deg, rgba(17, 23, 31, 0.95), rgba(9, 13, 18, 0.96));
+  color: var(--text);
+  border-radius: 6px;
+  padding: 12px;
+  display: grid;
+  gap: 8px;
+  transition: border-color 160ms ease, transform 160ms ease, background 160ms ease;
+}
+
+.opportunity-card:hover,
+.opportunity-card--active {
+  border-color: rgba(255, 140, 0, 0.42);
+  transform: translateY(-1px);
+  background: linear-gradient(180deg, rgba(26, 29, 33, 0.98), rgba(12, 14, 17, 0.98));
+}
+
+.opportunity-card__lane {
+  width: fit-content;
+  border: 1px solid rgba(79, 224, 163, 0.18);
+  background: rgba(79, 224, 163, 0.08);
+  color: #a7f3d0;
+  border-radius: 999px;
+  padding: 3px 8px;
+  font-size: 0.72rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.opportunity-card strong,
+.opportunity-card > span:not(.opportunity-card__lane) {
+  overflow-wrap: anywhere;
+}
+
+.opportunity-card__meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.opportunity-card__meta span {
+  border: 1px solid rgba(141, 165, 199, 0.16);
+  background: rgba(10, 20, 34, 0.66);
+  color: #d7e5fa;
+  border-radius: 999px;
+  padding: 4px 8px;
+  font-size: 0.76rem;
+}
+
+.opportunity-drawer {
+  position: sticky;
+  top: 16px;
+  padding: 16px;
+  display: grid;
+  gap: 16px;
+}
+
+.opportunity-drawer__header {
+  display: grid;
+  gap: 6px;
+}
+
+.opportunity-drawer__header h3 {
+  font-size: 1.2rem;
+}
+
+.opportunity-drawer__header p {
+  margin: 0;
+  line-height: 1.45;
+}
+
+.opportunity-stage-rail {
+  display: grid;
+  grid-template-columns: repeat(10, minmax(10px, 1fr));
+  gap: 5px;
+}
+
+.opportunity-stage-dot {
+  height: 8px;
+  border-radius: 999px;
+  background: rgba(141, 165, 199, 0.18);
+}
+
+.opportunity-stage-dot--active {
+  background: linear-gradient(90deg, var(--amber), var(--success));
+}
+
+.opportunity-detail-grid {
+  margin: 0;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.opportunity-detail-grid div {
+  border: 1px solid rgba(141, 165, 199, 0.12);
+  background: rgba(5, 8, 12, 0.7);
+  border-radius: 6px;
+  padding: 10px;
+}
+
+.opportunity-detail-grid dd {
+  margin: 4px 0 0;
+  color: var(--text-strong);
+  overflow-wrap: anywhere;
+}
+
+.opportunity-action-panel {
+  display: grid;
+  gap: 10px;
+}
+
+.opportunity-action-panel label {
+  display: grid;
+  gap: 6px;
+  color: var(--muted);
+}
+
+.opportunity-action-panel input,
+.opportunity-action-panel select {
+  min-height: 38px;
+  border: 1px solid rgba(141, 165, 199, 0.2);
+  background: rgba(5, 8, 12, 0.92);
+  color: var(--text-strong);
+  border-radius: 6px;
+  padding: 9px 10px;
+}
+
+.opportunity-action-panel button {
+  min-height: 40px;
+  border: 1px solid rgba(255, 140, 0, 0.36);
+  background: rgba(255, 140, 0, 0.14);
+  color: var(--text-strong);
+  border-radius: 6px;
+}
+
+.opportunity-action-panel button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.opportunity-next-actions {
+  border-top: 1px solid rgba(141, 165, 199, 0.12);
+  padding-top: 14px;
+  display: grid;
+  gap: 8px;
+}
+
+.opportunity-next-actions p {
+  margin: 0;
+  line-height: 1.5;
+}
+
 @media (max-width: 1180px) {
   .shell {
     grid-template-columns: 1fr;
@@ -848,6 +1118,8 @@ textarea:focus-visible {
 
   .shell__content,
   .inbox-layout,
+  .crm-command-strip,
+  .crm-workspace,
   .summary-grid,
   .summary-grid--secondary,
   .intake-metric-grid,

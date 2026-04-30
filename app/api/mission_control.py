@@ -14,6 +14,7 @@ from app.models.mission_control import (
     MissionControlLeadMachineResponse,
     MissionControlLeadSuppressionRequest,
     MissionControlLeadUnsuppressionRequest,
+    MissionControlOpportunitiesResponse,
     MissionControlOpportunityStageHistoryResponse,
     MissionControlOpportunityStageMoveRequest,
     MissionControlOpportunityStageMoveResponse,
@@ -208,6 +209,19 @@ def promote_record(
         raise HTTPException(status_code=404, detail="CRM record not found") from exc
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+
+@router.get("/opportunities", response_model=MissionControlOpportunitiesResponse, response_model_exclude_none=True)
+def get_opportunities(
+    business_id: str | None = Query(default=None),
+    environment: str | None = Query(default=None),
+    actor_context: ActorContext = Depends(actor_context_dependency),
+) -> MissionControlOpportunitiesResponse:
+    return mission_control_service.get_opportunities(
+        org_id=actor_context.org_id,
+        business_id=business_id,
+        environment=environment,
+    )
 
 
 @router.post("/opportunities/{opportunity_id}/stage", response_model=MissionControlOpportunityStageMoveResponse, response_model_exclude_none=True)
