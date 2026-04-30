@@ -18,12 +18,15 @@
 - CRM concept: `docs/mission-control-wiki/concepts/ares-crm-control-plane.md`
 
 ## Current TODO
-1. Consider an atomic backend bulk-record endpoint if large batch throughput/transaction semantics become necessary; current Records bulk UI fans out through real single-record command callbacks.
-2. Remote Supabase CRM migrations are applied; restart local backend with `LEAD_MACHINE_BACKEND=supabase` to view live leads.
-3. Defer owner/property graph, research cockpit, and map UI until Records and stage model are stable.
-4. Keep promotion source-lane selection explicit once canonical source-lane metadata is added to records.
+1. Add dedicated Mission Control frontend campaign-launch review page for `GET/POST /mission-control/campaign-launches/harris-probate-hot-warm-cold`.
+2. Enrich Harris probate exports with email/phone before any Instantly/TextGrid enrollment; current artifact is direct-mail-ready only.
+3. Consider an atomic backend bulk-record endpoint if large batch throughput/transaction semantics become necessary; current Records bulk UI fans out through real single-record command callbacks.
+4. Remote Supabase CRM migrations are applied; restart local backend with `LEAD_MACHINE_BACKEND=supabase` to view live leads.
+5. Defer owner/property graph, research cockpit, and map UI until Records and stage model are stable.
+6. Keep promotion source-lane selection explicit once canonical source-lane metadata is added to records.
 
 ## Recent Change
+- 2026-04-30: Added Harris probate campaign launch backend slice: HOT/WARM/COLD export manifests, no-send-before-approval CSVs, approval-gated command endpoint, campaign plan, copywriting expertise plan, and QC at `docs/qc/2026-04-30/harris-probate-campaign-launch/`.
 - 2026-04-29: Converted Pipeline into the default full-screen CRM surface by giving Mission Control a CRM shell mode, compact CRM rail, hidden legacy header/context frame, responsive command metrics, and direct Pipeline boot.
 - 2026-04-29: Polished Pipeline into the target CRM concept surface with a light enterprise cockpit, source-lane controls, full stage lanes, metrics, and a charcoal opportunity drawer.
 - 2026-04-29: Rebuilt Pipeline into an enterprise CRM board with scoped opportunity rows, kanban stages, selected-opportunity detail, and real stage movement controls.

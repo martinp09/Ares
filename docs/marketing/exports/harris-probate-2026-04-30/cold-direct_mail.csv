@@ -1,0 +1,309 @@
+segment,case_number,priority_score,decedent_name,campaign_slug,do_not_send_before_approval,recipient_name,mailing_address,property_address,letter_template
+COLD,543736,30,MARY CATHERINE CEZEAUX,harris-probate-hot-warm-cold-2026-04-30,true,MARY CATHERINE CEZEAUX,,,harris_probate_cold_letter
+COLD,543171,30,MARY CECILIA YAGER,harris-probate-hot-warm-cold-2026-04-30,true,MARY CECILIA YAGER,,,harris_probate_cold_letter
+COLD,543455,30,CAROLYN LOUISE SCHLOBOHM CASSELS,harris-probate-hot-warm-cold-2026-04-30,true,CAROLYN LOUISE SCHLOBOHM CASSELS,,,harris_probate_cold_letter
+COLD,543191,30,MELVIN S. MALTZ,harris-probate-hot-warm-cold-2026-04-30,true,MELVIN S. MALTZ,,,harris_probate_cold_letter
+COLD,543251,30,MARTHA MARIE WALKER,harris-probate-hot-warm-cold-2026-04-30,true,MARTHA MARIE WALKER,,,harris_probate_cold_letter
+COLD,543237,30,WANDA LEE KIRBY NUNLEY,harris-probate-hot-warm-cold-2026-04-30,true,WANDA LEE KIRBY NUNLEY,,,harris_probate_cold_letter
+COLD,543327,30,SAMUEL GENE WEST,harris-probate-hot-warm-cold-2026-04-30,true,SAMUEL GENE WEST,,,harris_probate_cold_letter
+COLD,543417,30,LESTER ALLDWIN GALLATIN,harris-probate-hot-warm-cold-2026-04-30,true,LESTER ALLDWIN GALLATIN,,,harris_probate_cold_letter
+COLD,543383,30,LAURIE R. BONIUK,harris-probate-hot-warm-cold-2026-04-30,true,LAURIE R. BONIUK,,,harris_probate_cold_letter
+COLD,543381,30,CHARLES HENRY TEEL,harris-probate-hot-warm-cold-2026-04-30,true,CHARLES HENRY TEEL,,,harris_probate_cold_letter
+COLD,543427,30,WILLIE LUSTER HUBBARD,harris-probate-hot-warm-cold-2026-04-30,true,WILLIE LUSTER HUBBARD,,,harris_probate_cold_letter
+COLD,543510,30,GRETA LUCILE SNOW,harris-probate-hot-warm-cold-2026-04-30,true,GRETA LUCILE SNOW,,,harris_probate_cold_letter
+COLD,543586,30,JO FAITH BAKER,harris-probate-hot-warm-cold-2026-04-30,true,JO FAITH BAKER,,,harris_probate_cold_letter
+COLD,543666,30,"JOHN HORNE, JR.",harris-probate-hot-warm-cold-2026-04-30,true,"JOHN HORNE, JR.",,,harris_probate_cold_letter
+COLD,543746,30,BARBARA P. LEGRANGE,harris-probate-hot-warm-cold-2026-04-30,true,BARBARA P. LEGRANGE,,,harris_probate_cold_letter
+COLD,543882,30,EDITH BERNICE VAN HORNE,harris-probate-hot-warm-cold-2026-04-30,true,EDITH BERNICE VAN HORNE,,,harris_probate_cold_letter
+COLD,543906,30,DENNIS DANIEL PRESTON,harris-probate-hot-warm-cold-2026-04-30,true,DENNIS DANIEL PRESTON,,,harris_probate_cold_letter
+COLD,543861,30,AMIT SUMANLAL SHAH,harris-probate-hot-warm-cold-2026-04-30,true,AMIT SUMANLAL SHAH,,,harris_probate_cold_letter
+COLD,538009-401,25,"THE ESTATE OF JOHN DELEON, PLAINTIFF, VS. CHRISTIAN DELEON, DEFENDANT.",harris-probate-hot-warm-cold-2026-04-30,true,"THE ESTATE OF JOHN DELEON, PLAINTIFF, VS. CHRISTIAN DELEON, DEFENDANT.",,,harris_probate_cold_letter
+COLD,543897,25,ANN MARIE EMMERT TATE,harris-probate-hot-warm-cold-2026-04-30,true,ANN MARIE EMMERT TATE,,,harris_probate_cold_letter
+COLD,543831,25,NANCY FRIMEL LANDA,harris-probate-hot-warm-cold-2026-04-30,true,NANCY FRIMEL LANDA,,,harris_probate_cold_letter
+COLD,543671,25,BARBARA ARIEL SOLLOCK,harris-probate-hot-warm-cold-2026-04-30,true,BARBARA ARIEL SOLLOCK,,,harris_probate_cold_letter
+COLD,543181,20,SHIRLEY M. BELGAU,harris-probate-hot-warm-cold-2026-04-30,true,SHIRLEY M. BELGAU,,,harris_probate_cold_letter
+COLD,543174,20,GAEL Z STACK,harris-probate-hot-warm-cold-2026-04-30,true,GAEL Z STACK,,,harris_probate_cold_letter
+COLD,543173,20,DOLORES ROHMAN WITTWER,harris-probate-hot-warm-cold-2026-04-30,true,DOLORES ROHMAN WITTWER,,,harris_probate_cold_letter
+COLD,543172,20,BENNIE LOUIS BALDWIN,harris-probate-hot-warm-cold-2026-04-30,true,BENNIE LOUIS BALDWIN,,,harris_probate_cold_letter
+COLD,543170,20,PEGGY ANN MULLENIX LUDWIG,harris-probate-hot-warm-cold-2026-04-30,true,PEGGY ANN MULLENIX LUDWIG,,,harris_probate_cold_letter
+COLD,543169,20,SARA CAMPBELL GARSKA,harris-probate-hot-warm-cold-2026-04-30,true,SARA CAMPBELL GARSKA,,,harris_probate_cold_letter
+COLD,543168,20,BARBARA JEAN REISINGER,harris-probate-hot-warm-cold-2026-04-30,true,BARBARA JEAN REISINGER,,,harris_probate_cold_letter
+COLD,543167,20,MARIA DE JESUS GARCIA,harris-probate-hot-warm-cold-2026-04-30,true,MARIA DE JESUS GARCIA,,,harris_probate_cold_letter
+COLD,543160,20,CARLA FARRELL FRELS,harris-probate-hot-warm-cold-2026-04-30,true,CARLA FARRELL FRELS,,,harris_probate_cold_letter
+COLD,543157,20,MARY LOUISE GLAUBER,harris-probate-hot-warm-cold-2026-04-30,true,MARY LOUISE GLAUBER,,,harris_probate_cold_letter
+COLD,543155,20,"BARBARA ""BEBE"" GOW",harris-probate-hot-warm-cold-2026-04-30,true,"BARBARA ""BEBE"" GOW",,,harris_probate_cold_letter
+COLD,543154,20,L. LEIGHTON HILL,harris-probate-hot-warm-cold-2026-04-30,true,L. LEIGHTON HILL,,,harris_probate_cold_letter
+COLD,543151,20,TERRY JAY COFIELD,harris-probate-hot-warm-cold-2026-04-30,true,TERRY JAY COFIELD,,,harris_probate_cold_letter
+COLD,543140,20,SHARON T. MCCULLOCH,harris-probate-hot-warm-cold-2026-04-30,true,SHARON T. MCCULLOCH,,,harris_probate_cold_letter
+COLD,543139,20,HENRY ELLIS REDING,harris-probate-hot-warm-cold-2026-04-30,true,HENRY ELLIS REDING,,,harris_probate_cold_letter
+COLD,543138,20,ROBERTA JENE MITCHELL,harris-probate-hot-warm-cold-2026-04-30,true,ROBERTA JENE MITCHELL,,,harris_probate_cold_letter
+COLD,543136,20,DENISE MARIE BALDWIN,harris-probate-hot-warm-cold-2026-04-30,true,DENISE MARIE BALDWIN,,,harris_probate_cold_letter
+COLD,543135,20,NAVEED AHMAD,harris-probate-hot-warm-cold-2026-04-30,true,NAVEED AHMAD,,,harris_probate_cold_letter
+COLD,543249,20,H. R. BORDEMAN,harris-probate-hot-warm-cold-2026-04-30,true,H. R. BORDEMAN,,,harris_probate_cold_letter
+COLD,543211,20,BRUCE GOODKNIGHT,harris-probate-hot-warm-cold-2026-04-30,true,BRUCE GOODKNIGHT,,,harris_probate_cold_letter
+COLD,543209,20,JUDY A HARTSFIELD,harris-probate-hot-warm-cold-2026-04-30,true,JUDY A HARTSFIELD,,,harris_probate_cold_letter
+COLD,543206,20,BILL PAUL BARDWELL,harris-probate-hot-warm-cold-2026-04-30,true,BILL PAUL BARDWELL,,,harris_probate_cold_letter
+COLD,543198,20,PETER DAVID POWER,harris-probate-hot-warm-cold-2026-04-30,true,PETER DAVID POWER,,,harris_probate_cold_letter
+COLD,543197,20,ROBERTA MCCRARY GUTHRIE,harris-probate-hot-warm-cold-2026-04-30,true,ROBERTA MCCRARY GUTHRIE,,,harris_probate_cold_letter
+COLD,543196,20,MELVA CANTU,harris-probate-hot-warm-cold-2026-04-30,true,MELVA CANTU,,,harris_probate_cold_letter
+COLD,543193,20,RUTH WEAVER,harris-probate-hot-warm-cold-2026-04-30,true,RUTH WEAVER,,,harris_probate_cold_letter
+COLD,543192,20,DARRELL LEE MCCLEAN,harris-probate-hot-warm-cold-2026-04-30,true,DARRELL LEE MCCLEAN,,,harris_probate_cold_letter
+COLD,543189,20,"FLOYD ELMER HANSON, JR.",harris-probate-hot-warm-cold-2026-04-30,true,"FLOYD ELMER HANSON, JR.",,,harris_probate_cold_letter
+COLD,543179,20,DELAINE HAMILTON,harris-probate-hot-warm-cold-2026-04-30,true,DELAINE HAMILTON,,,harris_probate_cold_letter
+COLD,543175,20,FORREST EDWIN CALDWELL,harris-probate-hot-warm-cold-2026-04-30,true,FORREST EDWIN CALDWELL,,,harris_probate_cold_letter
+COLD,543260,20,MICHAEL STOCKTON MARIX,harris-probate-hot-warm-cold-2026-04-30,true,MICHAEL STOCKTON MARIX,,,harris_probate_cold_letter
+COLD,543250,20,LEOPOLDINE KOBEK,harris-probate-hot-warm-cold-2026-04-30,true,LEOPOLDINE KOBEK,,,harris_probate_cold_letter
+COLD,543248,20,BOBBY JOE INGRAM,harris-probate-hot-warm-cold-2026-04-30,true,BOBBY JOE INGRAM,,,harris_probate_cold_letter
+COLD,543246,20,RAYMOND C. GIBSON,harris-probate-hot-warm-cold-2026-04-30,true,RAYMOND C. GIBSON,,,harris_probate_cold_letter
+COLD,543244,20,SHIRLEY P. FOSTER,harris-probate-hot-warm-cold-2026-04-30,true,SHIRLEY P. FOSTER,,,harris_probate_cold_letter
+COLD,543241,20,SADIE GWIN BLACKBURN,harris-probate-hot-warm-cold-2026-04-30,true,SADIE GWIN BLACKBURN,,,harris_probate_cold_letter
+COLD,543229,20,SUTAPA BANERJI,harris-probate-hot-warm-cold-2026-04-30,true,SUTAPA BANERJI,,,harris_probate_cold_letter
+COLD,543227,20,DAVID ARON GRENADER,harris-probate-hot-warm-cold-2026-04-30,true,DAVID ARON GRENADER,,,harris_probate_cold_letter
+COLD,543217,20,SANDY TAFT RUSSO,harris-probate-hot-warm-cold-2026-04-30,true,SANDY TAFT RUSSO,,,harris_probate_cold_letter
+COLD,543216,20,SYDNEY E. EICKENROHT,harris-probate-hot-warm-cold-2026-04-30,true,SYDNEY E. EICKENROHT,,,harris_probate_cold_letter
+COLD,543212,20,BARBARA C. REDMOND,harris-probate-hot-warm-cold-2026-04-30,true,BARBARA C. REDMOND,,,harris_probate_cold_letter
+COLD,543289,20,BARBARA SKJONSBY,harris-probate-hot-warm-cold-2026-04-30,true,BARBARA SKJONSBY,,,harris_probate_cold_letter
+COLD,543286,20,SUNNE L. COPE,harris-probate-hot-warm-cold-2026-04-30,true,SUNNE L. COPE,,,harris_probate_cold_letter
+COLD,543285,20,ROSA ALEJANDRINA CADME,harris-probate-hot-warm-cold-2026-04-30,true,ROSA ALEJANDRINA CADME,,,harris_probate_cold_letter
+COLD,543281,20,JOYCE A. BAILEY,harris-probate-hot-warm-cold-2026-04-30,true,JOYCE A. BAILEY,,,harris_probate_cold_letter
+COLD,543279,20,SONIA R. PIRES,harris-probate-hot-warm-cold-2026-04-30,true,SONIA R. PIRES,,,harris_probate_cold_letter
+COLD,543275,20,JEAN STEPHEN MARKOLF,harris-probate-hot-warm-cold-2026-04-30,true,JEAN STEPHEN MARKOLF,,,harris_probate_cold_letter
+COLD,543273,20,"RUPERT FINLEY TINDALL, JR.",harris-probate-hot-warm-cold-2026-04-30,true,"RUPERT FINLEY TINDALL, JR.",,,harris_probate_cold_letter
+COLD,543270,20,LARRY G BARTOS,harris-probate-hot-warm-cold-2026-04-30,true,LARRY G BARTOS,,,harris_probate_cold_letter
+COLD,543269,20,LINDA FAYE KOHLER,harris-probate-hot-warm-cold-2026-04-30,true,LINDA FAYE KOHLER,,,harris_probate_cold_letter
+COLD,543266,20,CHARLES GREER,harris-probate-hot-warm-cold-2026-04-30,true,CHARLES GREER,,,harris_probate_cold_letter
+COLD,543262,20,THOMAS AUGUST PERLIONI,harris-probate-hot-warm-cold-2026-04-30,true,THOMAS AUGUST PERLIONI,,,harris_probate_cold_letter
+COLD,543261,20,AUTRY WAYNE GRIFFITH,harris-probate-hot-warm-cold-2026-04-30,true,AUTRY WAYNE GRIFFITH,,,harris_probate_cold_letter
+COLD,543329,20,DONALD L FREDELL,harris-probate-hot-warm-cold-2026-04-30,true,DONALD L FREDELL,,,harris_probate_cold_letter
+COLD,543328,20,JOYCE MATZ HILL,harris-probate-hot-warm-cold-2026-04-30,true,JOYCE MATZ HILL,,,harris_probate_cold_letter
+COLD,543322,20,DEBRA DIANE DREWS,harris-probate-hot-warm-cold-2026-04-30,true,DEBRA DIANE DREWS,,,harris_probate_cold_letter
+COLD,543321,20,NANCY LEVINE,harris-probate-hot-warm-cold-2026-04-30,true,NANCY LEVINE,,,harris_probate_cold_letter
+COLD,543319,20,DORIS BECVAR,harris-probate-hot-warm-cold-2026-04-30,true,DORIS BECVAR,,,harris_probate_cold_letter
+COLD,543318,20,KAREN E. RITCH,harris-probate-hot-warm-cold-2026-04-30,true,KAREN E. RITCH,,,harris_probate_cold_letter
+COLD,543315,20,DOROTHY KUCIEMBA,harris-probate-hot-warm-cold-2026-04-30,true,DOROTHY KUCIEMBA,,,harris_probate_cold_letter
+COLD,543314,20,"EARL TACKETT, JR.",harris-probate-hot-warm-cold-2026-04-30,true,"EARL TACKETT, JR.",,,harris_probate_cold_letter
+COLD,543308,20,RAYMOND GOINS,harris-probate-hot-warm-cold-2026-04-30,true,RAYMOND GOINS,,,harris_probate_cold_letter
+COLD,543304,20,ERIC CAIN,harris-probate-hot-warm-cold-2026-04-30,true,ERIC CAIN,,,harris_probate_cold_letter
+COLD,543299,20,MILTON TIDD ERICKSON,harris-probate-hot-warm-cold-2026-04-30,true,MILTON TIDD ERICKSON,,,harris_probate_cold_letter
+COLD,543298,20,MAX H. CAMMACK,harris-probate-hot-warm-cold-2026-04-30,true,MAX H. CAMMACK,,,harris_probate_cold_letter
+COLD,543297,20,LEDA CHARLENE CONNER,harris-probate-hot-warm-cold-2026-04-30,true,LEDA CHARLENE CONNER,,,harris_probate_cold_letter
+COLD,543296,20,MARY J. NAUS WATTERS,harris-probate-hot-warm-cold-2026-04-30,true,MARY J. NAUS WATTERS,,,harris_probate_cold_letter
+COLD,543295,20,NANCY STAPLES MINTON,harris-probate-hot-warm-cold-2026-04-30,true,NANCY STAPLES MINTON,,,harris_probate_cold_letter
+COLD,543294,20,"JOHN RHODES GROSS, II",harris-probate-hot-warm-cold-2026-04-30,true,"JOHN RHODES GROSS, II",,,harris_probate_cold_letter
+COLD,543293,20,WILLIAM JOHN ALFORD,harris-probate-hot-warm-cold-2026-04-30,true,WILLIAM JOHN ALFORD,,,harris_probate_cold_letter
+COLD,543291,20,"CHARLES MELVIN FLUGENCE, SR.",harris-probate-hot-warm-cold-2026-04-30,true,"CHARLES MELVIN FLUGENCE, SR.",,,harris_probate_cold_letter
+COLD,543358,20,"THEO WALTON PINSON, III",harris-probate-hot-warm-cold-2026-04-30,true,"THEO WALTON PINSON, III",,,harris_probate_cold_letter
+COLD,543355,20,"ROBERT G. MORONEY, JR.",harris-probate-hot-warm-cold-2026-04-30,true,"ROBERT G. MORONEY, JR.",,,harris_probate_cold_letter
+COLD,543349,20,LINDA DUKES SIMMONS,harris-probate-hot-warm-cold-2026-04-30,true,LINDA DUKES SIMMONS,,,harris_probate_cold_letter
+COLD,543348,20,MORGAN NEILL HOWARD,harris-probate-hot-warm-cold-2026-04-30,true,MORGAN NEILL HOWARD,,,harris_probate_cold_letter
+COLD,543346,20,HAROLD ERVIN MOORES,harris-probate-hot-warm-cold-2026-04-30,true,HAROLD ERVIN MOORES,,,harris_probate_cold_letter
+COLD,543337,20,WALTER MARION MCFERRIN,harris-probate-hot-warm-cold-2026-04-30,true,WALTER MARION MCFERRIN,,,harris_probate_cold_letter
+COLD,543423,20,QIANJUAN CHEN,harris-probate-hot-warm-cold-2026-04-30,true,QIANJUAN CHEN,,,harris_probate_cold_letter
+COLD,543415,20,VINCENT RINCON,harris-probate-hot-warm-cold-2026-04-30,true,VINCENT RINCON,,,harris_probate_cold_letter
+COLD,543411,20,GENE R SWEENEY,harris-probate-hot-warm-cold-2026-04-30,true,GENE R SWEENEY,,,harris_probate_cold_letter
+COLD,543407,20,"NEWTON E. WARD, JR.",harris-probate-hot-warm-cold-2026-04-30,true,"NEWTON E. WARD, JR.",,,harris_probate_cold_letter
+COLD,543405,20,DORIS ANN HOKETT,harris-probate-hot-warm-cold-2026-04-30,true,DORIS ANN HOKETT,,,harris_probate_cold_letter
+COLD,543399,20,ARNOLDO SALINAS,harris-probate-hot-warm-cold-2026-04-30,true,ARNOLDO SALINAS,,,harris_probate_cold_letter
+COLD,543398,20,ANTHONY DEE SELPH,harris-probate-hot-warm-cold-2026-04-30,true,ANTHONY DEE SELPH,,,harris_probate_cold_letter
+COLD,543386,20,KING SON WONG,harris-probate-hot-warm-cold-2026-04-30,true,KING SON WONG,,,harris_probate_cold_letter
+COLD,543385,20,JACK M. ROTH,harris-probate-hot-warm-cold-2026-04-30,true,JACK M. ROTH,,,harris_probate_cold_letter
+COLD,543379,20,ANN COLLIER ROBERTS,harris-probate-hot-warm-cold-2026-04-30,true,ANN COLLIER ROBERTS,,,harris_probate_cold_letter
+COLD,543378,20,FRANK DEAN ROBERTS,harris-probate-hot-warm-cold-2026-04-30,true,FRANK DEAN ROBERTS,,,harris_probate_cold_letter
+COLD,543375,20,DAVID MAHLON FLEISHER,harris-probate-hot-warm-cold-2026-04-30,true,DAVID MAHLON FLEISHER,,,harris_probate_cold_letter
+COLD,543370,20,THOMAS JACK BRINKLEY,harris-probate-hot-warm-cold-2026-04-30,true,THOMAS JACK BRINKLEY,,,harris_probate_cold_letter
+COLD,543369,20,MARY JANE MCGRORY WILSON,harris-probate-hot-warm-cold-2026-04-30,true,MARY JANE MCGRORY WILSON,,,harris_probate_cold_letter
+COLD,543449,20,"JOHN CARLISLE, JR.",harris-probate-hot-warm-cold-2026-04-30,true,"JOHN CARLISLE, JR.",,,harris_probate_cold_letter
+COLD,543446,20,MITCHELL R. GRASKA,harris-probate-hot-warm-cold-2026-04-30,true,MITCHELL R. GRASKA,,,harris_probate_cold_letter
+COLD,543444,20,JOHN EDWARD KALISEK,harris-probate-hot-warm-cold-2026-04-30,true,JOHN EDWARD KALISEK,,,harris_probate_cold_letter
+COLD,543442,20,WILLIAM MCDAID,harris-probate-hot-warm-cold-2026-04-30,true,WILLIAM MCDAID,,,harris_probate_cold_letter
+COLD,543431,20,JERALEE ANN ICE,harris-probate-hot-warm-cold-2026-04-30,true,JERALEE ANN ICE,,,harris_probate_cold_letter
+COLD,543425,20,TIMOTHY WAYNE JONES,harris-probate-hot-warm-cold-2026-04-30,true,TIMOTHY WAYNE JONES,,,harris_probate_cold_letter
+COLD,543490,20,LINDA O'CONNOR,harris-probate-hot-warm-cold-2026-04-30,true,LINDA O'CONNOR,,,harris_probate_cold_letter
+COLD,543488,20,MARILYN LOUISE KOCHEL,harris-probate-hot-warm-cold-2026-04-30,true,MARILYN LOUISE KOCHEL,,,harris_probate_cold_letter
+COLD,543487,20,"OSCAR MANUEL CANTU, JR.",harris-probate-hot-warm-cold-2026-04-30,true,"OSCAR MANUEL CANTU, JR.",,,harris_probate_cold_letter
+COLD,543478,20,JOAN ELLEN CARLSON,harris-probate-hot-warm-cold-2026-04-30,true,JOAN ELLEN CARLSON,,,harris_probate_cold_letter
+COLD,543477,20,ROY LEE JOHNSON,harris-probate-hot-warm-cold-2026-04-30,true,ROY LEE JOHNSON,,,harris_probate_cold_letter
+COLD,543475,20,CONSTANTINE GUS J. COLESSIDES,harris-probate-hot-warm-cold-2026-04-30,true,CONSTANTINE GUS J. COLESSIDES,,,harris_probate_cold_letter
+COLD,543474,20,NANCY VIRGINIA SPARKS ESTEP,harris-probate-hot-warm-cold-2026-04-30,true,NANCY VIRGINIA SPARKS ESTEP,,,harris_probate_cold_letter
+COLD,543473,20,MARGARET ANNE MORRIS NASH,harris-probate-hot-warm-cold-2026-04-30,true,MARGARET ANNE MORRIS NASH,,,harris_probate_cold_letter
+COLD,543470,20,TOMMY GLASKER JONES,harris-probate-hot-warm-cold-2026-04-30,true,TOMMY GLASKER JONES,,,harris_probate_cold_letter
+COLD,543465,20,PATRICIA COYLE HAGANS,harris-probate-hot-warm-cold-2026-04-30,true,PATRICIA COYLE HAGANS,,,harris_probate_cold_letter
+COLD,543460,20,PAMELA DUNLAP KELLY,harris-probate-hot-warm-cold-2026-04-30,true,PAMELA DUNLAP KELLY,,,harris_probate_cold_letter
+COLD,543459,20,ARNOLD POLLON,harris-probate-hot-warm-cold-2026-04-30,true,ARNOLD POLLON,,,harris_probate_cold_letter
+COLD,543524,20,BREN KELLAR WHETSTONE-SMITH,harris-probate-hot-warm-cold-2026-04-30,true,BREN KELLAR WHETSTONE-SMITH,,,harris_probate_cold_letter
+COLD,543511,20,VERONICA J. RUSSELL,harris-probate-hot-warm-cold-2026-04-30,true,VERONICA J. RUSSELL,,,harris_probate_cold_letter
+COLD,543507,20,TERRANOVA POTVIN,harris-probate-hot-warm-cold-2026-04-30,true,TERRANOVA POTVIN,,,harris_probate_cold_letter
+COLD,543506,20,LAURENCE NEAL MEYER,harris-probate-hot-warm-cold-2026-04-30,true,LAURENCE NEAL MEYER,,,harris_probate_cold_letter
+COLD,543505,20,MARIAN MUNDY STRANGE CHEATHAM,harris-probate-hot-warm-cold-2026-04-30,true,MARIAN MUNDY STRANGE CHEATHAM,,,harris_probate_cold_letter
+COLD,543504,20,ANDREW J. FARKAS,harris-probate-hot-warm-cold-2026-04-30,true,ANDREW J. FARKAS,,,harris_probate_cold_letter
+COLD,543502,20,JAMES R. WESSEL,harris-probate-hot-warm-cold-2026-04-30,true,JAMES R. WESSEL,,,harris_probate_cold_letter
+COLD,543496,20,SHIRLEY TEMPLE MONAKINO,harris-probate-hot-warm-cold-2026-04-30,true,SHIRLEY TEMPLE MONAKINO,,,harris_probate_cold_letter
+COLD,543494,20,WILLIAM R. ROBINSON,harris-probate-hot-warm-cold-2026-04-30,true,WILLIAM R. ROBINSON,,,harris_probate_cold_letter
+COLD,543492,20,SAMMY MARKS,harris-probate-hot-warm-cold-2026-04-30,true,SAMMY MARKS,,,harris_probate_cold_letter
+COLD,543491,20,MARY KARKELLA,harris-probate-hot-warm-cold-2026-04-30,true,MARY KARKELLA,,,harris_probate_cold_letter
+COLD,543489,20,MARIE-LOUISE S. VIADA,harris-probate-hot-warm-cold-2026-04-30,true,MARIE-LOUISE S. VIADA,,,harris_probate_cold_letter
+COLD,543554,20,RITA J. DONNELLY,harris-probate-hot-warm-cold-2026-04-30,true,RITA J. DONNELLY,,,harris_probate_cold_letter
+COLD,543548,20,CHRISTINE NEELY MAZON,harris-probate-hot-warm-cold-2026-04-30,true,CHRISTINE NEELY MAZON,,,harris_probate_cold_letter
+COLD,543547,20,JEFFREY CLARK GILBERT,harris-probate-hot-warm-cold-2026-04-30,true,JEFFREY CLARK GILBERT,,,harris_probate_cold_letter
+COLD,543546,20,"BURRELL RAYMOND COKER, JR.",harris-probate-hot-warm-cold-2026-04-30,true,"BURRELL RAYMOND COKER, JR.",,,harris_probate_cold_letter
+COLD,543537,20,MYRA B LIPPER,harris-probate-hot-warm-cold-2026-04-30,true,MYRA B LIPPER,,,harris_probate_cold_letter
+COLD,543530,20,JOHN ORVELL SUMMERS,harris-probate-hot-warm-cold-2026-04-30,true,JOHN ORVELL SUMMERS,,,harris_probate_cold_letter
+COLD,543529,20,LINDA ANN WESTBROOK,harris-probate-hot-warm-cold-2026-04-30,true,LINDA ANN WESTBROOK,,,harris_probate_cold_letter
+COLD,543522,20,GILBERT MARTIN GERLICH,harris-probate-hot-warm-cold-2026-04-30,true,GILBERT MARTIN GERLICH,,,harris_probate_cold_letter
+COLD,543595,20,CYNTHIA M. ALEMAN,harris-probate-hot-warm-cold-2026-04-30,true,CYNTHIA M. ALEMAN,,,harris_probate_cold_letter
+COLD,543593,20,BARBARA A. HEAD,harris-probate-hot-warm-cold-2026-04-30,true,BARBARA A. HEAD,,,harris_probate_cold_letter
+COLD,543592,20,JAMES FRANCIS MAHON,harris-probate-hot-warm-cold-2026-04-30,true,JAMES FRANCIS MAHON,,,harris_probate_cold_letter
+COLD,543587,20,DOMINIC FRANK KRUS,harris-probate-hot-warm-cold-2026-04-30,true,DOMINIC FRANK KRUS,,,harris_probate_cold_letter
+COLD,543584,20,SHARON L. CLOUSE,harris-probate-hot-warm-cold-2026-04-30,true,SHARON L. CLOUSE,,,harris_probate_cold_letter
+COLD,543583,20,CHARLES W. WIESEPAPE,harris-probate-hot-warm-cold-2026-04-30,true,CHARLES W. WIESEPAPE,,,harris_probate_cold_letter
+COLD,543581,20,RODGER PAUL BIRD,harris-probate-hot-warm-cold-2026-04-30,true,RODGER PAUL BIRD,,,harris_probate_cold_letter
+COLD,543580,20,ANNABELLE MCCONAUGHEY,harris-probate-hot-warm-cold-2026-04-30,true,ANNABELLE MCCONAUGHEY,,,harris_probate_cold_letter
+COLD,543579,20,JON STEPHEN LINDSAY,harris-probate-hot-warm-cold-2026-04-30,true,JON STEPHEN LINDSAY,,,harris_probate_cold_letter
+COLD,543576,20,ROSALIND BRYANT,harris-probate-hot-warm-cold-2026-04-30,true,ROSALIND BRYANT,,,harris_probate_cold_letter
+COLD,543565,20,CHRISTY RAY SPARKS,harris-probate-hot-warm-cold-2026-04-30,true,CHRISTY RAY SPARKS,,,harris_probate_cold_letter
+COLD,543564,20,GENEVA DORIS CRAWFORD SHARP,harris-probate-hot-warm-cold-2026-04-30,true,GENEVA DORIS CRAWFORD SHARP,,,harris_probate_cold_letter
+COLD,543559,20,BARBARA HEDRICK,harris-probate-hot-warm-cold-2026-04-30,true,BARBARA HEDRICK,,,harris_probate_cold_letter
+COLD,543557,20,GARY MICHAEL LOWRY,harris-probate-hot-warm-cold-2026-04-30,true,GARY MICHAEL LOWRY,,,harris_probate_cold_letter
+COLD,543555,20,LOIS CHRISTINE ALBERS,harris-probate-hot-warm-cold-2026-04-30,true,LOIS CHRISTINE ALBERS,,,harris_probate_cold_letter
+COLD,543623,20,LETHA JANE GODFREY,harris-probate-hot-warm-cold-2026-04-30,true,LETHA JANE GODFREY,,,harris_probate_cold_letter
+COLD,543621,20,DALE GORDON HUTSON,harris-probate-hot-warm-cold-2026-04-30,true,DALE GORDON HUTSON,,,harris_probate_cold_letter
+COLD,543617,20,MARY VIRGINIA SMITH GRIFFIN,harris-probate-hot-warm-cold-2026-04-30,true,MARY VIRGINIA SMITH GRIFFIN,,,harris_probate_cold_letter
+COLD,543615,20,"WOODROW H. SMITHERS, JR.",harris-probate-hot-warm-cold-2026-04-30,true,"WOODROW H. SMITHERS, JR.",,,harris_probate_cold_letter
+COLD,543611,20,GAVIN PAUL CUNNINGHAM,harris-probate-hot-warm-cold-2026-04-30,true,GAVIN PAUL CUNNINGHAM,,,harris_probate_cold_letter
+COLD,543607,20,ROBERT U. KLINE,harris-probate-hot-warm-cold-2026-04-30,true,ROBERT U. KLINE,,,harris_probate_cold_letter
+COLD,543606,20,JOYCE EVELYN LONG STEVENS,harris-probate-hot-warm-cold-2026-04-30,true,JOYCE EVELYN LONG STEVENS,,,harris_probate_cold_letter
+COLD,543601,20,RAYMOND LEE DEFREESE,harris-probate-hot-warm-cold-2026-04-30,true,RAYMOND LEE DEFREESE,,,harris_probate_cold_letter
+COLD,543597,20,KENNETH LESLIE BEAN,harris-probate-hot-warm-cold-2026-04-30,true,KENNETH LESLIE BEAN,,,harris_probate_cold_letter
+COLD,543662,20,"VANCE NEATHERY, JR.",harris-probate-hot-warm-cold-2026-04-30,true,"VANCE NEATHERY, JR.",,,harris_probate_cold_letter
+COLD,543659,20,STEWART JONATHAN GUSS,harris-probate-hot-warm-cold-2026-04-30,true,STEWART JONATHAN GUSS,,,harris_probate_cold_letter
+COLD,543658,20,ADELITA ALICIA DUHIG,harris-probate-hot-warm-cold-2026-04-30,true,ADELITA ALICIA DUHIG,,,harris_probate_cold_letter
+COLD,543644,20,VICTOR LADDIE STANEK,harris-probate-hot-warm-cold-2026-04-30,true,VICTOR LADDIE STANEK,,,harris_probate_cold_letter
+COLD,543637,20,DIANE L LAPIDUS,harris-probate-hot-warm-cold-2026-04-30,true,DIANE L LAPIDUS,,,harris_probate_cold_letter
+COLD,543633,20,KEVIN JAMES ANDERHOLM,harris-probate-hot-warm-cold-2026-04-30,true,KEVIN JAMES ANDERHOLM,,,harris_probate_cold_letter
+COLD,543631,20,BERNHARD MUNDT,harris-probate-hot-warm-cold-2026-04-30,true,BERNHARD MUNDT,,,harris_probate_cold_letter
+COLD,543630,20,JACQUELYN D. DAVIS,harris-probate-hot-warm-cold-2026-04-30,true,JACQUELYN D. DAVIS,,,harris_probate_cold_letter
+COLD,543625,20,PATRICIA M. JULIAN,harris-probate-hot-warm-cold-2026-04-30,true,PATRICIA M. JULIAN,,,harris_probate_cold_letter
+COLD,543721,20,ALTHEA RHODES WILLIAMS,harris-probate-hot-warm-cold-2026-04-30,true,ALTHEA RHODES WILLIAMS,,,harris_probate_cold_letter
+COLD,543708,20,KAREN RENEE VIEIRA,harris-probate-hot-warm-cold-2026-04-30,true,KAREN RENEE VIEIRA,,,harris_probate_cold_letter
+COLD,543687,20,DEBRA HUACK BLACKSHEAR,harris-probate-hot-warm-cold-2026-04-30,true,DEBRA HUACK BLACKSHEAR,,,harris_probate_cold_letter
+COLD,543683,20,ELIZABETH HOHLT PECORE,harris-probate-hot-warm-cold-2026-04-30,true,ELIZABETH HOHLT PECORE,,,harris_probate_cold_letter
+COLD,543679,20,YVETTE EVERETT,harris-probate-hot-warm-cold-2026-04-30,true,YVETTE EVERETT,,,harris_probate_cold_letter
+COLD,543676,20,MARIAN V. MEYER,harris-probate-hot-warm-cold-2026-04-30,true,MARIAN V. MEYER,,,harris_probate_cold_letter
+COLD,543675,20,KATHLEEN V. MCCULLOUGH,harris-probate-hot-warm-cold-2026-04-30,true,KATHLEEN V. MCCULLOUGH,,,harris_probate_cold_letter
+COLD,543674,20,STEVEN J. JOZWIAK,harris-probate-hot-warm-cold-2026-04-30,true,STEVEN J. JOZWIAK,,,harris_probate_cold_letter
+COLD,543673,20,KATHLEEN AUER WOOD,harris-probate-hot-warm-cold-2026-04-30,true,KATHLEEN AUER WOOD,,,harris_probate_cold_letter
+COLD,543670,20,KATHLEEN BEIQUE,harris-probate-hot-warm-cold-2026-04-30,true,KATHLEEN BEIQUE,,,harris_probate_cold_letter
+COLD,543669,20,LOUIS WILSON,harris-probate-hot-warm-cold-2026-04-30,true,LOUIS WILSON,,,harris_probate_cold_letter
+COLD,543665,20,ETHEL M. CARROLL,harris-probate-hot-warm-cold-2026-04-30,true,ETHEL M. CARROLL,,,harris_probate_cold_letter
+COLD,543661,20,BETTY GENE PORTER ANTON,harris-probate-hot-warm-cold-2026-04-30,true,BETTY GENE PORTER ANTON,,,harris_probate_cold_letter
+COLD,543649,20,LESTER J. EDWARDS,harris-probate-hot-warm-cold-2026-04-30,true,LESTER J. EDWARDS,,,harris_probate_cold_letter
+COLD,543732,20,CLARA LUCILLE STORKSON,harris-probate-hot-warm-cold-2026-04-30,true,CLARA LUCILLE STORKSON,,,harris_probate_cold_letter
+COLD,543731,20,ANDREW DOUGLAS JOHNSON,harris-probate-hot-warm-cold-2026-04-30,true,ANDREW DOUGLAS JOHNSON,,,harris_probate_cold_letter
+COLD,543730,20,JAMES LEONARD IVINS,harris-probate-hot-warm-cold-2026-04-30,true,JAMES LEONARD IVINS,,,harris_probate_cold_letter
+COLD,543729,20,CYNTHIA GOLD BALLARD,harris-probate-hot-warm-cold-2026-04-30,true,CYNTHIA GOLD BALLARD,,,harris_probate_cold_letter
+COLD,543726,20,GENE CLARK CHILDS,harris-probate-hot-warm-cold-2026-04-30,true,GENE CLARK CHILDS,,,harris_probate_cold_letter
+COLD,543711,20,"ALFRED PENNINGTON, III",harris-probate-hot-warm-cold-2026-04-30,true,"ALFRED PENNINGTON, III",,,harris_probate_cold_letter
+COLD,543709,20,HILDA CHARLES,harris-probate-hot-warm-cold-2026-04-30,true,HILDA CHARLES,,,harris_probate_cold_letter
+COLD,543703,20,ROBBIN CLARK DUNNELL,harris-probate-hot-warm-cold-2026-04-30,true,ROBBIN CLARK DUNNELL,,,harris_probate_cold_letter
+COLD,543696,20,PRASAD ATHOTA,harris-probate-hot-warm-cold-2026-04-30,true,PRASAD ATHOTA,,,harris_probate_cold_letter
+COLD,543789,20,RICHARD ALLEN KLINE,harris-probate-hot-warm-cold-2026-04-30,true,RICHARD ALLEN KLINE,,,harris_probate_cold_letter
+COLD,543788,20,LOIS DEAN PENICHE,harris-probate-hot-warm-cold-2026-04-30,true,LOIS DEAN PENICHE,,,harris_probate_cold_letter
+COLD,543787,20,HAI NAM TRAN,harris-probate-hot-warm-cold-2026-04-30,true,HAI NAM TRAN,,,harris_probate_cold_letter
+COLD,543783,20,SALLY JEAN WIGHT,harris-probate-hot-warm-cold-2026-04-30,true,SALLY JEAN WIGHT,,,harris_probate_cold_letter
+COLD,543781,20,WOODS DELAY DIXON,harris-probate-hot-warm-cold-2026-04-30,true,WOODS DELAY DIXON,,,harris_probate_cold_letter
+COLD,543779,20,CATHERINE N WOODS,harris-probate-hot-warm-cold-2026-04-30,true,CATHERINE N WOODS,,,harris_probate_cold_letter
+COLD,543777,20,RICHARD HENDRICKSON,harris-probate-hot-warm-cold-2026-04-30,true,RICHARD HENDRICKSON,,,harris_probate_cold_letter
+COLD,543764,20,MOSES ERNESTO MONDRAGON JR,harris-probate-hot-warm-cold-2026-04-30,true,MOSES ERNESTO MONDRAGON JR,,,harris_probate_cold_letter
+COLD,543758,20,REFUGIO ORLANDO MEDINA,harris-probate-hot-warm-cold-2026-04-30,true,REFUGIO ORLANDO MEDINA,,,harris_probate_cold_letter
+COLD,543754,20,BARBARA SUE MCCOMMAS,harris-probate-hot-warm-cold-2026-04-30,true,BARBARA SUE MCCOMMAS,,,harris_probate_cold_letter
+COLD,543751,20,MIRIAM MARIE HARTMAN BALDWIN,harris-probate-hot-warm-cold-2026-04-30,true,MIRIAM MARIE HARTMAN BALDWIN,,,harris_probate_cold_letter
+COLD,543748,20,THOMAS EUGENE PURCELL,harris-probate-hot-warm-cold-2026-04-30,true,THOMAS EUGENE PURCELL,,,harris_probate_cold_letter
+COLD,543744,20,WARREN HUEY RUDD,harris-probate-hot-warm-cold-2026-04-30,true,WARREN HUEY RUDD,,,harris_probate_cold_letter
+COLD,543740,20,MARCIA ELLEN KORN,harris-probate-hot-warm-cold-2026-04-30,true,MARCIA ELLEN KORN,,,harris_probate_cold_letter
+COLD,543739,20,LEONA ANNIE HELFRICH,harris-probate-hot-warm-cold-2026-04-30,true,LEONA ANNIE HELFRICH,,,harris_probate_cold_letter
+COLD,543737,20,"CLIFTON FELIX LANDRY, JR.",harris-probate-hot-warm-cold-2026-04-30,true,"CLIFTON FELIX LANDRY, JR.",,,harris_probate_cold_letter
+COLD,543813,20,SUZZANNE PELLEGRIN RICHARD,harris-probate-hot-warm-cold-2026-04-30,true,SUZZANNE PELLEGRIN RICHARD,,,harris_probate_cold_letter
+COLD,543805,20,THOMAS TRIGG LUPHER,harris-probate-hot-warm-cold-2026-04-30,true,THOMAS TRIGG LUPHER,,,harris_probate_cold_letter
+COLD,543803,20,LENORE JESSICA HAYNES,harris-probate-hot-warm-cold-2026-04-30,true,LENORE JESSICA HAYNES,,,harris_probate_cold_letter
+COLD,543798,20,ARTHUR L. SCHECHTER,harris-probate-hot-warm-cold-2026-04-30,true,ARTHUR L. SCHECHTER,,,harris_probate_cold_letter
+COLD,543796,20,ANGELINA ROMAN,harris-probate-hot-warm-cold-2026-04-30,true,ANGELINA ROMAN,,,harris_probate_cold_letter
+COLD,543794,20,BERL GENE WHITE,harris-probate-hot-warm-cold-2026-04-30,true,BERL GENE WHITE,,,harris_probate_cold_letter
+COLD,543792,20,BRENDA KLIEM BESCH,harris-probate-hot-warm-cold-2026-04-30,true,BRENDA KLIEM BESCH,,,harris_probate_cold_letter
+COLD,543790,20,NANCY J. ROYALL,harris-probate-hot-warm-cold-2026-04-30,true,NANCY J. ROYALL,,,harris_probate_cold_letter
+COLD,543841,20,GLORIA J. BALLARD,harris-probate-hot-warm-cold-2026-04-30,true,GLORIA J. BALLARD,,,harris_probate_cold_letter
+COLD,543827,20,FAITH FOSTER MEDLIN,harris-probate-hot-warm-cold-2026-04-30,true,FAITH FOSTER MEDLIN,,,harris_probate_cold_letter
+COLD,543822,20,MARIANNE W. CARNEY,harris-probate-hot-warm-cold-2026-04-30,true,MARIANNE W. CARNEY,,,harris_probate_cold_letter
+COLD,543820,20,ROSS LENERT KROLL,harris-probate-hot-warm-cold-2026-04-30,true,ROSS LENERT KROLL,,,harris_probate_cold_letter
+COLD,543817,20,ANTHONY DIBELLO,harris-probate-hot-warm-cold-2026-04-30,true,ANTHONY DIBELLO,,,harris_probate_cold_letter
+COLD,543816,20,MICHAEL MOSS,harris-probate-hot-warm-cold-2026-04-30,true,MICHAEL MOSS,,,harris_probate_cold_letter
+COLD,543891,20,FRANCES FOWLER,harris-probate-hot-warm-cold-2026-04-30,true,FRANCES FOWLER,,,harris_probate_cold_letter
+COLD,543886,20,NICHOLAS S. CHECKLES,harris-probate-hot-warm-cold-2026-04-30,true,NICHOLAS S. CHECKLES,,,harris_probate_cold_letter
+COLD,543885,20,VANESSA SIMONE VOIT,harris-probate-hot-warm-cold-2026-04-30,true,VANESSA SIMONE VOIT,,,harris_probate_cold_letter
+COLD,543879,20,FRANK THOMAS SOBOL,harris-probate-hot-warm-cold-2026-04-30,true,FRANK THOMAS SOBOL,,,harris_probate_cold_letter
+COLD,543859,20,"GLENN HARVEY SMITH, JR.",harris-probate-hot-warm-cold-2026-04-30,true,"GLENN HARVEY SMITH, JR.",,,harris_probate_cold_letter
+COLD,543913,20,DENNIS LYNN FOJT,harris-probate-hot-warm-cold-2026-04-30,true,DENNIS LYNN FOJT,,,harris_probate_cold_letter
+COLD,543909,20,CAROLE MARGARET MCFARLAND,harris-probate-hot-warm-cold-2026-04-30,true,CAROLE MARGARET MCFARLAND,,,harris_probate_cold_letter
+COLD,543903,20,CHRISTOFFEL J. W. TER HARKEL,harris-probate-hot-warm-cold-2026-04-30,true,CHRISTOFFEL J. W. TER HARKEL,,,harris_probate_cold_letter
+COLD,543419,15,KENNARD JAYROY LAZENBY,harris-probate-hot-warm-cold-2026-04-30,true,KENNARD JAYROY LAZENBY,,,harris_probate_cold_letter
+COLD,543454,15,QUINCY THOMAS HINTON,harris-probate-hot-warm-cold-2026-04-30,true,QUINCY THOMAS HINTON,,,harris_probate_cold_letter
+COLD,543164,15,"JERRY FOREMAN, II",harris-probate-hot-warm-cold-2026-04-30,true,"JERRY FOREMAN, II",,,harris_probate_cold_letter
+COLD,543158,15,LINDA LOU ZEHLER,harris-probate-hot-warm-cold-2026-04-30,true,LINDA LOU ZEHLER,,,harris_probate_cold_letter
+COLD,543156,15,"CHARLES JOSEPH BRECHTEL, JR.",harris-probate-hot-warm-cold-2026-04-30,true,"CHARLES JOSEPH BRECHTEL, JR.",,,harris_probate_cold_letter
+COLD,543208,15,THOMAS J. BENVENUTO,harris-probate-hot-warm-cold-2026-04-30,true,THOMAS J. BENVENUTO,,,harris_probate_cold_letter
+COLD,543194,15,BELLA MANULID SIY,harris-probate-hot-warm-cold-2026-04-30,true,BELLA MANULID SIY,,,harris_probate_cold_letter
+COLD,543188,15,PATRICIA M. COX,harris-probate-hot-warm-cold-2026-04-30,true,PATRICIA M. COX,,,harris_probate_cold_letter
+COLD,543292,15,"JOE N HORNBEAK, III",harris-probate-hot-warm-cold-2026-04-30,true,"JOE N HORNBEAK, III",,,harris_probate_cold_letter
+COLD,543267,15,EARLINE HILL DENTON,harris-probate-hot-warm-cold-2026-04-30,true,EARLINE HILL DENTON,,,harris_probate_cold_letter
+COLD,543350,15,ANN HAMBLEN WELLS,harris-probate-hot-warm-cold-2026-04-30,true,ANN HAMBLEN WELLS,,,harris_probate_cold_letter
+COLD,543391,15,"LEO RUFUS SPAETH, JR.",harris-probate-hot-warm-cold-2026-04-30,true,"LEO RUFUS SPAETH, JR.",,,harris_probate_cold_letter
+COLD,543372,15,SYED N AHMAD,harris-probate-hot-warm-cold-2026-04-30,true,SYED N AHMAD,,,harris_probate_cold_letter
+COLD,543430,15,JOHNNIE GALE CHABERT,harris-probate-hot-warm-cold-2026-04-30,true,JOHNNIE GALE CHABERT,,,harris_probate_cold_letter
+COLD,543582,15,"RANDALL K LOWRY, JR.",harris-probate-hot-warm-cold-2026-04-30,true,"RANDALL K LOWRY, JR.",,,harris_probate_cold_letter
+COLD,543643,15,BEVERLY JOAN CROSS,harris-probate-hot-warm-cold-2026-04-30,true,BEVERLY JOAN CROSS,,,harris_probate_cold_letter
+COLD,543715,15,BOBBIE L. DAVIS,harris-probate-hot-warm-cold-2026-04-30,true,BOBBIE L. DAVIS,,,harris_probate_cold_letter
+COLD,543705,15,DORRIS LUCILLE KNIGHT,harris-probate-hot-warm-cold-2026-04-30,true,DORRIS LUCILLE KNIGHT,,,harris_probate_cold_letter
+COLD,543702,15,THOMAS F HUNT,harris-probate-hot-warm-cold-2026-04-30,true,THOMAS F HUNT,,,harris_probate_cold_letter
+COLD,543695,15,SHIRLEY PUGH LAYMOND,harris-probate-hot-warm-cold-2026-04-30,true,SHIRLEY PUGH LAYMOND,,,harris_probate_cold_letter
+COLD,543692,15,KIRK E. BLACKMON,harris-probate-hot-warm-cold-2026-04-30,true,KIRK E. BLACKMON,,,harris_probate_cold_letter
+COLD,543690,15,MICHAEL L. WARNEKE,harris-probate-hot-warm-cold-2026-04-30,true,MICHAEL L. WARNEKE,,,harris_probate_cold_letter
+COLD,543689,15,JOHN WILLIAM PRICE,harris-probate-hot-warm-cold-2026-04-30,true,JOHN WILLIAM PRICE,,,harris_probate_cold_letter
+COLD,543663,15,AUGUSTUS THORNBURN WHITE,harris-probate-hot-warm-cold-2026-04-30,true,AUGUSTUS THORNBURN WHITE,,,harris_probate_cold_letter
+COLD,543734,15,AVA LAVONNE VLAHAKIS,harris-probate-hot-warm-cold-2026-04-30,true,AVA LAVONNE VLAHAKIS,,,harris_probate_cold_letter
+COLD,543716,15,DAG GUSTAV HEGGELUND,harris-probate-hot-warm-cold-2026-04-30,true,DAG GUSTAV HEGGELUND,,,harris_probate_cold_letter
+COLD,543710,15,BRANDON OWEN PARKER,harris-probate-hot-warm-cold-2026-04-30,true,BRANDON OWEN PARKER,,,harris_probate_cold_letter
+COLD,543784,15,RURAL DAVID SPRIGGS,harris-probate-hot-warm-cold-2026-04-30,true,RURAL DAVID SPRIGGS,,,harris_probate_cold_letter
+COLD,543767,15,LOUVERDIE NOLBERT,harris-probate-hot-warm-cold-2026-04-30,true,LOUVERDIE NOLBERT,,,harris_probate_cold_letter
+COLD,543756,15,BETTYE BOZMAN,harris-probate-hot-warm-cold-2026-04-30,true,BETTYE BOZMAN,,,harris_probate_cold_letter
+COLD,543808,15,BETTY SUE O'NEIL REYNOLDS,harris-probate-hot-warm-cold-2026-04-30,true,BETTY SUE O'NEIL REYNOLDS,,,harris_probate_cold_letter
+COLD,543807,15,ROBERT CLAYTON SWANSON,harris-probate-hot-warm-cold-2026-04-30,true,ROBERT CLAYTON SWANSON,,,harris_probate_cold_letter
+COLD,543836,15,PHYLLIS DIANA MERIWETHER KROLL,harris-probate-hot-warm-cold-2026-04-30,true,PHYLLIS DIANA MERIWETHER KROLL,,,harris_probate_cold_letter
+COLD,543829,15,SANSU CHIANG,harris-probate-hot-warm-cold-2026-04-30,true,SANSU CHIANG,,,harris_probate_cold_letter
+COLD,543825,15,GAIL STROBEN-DALE,harris-probate-hot-warm-cold-2026-04-30,true,GAIL STROBEN-DALE,,,harris_probate_cold_letter
+COLD,543824,15,CYNTHIA ANTHAUME DANIEL MUTHS,harris-probate-hot-warm-cold-2026-04-30,true,CYNTHIA ANTHAUME DANIEL MUTHS,,,harris_probate_cold_letter
+COLD,543890,15,KAREN ENDER BORDEN,harris-probate-hot-warm-cold-2026-04-30,true,KAREN ENDER BORDEN,,,harris_probate_cold_letter
+COLD,543871,15,WILLIAM E. BAYER,harris-probate-hot-warm-cold-2026-04-30,true,WILLIAM E. BAYER,,,harris_probate_cold_letter
+COLD,543863,15,CONSEULO G. VRSALOVIC,harris-probate-hot-warm-cold-2026-04-30,true,CONSEULO G. VRSALOVIC,,,harris_probate_cold_letter
+COLD,543856,15,GREGG ALAN GLASSER,harris-probate-hot-warm-cold-2026-04-30,true,GREGG ALAN GLASSER,,,harris_probate_cold_letter
+COLD,543854,15,EARL CHRISTOPHER GILBERT,harris-probate-hot-warm-cold-2026-04-30,true,EARL CHRISTOPHER GILBERT,,,harris_probate_cold_letter
+COLD,543834,15,JOHN BRYN WILLIAMS,harris-probate-hot-warm-cold-2026-04-30,true,JOHN BRYN WILLIAMS,,,harris_probate_cold_letter
+COLD,543918,15,SANDRA DURAN MATTA,harris-probate-hot-warm-cold-2026-04-30,true,SANDRA DURAN MATTA,,,harris_probate_cold_letter
+COLD,543910,15,RICHARD ROBERT KEITH,harris-probate-hot-warm-cold-2026-04-30,true,RICHARD ROBERT KEITH,,,harris_probate_cold_letter
+COLD,543905,15,NORA LAURENCINA ROUSE,harris-probate-hot-warm-cold-2026-04-30,true,NORA LAURENCINA ROUSE,,,harris_probate_cold_letter
+COLD,543902,15,ARTHUR RAY HENDERSON,harris-probate-hot-warm-cold-2026-04-30,true,ARTHUR RAY HENDERSON,,,harris_probate_cold_letter
+COLD,543900,15,TRACY LANE BAGLEY,harris-probate-hot-warm-cold-2026-04-30,true,TRACY LANE BAGLEY,,,harris_probate_cold_letter
+COLD,543914,10,KATHERINE K. KASOWSKI,harris-probate-hot-warm-cold-2026-04-30,true,KATHERINE K. KASOWSKI,,,harris_probate_cold_letter
+COLD,013727,5,LILA H GOODWIN,harris-probate-hot-warm-cold-2026-04-30,true,LILA H GOODWIN,,,harris_probate_cold_letter
+COLD,543513,5,LIEU THI HUYNH,harris-probate-hot-warm-cold-2026-04-30,true,LIEU THI HUYNH,,,harris_probate_cold_letter
+COLD,543414,0,MARGARET JOSEPHINE CRAIN,harris-probate-hot-warm-cold-2026-04-30,true,MARGARET JOSEPHINE CRAIN,,,harris_probate_cold_letter
+COLD,543422,0,KATHRYN SILLMAN,harris-probate-hot-warm-cold-2026-04-30,true,KATHRYN SILLMAN,,,harris_probate_cold_letter
+COLD,543697,0,DANIEL RUSSELL STARR,harris-probate-hot-warm-cold-2026-04-30,true,DANIEL RUSSELL STARR,,,harris_probate_cold_letter
+COLD,543664,0,TROY EDWARD CAFFEY,harris-probate-hot-warm-cold-2026-04-30,true,TROY EDWARD CAFFEY,,,harris_probate_cold_letter
+COLD,543760,0,ROSALEE C. COHEN,harris-probate-hot-warm-cold-2026-04-30,true,ROSALEE C. COHEN,,,harris_probate_cold_letter
+COLD,543889,0,PRICHARD K THOMAS,harris-probate-hot-warm-cold-2026-04-30,true,PRICHARD K THOMAS,,,harris_probate_cold_letter
+COLD,543881,0,SHEILA COLLINS,harris-probate-hot-warm-cold-2026-04-30,true,SHEILA COLLINS,,,harris_probate_cold_letter
+COLD,543880,0,DEBORAH NELSON CAMPBELL,harris-probate-hot-warm-cold-2026-04-30,true,DEBORAH NELSON CAMPBELL,,,harris_probate_cold_letter
+COLD,543876,0,CAROLYN LEE HENDERSON,harris-probate-hot-warm-cold-2026-04-30,true,CAROLYN LEE HENDERSON,,,harris_probate_cold_letter
+COLD,543837,0,MARK IBEN,harris-probate-hot-warm-cold-2026-04-30,true,MARK IBEN,,,harris_probate_cold_letter
+COLD,543912,0,LUIS MAURO CANO MEDINA,harris-probate-hot-warm-cold-2026-04-30,true,LUIS MAURO CANO MEDINA,,,harris_probate_cold_letter
+COLD,543911,0,EDILE J. COOK,harris-probate-hot-warm-cold-2026-04-30,true,EDILE J. COOK,,,harris_probate_cold_letter
+COLD,543901,0,SYLESTER GILDER SCOTT,harris-probate-hot-warm-cold-2026-04-30,true,SYLESTER GILDER SCOTT,,,harris_probate_cold_letter

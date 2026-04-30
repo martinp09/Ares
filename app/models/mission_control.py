@@ -297,6 +297,58 @@ class MissionControlOutboundSendResponse(BaseModel):
     error_message: str | None = None
 
 
+class MissionControlCampaignLaunchExport(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    channel: Literal["email", "sms", "direct_mail"]
+    segment: Literal["HOT", "WARM", "COLD"]
+    path: str
+    record_count: int = Field(ge=0)
+
+
+class MissionControlCampaignLaunchSegment(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    segment: Literal["HOT", "WARM", "COLD"]
+    source_count: int = Field(ge=0)
+    email_ready_count: int = Field(ge=0)
+    sms_ready_count: int = Field(ge=0)
+    direct_mail_ready_count: int = Field(ge=0)
+    recommended_daily_cap: int = Field(ge=0)
+    exports: list[MissionControlCampaignLaunchExport] = Field(default_factory=list)
+
+
+class MissionControlCampaignLaunchPreviewResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    campaign_slug: str
+    source_directory: str
+    output_directory: str
+    total_lead_count: int = Field(ge=0)
+    segments: list[MissionControlCampaignLaunchSegment] = Field(default_factory=list)
+    channel_totals: dict[str, int] = Field(default_factory=dict)
+    warnings: list[str] = Field(default_factory=list)
+
+
+class MissionControlCampaignLaunchApprovalRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    business_id: str = Field(min_length=1)
+    environment: str = Field(min_length=1)
+    source_directory: str | None = None
+    output_directory: str | None = None
+
+
+class MissionControlCampaignLaunchApprovalResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    campaign_slug: str
+    command_id: str
+    approval_id: str
+    approval_status: str
+    payload_snapshot: dict[str, Any] = Field(default_factory=dict)
+
+
 class MissionControlLeadMachineSummary(BaseModel):
     model_config = ConfigDict(extra="forbid")
 

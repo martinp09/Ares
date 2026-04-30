@@ -57,7 +57,15 @@ Known caveat:
 - [ ] Keep gothic/flame treatment concentrated around the `ARES` title and subtle dashboard accents.
 - [ ] Preserve readability, operator density, and existing Mission Control workflows.
 
-### 2. Production hardening follow-up
+### 2. Harris probate outreach campaign
+
+- [done] Use `docs/marketing/2026-04-30-harris-probate-hot-warm-cold-campaign.md` as the operator-review campaign plan.
+- [done] Add/export HOT/WARM/COLD segment manifests from the current Harris probate lead data before any live sends.
+- [done] Add a backend operator approval gate for Instantly/TextGrid/direct-mail enrollment.
+- [ ] Add a dedicated Mission Control frontend campaign-launch review page; current API contract is live and approvals can be reviewed from the existing approvals surface.
+- [ ] Add email/phone enrichment before Instantly/TextGrid enrollment; current artifact has direct-mail-ready rows only.
+
+### 3. Production hardening follow-up
 
 - [ ] Replace the REST rollback bundle with native `pg_dump` once Colima/Supabase DB DNS is fixed, if strict database restore fidelity is required.
 - [ ] Add production monitoring/alerts for provider callback failures.

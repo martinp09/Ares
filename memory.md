@@ -184,13 +184,15 @@
 
 ## Open Work
 
-1. consider an atomic backend bulk-record endpoint if large batch throughput/transaction semantics become necessary; current Records bulk UI fans out through real single-record command callbacks
-2. defer owner/property graph, research cockpit, and map UI until Records and stage model are stable
-3. add explicit canonical source-lane metadata for CRM records before broadening promote routing beyond probate/lease-option lanes
-4. preserve production evidence files as the handoff source of truth
-5. optionally replace the REST rollback bundle with native pg_dump once Supabase CLI container DNS is fixed
-6. add production monitoring/alerts for provider callback failures
-7. keep browser acquisition and ambiguous research in Hermes or other driver agents, not inside Ares
+1. add dedicated Mission Control frontend campaign-launch review page for the Harris probate HOT/WARM/COLD API contract
+2. enrich Harris probate campaign exports with email/phone before any Instantly/TextGrid enrollment; current source artifact is direct-mail-ready only
+3. consider an atomic backend bulk-record endpoint if large batch throughput/transaction semantics become necessary; current Records bulk UI fans out through real single-record command callbacks
+4. defer owner/property graph, research cockpit, and map UI until Records and stage model are stable
+5. add explicit canonical source-lane metadata for CRM records before broadening promote routing beyond probate/lease-option lanes
+6. preserve production evidence files as the handoff source of truth
+7. optionally replace the REST rollback bundle with native pg_dump once Supabase CLI container DNS is fixed
+8. add production monitoring/alerts for provider callback failures
+9. keep browser acquisition and ambiguous research in Hermes or other driver agents, not inside Ares
 
 ## Completed Branch Work
 
@@ -200,6 +202,13 @@
 - `TasksRepository` now treats `lead_machine_backend=supabase` as a Supabase-backed task path so title-packet review tasks persist with lead-machine records.
 
 ## Change Log
+
+### 2026-04-30 Harris Probate Campaign Launch Slice
+
+- Added backend campaign-launch preview/approval API for the Harris probate HOT/WARM/COLD campaign.
+- Generated no-send-before-approval CSV exports under `docs/marketing/exports/harris-probate-2026-04-30/` from `/opt/ares/lead-data/harris_probate_2026-04-28_30d_daily_raw/hot_warm_ranked_enriched.csv`.
+- Current artifact exports 464 direct-mail-ready rows and 0 email/SMS-ready rows, so enrichment is required before Instantly/TextGrid enrollment.
+- Added copywriting domain-expertise plan at `docs/marketing/copywriting-domain-expertise-plan.md` and QC under `docs/qc/2026-04-30/harris-probate-campaign-launch/`.
 
 ### 2026-04-29 Full-Screen CRM Shell
 

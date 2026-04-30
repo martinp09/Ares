@@ -1,0 +1,105 @@
+{
+  "campaign_slug": "harris-probate-hot-warm-cold-2026-04-30",
+  "channel_totals": {
+    "direct_mail": 464,
+    "email": 0,
+    "sms": 0
+  },
+  "output_directory": "docs/marketing/exports/harris-probate-2026-04-30",
+  "segments": [
+    {
+      "direct_mail_ready_count": 49,
+      "email_ready_count": 0,
+      "exports": [
+        {
+          "channel": "email",
+          "path": "docs/marketing/exports/harris-probate-2026-04-30/hot-email.csv",
+          "record_count": 0,
+          "segment": "HOT"
+        },
+        {
+          "channel": "sms",
+          "path": "docs/marketing/exports/harris-probate-2026-04-30/hot-sms.csv",
+          "record_count": 0,
+          "segment": "HOT"
+        },
+        {
+          "channel": "direct_mail",
+          "path": "docs/marketing/exports/harris-probate-2026-04-30/hot-direct_mail.csv",
+          "record_count": 49,
+          "segment": "HOT"
+        }
+      ],
+      "recommended_daily_cap": 15,
+      "segment": "HOT",
+      "sms_ready_count": 0,
+      "source_count": 49
+    },
+    {
+      "direct_mail_ready_count": 107,
+      "email_ready_count": 0,
+      "exports": [
+        {
+          "channel": "email",
+          "path": "docs/marketing/exports/harris-probate-2026-04-30/warm-email.csv",
+          "record_count": 0,
+          "segment": "WARM"
+        },
+        {
+          "channel": "sms",
+          "path": "docs/marketing/exports/harris-probate-2026-04-30/warm-sms.csv",
+          "record_count": 0,
+          "segment": "WARM"
+        },
+        {
+          "channel": "direct_mail",
+          "path": "docs/marketing/exports/harris-probate-2026-04-30/warm-direct_mail.csv",
+          "record_count": 107,
+          "segment": "WARM"
+        }
+      ],
+      "recommended_daily_cap": 30,
+      "segment": "WARM",
+      "sms_ready_count": 0,
+      "source_count": 107
+    },
+    {
+      "direct_mail_ready_count": 308,
+      "email_ready_count": 0,
+      "exports": [
+        {
+          "channel": "email",
+          "path": "docs/marketing/exports/harris-probate-2026-04-30/cold-email.csv",
+          "record_count": 0,
+          "segment": "COLD"
+        },
+        {
+          "channel": "sms",
+          "path": "docs/marketing/exports/harris-probate-2026-04-30/cold-sms.csv",
+          "record_count": 0,
+          "segment": "COLD"
+        },
+        {
+          "channel": "direct_mail",
+          "path": "docs/marketing/exports/harris-probate-2026-04-30/cold-direct_mail.csv",
+          "record_count": 308,
+          "segment": "COLD"
+        }
+      ],
+      "recommended_daily_cap": 50,
+      "segment": "COLD",
+      "sms_ready_count": 0,
+      "source_count": 308
+    }
+  ],
+  "source_directory": "/opt/ares/lead-data/harris_probate_2026-04-28_30d_daily_raw",
+  "total_lead_count": 464,
+  "warnings": [
+    "HOT has no email-ready rows in the current artifact; enrich before Instantly enrollment.",
+    "HOT has no SMS-ready rows in the current artifact; do not TextGrid-blast until phone confidence exists.",
+    "WARM has no email-ready rows in the current artifact; enrich before Instantly enrollment.",
+    "WARM has no SMS-ready rows in the current artifact; do not TextGrid-blast until phone confidence exists.",
+    "COLD has no email-ready rows in the current artifact; enrich before Instantly enrollment.",
+    "COLD has no SMS-ready rows in the current artifact; do not TextGrid-blast until phone confidence exists."
+  ]
+}

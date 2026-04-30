@@ -1,0 +1,50 @@
+segment,case_number,priority_score,decedent_name,campaign_slug,do_not_send_before_approval,recipient_name,mailing_address,property_address,letter_template
+HOT,543221,95,MARIA SANTOS VASQUEZ,harris-probate-hot-warm-cold-2026-04-30,true,MARIA SANTOS VASQUEZ,,,harris_probate_hot_letter
+HOT,543338,95,ANTHONY DAVID ALVAREZ,harris-probate-hot-warm-cold-2026-04-30,true,ANTHONY DAVID ALVAREZ,,,harris_probate_hot_letter
+HOT,543403,95,DANIEL MORALES RODRIGUEZ,harris-probate-hot-warm-cold-2026-04-30,true,DANIEL MORALES RODRIGUEZ,,,harris_probate_hot_letter
+HOT,543384,95,ROBERT HENRY FELSTUL,harris-probate-hot-warm-cold-2026-04-30,true,ROBERT HENRY FELSTUL,,,harris_probate_hot_letter
+HOT,543678,95,TANGIE RENEE WILLIAMS,harris-probate-hot-warm-cold-2026-04-30,true,TANGIE RENEE WILLIAMS,,,harris_probate_hot_letter
+HOT,543616,95,JOEL BITTENSKY,harris-probate-hot-warm-cold-2026-04-30,true,JOEL BITTENSKY,,,harris_probate_hot_letter
+HOT,543588,90,JUAN MANUEL ALVAREZ TOBIAS,harris-probate-hot-warm-cold-2026-04-30,true,JUAN MANUEL ALVAREZ TOBIAS,,,harris_probate_hot_letter
+HOT,543759,90,ROBERT LEE WARREN,harris-probate-hot-warm-cold-2026-04-30,true,ROBERT LEE WARREN,,,harris_probate_hot_letter
+HOT,543361,90,JUAN A. CASTILLO,harris-probate-hot-warm-cold-2026-04-30,true,JUAN A. CASTILLO,,,harris_probate_hot_letter
+HOT,543214,90,MARIA DEL ROSARIO TORRES,harris-probate-hot-warm-cold-2026-04-30,true,MARIA DEL ROSARIO TORRES,,,harris_probate_hot_letter
+HOT,543343,90,THOMAS LEE SCOTT,harris-probate-hot-warm-cold-2026-04-30,true,THOMAS LEE SCOTT,,,harris_probate_hot_letter
+HOT,543844,90,DEL RIO FLEMINGS,harris-probate-hot-warm-cold-2026-04-30,true,DEL RIO FLEMINGS,,,harris_probate_hot_letter
+HOT,543288,90,"ROBERT EARL SHELTON, JR.",harris-probate-hot-warm-cold-2026-04-30,true,"ROBERT EARL SHELTON, JR.",,,harris_probate_hot_letter
+HOT,543359,90,SHIRLEY MURPHY,harris-probate-hot-warm-cold-2026-04-30,true,SHIRLEY MURPHY,,,harris_probate_hot_letter
+HOT,543493,90,RUTH ANN NOBLE,harris-probate-hot-warm-cold-2026-04-30,true,RUTH ANN NOBLE,,,harris_probate_hot_letter
+HOT,543749,90,"BRAD DANIEL CLARKE, JR.",harris-probate-hot-warm-cold-2026-04-30,true,"BRAD DANIEL CLARKE, JR.",,,harris_probate_hot_letter
+HOT,543857,90,DAVID KELLY WALLACE,harris-probate-hot-warm-cold-2026-04-30,true,DAVID KELLY WALLACE,,,harris_probate_hot_letter
+HOT,543226,80,MATTHEW WAYNE SMITH,harris-probate-hot-warm-cold-2026-04-30,true,MATTHEW WAYNE SMITH,,,harris_probate_hot_letter
+HOT,543497,80,QUINTON ROOSEVELT SMITH,harris-probate-hot-warm-cold-2026-04-30,true,QUINTON ROOSEVELT SMITH,,,harris_probate_hot_letter
+HOT,543917,75,FRANCISCO JAVIER AGUAYO HINOJOSA,harris-probate-hot-warm-cold-2026-04-30,true,FRANCISCO JAVIER AGUAYO HINOJOSA,,,harris_probate_hot_letter
+HOT,543833,75,JORGE ALBERTO QUINTANILLA,harris-probate-hot-warm-cold-2026-04-30,true,JORGE ALBERTO QUINTANILLA,,,harris_probate_hot_letter
+HOT,543868,75,ROBERTO JOSE SOBALVARRO CASTILLO,harris-probate-hot-warm-cold-2026-04-30,true,ROBERTO JOSE SOBALVARRO CASTILLO,,,harris_probate_hot_letter
+HOT,543916,75,RONALD BENNETT,harris-probate-hot-warm-cold-2026-04-30,true,RONALD BENNETT,,,harris_probate_hot_letter
+HOT,543303,75,KELLEY NOELLE REVUELTO,harris-probate-hot-warm-cold-2026-04-30,true,KELLEY NOELLE REVUELTO,,,harris_probate_hot_letter
+HOT,543180,70,IMRAN SIDDICK KHATRI,harris-probate-hot-warm-cold-2026-04-30,true,IMRAN SIDDICK KHATRI,,,harris_probate_hot_letter
+HOT,543178,70,STEPHEN CRUMEDY,harris-probate-hot-warm-cold-2026-04-30,true,STEPHEN CRUMEDY,,,harris_probate_hot_letter
+HOT,543195,70,DOUGLAS RIAN CLARE,harris-probate-hot-warm-cold-2026-04-30,true,DOUGLAS RIAN CLARE,,,harris_probate_hot_letter
+HOT,543184,70,ENRIQUE SISON,harris-probate-hot-warm-cold-2026-04-30,true,ENRIQUE SISON,,,harris_probate_hot_letter
+HOT,543245,70,MAHER FAWZI KEILEH,harris-probate-hot-warm-cold-2026-04-30,true,MAHER FAWZI KEILEH,,,harris_probate_hot_letter
+HOT,543242,70,JAMES PROPST RUNGE,harris-probate-hot-warm-cold-2026-04-30,true,JAMES PROPST RUNGE,,,harris_probate_hot_letter
+HOT,543238,70,SANDRA YVONNE CLARK,harris-probate-hot-warm-cold-2026-04-30,true,SANDRA YVONNE CLARK,,,harris_probate_hot_letter
+HOT,543276,70,JOAN TILLAR SCHEUERMANN,harris-probate-hot-warm-cold-2026-04-30,true,JOAN TILLAR SCHEUERMANN,,,harris_probate_hot_letter
+HOT,543396,70,JAMES FRANKLIN FREY,harris-probate-hot-warm-cold-2026-04-30,true,JAMES FRANKLIN FREY,,,harris_probate_hot_letter
+HOT,543340,70,STEPHENS ERNEST COLLINS,harris-probate-hot-warm-cold-2026-04-30,true,STEPHENS ERNEST COLLINS,,,harris_probate_hot_letter
+HOT,543307,70,GLENNA FAYE WALL,harris-probate-hot-warm-cold-2026-04-30,true,GLENNA FAYE WALL,,,harris_probate_hot_letter
+HOT,543305,70,CAM SO DUONG,harris-probate-hot-warm-cold-2026-04-30,true,CAM SO DUONG,,,harris_probate_hot_letter
+HOT,543426,70,GARLAND DUANE WALKER,harris-probate-hot-warm-cold-2026-04-30,true,GARLAND DUANE WALKER,,,harris_probate_hot_letter
+HOT,543458,70,FRANCES LEE TILLEY BURNETT,harris-probate-hot-warm-cold-2026-04-30,true,FRANCES LEE TILLEY BURNETT,,,harris_probate_hot_letter
+HOT,543527,70,HOWARD TAYLOR NORRIS,harris-probate-hot-warm-cold-2026-04-30,true,HOWARD TAYLOR NORRIS,,,harris_probate_hot_letter
+HOT,543516,70,RONNY GERALD CLEMONS,harris-probate-hot-warm-cold-2026-04-30,true,RONNY GERALD CLEMONS,,,harris_probate_hot_letter
+HOT,543509,70,AUGUSTINA OSTIGIN ARNOLD,harris-probate-hot-warm-cold-2026-04-30,true,AUGUSTINA OSTIGIN ARNOLD,,,harris_probate_hot_letter
+HOT,543503,70,MARTA LIDUVINA HENRIQUEZ,harris-probate-hot-warm-cold-2026-04-30,true,MARTA LIDUVINA HENRIQUEZ,,,harris_probate_hot_letter
+HOT,543498,70,THOMAS EHRIG,harris-probate-hot-warm-cold-2026-04-30,true,THOMAS EHRIG,,,harris_probate_hot_letter
+HOT,543485,70,BRENDA MARIE HICKS,harris-probate-hot-warm-cold-2026-04-30,true,BRENDA MARIE HICKS,,,harris_probate_hot_letter
+HOT,543533,70,LAWRENCE ALAN MORSE,harris-probate-hot-warm-cold-2026-04-30,true,LAWRENCE ALAN MORSE,,,harris_probate_hot_letter
+HOT,543532,70,BRADLEY NOLAN,harris-probate-hot-warm-cold-2026-04-30,true,BRADLEY NOLAN,,,harris_probate_hot_letter
+HOT,543512,70,RODNEY PAUL JOHNSON,harris-probate-hot-warm-cold-2026-04-30,true,RODNEY PAUL JOHNSON,,,harris_probate_hot_letter
+HOT,543590,70,PAUL IVEY STEVENSON,harris-probate-hot-warm-cold-2026-04-30,true,PAUL IVEY STEVENSON,,,harris_probate_hot_letter
+HOT,543574,70,KATHY JO CARD,harris-probate-hot-warm-cold-2026-04-30,true,KATHY JO CARD,,,harris_probate_hot_letter

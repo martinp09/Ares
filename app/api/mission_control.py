@@ -7,6 +7,9 @@ from app.models.mission_control import (
     MissionControlAgentsResponse,
     MissionControlApprovalsResponse,
     MissionControlAssetsResponse,
+    MissionControlCampaignLaunchApprovalRequest,
+    MissionControlCampaignLaunchApprovalResponse,
+    MissionControlCampaignLaunchPreviewResponse,
     MissionControlDashboardResponse,
     MissionControlEmailTestRequest,
     MissionControlGovernanceResponse,
@@ -41,6 +44,7 @@ from app.models.audit import AuditListResponse
 from app.models.provider_extras import InstantlyProviderExtrasSnapshot
 from app.models.secrets import SecretBindingListResponse, SecretListResponse
 from app.models.usage import UsageEventKind, UsageResponse
+from app.services.campaign_launch_service import CampaignLaunchService
 from app.services.mission_control_service import mission_control_service
 from app.services.title_packet_import_service import TitlePacketImportService
 
@@ -339,6 +343,62 @@ def import_title_packet_leads(payload: dict) -> MissionControlTitlePacketImportR
         lead_ids=result.lead_ids,
         title_packet_ids=result.title_packet_ids,
         task_ids=result.task_ids,
+    )
+
+
+@router.get(
+    "/campaign-launches/harris-probate-hot-warm-cold",
+    response_model=MissionControlCampaignLaunchPreviewResponse,
+)
+def preview_harris_probate_campaign_launch(
+    source_directory: str | None = Query(default=None),
+    output_directory: str | None = Query(default=None),
+) -> MissionControlCampaignLaunchPreviewResponse:
+    try:
+        campaign_launch_service = CampaignLaunchService()
+        preview = campaign_launch_service.build_harris_probate_preview(
+            **({"source_directory": source_directory} if source_directory else {}),
+            **({"output_directory": output_directory} if output_directory else {}),
+        )
+    except FileNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    return MissionControlCampaignLaunchPreviewResponse(
+        campaign_slug=preview.campaign_slug,
+        source_directory=preview.source_directory,
+        output_directory=preview.output_directory,
+        total_lead_count=preview.total_lead_count,
+        segments=[campaign_launch_service._segment_dict(segment) for segment in preview.segments],
+        channel_totals=preview.channel_totals,
+        warnings=preview.warnings,
+    )
+
+
+@router.post(
+    "/campaign-launches/harris-probate-hot-warm-cold/approval",
+    response_model=MissionControlCampaignLaunchApprovalResponse,
+    status_code=201,
+)
+def request_harris_probate_campaign_launch_approval(
+    payload: MissionControlCampaignLaunchApprovalRequest,
+    actor_context: ActorContext = Depends(actor_context_dependency),
+) -> MissionControlCampaignLaunchApprovalResponse:
+    try:
+        campaign_launch_service = CampaignLaunchService()
+        approval = campaign_launch_service.request_harris_probate_launch_approval(
+            business_id=payload.business_id,
+            environment=payload.environment,
+            actor_id=actor_context.actor_id,
+            **({"source_directory": payload.source_directory} if payload.source_directory else {}),
+            **({"output_directory": payload.output_directory} if payload.output_directory else {}),
+        )
+    except FileNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    return MissionControlCampaignLaunchApprovalResponse(
+        campaign_slug=approval.campaign_slug,
+        command_id=approval.command_id,
+        approval_id=approval.approval_id,
+        approval_status=approval.approval_status,
+        payload_snapshot=approval.payload_snapshot,
     )
 
 
