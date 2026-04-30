@@ -350,6 +350,62 @@ def test_records_action_api_imports_updates_suppresses_and_promotes_records(clie
     assert records_response.json()["records"][0]["source_lead_id"] == "lead_456"
 
 
+def test_opportunity_stage_api_moves_stage_and_returns_history(client) -> None:
+    reset_control_plane_state()
+    opportunity = mission_control_service.opportunities_repository.upsert(
+        OpportunityRecord(
+            business_id="limitless",
+            environment="dev",
+            source_lane=OpportunitySourceLane.PROBATE,
+            lead_id="lead_stage_api",
+        )
+    )
+
+    response = client.post(
+        f"/mission-control/opportunities/{opportunity.id}/stage",
+        json={"stage": "offer_path_selected", "reason": "operator qualified seller", "metadata": {"surface": "pipeline"}},
+        headers=org_actor_headers(org_id="org_internal", actor_id="operator-1"),
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["opportunity"]["id"] == opportunity.id
+    assert body["opportunity"]["stage"] == "offer_path_selected"
+    assert body["latest_stage_event"]["from_stage"] == "qualified_opportunity"
+    assert body["latest_stage_event"]["to_stage"] == "offer_path_selected"
+    assert body["latest_stage_event"]["actor_id"] == "operator-1"
+    assert body["stage_history"][0]["reason"] == "operator qualified seller"
+
+    history_response = client.get(
+        f"/mission-control/opportunities/{opportunity.id}/stage-history",
+        headers=AUTH_HEADERS,
+    )
+    assert history_response.status_code == 200
+    assert history_response.json()["items"][0]["to_stage"] == "offer_path_selected"
+
+
+def test_opportunity_stage_api_rejects_backward_moves(client) -> None:
+    reset_control_plane_state()
+    opportunity = mission_control_service.opportunities_repository.upsert(
+        OpportunityRecord(
+            business_id="limitless",
+            environment="dev",
+            source_lane=OpportunitySourceLane.PROBATE,
+            lead_id="lead_stage_backwards",
+            stage=OpportunityStage.CONTRACT_SENT,
+        )
+    )
+
+    response = client.post(
+        f"/mission-control/opportunities/{opportunity.id}/stage",
+        json={"stage": "offer_path_selected", "reason": "try backwards"},
+        headers=AUTH_HEADERS,
+    )
+
+    assert response.status_code == 422
+    assert "cannot move opportunity backward" in response.json()["detail"]
+
+
 def test_records_saved_views_can_be_created_and_return_with_records(client) -> None:
     reset_control_plane_state()
 

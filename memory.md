@@ -184,13 +184,14 @@
 
 ## Open Work
 
-1. remote Supabase validation/deploy requires explicitly linked target project credentials; local Supabase validation is complete
-2. defer owner/property graph, research cockpit, and map UI until Records and stage model are stable
-3. add explicit canonical source-lane metadata for CRM records before broadening promote routing beyond probate/lease-option lanes
-4. preserve production evidence files as the handoff source of truth
-5. optionally replace the REST rollback bundle with native pg_dump once Supabase CLI container DNS is fixed
-6. add production monitoring/alerts for provider callback failures
-7. keep browser acquisition and ambiguous research in Hermes or other driver agents, not inside Ares
+1. wire Mission Control frontend pipeline controls to the new opportunity stage movement API
+2. remote Supabase validation/deploy requires explicitly linked target project credentials; local Supabase validation is complete
+3. defer owner/property graph, research cockpit, and map UI until Records and stage model are stable
+4. add explicit canonical source-lane metadata for CRM records before broadening promote routing beyond probate/lease-option lanes
+5. preserve production evidence files as the handoff source of truth
+6. optionally replace the REST rollback bundle with native pg_dump once Supabase CLI container DNS is fixed
+7. add production monitoring/alerts for provider callback failures
+8. keep browser acquisition and ambiguous research in Hermes or other driver agents, not inside Ares
 
 ## Completed Branch Work
 
@@ -200,6 +201,12 @@
 - `TasksRepository` now treats `lead_machine_backend=supabase` as a Supabase-backed task path so title-packet review tasks persist with lead-machine records.
 
 ## Change Log
+
+### 2026-04-29 Opportunity Stage API
+
+- Added Mission Control API endpoints for opportunity stage movement and stage-history readback.
+- Stage moves use the existing configured-pipeline `OpportunityService.advance_stage` rules, including backward-move rejection and persisted stage history.
+- Added API regressions for successful forward movement and rejected backward movement; evidence lives under `docs/qc/2026-04-29/opportunity-stage-api/`.
 
 ### 2026-04-29 CRM Supabase Validation
 

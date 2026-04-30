@@ -14,6 +14,9 @@ from app.models.mission_control import (
     MissionControlLeadMachineResponse,
     MissionControlLeadSuppressionRequest,
     MissionControlLeadUnsuppressionRequest,
+    MissionControlOpportunityStageHistoryResponse,
+    MissionControlOpportunityStageMoveRequest,
+    MissionControlOpportunityStageMoveResponse,
     MissionControlOutboundSendResponse,
     MissionControlProvidersStatusResponse,
     MissionControlRecordActionResponse,
@@ -205,6 +208,36 @@ def promote_record(
         raise HTTPException(status_code=404, detail="CRM record not found") from exc
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+
+@router.post("/opportunities/{opportunity_id}/stage", response_model=MissionControlOpportunityStageMoveResponse, response_model_exclude_none=True)
+def move_opportunity_stage(
+    opportunity_id: str,
+    payload: MissionControlOpportunityStageMoveRequest,
+    actor_context: ActorContext = Depends(actor_context_dependency),
+) -> MissionControlOpportunityStageMoveResponse:
+    try:
+        return mission_control_service.move_opportunity_stage(
+            opportunity_id,
+            payload,
+            actor_id=actor_context.actor_id,
+            actor_type=actor_context.actor_type,
+        )
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail="Opportunity not found") from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+
+@router.get("/opportunities/{opportunity_id}/stage-history", response_model=MissionControlOpportunityStageHistoryResponse, response_model_exclude_none=True)
+def get_opportunity_stage_history(
+    opportunity_id: str,
+    actor_context: ActorContext = Depends(actor_context_dependency),
+) -> MissionControlOpportunityStageHistoryResponse:
+    try:
+        return mission_control_service.get_opportunity_stage_history(opportunity_id)
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail="Opportunity not found") from exc
 
 
 @router.post("/tasks/{thread_id}/complete", response_model=MissionControlTaskActionResponse)

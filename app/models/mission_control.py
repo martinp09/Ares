@@ -14,6 +14,7 @@ from app.models.audit import AuditRecord
 from app.models.commands import generate_id
 from app.models.host_adapters import HostAdapterCapabilityRecord, HostAdapterKind
 from app.models.outcomes import OutcomeStatus
+from app.models.opportunities import OpportunityRecord, OpportunityStage, OpportunityStageHistoryRecord
 from app.models.release_management import ReleaseEventType
 from app.models.runs import RunStatus
 from app.models.tasks import TaskPriority, TaskStatus, TaskType
@@ -384,6 +385,28 @@ class MissionControlOpportunityPipelineSummary(BaseModel):
 
     total_opportunity_count: int = Field(ge=0)
     lane_stage_summaries: list[MissionControlOpportunityStageSummary] = Field(default_factory=list)
+
+
+class MissionControlOpportunityStageMoveRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    stage: OpportunityStage
+    reason: str | None = None
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class MissionControlOpportunityStageHistoryResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    items: list[OpportunityStageHistoryRecord] = Field(default_factory=list)
+
+
+class MissionControlOpportunityStageMoveResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    opportunity: OpportunityRecord
+    latest_stage_event: OpportunityStageHistoryRecord | None = None
+    stage_history: list[OpportunityStageHistoryRecord] = Field(default_factory=list)
 
 
 class MissionControlOutboundProbateSummary(BaseModel):

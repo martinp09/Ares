@@ -1,0 +1,6 @@
+M	CONTEXT.md
+M	app/api/mission_control.py
+M	app/models/mission_control.py
+M	app/services/mission_control_service.py
+M	memory.md
+M	tests/api/test_mission_control.py

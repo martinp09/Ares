@@ -1,0 +1,7 @@
+ CONTEXT.md                              |  8 +++--
+ app/api/mission_control.py              | 33 +++++++++++++++++++
+ app/models/mission_control.py           | 23 ++++++++++++++
+ app/services/mission_control_service.py | 35 +++++++++++++++++++++
+ memory.md                               | 21 ++++++++-----
+ tests/api/test_mission_control.py       | 56 +++++++++++++++++++++++++++++++++
+ 6 files changed, 166 insertions(+), 10 deletions(-)

@@ -85,6 +85,9 @@ from app.models.mission_control import (
     MissionControlLeadMachineTimelineItem,
     MissionControlLeadMachineTimelineSummary,
     MissionControlOpportunityPipelineSummary,
+    MissionControlOpportunityStageHistoryResponse,
+    MissionControlOpportunityStageMoveRequest,
+    MissionControlOpportunityStageMoveResponse,
     MissionControlOpportunityStageSummary,
     MissionControlOutboundProbateSummary,
     MissionControlPlannerReviewSummary,
@@ -609,6 +612,38 @@ class MissionControlService:
             opportunity_id=opportunity.id,
             promotion_id=promotion.id,
         )
+
+    def move_opportunity_stage(
+        self,
+        opportunity_id: str,
+        payload: MissionControlOpportunityStageMoveRequest,
+        *,
+        actor_id: str | None = None,
+        actor_type: str | None = None,
+    ) -> MissionControlOpportunityStageMoveResponse:
+        before = self.opportunities_repository.get(opportunity_id)
+        if before is None:
+            raise KeyError(opportunity_id)
+        updated = self.opportunity_service.advance_stage(
+            opportunity_id,
+            payload.stage,
+            actor_id=actor_id,
+            actor_type=actor_type,
+            reason=payload.reason,
+            metadata=payload.metadata,
+        )
+        history = self.opportunity_service.list_stage_history(opportunity_id)
+        latest_event = history[-1] if history else None
+        return MissionControlOpportunityStageMoveResponse(
+            opportunity=updated,
+            latest_stage_event=latest_event,
+            stage_history=history,
+        )
+
+    def get_opportunity_stage_history(self, opportunity_id: str) -> MissionControlOpportunityStageHistoryResponse:
+        if self.opportunities_repository.get(opportunity_id) is None:
+            raise KeyError(opportunity_id)
+        return MissionControlOpportunityStageHistoryResponse(items=self.opportunity_service.list_stage_history(opportunity_id))
 
     def _build_record_inventory_summary(
         self,

@@ -1,0 +1,14 @@
+## RED check previously observed
+New stage API tests initially failed with 404 before endpoint implementation.
+
+## uv run pytest tests/api/test_mission_control.py::test_opportunity_stage_api_moves_stage_and_returns_history tests/api/test_mission_control.py::test_opportunity_stage_api_rejects_backward_moves -q
+warning: `VIRTUAL_ENV=/usr/local/lib/hermes-agent/venv` does not match the project environment path `.venv` and will be ignored; use `--active` to target the active environment instead
+..                                                                       [100%]
+2 passed in 0.05s
+
+## uv run pytest tests/api/test_mission_control.py tests/db/test_opportunities_repository.py tests/db/test_opportunity_pipeline_schema.py -q
+warning: `VIRTUAL_ENV=/usr/local/lib/hermes-agent/venv` does not match the project environment path `.venv` and will be ignored; use `--active` to target the active environment instead
+.........................................                                [100%]
+41 passed in 0.82s
+
+## git diff --check
