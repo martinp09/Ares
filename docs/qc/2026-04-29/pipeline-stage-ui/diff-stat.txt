@@ -1,0 +1,7 @@
+ CONTEXT.md                                      |   3 +-
+ apps/mission-control/src/App.tsx                |  31 ++++++
+ apps/mission-control/src/lib/api.test.ts        |  62 ++++++++++++
+ apps/mission-control/src/lib/api.ts             | 120 ++++++++++++++++++++++++
+ apps/mission-control/src/pages/PipelinePage.tsx |  66 ++++++++++++-
+ memory.md                                       |   9 +-
+ 6 files changed, 287 insertions(+), 4 deletions(-)

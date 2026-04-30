@@ -184,7 +184,7 @@
 
 ## Open Work
 
-1. wire Mission Control frontend pipeline controls to the new opportunity stage movement API
+1. add richer opportunity-list/detail controls so Pipeline moves no longer require manual opportunity ID entry
 2. remote Supabase validation/deploy requires explicitly linked target project credentials; local Supabase validation is complete
 3. defer owner/property graph, research cockpit, and map UI until Records and stage model are stable
 4. add explicit canonical source-lane metadata for CRM records before broadening promote routing beyond probate/lease-option lanes
@@ -201,6 +201,13 @@
 - `TasksRepository` now treats `lead_machine_backend=supabase` as a Supabase-backed task path so title-packet review tasks persist with lead-machine records.
 
 ## Change Log
+
+### 2026-04-29 Pipeline Stage UI
+
+- Wired Mission Control Pipeline page to the real opportunity stage movement API.
+- Added an operator form for opportunity ID, target stage, and reason; submit is disabled until an opportunity ID is present.
+- Added frontend API client response mapping for updated opportunity plus stage history.
+- Added focused Pipeline page/API client tests, frontend typecheck/build, and backend stage API regression evidence in `docs/qc/2026-04-29/pipeline-stage-ui/`.
 
 ### 2026-04-29 Opportunity Stage API
 

@@ -16,6 +16,7 @@ import {
   type MissionControlDataSource,
   type MissionControlSnapshot,
   type MissionControlView,
+  type OpportunityStageMoveRequest,
   type OrganizationSummary,
   type OutboundSendResponse,
 } from "./lib/api";
@@ -384,6 +385,11 @@ export default function App() {
     status: "running" | "success" | "error";
     message: string;
   } | null>(null);
+  const [pipelineActionState, setPipelineActionState] = useState<{
+    opportunityId: string;
+    status: "running" | "success" | "error";
+    message: string;
+  } | null>(null);
   const [isAgentDetailLoading, setIsAgentDetailLoading] = useState(false);
   const [fallbackViews, setFallbackViews] = useState<MissionControlView[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -746,6 +752,27 @@ export default function App() {
         recordId: record.id,
         status: "error",
         message: error instanceof Error ? error.message : "Record promotion failed",
+      });
+    }
+  }
+
+  async function handleOpportunityStageMove(opportunityId: string, request: OpportunityStageMoveRequest): Promise<void> {
+    setPipelineActionState({ opportunityId, status: "running", message: `Moving ${opportunityId}...` });
+    try {
+      const result = await api.moveOpportunityStage(opportunityId, request);
+      queryClient.clear();
+      const dashboard = await api.getDashboard();
+      setSnapshot((current) => ({ ...current, dashboard }));
+      setPipelineActionState({
+        opportunityId,
+        status: "success",
+        message: `Moved to ${result.opportunity.stage.replaceAll("_", " ")}`,
+      });
+    } catch (error) {
+      setPipelineActionState({
+        opportunityId,
+        status: "error",
+        message: error instanceof Error ? error.message : "Opportunity stage move failed",
       });
     }
   }
@@ -1602,6 +1629,10 @@ export default function App() {
                 snapshot.dashboard.opportunityCount ??
                 filteredOpportunityStages.length
               }
+              actionState={pipelineActionState}
+              onMoveStage={(opportunityId, request) => {
+                void handleOpportunityStageMove(opportunityId, request);
+              }}
             />
           ),
           contextContent: (

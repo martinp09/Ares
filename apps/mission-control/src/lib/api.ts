@@ -50,6 +50,42 @@ export interface OpportunityStageSummary {
   count: number;
 }
 
+export interface OpportunityRecordSummary {
+  id: string;
+  businessId: string;
+  environment: string;
+  sourceLane: string;
+  strategyLane?: string | null;
+  stage: string;
+  leadId?: string | null;
+  contactId?: string | null;
+  metadata: Record<string, unknown>;
+}
+
+export interface OpportunityStageHistoryItem {
+  id?: string | null;
+  opportunityId: string;
+  fromStage?: string | null;
+  toStage: string;
+  actorId?: string | null;
+  actorType?: string | null;
+  reason?: string | null;
+  metadata: Record<string, unknown>;
+  createdAt: string;
+}
+
+export interface OpportunityStageMoveRequest {
+  stage: string;
+  reason?: string;
+  metadata?: Record<string, unknown>;
+}
+
+export interface OpportunityStageMoveResult {
+  opportunity: OpportunityRecordSummary;
+  latestStageEvent?: OpportunityStageHistoryItem | null;
+  stageHistory: OpportunityStageHistoryItem[];
+}
+
 export interface OutboundProbateSummary {
   activeCampaignCount: number;
   readyLeadCount: number;
@@ -568,6 +604,7 @@ export interface MissionControlApi {
   updateRecordStatus(recordId: string, request: RecordStatusUpdateRequest): Promise<RecordActionResult>;
   suppressRecord(recordId: string, request: RecordSuppressionRequest): Promise<RecordActionResult>;
   promoteRecord(recordId: string, request: RecordPromotionRequest): Promise<RecordActionResult>;
+  moveOpportunityStage(opportunityId: string, request: OpportunityStageMoveRequest): Promise<OpportunityStageMoveResult>;
   getInbox(selectedThreadId?: string): Promise<InboxData>;
   getTasks(): Promise<TasksData>;
   getApprovals(): Promise<ApprovalItem[]>;
@@ -743,6 +780,36 @@ interface RecordActionPayload {
   record?: RecordSummaryPayload;
   opportunity_id?: string | null;
   promotion_id?: string | null;
+}
+
+interface OpportunityPayload {
+  id?: string;
+  business_id?: string;
+  environment?: string;
+  source_lane?: string;
+  strategy_lane?: string | null;
+  stage?: string;
+  lead_id?: string | null;
+  contact_id?: string | null;
+  metadata?: Record<string, unknown>;
+}
+
+interface OpportunityStageHistoryPayload {
+  id?: string | null;
+  opportunity_id?: string;
+  from_stage?: string | null;
+  to_stage?: string;
+  actor_id?: string | null;
+  actor_type?: string | null;
+  reason?: string | null;
+  metadata?: Record<string, unknown>;
+  created_at?: string;
+}
+
+interface OpportunityStageMovePayload {
+  opportunity?: OpportunityPayload;
+  latest_stage_event?: OpportunityStageHistoryPayload | null;
+  stage_history?: OpportunityStageHistoryPayload[];
 }
 
 interface InboxPayload {
@@ -1560,6 +1627,42 @@ function mapRecordAction(payload: RecordActionPayload): RecordActionResult {
   };
 }
 
+function mapOpportunity(payload: OpportunityPayload = {}): OpportunityRecordSummary {
+  return {
+    id: asString(payload.id),
+    businessId: asString(payload.business_id),
+    environment: asString(payload.environment),
+    sourceLane: asString(payload.source_lane),
+    strategyLane: payload.strategy_lane ?? null,
+    stage: asString(payload.stage),
+    leadId: payload.lead_id ?? null,
+    contactId: payload.contact_id ?? null,
+    metadata: payload.metadata ?? {},
+  };
+}
+
+function mapOpportunityStageHistoryItem(payload: OpportunityStageHistoryPayload = {}): OpportunityStageHistoryItem {
+  return {
+    id: payload.id ?? null,
+    opportunityId: asString(payload.opportunity_id),
+    fromStage: payload.from_stage ?? null,
+    toStage: asString(payload.to_stage),
+    actorId: payload.actor_id ?? null,
+    actorType: payload.actor_type ?? null,
+    reason: payload.reason ?? null,
+    metadata: payload.metadata ?? {},
+    createdAt: asString(payload.created_at),
+  };
+}
+
+function mapOpportunityStageMove(payload: OpportunityStageMovePayload): OpportunityStageMoveResult {
+  return {
+    opportunity: mapOpportunity(payload.opportunity),
+    latestStageEvent: payload.latest_stage_event ? mapOpportunityStageHistoryItem(payload.latest_stage_event) : null,
+    stageHistory: (payload.stage_history ?? []).map(mapOpportunityStageHistoryItem),
+  };
+}
+
 function mapThreadFromSummary(
   summary: InboxThreadSummaryPayload,
   stage: string,
@@ -2306,6 +2409,23 @@ export function createMissionControlApi(
               lead_id: request.leadId ?? null,
               contact_id: request.contactId ?? null,
               strategy_lane: request.strategyLane ?? null,
+              reason: request.reason,
+              metadata: request.metadata ?? {},
+            }),
+          },
+        ),
+      ),
+    moveOpportunityStage: async (opportunityId, request) =>
+      mapOpportunityStageMove(
+        await requestJson<OpportunityStageMovePayload>(
+          `/mission-control/opportunities/${encodeURIComponent(opportunityId)}/stage`,
+          resolvedOptions,
+          "mission-control",
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              stage: request.stage,
               reason: request.reason,
               metadata: request.metadata ?? {},
             }),

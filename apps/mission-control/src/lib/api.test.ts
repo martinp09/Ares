@@ -802,4 +802,66 @@ describe("Mission Control API client", () => {
       },
     });
   });
+
+  it("posts opportunity stage moves through the Mission Control API", async () => {
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = parseUrl(input);
+      expect(url.pathname).toBe("/mission-control/opportunities/opp_123/stage");
+      expect(url.searchParams.get("business_id")).toBe("limitless");
+      expect(url.searchParams.get("environment")).toBe("prod");
+      expect(init?.method).toBe("POST");
+      expect(JSON.parse(String(init?.body))).toEqual({
+        stage: "offer_path_selected",
+        reason: "seller ready",
+        metadata: { surface: "mission-control-pipeline" },
+      });
+      return jsonResponse({
+        opportunity: {
+          id: "opp_123",
+          business_id: "limitless",
+          environment: "prod",
+          source_lane: "probate",
+          strategy_lane: null,
+          stage: "offer_path_selected",
+          lead_id: "lead_1",
+          contact_id: null,
+          metadata: { record_id: "rec_1" },
+        },
+        latest_stage_event: {
+          id: "hist_1",
+          opportunity_id: "opp_123",
+          from_stage: "qualified_opportunity",
+          to_stage: "offer_path_selected",
+          actor_type: "operator",
+          reason: "seller ready",
+          metadata: { surface: "mission-control-pipeline" },
+          created_at: "2026-04-30T00:00:00+00:00",
+        },
+        stage_history: [
+          {
+            id: "hist_1",
+            opportunity_id: "opp_123",
+            from_stage: "qualified_opportunity",
+            to_stage: "offer_path_selected",
+            actor_type: "operator",
+            reason: "seller ready",
+            metadata: { surface: "mission-control-pipeline" },
+            created_at: "2026-04-30T00:00:00+00:00",
+          },
+        ],
+      });
+    });
+
+    const api = createMissionControlApi({ fetchImpl: fetchMock as typeof fetch, businessId: "limitless", environment: "prod" });
+
+    const result = await api.moveOpportunityStage("opp_123", {
+      stage: "offer_path_selected",
+      reason: "seller ready",
+      metadata: { surface: "mission-control-pipeline" },
+    });
+
+    expect(result.opportunity).toMatchObject({ id: "opp_123", stage: "offer_path_selected", sourceLane: "probate" });
+    expect(result.latestStageEvent?.fromStage).toBe("qualified_opportunity");
+    expect(result.stageHistory).toHaveLength(1);
+  });
 });

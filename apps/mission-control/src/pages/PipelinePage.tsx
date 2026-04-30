@@ -1,8 +1,18 @@
-import type { OpportunityStageSummary } from "../lib/api";
+import { useMemo, useState } from "react";
+
+import type { OpportunityStageMoveRequest, OpportunityStageSummary } from "../lib/api";
+
+interface PipelineActionState {
+  opportunityId: string;
+  status: "running" | "success" | "error";
+  message: string;
+}
 
 interface PipelinePageProps {
   stages: OpportunityStageSummary[];
   totalCount?: number;
+  onMoveStage: (opportunityId: string, request: OpportunityStageMoveRequest) => void;
+  actionState: PipelineActionState | null;
 }
 
 function formatStageLabel(stage: string): string {
@@ -21,7 +31,15 @@ function formatLaneLabel(sourceLane: string): string {
     .join(" ");
 }
 
-export function PipelinePage({ stages, totalCount = 0 }: PipelinePageProps) {
+export function PipelinePage({ stages, totalCount = 0, onMoveStage, actionState }: PipelinePageProps) {
+  const stageOptions = useMemo(() => Array.from(new Set(stages.map((stage) => stage.stage))).sort(), [stages]);
+  const [opportunityId, setOpportunityId] = useState("");
+  const [targetStage, setTargetStage] = useState(stageOptions[0] ?? "qualified_opportunity");
+  const [reason, setReason] = useState("");
+
+  const trimmedOpportunityId = opportunityId.trim();
+  const canMoveStage = trimmedOpportunityId.length > 0 && targetStage.length > 0 && actionState?.status !== "running";
+
   return (
     <section className="panel-stack">
       <div className="section-heading">
@@ -38,6 +56,50 @@ export function PipelinePage({ stages, totalCount = 0 }: PipelinePageProps) {
           </article>
         ))}
       </div>
+
+      <form
+        className="surface-card form-grid"
+        onSubmit={(event) => {
+          event.preventDefault();
+          if (!canMoveStage) {
+            return;
+          }
+          onMoveStage(trimmedOpportunityId, {
+            stage: targetStage,
+            reason: reason.trim() || undefined,
+            metadata: { surface: "mission-control-pipeline" },
+          });
+        }}
+      >
+        <div className="section-heading section-heading--compact">
+          <h4>Move opportunity stage</h4>
+          <span>Uses configured Phase 3 stage rules</span>
+        </div>
+        <label>
+          Opportunity ID
+          <input value={opportunityId} onChange={(event) => setOpportunityId(event.target.value)} placeholder="opp_..." />
+        </label>
+        <label>
+          Target stage
+          <select value={targetStage} onChange={(event) => setTargetStage(event.target.value)}>
+            {stageOptions.map((stage) => (
+              <option key={stage} value={stage}>
+                {formatStageLabel(stage)}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label>
+          Move reason
+          <input value={reason} onChange={(event) => setReason(event.target.value)} placeholder="Why this stage move is valid" />
+        </label>
+        <button type="submit" disabled={!canMoveStage}>
+          Move stage
+        </button>
+        {actionState ? (
+          <p className={`status-text status-text--${actionState.status}`}>{actionState.message}</p>
+        ) : null}
+      </form>
     </section>
   );
 }

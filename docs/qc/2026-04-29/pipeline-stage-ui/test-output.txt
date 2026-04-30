@@ -1,0 +1,41 @@
+## RED: npm test -- --run src/pages/PipelinePage.test.tsx
+Initial PipelinePage tests failed because stage movement controls were not rendered.
+
+## Frontend verification
+
+> @hermes/mission-control@0.1.0 typecheck
+> tsc --noEmit
+
+
+> @hermes/mission-control@0.1.0 test
+> vitest --run src/lib/api.test.ts src/pages/PipelinePage.test.tsx src/pages/RecordsPage.test.tsx
+
+
+ RUN  v2.1.9 /opt/ares/worktrees/ares-crm-control-plane-planning/apps/mission-control
+
+ ✓ src/lib/api.test.ts (9 tests) 51ms
+ ✓ src/pages/PipelinePage.test.tsx (2 tests) 140ms
+ ✓ src/pages/RecordsPage.test.tsx (3 tests) 308ms
+
+ Test Files  3 passed (3)
+      Tests  14 passed (14)
+   Start at  00:18:25
+   Duration  1.39s (transform 434ms, setup 225ms, collect 953ms, tests 499ms, environment 1.28s, prepare 246ms)
+
+
+> @hermes/mission-control@0.1.0 build
+> vite build
+
+vite v5.4.21 building for production...
+transforming...
+✓ 65 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/index.html                   0.41 kB │ gzip:  0.27 kB
+dist/assets/index-DyDZhg-T.css   12.29 kB │ gzip:  3.31 kB
+dist/assets/index-CshTqb_G.js   285.54 kB │ gzip: 77.06 kB
+✓ built in 921ms
+
+## Backend regression
+..                                                                       [100%]
+2 passed in 0.05s
