@@ -1,0 +1,44 @@
+## Records bulk actions verification
+
+$ npm run typecheck
+
+> @hermes/mission-control@0.1.0 typecheck
+> tsc --noEmit
+
+
+$ npm test -- --run src/pages/RecordsPage.test.tsx src/pages/PipelinePage.test.tsx src/lib/api.test.ts
+
+> @hermes/mission-control@0.1.0 test
+> vitest --run src/pages/RecordsPage.test.tsx src/pages/PipelinePage.test.tsx src/lib/api.test.ts
+
+
+ RUN  v2.1.9 /opt/ares/worktrees/ares-crm-control-plane-planning/apps/mission-control
+
+ ✓ src/lib/api.test.ts (9 tests) 35ms
+ ✓ src/pages/PipelinePage.test.tsx (2 tests) 122ms
+ ✓ src/pages/RecordsPage.test.tsx (5 tests) 524ms
+
+ Test Files  3 passed (3)
+      Tests  16 passed (16)
+   Start at  01:31:14
+   Duration  1.45s (transform 306ms, setup 167ms, collect 626ms, tests 681ms, environment 1.27s, prepare 210ms)
+
+
+$ npm run build
+
+> @hermes/mission-control@0.1.0 build
+> vite build
+
+vite v5.4.21 building for production...
+transforming...
+✓ 65 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/index.html                   0.41 kB │ gzip:  0.28 kB
+dist/assets/index-DbL9HZdr.css   12.68 kB │ gzip:  3.39 kB
+dist/assets/index-POSY9v6u.js   287.25 kB │ gzip: 77.47 kB
+✓ built in 962ms
+
+$ uv run pytest tests/api/test_mission_control.py::test_records_action_api_imports_updates_suppresses_and_promotes_records -q
+.                                                                        [100%]
+1 passed in 0.05s

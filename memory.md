@@ -185,13 +185,14 @@
 ## Open Work
 
 1. add richer opportunity-list/detail controls so Pipeline moves no longer require manual opportunity ID entry
-2. remote Supabase validation/deploy requires explicitly linked target project credentials; local Supabase validation is complete
-3. defer owner/property graph, research cockpit, and map UI until Records and stage model are stable
-4. add explicit canonical source-lane metadata for CRM records before broadening promote routing beyond probate/lease-option lanes
-5. preserve production evidence files as the handoff source of truth
-6. optionally replace the REST rollback bundle with native pg_dump once Supabase CLI container DNS is fixed
-7. add production monitoring/alerts for provider callback failures
-8. keep browser acquisition and ambiguous research in Hermes or other driver agents, not inside Ares
+2. consider an atomic backend bulk-record endpoint if large batch throughput/transaction semantics become necessary; current Records bulk UI fans out through real single-record command callbacks
+3. remote Supabase validation/deploy requires explicitly linked target project credentials; local Supabase validation is complete
+4. defer owner/property graph, research cockpit, and map UI until Records and stage model are stable
+5. add explicit canonical source-lane metadata for CRM records before broadening promote routing beyond probate/lease-option lanes
+6. preserve production evidence files as the handoff source of truth
+7. optionally replace the REST rollback bundle with native pg_dump once Supabase CLI container DNS is fixed
+8. add production monitoring/alerts for provider callback failures
+9. keep browser acquisition and ambiguous research in Hermes or other driver agents, not inside Ares
 
 ## Completed Branch Work
 

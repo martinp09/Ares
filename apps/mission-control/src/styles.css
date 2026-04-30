@@ -395,6 +395,36 @@ textarea:focus-visible {
   margin: 12px 0 4px;
 }
 
+.record-bulk-actions,
+.record-select-row,
+.record-select-all {
+  display: flex;
+  align-items: center;
+}
+
+.record-bulk-actions {
+  flex-wrap: wrap;
+  gap: 10px;
+  border: 1px solid rgba(141, 165, 199, 0.16);
+  background: rgba(10, 20, 34, 0.48);
+  border-radius: 8px;
+  padding: 10px;
+}
+
+.record-select-row,
+.record-select-all {
+  gap: 8px;
+}
+
+.record-select-row input,
+.record-select-all input {
+  accent-color: var(--amber);
+}
+
+.record-select-all {
+  color: var(--text-muted);
+}
+
 .shell__content {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 332px;

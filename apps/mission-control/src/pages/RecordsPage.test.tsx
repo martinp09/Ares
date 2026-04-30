@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, within } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { vi } from "vitest";
 
 import { RecordsPage } from "./RecordsPage";
@@ -62,5 +62,79 @@ describe("RecordsPage", () => {
     fireEvent.click(within(promotableRecord).getByRole("button", { name: /^Promote$/i }));
 
     expect(onRecordPromote).toHaveBeenCalledWith(expect.objectContaining({ id: "lead-1002", sourceLeadId: "lead_1002" }));
+  });
+
+  it("fans out bulk status and suppress actions only across selected visible records", async () => {
+    const onRecordStatusChange = vi.fn();
+    const onRecordSuppress = vi.fn();
+    render(
+      <RecordsPage
+        data={missionControlFixtures.records}
+        onRecordStatusChange={onRecordStatusChange}
+        onRecordSuppress={onRecordSuppress}
+      />,
+    );
+
+    const selectAvery = within(screen.getByLabelText("record-lead-1001")).getByRole("checkbox", { name: /select Avery Stone/i });
+    const selectBlake = within(screen.getByLabelText("record-lead-1002")).getByRole("checkbox", { name: /select Blake North/i });
+    fireEvent.click(selectAvery);
+    fireEvent.click(selectBlake);
+
+    fireEvent.click(screen.getByRole("button", { name: /Needs skip trace selected/i }));
+    await waitFor(() => expect(onRecordStatusChange).toHaveBeenCalledTimes(2));
+    expect(onRecordStatusChange).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({ id: "lead-1001" }),
+      "needs_skip_trace",
+      "Operator bulk-marked selected visible records for skip trace from Mission Control",
+    );
+    expect(onRecordStatusChange).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({ id: "lead-1002" }),
+      "needs_skip_trace",
+      "Operator bulk-marked selected visible records for skip trace from Mission Control",
+    );
+
+    const savedViews = screen.getByLabelText("Saved record views");
+    fireEvent.click(within(savedViews).getByRole("button", { name: /Needs skip trace 1/i }));
+    fireEvent.click(screen.getByRole("button", { name: /Suppress selected/i }));
+
+    await waitFor(() => expect(onRecordSuppress).toHaveBeenCalledTimes(1));
+    expect(onRecordSuppress).toHaveBeenCalledWith(
+      expect.objectContaining({ id: "lead-1002" }),
+      "Bulk suppressed selected visible records from Mission Control Records workspace",
+    );
+  });
+
+  it("disables bulk actions with no selected visible records or while a record action is running", () => {
+    const onRecordStatusChange = vi.fn();
+    const onRecordSuppress = vi.fn();
+    const { rerender } = render(
+      <RecordsPage
+        data={missionControlFixtures.records}
+        onRecordStatusChange={onRecordStatusChange}
+        onRecordSuppress={onRecordSuppress}
+      />,
+    );
+
+    expect(screen.getByRole("button", { name: /Mark marketable selected/i })).toBeDisabled();
+    expect(screen.getByRole("button", { name: /Needs skip trace selected/i })).toBeDisabled();
+    expect(screen.getByRole("button", { name: /Suppress selected/i })).toBeDisabled();
+
+    fireEvent.click(within(screen.getByLabelText("record-lead-1001")).getByRole("checkbox", { name: /select Avery Stone/i }));
+    expect(screen.getByRole("button", { name: /Mark marketable selected/i })).toBeEnabled();
+
+    rerender(
+      <RecordsPage
+        data={missionControlFixtures.records}
+        actionState={{ recordId: "lead-1001", status: "running", message: "Updating Avery Stone..." }}
+        onRecordStatusChange={onRecordStatusChange}
+        onRecordSuppress={onRecordSuppress}
+      />,
+    );
+
+    expect(screen.getByRole("button", { name: /Mark marketable selected/i })).toBeDisabled();
+    expect(screen.getByRole("button", { name: /Needs skip trace selected/i })).toBeDisabled();
+    expect(screen.getByRole("button", { name: /Suppress selected/i })).toBeDisabled();
   });
 });

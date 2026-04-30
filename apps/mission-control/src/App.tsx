@@ -1596,15 +1596,9 @@ export default function App() {
             <RecordsPage
               data={snapshot.records}
               actionState={recordActionState}
-              onRecordStatusChange={(record, status, reason) => {
-                void handleRecordStatusChange(record, status, reason);
-              }}
-              onRecordSuppress={(record, reason) => {
-                void handleRecordSuppress(record, reason);
-              }}
-              onRecordPromote={(record) => {
-                void handleRecordPromote(record);
-              }}
+              onRecordStatusChange={handleRecordStatusChange}
+              onRecordSuppress={handleRecordSuppress}
+              onRecordPromote={handleRecordPromote}
             />
           ),
           contextContent: (

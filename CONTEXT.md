@@ -19,11 +19,13 @@
 
 ## Current TODO
 1. Add richer opportunity-list/detail controls so Pipeline moves no longer require manual opportunity ID entry.
-2. Remote Supabase validation/deploy requires explicitly linked target project credentials; local Supabase validation is complete.
-3. Defer owner/property graph, research cockpit, and map UI until Records and stage model are stable.
-4. Keep promotion source-lane selection explicit once canonical source-lane metadata is added to records.
+2. Consider an atomic backend bulk-record endpoint if large batch throughput/transaction semantics become necessary; current Records bulk UI fans out through real single-record command callbacks.
+3. Remote Supabase validation/deploy requires explicitly linked target project credentials; local Supabase validation is complete.
+4. Defer owner/property graph, research cockpit, and map UI until Records and stage model are stable.
+5. Keep promotion source-lane selection explicit once canonical source-lane metadata is added to records.
 
 ## Recent Change
+- 2026-04-29: Added Records bulk selection/actions for marketable, needs-skip-trace, and suppress flows using existing real CRM command callbacks.
 - 2026-04-29: Wired Mission Control Pipeline UI controls to the real opportunity stage movement API, with dashboard refresh and focused frontend/API tests.
 - 2026-04-29: Added Mission Control opportunity stage movement and stage-history APIs backed by configured-stage service validation.
 - 2026-04-29: Validated CRM Records actions, saved views, promotion, pipeline configs, and stage history against local Supabase; fixed CRM repository fallback so lead-machine Supabase mode no longer silently uses memory.
