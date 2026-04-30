@@ -201,6 +201,12 @@
 
 ## Change Log
 
+### 2026-04-29 Polished CRM Concept Surface
+
+- Reworked the live Pipeline board visuals toward the generated enterprise CRM concept: light/charcoal cockpit surface, portfolio metrics, source-lane filters, full pipeline stage lanes including empty stages, polished cards, and a high-contrast opportunity drawer.
+- Kept the surface wired to live Records and Opportunities data; browser verification showed 482 records, 8 opportunities, full stage lanes, lane filters, and stage-move controls loaded.
+- Verification passed: Mission Control Pipeline/Records/API tests, frontend typecheck, and frontend build.
+
 ### 2026-04-29 Enterprise CRM Pipeline UI
 
 - Added `GET /mission-control/opportunities` for scoped Pipeline opportunity rows.

@@ -24,6 +24,7 @@
 4. Keep promotion source-lane selection explicit once canonical source-lane metadata is added to records.
 
 ## Recent Change
+- 2026-04-29: Polished Pipeline into the target CRM concept surface with a light enterprise cockpit, source-lane controls, full stage lanes, metrics, and a charcoal opportunity drawer.
 - 2026-04-29: Rebuilt Pipeline into an enterprise CRM board with scoped opportunity rows, kanban stages, selected-opportunity detail, and real stage movement controls.
 - 2026-04-29: Applied CRM remote Supabase migrations and fixed Mission Control lead-machine projection to read repositories in Supabase mode; local Records now shows 482 live leads.
 - 2026-04-29: Added Records bulk selection/actions for marketable, needs-skip-trace, and suppress flows using existing real CRM command callbacks.

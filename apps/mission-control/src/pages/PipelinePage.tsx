@@ -127,15 +127,18 @@ export function PipelinePage({
     () => sortStages(Array.from(new Set([...DEFAULT_STAGE_ORDER, ...stages.map((stage) => stage.stage), ...opportunities.map((opportunity) => opportunity.stage)]))),
     [opportunities, stages],
   );
-  const boardStages = useMemo(
-    () => sortStages(Array.from(new Set([...stages.map((stage) => stage.stage), ...opportunities.map((opportunity) => opportunity.stage)]))),
-    [opportunities, stages],
+  const lanes = useMemo(() => Array.from(new Set(opportunities.map((opportunity) => opportunity.sourceLane))).sort(), [opportunities]);
+  const [activeLane, setActiveLane] = useState<string>("all");
+  const visibleOpportunities = useMemo(
+    () => (activeLane === "all" ? opportunities : opportunities.filter((opportunity) => opportunity.sourceLane === activeLane)),
+    [activeLane, opportunities],
   );
+  const boardStages = DEFAULT_STAGE_ORDER;
   const [selectedOpportunityId, setSelectedOpportunityId] = useState<string | null>(opportunities[0]?.id ?? null);
   const [targetStage, setTargetStage] = useState(opportunities[0]?.stage ?? stageOptions[0] ?? "qualified_opportunity");
   const [reason, setReason] = useState("");
 
-  const selectedOpportunity = opportunities.find((opportunity) => opportunity.id === selectedOpportunityId) ?? opportunities[0] ?? null;
+  const selectedOpportunity = visibleOpportunities.find((opportunity) => opportunity.id === selectedOpportunityId) ?? visibleOpportunities[0] ?? null;
   const selectedRecord = selectedOpportunity ? matchOpportunityRecord(selectedOpportunity, records) : undefined;
   const currentStageIndex = selectedOpportunity ? DEFAULT_STAGE_ORDER.indexOf(selectedOpportunity.stage) : -1;
   const isActionRunning = actionState?.status === "running";
@@ -145,23 +148,74 @@ export function PipelinePage({
       targetStage !== selectedOpportunity.stage &&
       !isActionRunning,
   );
-  const titleOpenCount = opportunities.filter((opportunity) => opportunity.titleStatus !== "not_open").length;
-  const dispoReadyCount = opportunities.filter((opportunity) => opportunity.dispoStatus === "ready").length;
-  const staleCount = opportunities.filter((opportunity) => opportunity.tcStatus === "blocked" || opportunity.dispoStatus === "blocked").length;
+  const titleOpenCount = visibleOpportunities.filter((opportunity) => opportunity.titleStatus !== "not_open").length;
+  const dispoReadyCount = visibleOpportunities.filter((opportunity) => opportunity.dispoStatus === "ready").length;
+  const staleCount = visibleOpportunities.filter((opportunity) => opportunity.tcStatus === "blocked" || opportunity.dispoStatus === "blocked").length;
+  const promotedRecordCount = records.filter((record) => record.promotionStatus === "promoted").length;
+  const skipTraceCount = records.filter((record) => record.recordStatus === "needs_skip_trace").length;
+  const contactedCount = records.filter((record) => record.hasEmail || record.hasPhone).length;
 
   useEffect(() => {
-    if ((!selectedOpportunityId || !opportunities.some((opportunity) => opportunity.id === selectedOpportunityId)) && opportunities[0]) {
-      setSelectedOpportunityId(opportunities[0].id);
-      setTargetStage(opportunities[0].stage);
+    if ((!selectedOpportunityId || !visibleOpportunities.some((opportunity) => opportunity.id === selectedOpportunityId)) && visibleOpportunities[0]) {
+      setSelectedOpportunityId(visibleOpportunities[0].id);
+      setTargetStage(visibleOpportunities[0].stage);
     }
-  }, [opportunities, selectedOpportunityId]);
+  }, [selectedOpportunityId, visibleOpportunities]);
 
   return (
     <section className="crm-board">
+      <div className="crm-hero-panel">
+        <div className="crm-hero-panel__copy">
+          <span>Ares CRM</span>
+          <h3>Pipeline Command Center</h3>
+          <p>Records, opportunities, stage movement, title posture, and next actions in one operational surface.</p>
+        </div>
+        <div className="crm-hero-panel__stats" aria-label="CRM portfolio metrics">
+          <article>
+            <strong>{records.length}</strong>
+            <span>records</span>
+          </article>
+          <article>
+            <strong>{promotedRecordCount}</strong>
+            <span>promoted</span>
+          </article>
+          <article>
+            <strong>{skipTraceCount}</strong>
+            <span>skip trace</span>
+          </article>
+          <article>
+            <strong>{contactedCount}</strong>
+            <span>contactable</span>
+          </article>
+        </div>
+      </div>
+
+      <div className="crm-lane-tabs" aria-label="Source lane filters">
+        <button
+          type="button"
+          className={`crm-lane-tab${activeLane === "all" ? " crm-lane-tab--active" : ""}`}
+          onClick={() => setActiveLane("all")}
+        >
+          <span>All lanes</span>
+          <strong>{opportunities.length}</strong>
+        </button>
+        {lanes.map((lane) => (
+          <button
+            type="button"
+            className={`crm-lane-tab${activeLane === lane ? " crm-lane-tab--active" : ""}`}
+            key={lane}
+            onClick={() => setActiveLane(lane)}
+          >
+            <span>{formatLaneLabel(lane)}</span>
+            <strong>{opportunities.filter((opportunity) => opportunity.sourceLane === lane).length}</strong>
+          </button>
+        ))}
+      </div>
+
       <div className="crm-command-strip" aria-label="Pipeline command metrics">
         <article>
           <span>Total pipeline</span>
-          <strong>{totalCount}</strong>
+          <strong>{visibleOpportunities.length || totalCount}</strong>
           <small>open opportunities</small>
         </article>
         <article>
@@ -184,9 +238,9 @@ export function PipelinePage({
       <div className="crm-workspace">
         <div className="pipeline-board" aria-label="Opportunity pipeline board">
           {boardStages.map((stage) => {
-            const stageOpportunities = opportunities.filter((opportunity) => opportunity.stage === stage);
+            const stageOpportunities = visibleOpportunities.filter((opportunity) => opportunity.stage === stage);
             const stageSummaryCount = stages
-              .filter((summary) => summary.stage === stage)
+              .filter((summary) => summary.stage === stage && (activeLane === "all" || summary.sourceLane === activeLane))
               .reduce((count, summary) => count + summary.count, 0);
             return (
               <section className="pipeline-column" key={stage} aria-label={`${formatStageLabel(stage)} stage`}>
@@ -222,7 +276,12 @@ export function PipelinePage({
                       </button>
                     );
                   })}
-                  {stageOpportunities.length === 0 ? <p className="pipeline-column__empty">No active opportunities in this stage.</p> : null}
+                  {stageOpportunities.length === 0 ? (
+                    <div className="pipeline-column__empty">
+                      <span>{formatStageLabel(stage)}</span>
+                      <p>Ready for the next qualified handoff.</p>
+                    </div>
+                  ) : null}
                 </div>
               </section>
             );
