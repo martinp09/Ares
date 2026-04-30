@@ -27,8 +27,8 @@
 
 ## Current Direction
 
-- `/opt/ares/worktrees/ares-crm-control-plane-planning` on `feature/ares-crm-control-plane-planning` is the active CRM implementation checkout.
-- Current CRM control-plane branch is pushed to `origin/feature/ares-crm-control-plane-planning`.
+- `/Users/solomartin/Projects/Ares` on `main` is the active checkout.
+- CRM control-plane work has been merged to `origin/main`.
 - CRM control-plane draft spec: `docs/superpowers/specs/2026-04-25-ares-crm-control-plane-design.md`.
 - CRM control-plane roadmap: `docs/superpowers/plans/2026-04-25-ares-crm-control-plane-roadmap.md`.
 - CRM source research: `docs/mission-control-wiki/raw/articles/2026-04-25-ghl-datasift-crm-research.md`.
@@ -64,7 +64,7 @@
   - inbound lease-option marketing as a separate first-class lane
 - Supabase should be the canonical backend for both live MVP lanes
 - The runtime should preserve a thin contract-to-close skeleton even while the MVP stays focused on lead intake, outreach, replies, and operator handoff
-- Mission Control now has the first CRM Records read-model slice: `/mission-control/records`, dashboard record inventory stats, and a Records page beside Pipeline. It is derived from current leads, tasks, and opportunities until canonical Records tables land.
+- Mission Control now has CRM Records, saved views, row/bulk actions, promotion, Pipeline config/stage history, and stage movement UI/API. Records prefer canonical CRM rows and fall back to live lead-machine leads when no canonical records exist.
 - The host-adapter/skill seam is now in-memory and additive, with trigger_dev as the default enabled adapter; dispatch requires published revisions and preserves per-revision host adapter config
 - Phase-0 docs now lock the product model: agents are the product unit, skills are reusable procedures, host runtimes are adapters, and Mission Control is the operator cockpit
 
@@ -202,6 +202,14 @@
 - `TasksRepository` now treats `lead_machine_backend=supabase` as a Supabase-backed task path so title-packet review tasks persist with lead-machine records.
 
 ## Change Log
+
+### 2026-04-29 Remote CRM Supabase Live Data
+
+- Applied remote Supabase migrations `20260429180000_crm_records_registry.sql`, `20260429183000_opportunity_pipeline_config.sql`, and `20260429184500_crm_record_saved_views.sql` to project `awmsrjeawcxndfnggoxw`.
+- Fixed Mission Control lead-machine projection to use repositories instead of the in-memory store, so `LEAD_MACHINE_BACKEND=supabase` projects live lead-machine records into Records and dashboard summaries.
+- Added `CampaignMembershipsRepository.list()` for scoped repository-backed lead-machine projections.
+- Verified local API with `LEAD_MACHINE_BACKEND=supabase`: unscoped Records returns 482 live leads, dashboard record inventory returns 482 records, and Pipeline board returns 8 opportunities.
+- The 482 live leads are split across `business_id=1`: 467 in `prod` and 15 in `dev`; the UI must stay on "All environments" to show the full set.
 
 ### 2026-04-29 Pipeline Stage UI
 

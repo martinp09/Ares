@@ -1253,45 +1253,15 @@ class MissionControlService:
                 "tasks": [],
                 "suppressions": [],
             }
-        with self.client.transaction() as store:
-            return {
-                "leads": [
-                    lead
-                    for lead in store.leads.values()
-                    if lead.source in {LeadSource.PROBATE_INTAKE, LeadSource.INSTANTLY_IMPORT, LeadSource.INSTANTLY_SYNC}
-                    and self._matches_scope(lead.business_id, lead.environment, business_id, environment)
-                ],
-                "campaigns": [
-                    campaign
-                    for campaign in store.campaigns.values()
-                    if self._matches_scope(campaign.business_id, campaign.environment, business_id, environment)
-                ],
-                "memberships": [
-                    membership
-                    for membership in store.campaign_memberships.values()
-                    if self._matches_scope(membership.business_id, membership.environment, business_id, environment)
-                ],
-                "events": [
-                    event
-                    for event in store.lead_events.values()
-                    if self._matches_scope(event.business_id, event.environment, business_id, environment)
-                ],
-                "runs": [
-                    run
-                    for run in store.automation_runs.values()
-                    if self._matches_scope(run.business_id, run.environment, business_id, environment)
-                ],
-                "tasks": [
-                    task
-                    for task in store.tasks.values()
-                    if self._matches_scope(task.business_id, task.environment, business_id, environment)
-                ],
-                "suppressions": [
-                    record
-                    for record in store.suppressions.values()
-                    if record.active and self._matches_scope(record.business_id, record.environment, business_id, environment)
-                ],
-            }
+        return {
+            "leads": self._lead_machine_leads(business_id=business_id, environment=environment),
+            "campaigns": self.campaigns_repository.list(business_id=business_id, environment=environment),
+            "memberships": self.campaign_memberships_repository.list(business_id=business_id, environment=environment),
+            "events": self.lead_events_repository.list(business_id=business_id, environment=environment),
+            "runs": self.automation_runs_repository.list(business_id=business_id, environment=environment),
+            "tasks": self.tasks_repository.list(business_id=business_id, environment=environment),
+            "suppressions": self.suppression_repository.list_active(business_id=business_id, environment=environment),
+        }
 
     def _resolve_lead_for_thread(self, thread: MissionControlThreadRecord) -> LeadRecord | MarketingLeadRecord | None:
         lead_id = self._context_value(thread.context, "lead_id")

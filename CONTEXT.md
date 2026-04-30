@@ -2,15 +2,15 @@
 
 ## Stable Facts
 - Repo: `martinp09/Ares`
-- Active checkout: `/opt/ares/worktrees/ares-crm-control-plane-planning`
-- Branch: `feature/ares-crm-control-plane-planning`
+- Active checkout: `/Users/solomartin/Projects/Ares`
+- Branch: `main`
 - Runtime production URL: `https://production-readiness-afternoon.vercel.app`
 - Mission Control URL: `https://mission-control-g8un1ly0w-martins-projects-9600e79e.vercel.app`
 - Supabase project ref: `awmsrjeawcxndfnggoxw`
 - Trigger project: `proj_puouljyhwiraonjkpiki`
 
 ## Current Scope
-- Implementation branch for the Ares CRM/control-plane product slice, rebased onto current `origin/main` including probate title-packet persistence.
+- CRM/control-plane product slice has been merged to `main`.
 - Production wiring is live and must remain untouched unless explicitly requested.
 - CRM control-plane draft spec: `docs/superpowers/specs/2026-04-25-ares-crm-control-plane-design.md`
 - CRM roadmap: `docs/superpowers/plans/2026-04-25-ares-crm-control-plane-roadmap.md`
@@ -20,30 +20,17 @@
 ## Current TODO
 1. Add richer opportunity-list/detail controls so Pipeline moves no longer require manual opportunity ID entry.
 2. Consider an atomic backend bulk-record endpoint if large batch throughput/transaction semantics become necessary; current Records bulk UI fans out through real single-record command callbacks.
-3. Remote Supabase validation/deploy requires explicitly linked target project credentials; local Supabase validation is complete.
+3. Remote Supabase CRM migrations are applied; restart local backend with `LEAD_MACHINE_BACKEND=supabase` to view live leads.
 4. Defer owner/property graph, research cockpit, and map UI until Records and stage model are stable.
 5. Keep promotion source-lane selection explicit once canonical source-lane metadata is added to records.
 
 ## Recent Change
+- 2026-04-29: Applied CRM remote Supabase migrations and fixed Mission Control lead-machine projection to read repositories in Supabase mode; local Records now shows 482 live leads.
 - 2026-04-29: Added Records bulk selection/actions for marketable, needs-skip-trace, and suppress flows using existing real CRM command callbacks.
 - 2026-04-29: Wired Mission Control Pipeline UI controls to the real opportunity stage movement API, with dashboard refresh and focused frontend/API tests.
 - 2026-04-29: Added Mission Control opportunity stage movement and stage-history APIs backed by configured-stage service validation.
-- 2026-04-29: Validated CRM Records actions, saved views, promotion, pipeline configs, and stage history against local Supabase; fixed CRM repository fallback so lead-machine Supabase mode no longer silently uses memory.
-- 2026-04-29: Exposed source lead/contact identity on canonical Records rows and enabled Mission Control promote-from-record actions when identity is present.
-- 2026-04-29: Wired Mission Control Records row actions to the real CRM command API for status changes and suppression; promotion remains gated until source identity is present on rows.
-- 2026-04-29: Added CRM record saved views plus a Mission Control saved-view rail for stable Records filters.
-- 2026-04-29: Replaced deprecated FastAPI `HTTP_422_UNPROCESSABLE_ENTITY` use and installed a request validation handler to eliminate 422 deprecation warnings.
-- 2026-04-29: Added configurable opportunity pipeline configs and stage history for pipeline/stage transitions.
-- 2026-04-29: Added deterministic Records action API for import, status changes, suppression, and record-to-opportunity promotion.
-- 2026-04-29: Polished Records UI with operator tabs, KPI expansion, read-only action messaging, contactability/data-quality/source badges, and filtered record views.
-- 2026-04-29: Added canonical CRM Records registry models/repository/migration and wired Mission Control Records to prefer canonical CRM records when present.
-- 2026-04-29: Rebased CRM branch onto current `origin/main` to include probate title-packet persistence before continuing CRM work.
-- 2026-04-25: Started CRM buildout with `/mission-control/records`, dashboard record inventory stats, and a Records page beside Pipeline.
-- 2026-04-25: Added Records as a first-class top-level workspace and canonical Supabase-backed inventory layer in the CRM spec/roadmap.
-- 2026-04-25: Created and pushed `feature/ares-crm-control-plane-planning`.
-- 2026-04-25: Added title-packet import route, Supabase schema/repository wiring, and review-task creation for probate intake on main.
-- 2026-04-25: Production Ares deployed to public Vercel URL with provider-compatible callback auth/parsing.
-- 2026-04-25: Verification passed: backend pytest, Mission Control test/typecheck/build, Trigger typecheck, lock/diff checks, no-live full-stack smoke.
+- 2026-04-29: Completed CRM Records registry, saved views, row actions, promotion, bulk actions, Pipeline config/stage history, and stage movement API/UI.
+- 2026-04-25: Production Ares deployed to public Vercel URL with provider-compatible callback auth/parsing; title-packet persistence landed on main.
 
 ## Read These Sections In `memory.md`
 1. `## Current Direction`

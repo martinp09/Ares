@@ -69,6 +69,23 @@ class CampaignMembershipsRepository:
             membership_ids = list(store.campaign_membership_ids_by_lead.get(lead_id, []))
             return [store.campaign_memberships[membership_id] for membership_id in membership_ids]
 
+    def list(self, *, business_id: str | None = None, environment: str | None = None) -> list[CampaignMembershipRecord]:
+        if lead_machine_backend_enabled(self.settings) and not self._force_memory:
+            params = {"select": "*", "order": "subscribed_at.asc"}
+            if business_id and business_id.isdigit():
+                params["business_id"] = f"eq.{business_id}"
+            if environment is not None:
+                params["environment"] = f"eq.{environment}"
+            return [self._record_from_supabase(row) for row in fetch_rows("campaign_memberships", params=params, settings=self.settings)]
+        with self.client.transaction() as store:
+            memberships = list(store.campaign_memberships.values())
+        if business_id is not None:
+            memberships = [membership for membership in memberships if membership.business_id == business_id]
+        if environment is not None:
+            memberships = [membership for membership in memberships if membership.environment == environment]
+        memberships.sort(key=lambda record: (record.business_id, record.environment, record.subscribed_at, record.id or ""))
+        return memberships
+
     def _upsert_in_supabase(self, record: CampaignMembershipRecord) -> CampaignMembershipRecord:
         tenant = resolve_tenant(record.business_id, record.environment, settings=self.settings)
         payload = record.model_dump(mode="json", exclude={"id", "business_id", "environment"})
