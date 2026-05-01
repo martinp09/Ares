@@ -184,15 +184,16 @@
 
 ## Open Work
 
-1. add dedicated Mission Control frontend campaign-launch review page for the Harris probate HOT/WARM/COLD API contract
-2. enrich Harris probate campaign exports with email/phone before any Instantly/TextGrid enrollment; current source artifact is direct-mail-ready only
-3. consider an atomic backend bulk-record endpoint if large batch throughput/transaction semantics become necessary; current Records bulk UI fans out through real single-record command callbacks
-4. defer owner/property graph, research cockpit, and map UI until Records and stage model are stable
-5. add explicit canonical source-lane metadata for CRM records before broadening promote routing beyond probate/lease-option lanes
-6. preserve production evidence files as the handoff source of truth
-7. optionally replace the REST rollback bundle with native pg_dump once Supabase CLI container DNS is fixed
-8. add production monitoring/alerts for provider callback failures
-9. keep browser acquisition and ambiguous research in Hermes or other driver agents, not inside Ares
+1. capture stronger primary Alen Sultanic source material and update `docs/copywriting-wiki/`; current YouTube transcript access is blocked from this environment
+2. add Mission Control read/approval endpoints for Ares offer/copy assets
+3. add dedicated Mission Control frontend campaign-launch review page for the Harris probate HOT/WARM/COLD API contract
+4. enrich Harris probate campaign exports with email/phone before any Instantly/TextGrid enrollment; current source artifact is direct-mail-ready only
+5. consider an atomic backend bulk-record endpoint if large batch throughput/transaction semantics become necessary; current Records bulk UI fans out through real single-record command callbacks
+6. defer owner/property graph, research cockpit, and map UI until Records and stage model are stable
+7. preserve production evidence files as the handoff source of truth
+8. optionally replace the REST rollback bundle with native pg_dump once Supabase CLI container DNS is fixed
+9. add production monitoring/alerts for provider callback failures
+10. keep browser acquisition and ambiguous research in Hermes or other driver agents, not inside Ares
 
 ## Completed Branch Work
 
@@ -202,6 +203,14 @@
 - `TasksRepository` now treats `lead_machine_backend=supabase` as a Supabase-backed task path so title-packet review tasks persist with lead-machine records.
 
 ## Change Log
+
+### 2026-05-01 Ares Copywriting Brain Offer Engine Slice
+
+- Initialized repo-local copywriting LLM Wiki at `docs/copywriting-wiki/` with schema, index, log, raw source notes, Hormozi/Sultanic entity pages, offer/copy concepts, and Harris probate examples.
+- Added typed `OfferAsset` and `CopyAsset` models plus `CopyOfferService` and `CopyAssetService` for the Harris probate `Inherited Property Exit Option`.
+- Upgraded `AresCopyService` so lead briefs/drafts use offer-first, pain-first copy with explicit human approval before provider enrollment.
+- Verification/QC: `docs/qc/2026-05-01/copywriting-brain-offer-engine/`; focused service tests passed `6 passed`.
+- Limitation: Alen Sultanic YouTube transcript was blocked by cloud IP / Cloudflare transcript mirror, so detailed Sultanic tactics are flagged as interpretation until stronger primary source capture.
 
 ### 2026-04-30 Harris Probate Campaign Launch Slice
 

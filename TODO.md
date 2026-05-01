@@ -65,7 +65,16 @@ Known caveat:
 - [ ] Add a dedicated Mission Control frontend campaign-launch review page; current API contract is live and approvals can be reviewed from the existing approvals surface.
 - [ ] Add email/phone enrichment before Instantly/TextGrid enrollment; current artifact has direct-mail-ready rows only.
 
-### 3. Production hardening follow-up
+### 3. Ares copywriting brain / offer engine
+
+- [done] Initialize repo-local LLM Wiki at `docs/copywriting-wiki/` with Hormozi/Sultanic/probate source notes and examples.
+- [done] Add typed offer/copy asset models and services for the Harris probate `Inherited Property Exit Option`.
+- [done] Upgrade `AresCopyService` from generic drafts to offer-first, pain-first Harris probate drafts.
+- [ ] Capture stronger primary Alen Sultanic source material and update the wiki; current transcript access is blocked from this environment.
+- [ ] Add Mission Control read/approval endpoints for offer/copy assets.
+- [ ] Add persistence for offer/copy assets after the generated v1 proves useful.
+
+### 4. Production hardening follow-up
 
 - [ ] Replace the REST rollback bundle with native `pg_dump` once Colima/Supabase DB DNS is fixed, if strict database restore fidelity is required.
 - [ ] Add production monitoring/alerts for provider callback failures.
