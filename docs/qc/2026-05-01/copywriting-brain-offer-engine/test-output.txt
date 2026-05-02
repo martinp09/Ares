@@ -1,20 +1,3 @@
-Focused verification:
-uv run pytest tests/services/test_copy_offer_service.py tests/services/test_copy_asset_service.py tests/services/test_ares_copy_service.py tests/test_package_layout.py -q
-
+warning: `VIRTUAL_ENV=/usr/local/lib/hermes-agent/venv` does not match the project environment path `.venv` and will be ignored; use `--active` to target the active environment instead
 ...............                                                          [100%]
-15 passed in 0.29s
-
-Initial service-only verification:
-uv run pytest tests/services/test_copy_offer_service.py tests/services/test_copy_asset_service.py tests/services/test_ares_copy_service.py -q
-
-......                                                                   [100%]
-6 passed in 0.04s
-
-compileall:
-python3 -m compileall app/models/copy_offers.py app/models/copy_assets.py app/services/copy_offer_service.py app/services/copy_asset_service.py app/services/ares_copy_service.py
-PASS
-
-git diff --check: PASS
-
-wiki presence check:
-{'missing': [], 'markdown_files': 20, 'raw_files': 5, 'status': 'ok'}
+15 passed in 0.28s

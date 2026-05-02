@@ -70,7 +70,8 @@ Known caveat:
 - [done] Initialize repo-local LLM Wiki at `docs/copywriting-wiki/` with Hormozi/Sultanic/probate source notes and examples.
 - [done] Add typed offer/copy asset models and services for the Harris probate `Inherited Property Exit Option`.
 - [done] Upgrade `AresCopyService` from generic drafts to offer-first, pain-first Harris probate drafts.
-- [ ] Capture stronger primary Alen Sultanic source material and update the wiki; current transcript access is blocked from this environment.
+- [done] Add Alen Sultanic Copy Hinge, high-response email formula, and offer-code/Rosetta Stone concepts to the wiki and generated offer/copy asset metadata.
+- [ ] Capture stronger primary Alen Sultanic source material beyond user-provided excerpts and update the wiki; automated transcript access is blocked from this environment.
 - [ ] Add Mission Control read/approval endpoints for offer/copy assets.
 - [ ] Add persistence for offer/copy assets after the generated v1 proves useful.
 

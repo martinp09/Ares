@@ -47,6 +47,19 @@ class CopyOfferService:
                 "Title/tax/heirship questions treated as conversation context, not seller homework before the first call",
                 "Low-pressure keep/sell/rent clarity conversation",
             ],
+            offer_code_insights=[
+                "Seller wants clarity without repairs, cleanout, listing prep, perfect paperwork, or solving every title/tax question first.",
+                "Inherited-property decisions compete with grief, work, family logistics, distance, and multiple decision-makers.",
+                "The offer should give a simple next step and permission to be imperfect rather than demanding a finished decision.",
+                "Edge cases like taxes, title, heirs, repairs, vacancy, occupancy, and family disagreement are the code to repeat across assets.",
+            ],
+            infusion_directives=[
+                "Use more 'without' language anywhere the offer explains effort reduction.",
+                "Lead with the mechanism/outcome: find out whether an as-is path is worth discussing.",
+                "Translate complexity into a short process before asking for a call.",
+                "Keep the seller's optionality visible: keep, sell, rent, wait, or tell Martin he has the wrong person.",
+                "Make the CTA give clarity or a useful read, not ask the seller to do work for Martin.",
+            ],
             constraints=[
                 "No legal, tax, or probate advice claims.",
                 "No guaranteed purchase, closing, title cure, tax solution, or timeline.",

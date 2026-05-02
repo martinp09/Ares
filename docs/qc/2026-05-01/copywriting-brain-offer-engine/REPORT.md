@@ -67,6 +67,29 @@ Verification after addendum:
 - `python3 -m compileall app/models/copy_assets.py app/services/copy_asset_service.py app/services/ares_copy_service.py` — PASS.
 - `git diff --check` — PASS.
 
+## 2026-05-02 addendum — High-response email formula + offer-code Rosetta Stone
+
+Martin supplied two additional Alen Sultanic excerpts:
+
+1. High-response email formula: `Recency + Relevance + Personalization = Response`.
+2. Offer-code / Rosetta Stone method: find the hidden code in the part of the offer that is working, then infuse that code across the full funnel.
+
+Added:
+
+- `docs/copywriting-wiki/raw/transcripts/alen-sultanic-high-response-email-formula-2026-05-02.md`
+- `docs/copywriting-wiki/concepts/high-response-email-formula.md`
+- `docs/copywriting-wiki/raw/transcripts/alen-sultanic-offer-code-rosetta-stone-2026-05-02.md`
+- `docs/copywriting-wiki/concepts/offer-code-rosetta-stone.md`
+- `CopyAsset.recency_signal`, `relevance_signal`, and `personalization_signal`.
+- `CopyAsset.cta_gives` for the “CTA gives them something” rule.
+- `OfferAsset.offer_code_insights` and `OfferAsset.infusion_directives` for Rosetta Stone extraction/propagation.
+- Email copy now sells the quick as-is review mechanism/outcome instead of directly pitching a cash-buyer product.
+- Copy hinge now repeats the extracted Ares offer code: without repairs, cleaning out, listing, perfect documents, tax answers, or family alignment first.
+
+Verification after addendum:
+
+- `uv run pytest tests/services/test_copy_offer_service.py tests/services/test_copy_asset_service.py tests/services/test_ares_copy_service.py tests/test_package_layout.py -q` — PASS, 15 tests.
+
 ## Follow-up
 
 1. Get Martin's decision on the proposed core offer name/promise before writing a full campaign packet.

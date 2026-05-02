@@ -25,15 +25,20 @@ class CopyAssetService:
             framework=CopyFramework.HYBRID,
             awareness_level=AwarenessLevel.PROBLEM_AWARE,
             copy_hinge=copy_hinge,
+            recency_signal="recent inherited-property/probate context tied to {{property_address}}",
+            relevance_signal="find out whether an as-is option is worth discussing before repairs, cleanup, listing, or solving every issue first",
+            personalization_signal=f"{segment.value} probate stage and property-specific address",
+            offer_code_insights=list(offer.offer_code_insights),
+            cta_gives="A low-pressure read on whether an as-is option is even worth discussing.",
             headline_or_subject=self._email_subject(segment),
             body=(
                 "Hi {{first_name}},\n\n"
                 f"{copy_hinge}\n\n"
                 "Inherited property decisions can get messy when repairs, cleanup, taxes, title questions, "
                 "or multiple family members are involved. A normal listing is not always the easiest first step.\n\n"
-                "I review some Harris County properties as-is and can tell you whether a simple buyer option makes sense "
-                "before the family spends time repairing or cleaning it out.\n\n"
-                "Are you the right person to ask about this property?\n\n"
+                "The useful shortcut is not a cash-buyer pitch. It is a quick as-is review so you can see whether "
+                "there may be a simple path before the family spends time or money getting the house, paperwork, or everyone’s decision perfect.\n\n"
+                "If helpful, I can give you a quick read on whether an as-is option is even worth discussing for {{property_address}}.\n\n"
                 "Martin"
             ),
             hook_variants=[
@@ -43,8 +48,10 @@ class CopyAssetService:
             ],
             critique_notes=[
                 "Pain-first opener names probate friction before the offer.",
-                "Mechanism is an as-is review, not a generic cash-buyer pitch.",
-                "CTA asks for right-person confirmation before pushing for a call.",
+                "High-response email formula is explicit: recency, relevance, and segment/property personalization are stored on the asset.",
+                "Mechanism/outcome is a quick as-is review, not a generic cash-buyer product pitch.",
+                "CTA gives a useful read on whether the as-is option is worth discussing before asking for seller effort.",
+                "Rosetta Stone directives repeat the code: without repairs, cleanup, listing prep, perfect paperwork, or perfect family alignment.",
             ],
             truth_risk_notes=list(offer.truth_risk_notes),
             template_variables=["first_name", "property_address"],
@@ -62,6 +69,8 @@ class CopyAssetService:
             framework=CopyFramework.HYBRID,
             awareness_level=AwarenessLevel.PROBLEM_AWARE,
             copy_hinge=copy_hinge,
+            offer_code_insights=list(offer.offer_code_insights),
+            cta_gives="A simple as-is option if selling would help, with a clear no-pressure out if keeping it is the plan.",
             headline_or_subject="Re: {{property_address}}",
             body=(
                 "Hi {{recipient_name}},\n\n"
@@ -80,6 +89,7 @@ class CopyAssetService:
             critique_notes=[
                 "Respectful escape hatch lowers defensiveness.",
                 "Names the offer after seller pain is acknowledged.",
+                "Offer-code language repeats what the seller does not need to do first: repair, clean out, prepare for showings, or have a perfect decision.",
             ],
             truth_risk_notes=list(offer.truth_risk_notes),
             template_variables=["recipient_name", "property_address", "martin_phone"],
@@ -97,6 +107,8 @@ class CopyAssetService:
             framework=CopyFramework.SULTANIC_PAIN_FIRST,
             awareness_level=AwarenessLevel.PROBLEM_AWARE,
             copy_hinge=copy_hinge,
+            offer_code_insights=list(offer.offer_code_insights),
+            cta_gives="Permission to ask one quick question so Martin can give a useful as-is read.",
             body=(
                 "Hi {{first_name}}, this is Martin. I’m reaching out about {{property_address}}. "
                 f"{copy_hinge} Is it okay if I ask one quick question?"
@@ -126,5 +138,5 @@ class CopyAssetService:
         return (
             "I’m Martin. If {{property_address}} is becoming one more inherited-property project, "
             f"this note is just to show you the {offer.name}: a low-pressure way to find out whether "
-            "a simple as-is buyer option is worth discussing before the family repairs, cleans out, lists, or solves every issue first."
+            "a simple as-is path is worth discussing without repairing, cleaning out, listing, or getting every document, tax question, and family decision perfect first."
         )

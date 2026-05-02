@@ -51,6 +51,11 @@ class CopyAsset(BaseModel):
     framework: CopyFramework = CopyFramework.HYBRID
     awareness_level: AwarenessLevel = AwarenessLevel.PROBLEM_AWARE
     copy_hinge: str | None = None
+    recency_signal: str | None = None
+    relevance_signal: str | None = None
+    personalization_signal: str | None = None
+    offer_code_insights: list[str] = Field(default_factory=list)
+    cta_gives: str | None = None
     headline_or_subject: str | None = None
     body: str = Field(min_length=1)
     hook_variants: list[str] = Field(default_factory=list)

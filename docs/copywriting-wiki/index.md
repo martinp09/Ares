@@ -1,6 +1,6 @@
 # Ares Copywriting Wiki Index
 
-> Repo-local knowledge base for the Ares offer/copy brain. Last updated: 2026-05-02 | Total pages: 13
+> Repo-local knowledge base for the Ares offer/copy brain. Last updated: 2026-05-02 | Total pages: 15
 
 ## Entities
 - [[alex-hormozi]] — Offer architecture source for value equation, offer stack, naming, guarantees, scarcity/urgency.
@@ -9,8 +9,10 @@
 ## Concepts
 - [[copy-hinge]] — Sultanic structural principle: answer why the seller should give the next 5-10 minutes of attention.
 - [[grand-slam-offer]] — Ares interpretation of Hormozi-style offer construction.
+- [[high-response-email-formula]] — Sultanic email formula: recency + relevance + personalization = response.
 - [[inherited-property-offer-architecture]] — Harris probate offer built before copy assets.
 - [[mechanism-based-offer]] — How Ares explains a differentiated property-review mechanism without legal-advice claims.
+- [[offer-code-rosetta-stone]] — Sultanic method for extracting the hidden code from winning offer assets and infusing it across the funnel.
 - [[pain-first-copy]] — Sultanic-style pain-first structure translated into ethical probate outreach.
 - [[texas-probate-seller-psychology]] — HOT/WARM/COLD seller psychology, pain, sensitivity, and compliance boundaries.
 - [[value-equation]] — Dream outcome × likelihood / time delay × effort lens for seller offers.
@@ -28,3 +30,5 @@
 - `raw/articles/youtube-transcript-access-note-alen-masterclass-2026-05-01.md`
 - `raw/swipe-examples/ares-harris-probate-campaign-2026-04-30.md`
 - `raw/transcripts/alen-sultanic-copy-hinge-nhb-2026-05-02.md`
+- `raw/transcripts/alen-sultanic-high-response-email-formula-2026-05-02.md`
+- `raw/transcripts/alen-sultanic-offer-code-rosetta-stone-2026-05-02.md`

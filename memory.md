@@ -204,6 +204,14 @@
 
 ## Change Log
 
+### 2026-05-02 Ares Copywriting Brain Sultanic Formula Addendum
+
+- Added user-provided Alen Sultanic source notes for high-response email formula and offer-code/Rosetta Stone extraction under `docs/copywriting-wiki/raw/transcripts/`.
+- Added concept pages `high-response-email-formula` and `offer-code-rosetta-stone`; wiki index now tracks 15 pages.
+- Extended generated offer/copy assets with recency/relevance/personalization signals, give-CTA metadata, offer-code insights, and infusion directives.
+- Updated Harris probate email copy to sell the mechanism/outcome — a quick as-is review — rather than directly pitching the product; CTA gives a useful read instead of asking for a call.
+- Verification/QC: `docs/qc/2026-05-01/copywriting-brain-offer-engine/`; focused suite passed `15 passed`.
+
 ### 2026-05-01 Ares Copywriting Brain Offer Engine Slice
 
 - Initialized repo-local copywriting LLM Wiki at `docs/copywriting-wiki/` with schema, index, log, raw source notes, Hormozi/Sultanic entity pages, offer/copy concepts, and Harris probate examples.

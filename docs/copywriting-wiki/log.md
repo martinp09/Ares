@@ -14,3 +14,13 @@
 - Added raw source: `raw/transcripts/alen-sultanic-copy-hinge-nhb-2026-05-02.md`.
 - Added concept page: `concepts/copy-hinge.md`.
 - Updated index with Copy Hinge and source note.
+
+## [2026-05-02] ingest | Alen Sultanic high-response email formula
+- Added raw source: `raw/transcripts/alen-sultanic-high-response-email-formula-2026-05-02.md`.
+- Added concept page: `concepts/high-response-email-formula.md`.
+- Updated index with Recency + Relevance + Personalization formula.
+
+## [2026-05-02] ingest | Alen Sultanic offer code / Rosetta Stone
+- Added raw source: `raw/transcripts/alen-sultanic-offer-code-rosetta-stone-2026-05-02.md`.
+- Added concept page: `concepts/offer-code-rosetta-stone.md`.
+- Updated index with the offer-code concept: extract what is working underneath the words, then infuse it throughout the funnel.

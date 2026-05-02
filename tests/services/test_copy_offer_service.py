@@ -17,6 +17,9 @@ def test_harris_probate_offer_uses_hormozi_value_equation_and_review_gate() -> N
     assert "repairs" in " ".join(offer.effort_reducers).lower()
     assert "cleanup" in " ".join(offer.effort_reducers).lower()
     assert "legal" in " ".join(offer.constraints).lower()
+    assert offer.offer_code_insights
+    assert "without" in " ".join(offer.infusion_directives).lower()
+    assert "perfect" in " ".join(offer.offer_code_insights).lower()
     summary = offer.hormozi_value_equation_summary()
     assert summary["dream_outcome"] == offer.dream_outcome
     assert summary["perceived_likelihood"]

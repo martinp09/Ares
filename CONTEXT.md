@@ -26,6 +26,7 @@
 6. Defer owner/property graph, research cockpit, and map UI until Records and stage model are stable.
 
 ## Recent Change
+- 2026-05-02: Added Alen high-response email formula and offer-code/Rosetta Stone concept to the copywriting wiki and backend copy brain: email assets now store recency/relevance/personalization signals, give-CTA metadata, offer-code insights, and mechanism/outcome-first copy.
 - 2026-05-01: Started Ares copywriting brain execution: repo-local `docs/copywriting-wiki/`, Hormozi/Sultanic source notes, Harris probate `Inherited Property Exit Option`, typed offer/copy asset models/services, upgraded `AresCopyService`, and QC at `docs/qc/2026-05-01/copywriting-brain-offer-engine/`.
 - 2026-04-30: Added Harris probate campaign launch backend slice: HOT/WARM/COLD export manifests, no-send-before-approval CSVs, approval-gated command endpoint, campaign plan, copywriting expertise plan, and QC at `docs/qc/2026-04-30/harris-probate-campaign-launch/`.
 - 2026-04-29: Converted Pipeline into the default full-screen CRM surface by giving Mission Control a CRM shell mode, compact CRM rail, hidden legacy header/context frame, responsive command metrics, and direct Pipeline boot.

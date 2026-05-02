@@ -38,6 +38,8 @@ class OfferAsset(BaseModel):
     unique_mechanism: str = Field(min_length=1)
     proof_points: list[str] = Field(default_factory=list)
     value_stack: list[str] = Field(min_length=1)
+    offer_code_insights: list[str] = Field(default_factory=list)
+    infusion_directives: list[str] = Field(default_factory=list)
     constraints: list[str] = Field(default_factory=list)
     truth_risk_notes: list[str] = Field(min_length=1)
     status: CopyAssetStatus = CopyAssetStatus.REVIEW_REQUIRED

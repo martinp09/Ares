@@ -17,10 +17,17 @@ def test_copy_asset_service_builds_channel_specific_review_required_assets() -> 
     assert all(asset.truth_risk_notes for asset in assets)
     email = next(asset for asset in assets if asset.asset_type == CopyAssetType.EMAIL)
     assert "Inherited property decisions can get messy" in email.body
-    assert "simple buyer option" in email.body
+    assert "quick as-is review" in email.body
+    assert "cash-buyer pitch" in email.body
+    assert "quick read" in email.body
     assert email.copy_hinge
-    assert "what" not in email.copy_hinge.lower()
+    assert "without repairing" in email.copy_hinge
     assert "low-pressure" in email.copy_hinge
+    assert email.recency_signal
+    assert email.relevance_signal
+    assert email.personalization_signal
+    assert email.cta_gives and "read" in email.cta_gives
+    assert email.offer_code_insights
     assert "first_name" in email.template_variables
 
 
