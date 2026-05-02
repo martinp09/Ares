@@ -26,6 +26,7 @@
 6. Defer owner/property graph, research cockpit, and map UI until Records and stage model are stable.
 
 ## Recent Change
+- 2026-05-02: Created full cold-email campaign packets for probate and tax/title-friction sellers under `docs/marketing/campaigns/`, plus local Instantly backups under `docs/marketing/exports/instantly-campaign-backups-2026-05-02/`. Instantly API preflight blocked from host with HTTP 403 / error 1010; no live sends or uploads.
 - 2026-05-02: Drafted stronger Hormozi/Sultanic probate grand-slam offer at `docs/marketing/copy/2026-05-02-probate-grand-slam-offer-v1.md`: **The Inherited Property Relief Plan**. Added REI multichannel playbook doctrine: cold email speed/testing, direct mail trust/persistence, SMS consent/inbound only.
 - 2026-05-02: Added Alen high-response email formula and offer-code/Rosetta Stone concept to the copywriting wiki and backend copy brain: email assets now store recency/relevance/personalization signals, give-CTA metadata, offer-code insights, and mechanism/outcome-first copy.
 - 2026-05-01: Started Ares copywriting brain execution: repo-local `docs/copywriting-wiki/`, Hormozi/Sultanic source notes, Harris probate `Inherited Property Exit Option`, typed offer/copy asset models/services, upgraded `AresCopyService`, and QC at `docs/qc/2026-05-01/copywriting-brain-offer-engine/`.

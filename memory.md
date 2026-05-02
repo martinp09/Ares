@@ -204,6 +204,14 @@
 
 ## Change Log
 
+### 2026-05-02 Cold Email Campaign Packets
+
+- Created professional-service-style cold email campaign packets for probate and tax/title-friction leads under `docs/marketing/campaigns/`.
+- Added local Instantly backups under `docs/marketing/exports/instantly-campaign-backups-2026-05-02/` with JSON and CSV sequence exports.
+- Campaigns include high-level positioning, 4-step active cadences, long nurture through day 300 and quarterly thereafter, reply handling, compliance footer, and no-live-send guardrails.
+- Instantly API preflight found `INSTANTLY_API_KEY` configured but provider returned HTTP 403 / `error code: 1010`; no campaigns, leads, sends, or activations were created from this host.
+- QC: `docs/qc/2026-05-02/cold-email-campaign-packets/`.
+
 ### 2026-05-02 Ares Copywriting Brain Sultanic Formula Addendum
 
 - Added user-provided Alen Sultanic source notes for high-response email formula and offer-code/Rosetta Stone extraction under `docs/copywriting-wiki/raw/transcripts/`.

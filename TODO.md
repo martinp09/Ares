@@ -73,6 +73,7 @@ Known caveat:
 - [done] Add Alen Sultanic Copy Hinge, high-response email formula, and offer-code/Rosetta Stone concepts to the wiki and generated offer/copy asset metadata.
 - [done] Draft stronger Hormozi/Sultanic probate grand-slam offer: `docs/marketing/copy/2026-05-02-probate-grand-slam-offer-v1.md`.
 - [done] Ingest REI multichannel marketing playbook into `docs/copywriting-wiki/` and add channel doctrine: email speed/testing, direct mail trust/persistence, SMS consent/inbound only.
+- [done] Create full cold-email campaign packets and local Instantly backups for probate and tax/title-friction campaigns: `docs/marketing/campaigns/` and `docs/marketing/exports/instantly-campaign-backups-2026-05-02/`.
 - [ ] Capture stronger primary Alen Sultanic source material beyond user-provided excerpts and update the wiki; automated transcript access is blocked from this environment.
 - [ ] Add Mission Control read/approval endpoints for offer/copy assets.
 - [ ] Add persistence for offer/copy assets after the generated v1 proves useful.
