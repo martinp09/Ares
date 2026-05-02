@@ -24,3 +24,8 @@
 - Added raw source: `raw/transcripts/alen-sultanic-offer-code-rosetta-stone-2026-05-02.md`.
 - Added concept page: `concepts/offer-code-rosetta-stone.md`.
 - Updated index with the offer-code concept: extract what is working underneath the words, then infuse it throughout the funnel.
+
+## [2026-05-02] ingest | REI multichannel marketing playbook
+- Added raw playbook: `raw/playbooks/rei-multichannel-marketing-playbook-2026-05-02.md`.
+- Added concept page: `concepts/rei-multichannel-campaign-system.md`.
+- Extracted Ares campaign doctrine: email = speed/testing, direct mail = trust/persistence, SMS = consent/inbound only, with probate-sensitive seller-facing language.

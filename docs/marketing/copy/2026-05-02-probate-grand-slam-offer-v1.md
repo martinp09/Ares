@@ -365,7 +365,54 @@ Lead with:
 - “If keeping it is the plan, no problem.”
 - “If I have the wrong person, I will close my notes.”
 
-## 15. Proof gaps to fill
+## 15. Multichannel campaign rules from REI playbook
+
+The offer should not live as one isolated email. Ares should deploy it through a segmented property-record campaign where each channel has a separate job.
+
+### Channel roles
+
+- **Cold email = speed/testing.** Use it to test the offer code, verify interest, and get a seller to say “maybe, what would you offer?” Do not try to close the sale in email.
+- **Direct mail = trust/persistence.** Use it as the credibility layer for probate because inherited-property sellers are sensitive and skeptical.
+- **SMS = consent/inbound only.** Do not cold-text probate owners. Use SMS after inbound, form consent, a real conversation, appointment confirmation, or explicit permission.
+
+### Preferred probate sequence
+
+1. Segment property records by HOT/WARM/COLD and channel readiness.
+2. Send direct mail first when mailing address confidence is strong.
+3. Email during/after the expected mail arrival window.
+4. Capture inbound calls/texts/forms with campaign-specific attribution.
+5. Route replies into live qualification, not more automation.
+6. Move non-responders into nurture instead of aggressive follow-up.
+
+### Baseline cadence
+
+- Day 0: direct mail letter.
+- Day 5: email referencing the property/letter.
+- Day 9: email with no-prep/as-is review angle.
+- Day 15: email with convenience/clarity angle.
+- Day 21-30: second mail piece.
+- Day 25: close-the-loop email.
+- Day 45: nurture begins.
+
+### Compliance / reputation rules
+
+- Every cold email needs a clean opt-out line, accurate sender details, non-deceptive subject, and physical address.
+- Suppress “remove me,” “no,” “wrong person,” hostile replies, sold property, bad data, and DNC/stop signals across all channels.
+- No deceptive direct mail: no fake official notice, government language, foreclosure rescue, fake urgency, or fake checks.
+- No SMS unless consent/inbound evidence exists.
+- Do not use “probate” or “tax delinquent” as a front-facing weapon. Use property-specific, soft, as-is language.
+
+### Seller-facing message from playbook
+
+Internal objective:
+
+> Acquire off-market real estate at a discount.
+
+External probate message:
+
+> A simple as-is path with no repairs, no cleanout, no listing, flexible timing, no pressure, and a transparent next step.
+
+## 16. Proof gaps to fill
 
 Ares should not fabricate proof. These are the proof assets Martin needs to build or document:
 
@@ -376,7 +423,7 @@ Ares should not fabricate proof. These are the proof assets Martin needs to buil
 - process screenshots or plain-English “how the review works” graphic
 - seller-safe FAQ: what Martin can and cannot help with
 
-## 16. Final current offer
+## 17. Final current offer
 
 # The Inherited Property Relief Plan
 
@@ -384,7 +431,7 @@ A simple, no-prep way to find out whether an inherited property has a practical 
 
 The first step is not a sales pitch. It is a quick as-is review so the family can decide whether selling is worth discussing, keeping it makes more sense, or Martin should close his notes and leave them alone.
 
-## 17. Operator notes
+## 18. Operator notes
 
 This should become the core offer behind:
 
@@ -396,5 +443,6 @@ This should become the core offer behind:
 - seller call script
 - objection handling
 - follow-up sequence
+- multichannel campaign cadence: direct mail trust layer, cold email speed/testing layer, SMS only after consent/inbound
 
 The next step is to convert this offer into a full funnel packet: email, direct mail, SMS, landing page, and call script all using the same offer code.
