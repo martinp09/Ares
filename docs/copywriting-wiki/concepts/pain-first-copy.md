@@ -14,11 +14,12 @@ Pain-first copy starts with the problem the reader already feels, not with the s
 ## Ares structure
 
 1. Name the situation plainly.
-2. Create agreement: “that can get messy when...”
-3. Contrast the default path that may not fit.
-4. Explain the mechanism.
-5. Present the offer.
-6. Ask for one small next step.
+2. Install the [[copy-hinge]] early: what the seller gets for the next few minutes of attention.
+3. Create agreement: “that can get messy when...”
+4. Contrast the default path that may not fit.
+5. Explain the mechanism.
+6. Present the offer.
+7. Ask for one small next step.
 
 ## Probate example pattern
 

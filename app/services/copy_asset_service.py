@@ -14,6 +14,7 @@ class CopyAssetService:
         ]
 
     def build_email_asset(self, *, offer: OfferAsset, segment: CopySegment) -> CopyAsset:
+        copy_hinge = self._copy_hinge_for(offer)
         return CopyAsset(
             id=f"{offer.id}-{segment.value}-email-1",
             offer_id=offer.id,
@@ -23,10 +24,11 @@ class CopyAssetService:
             segment=segment,
             framework=CopyFramework.HYBRID,
             awareness_level=AwarenessLevel.PROBLEM_AWARE,
+            copy_hinge=copy_hinge,
             headline_or_subject=self._email_subject(segment),
             body=(
                 "Hi {{first_name}},\n\n"
-                "I’m Martin. I’m reaching out about {{property_address}}.\n\n"
+                f"{copy_hinge}\n\n"
                 "Inherited property decisions can get messy when repairs, cleanup, taxes, title questions, "
                 "or multiple family members are involved. A normal listing is not always the easiest first step.\n\n"
                 "I review some Harris County properties as-is and can tell you whether a simple buyer option makes sense "
@@ -49,6 +51,7 @@ class CopyAssetService:
         )
 
     def build_direct_mail_asset(self, *, offer: OfferAsset, segment: CopySegment) -> CopyAsset:
+        copy_hinge = self._copy_hinge_for(offer)
         return CopyAsset(
             id=f"{offer.id}-{segment.value}-direct-mail-1",
             offer_id=offer.id,
@@ -58,9 +61,11 @@ class CopyAssetService:
             segment=segment,
             framework=CopyFramework.HYBRID,
             awareness_level=AwarenessLevel.PROBLEM_AWARE,
+            copy_hinge=copy_hinge,
             headline_or_subject="Re: {{property_address}}",
             body=(
                 "Hi {{recipient_name}},\n\n"
+                f"{copy_hinge}\n\n"
                 "I’m reaching out because the property above appears connected to an inherited-property situation in Harris County. "
                 "If the family is already handling it, you can ignore this.\n\n"
                 "But if the house is becoming one more project — repairs, cleanup, taxes, title questions, or deciding what everyone wants to do — "
@@ -81,6 +86,7 @@ class CopyAssetService:
         )
 
     def build_sms_asset(self, *, offer: OfferAsset, segment: CopySegment) -> CopyAsset:
+        copy_hinge = "I can tell you whether a simple as-is option is worth discussing."
         return CopyAsset(
             id=f"{offer.id}-{segment.value}-sms-1",
             offer_id=offer.id,
@@ -90,9 +96,10 @@ class CopyAssetService:
             segment=segment,
             framework=CopyFramework.SULTANIC_PAIN_FIRST,
             awareness_level=AwarenessLevel.PROBLEM_AWARE,
+            copy_hinge=copy_hinge,
             body=(
                 "Hi {{first_name}}, this is Martin. I’m reaching out about {{property_address}}. "
-                "If the family is considering selling it as-is, is it okay if I ask one quick question?"
+                f"{copy_hinge} Is it okay if I ask one quick question?"
             ),
             hook_variants=[
                 "Are you the right person to ask about {{property_address}}?",
@@ -113,3 +120,11 @@ class CopyAssetService:
         if segment is CopySegment.WARM:
             return "Quick question about {{property_address}}"
         return "Are you the right contact?"
+
+    @staticmethod
+    def _copy_hinge_for(offer: OfferAsset) -> str:
+        return (
+            "I’m Martin. If {{property_address}} is becoming one more inherited-property project, "
+            f"this note is just to show you the {offer.name}: a low-pressure way to find out whether "
+            "a simple as-is buyer option is worth discussing before the family repairs, cleans out, lists, or solves every issue first."
+        )

@@ -18,6 +18,9 @@ def test_copy_asset_service_builds_channel_specific_review_required_assets() -> 
     email = next(asset for asset in assets if asset.asset_type == CopyAssetType.EMAIL)
     assert "Inherited property decisions can get messy" in email.body
     assert "simple buyer option" in email.body
+    assert email.copy_hinge
+    assert "what" not in email.copy_hinge.lower()
+    assert "low-pressure" in email.copy_hinge
     assert "first_name" in email.template_variables
 
 

@@ -50,6 +50,7 @@ class CopyAsset(BaseModel):
     segment: CopySegment
     framework: CopyFramework = CopyFramework.HYBRID
     awareness_level: AwarenessLevel = AwarenessLevel.PROBLEM_AWARE
+    copy_hinge: str | None = None
     headline_or_subject: str | None = None
     body: str = Field(min_length=1)
     hook_variants: list[str] = Field(default_factory=list)
