@@ -211,7 +211,7 @@ supabase start
 Use this local Postgres URL for repository-layer tests unless the environment is already exporting `DATABASE_URL`:
 
 ```bash
-export DATABASE_URL=postgresql://postgres:***@127.0.0.1:54322/postgres
+export DATABASE_URL=<postgres-connection-string>
 ```
 
 ## Phase 1 — Verify the current baseline before changing code

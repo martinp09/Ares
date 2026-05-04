@@ -162,7 +162,7 @@ This is the simplest and least magical setup.
 
 ```bash
 HERMES_RUNTIME_API_BASE_URL=http://10.0.0.25:8000 \
-HERMES_RUNTIME_API_KEY=dev-runtime-key \
+HERMES_RUNTIME_API_KEY=<local-runtime-api-key> \
 hermes -p ares-lab
 ```
 
@@ -178,7 +178,7 @@ If you want a dedicated launcher instead of typing env vars every time:
 set -euo pipefail
 
 export HERMES_RUNTIME_API_BASE_URL="${HERMES_RUNTIME_API_BASE_URL:-http://10.0.0.25:8000}"
-export HERMES_RUNTIME_API_KEY="${HERMES_RUNTIME_API_KEY:-dev-runtime-key}"
+export HERMES_RUNTIME_API_KEY="${HERMES_RUNTIME_API_KEY:-<local-runtime-api-key>}"
 
 exec hermes -p ares-lab "$@"
 ```
@@ -191,7 +191,7 @@ If your Hermes install keeps per-profile env files, put the same two variables t
 
 ```bash
 HERMES_RUNTIME_API_BASE_URL=http://10.0.0.25:8000
-HERMES_RUNTIME_API_KEY=dev-runtime-key
+HERMES_RUNTIME_API_KEY=<local-runtime-api-key>
 ```
 
 That keeps the integration isolated to the `ares-lab` profile instead of leaking into every Hermes session.
@@ -236,7 +236,7 @@ Terminal 4 — Hermes shell:
 
 ```bash
 export HERMES_RUNTIME_API_BASE_URL=http://127.0.0.1:8000
-export HERMES_RUNTIME_API_KEY=dev-runtime-key
+export HERMES_RUNTIME_API_KEY=<local-runtime-api-key>
 hermes -p ares-lab
 ```
 
@@ -246,7 +246,7 @@ Use this when Hermes is your always-on shell and Ares lives on a different machi
 
 ```bash
 export HERMES_RUNTIME_API_BASE_URL=http://10.0.0.25:8000
-export HERMES_RUNTIME_API_KEY=dev-runtime-key
+export HERMES_RUNTIME_API_KEY=<local-runtime-api-key>
 hermes -p ares-lab gateway install
 hermes -p ares-lab gateway start
 hermes -p ares-lab gateway status
@@ -260,7 +260,7 @@ Use the same pattern with real secrets and the production Ares URL.
 
 ```bash
 export HERMES_RUNTIME_API_BASE_URL=https://ares.yourdomain.com
-export HERMES_RUNTIME_API_KEY=replace-with-real-runtime-key
+export HERMES_RUNTIME_API_KEY=<production-runtime-api-key>
 hermes -p ares-prod gateway install
 hermes -p ares-prod gateway start
 hermes -p ares-prod gateway status

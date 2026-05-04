@@ -15,7 +15,7 @@ Terminal 3:
 
 Hermes connector env:
   export HERMES_RUNTIME_API_BASE_URL=http://127.0.0.1:8000
-  export HERMES_RUNTIME_API_KEY=dev-runtime-key
+  export HERMES_RUNTIME_API_KEY=<local-runtime-api-key>
 
 Smoke check:
   make smoke

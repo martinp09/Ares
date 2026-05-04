@@ -79,13 +79,13 @@ Default local development stays memory-backed unless a Supabase slice is intenti
 
 ```bash
 RUNTIME_API_BASE_URL=http://127.0.0.1:8000
-RUNTIME_API_KEY=dev-runtime-key
+RUNTIME_API_KEY=<local-runtime-api-key>
 CONTROL_PLANE_BACKEND=memory
 MARKETING_BACKEND=memory
 LEAD_MACHINE_BACKEND=memory
 SITE_EVENTS_BACKEND=memory
 HERMES_RUNTIME_API_BASE_URL=http://127.0.0.1:8000
-HERMES_RUNTIME_API_KEY=dev-runtime-key
+HERMES_RUNTIME_API_KEY=<local-runtime-api-key>
 VITE_RUNTIME_API_BASE_URL=
 ```
 
@@ -93,15 +93,15 @@ Startup:
 
 ```bash
 uv run --with uvicorn uvicorn app.main:app --host 127.0.0.1 --port 8000
-RUNTIME_API_BASE_URL=http://127.0.0.1:8000 RUNTIME_API_KEY=dev-runtime-key npm --prefix apps/mission-control run dev -- --host 127.0.0.1 --port 5173
-HERMES_RUNTIME_API_BASE_URL=http://127.0.0.1:8000 HERMES_RUNTIME_API_KEY=dev-runtime-key npm --prefix trigger run dev
+RUNTIME_API_BASE_URL=http://127.0.0.1:8000 RUNTIME_API_KEY=<local-runtime-api-key> npm --prefix apps/mission-control run dev -- --host 127.0.0.1 --port 5173
+HERMES_RUNTIME_API_BASE_URL=http://127.0.0.1:8000 HERMES_RUNTIME_API_KEY=<local-runtime-api-key> npm --prefix trigger run dev
 ```
 
 First smoke:
 
 ```bash
 curl -sS http://127.0.0.1:8000/health
-curl -sS -H 'Authorization: Bearer dev-runtime-key' http://127.0.0.1:8000/hermes/tools
+curl -sS -H 'Authorization: Bearer <local-runtime-api-key>' http://127.0.0.1:8000/hermes/tools
 ```
 
 ## Verification
