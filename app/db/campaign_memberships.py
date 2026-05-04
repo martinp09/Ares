@@ -17,9 +17,9 @@ from app.models.commands import generate_stable_id
 
 class CampaignMembershipsRepository:
     def __init__(self, client: ControlPlaneClient | None = None, settings: Settings | None = None):
-        self.client = client or get_control_plane_client()
-        self._force_memory = False
         self.settings = settings or get_settings()
+        self.client = client or get_control_plane_client(self.settings)
+        self._force_memory = client is not None and getattr(client, "backend", "memory") != "supabase"
 
     def upsert(self, record: CampaignMembershipRecord) -> CampaignMembershipRecord:
         if lead_machine_backend_enabled(self.settings) and not self._force_memory:

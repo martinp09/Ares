@@ -1,5 +1,18 @@
+import os
+
 import pytest
 from fastapi.testclient import TestClient
+
+# Tests must not inherit a developer/runtime .env that points the control plane at
+# Supabase. Several API modules construct service singletons while app.main is
+# imported, so force the in-memory backend before importing the FastAPI app.
+os.environ["CONTROL_PLANE_BACKEND"] = "memory"
+os.environ["MARKETING_BACKEND"] = "memory"
+os.environ["LEAD_MACHINE_BACKEND"] = "memory"
+os.environ["SITE_EVENTS_BACKEND"] = "memory"
+os.environ["RUNTIME_API_KEY"] = "dev-runtime-key"
+os.environ["INSTANTLY_API_KEY"] = ""
+os.environ["INSTANTLY_WEBHOOK_SECRET"] = ""
 
 from app.core.config import get_settings
 from app.main import app
@@ -7,8 +20,13 @@ from app.main import app
 
 @pytest.fixture(autouse=True)
 def test_settings(monkeypatch: pytest.MonkeyPatch):
+    monkeypatch.setenv("CONTROL_PLANE_BACKEND", "memory")
+    monkeypatch.setenv("MARKETING_BACKEND", "memory")
+    monkeypatch.setenv("LEAD_MACHINE_BACKEND", "memory")
     monkeypatch.setenv("SITE_EVENTS_BACKEND", "memory")
     monkeypatch.setenv("RUNTIME_API_KEY", "dev-runtime-key")
+    monkeypatch.setenv("INSTANTLY_API_KEY", "")
+    monkeypatch.setenv("INSTANTLY_WEBHOOK_SECRET", "")
     get_settings.cache_clear()
     yield
     get_settings.cache_clear()

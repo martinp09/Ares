@@ -18,15 +18,21 @@
 - CRM concept: `docs/mission-control-wiki/concepts/ares-crm-control-plane.md`
 
 ## Current TODO
-1. Capture stronger primary Alen Sultanic source material (authenticated transcript/source upload) and update `docs/copywriting-wiki/`.
-2. Add Mission Control read/approval endpoints for Ares offer/copy assets.
-3. Add dedicated Mission Control frontend campaign-launch review page for `GET/POST /mission-control/campaign-launches/harris-probate-hot-warm-cold`.
-4. Enrich Harris probate exports with email/phone before any Instantly/TextGrid enrollment; current artifact is direct-mail-ready only.
-5. Consider an atomic backend bulk-record endpoint if large batch throughput/transaction semantics become necessary; current Records bulk UI fans out through real single-record command callbacks.
-6. Defer owner/property graph, research cockpit, and map UI until Records and stage model are stable.
+1. Apply current buy-box filters in future scoring/import slices: no mobile homes; SFR/1–4 preferred; commercial review only; $150k–county median core tax/title band; $500k+ creative-finance lane. Canonical note: `docs/lead-scoring/buy-box-filters.md`.
+2. Capture stronger primary Alen Sultanic source material (authenticated transcript/source upload) and update `docs/copywriting-wiki/`.
+3. Add Mission Control read/approval endpoints for Ares offer/copy assets.
+4. Add dedicated Mission Control frontend campaign-launch review page for `GET/POST /mission-control/campaign-launches/harris-probate-hot-warm-cold`.
+5. Enrich Harris probate exports with email/phone via Tracerfy before any Instantly/TextGrid enrollment; single-record CRM skiptrace endpoint is wired, batch export enrichment is next. Current artifact is direct-mail-ready only.
+6. Consider an atomic backend bulk-record endpoint if large batch throughput/transaction semantics become necessary; current Records bulk UI fans out through real single-record command callbacks.
+7. Defer owner/property graph, research cockpit, and map UI until Records and stage model are stable.
 
 ## Recent Change
-- 2026-05-02: Created full cold-email campaign packets for probate and tax/title-friction sellers under `docs/marketing/campaigns/`, plus local Instantly backups under `docs/marketing/exports/instantly-campaign-backups-2026-05-02/`. Instantly API preflight blocked from host with HTTP 403 / error 1010; no live sends or uploads.
+- 2026-05-04: Added Tracerfy as the current Ares skiptrace provider: `TRACERFY_API_KEY`, `app/providers/tracerfy.py`, CRM enrichment service, and `POST /mission-control/records/{record_id}/skiptrace`. Docs/QC: `docs/integrations/tracerfy-skiptrace.md`, `docs/qc/2026-05-04/tracerfy-skiptrace-provider/`. Focused suite: 46 passed; full backend suite: 620 passed after test-environment isolation hardening.
+- 2026-05-03: Updated local `.env` to the newly supplied Instantly real-account API key, then safe read preflight hit `HTTP 402 Payment Required` / `Workspace does not have an active paid plan`; no campaigns, subsequences, leads, activations, or sends happened. QC: `docs/qc/2026-05-03/instantly-real-account-sync/`.
+- 2026-05-02: Created two Instantly long-nurture subsequences: Probate `7db2176c-2ce5-4633-a2e9-346fdc8fff43` and Tax/Title `494fd6b6-6456-46ea-a79d-0547a172ca95`; trigger is campaign completed without reply, 6 steps through Day 300; no leads, sends, or activation. QC: `docs/qc/2026-05-02/instantly-campaign-nurture-upload/`.
+- 2026-05-02: Uploaded two Instantly draft campaigns from local backups: Probate `9b306264-b8d6-4ca3-8628-8d0e10f84d9c` and Tax/Title `70c5b447-2a72-431c-a63d-1fe8fb67c1fe`. Active 4-step sequences only; no leads, sends, or activation. QC: `docs/qc/2026-05-02/instantly-campaign-draft-upload/`.
+- 2026-05-02: Patched Ares Instantly client request headers with `Accept: application/json` and a normal `User-Agent`; focused tests passed and live `list_campaigns(limit=1)` preflight now returns 200 with no provider mutation. QC: `docs/qc/2026-05-02/instantly-client-fingerprint-patch/`.
+- 2026-05-02: Created full cold-email campaign packets for probate and tax/title-friction sellers under `docs/marketing/campaigns/`, plus local Instantly backups under `docs/marketing/exports/instantly-campaign-backups-2026-05-02/`. Initial Instantly API preflight from default Python urllib fingerprint was blocked with HTTP 403 / error 1010; no live sends or uploads.
 - 2026-05-02: Drafted stronger Hormozi/Sultanic probate grand-slam offer at `docs/marketing/copy/2026-05-02-probate-grand-slam-offer-v1.md`: **The Inherited Property Relief Plan**. Added REI multichannel playbook doctrine: cold email speed/testing, direct mail trust/persistence, SMS consent/inbound only.
 - 2026-05-02: Added Alen high-response email formula and offer-code/Rosetta Stone concept to the copywriting wiki and backend copy brain: email assets now store recency/relevance/personalization signals, give-CTA metadata, offer-code insights, and mechanism/outcome-first copy.
 - 2026-05-01: Started Ares copywriting brain execution: repo-local `docs/copywriting-wiki/`, Hormozi/Sultanic source notes, Harris probate `Inherited Property Exit Option`, typed offer/copy asset models/services, upgraded `AresCopyService`, and QC at `docs/qc/2026-05-01/copywriting-brain-offer-engine/`.

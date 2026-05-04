@@ -1,10 +1,10 @@
 ---
 title: "Ares TODO / Handoff"
 status: active
-updated_at: "2026-04-25T18:30:00Z"
+updated_at: "2026-05-04T10:55:00Z"
 repo: "martinp09/Ares"
-local_checkout: "/Users/solomartin/Projects/Ares/.worktrees/probate-intake-supabase-wiring"
-current_branch: "feature/probate-intake-supabase-wiring"
+local_checkout: "/opt/ares/Ares"
+current_branch: "feature/copywriting-brain-offer-engine"
 production_wiring_commit: "47be904"
 ---
 
@@ -63,7 +63,7 @@ Known caveat:
 - [done] Add/export HOT/WARM/COLD segment manifests from the current Harris probate lead data before any live sends.
 - [done] Add a backend operator approval gate for Instantly/TextGrid/direct-mail enrollment.
 - [ ] Add a dedicated Mission Control frontend campaign-launch review page; current API contract is live and approvals can be reviewed from the existing approvals surface.
-- [ ] Add email/phone enrichment before Instantly/TextGrid enrollment; current artifact has direct-mail-ready rows only.
+- [ ] Enrich Harris probate exports with email/phone via Tracerfy before Instantly/TextGrid enrollment; single-record CRM skiptrace endpoint is wired at `POST /mission-control/records/{record_id}/skiptrace`, batch export enrichment remains next. Current artifact has direct-mail-ready rows only.
 
 ### 3. Ares copywriting brain / offer engine
 
@@ -74,6 +74,10 @@ Known caveat:
 - [done] Draft stronger Hormozi/Sultanic probate grand-slam offer: `docs/marketing/copy/2026-05-02-probate-grand-slam-offer-v1.md`.
 - [done] Ingest REI multichannel marketing playbook into `docs/copywriting-wiki/` and add channel doctrine: email speed/testing, direct mail trust/persistence, SMS consent/inbound only.
 - [done] Create full cold-email campaign packets and local Instantly backups for probate and tax/title-friction campaigns: `docs/marketing/campaigns/` and `docs/marketing/exports/instantly-campaign-backups-2026-05-02/`.
+- [done] Patch Instantly API client request headers after Cloudflare 1010 on Python urllib fingerprint; live list-campaigns preflight now succeeds without provider mutation.
+- [done] Upload probate and tax/title-friction campaigns to Instantly as draft 4-step active sequences; no leads, sends, or activation.
+- [done] Create Instantly long-nurture subsequences for both draft campaigns; trigger on campaign completed without reply and preserve Day 45/75/105/150/210/300 cadence.
+- [ ] Activate/upgrade the newly keyed Instantly workspace to a paid plan, then rerun real-account sync from `docs/marketing/exports/instantly-campaign-backups-2026-05-02/`; current new-key preflight is blocked by `HTTP 402 Payment Required`. QC: `docs/qc/2026-05-03/instantly-real-account-sync/`.
 - [ ] Capture stronger primary Alen Sultanic source material beyond user-provided excerpts and update the wiki; automated transcript access is blocked from this environment.
 - [ ] Add Mission Control read/approval endpoints for offer/copy assets.
 - [ ] Add persistence for offer/copy assets after the generated v1 proves useful.

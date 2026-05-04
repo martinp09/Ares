@@ -27,7 +27,7 @@
 
 ## Current Direction
 
-- `/Users/solomartin/Projects/Ares` on `main` is the active checkout.
+- `/opt/ares/Ares` on `feature/copywriting-brain-offer-engine` is the active VPS checkout for the current copywriting/offer/skiptrace branch.
 - CRM control-plane work has been merged to `origin/main`.
 - CRM control-plane draft spec: `docs/superpowers/specs/2026-04-25-ares-crm-control-plane-design.md`.
 - CRM control-plane roadmap: `docs/superpowers/plans/2026-04-25-ares-crm-control-plane-roadmap.md`.
@@ -56,6 +56,8 @@
 - Enterprise agent platform plan remains a live source input: `docs/superpowers/plans/2026-04-15-ares-enterprise-agent-platform-implementation-plan.md`
 - Phase 1 county baseline stays explicit: Harris, Tarrant, Montgomery, Dallas, Travis
 - Phase 1 lead rule stays explicit: probate-first with tax-delinquency overlay
+- Current acquisitions buy-box doctrine: exclude mobile/manufactured-home records; prioritize SFR/1–4 unit properties; tax/title core value band is roughly $150k to county median; $500k+ routes to longer-cycle creative-finance lanes. Canonical note: `docs/lead-scoring/buy-box-filters.md`.
+- Curative-title source-lane wiki started at `docs/curative-title-wiki/`; bankruptcy records/PACER are an additional lane to keep in mind, not a pivot, for compressed-timeline messy-title situations including automatic stay, stacked liens, old unreleased mortgages, avoidable-judgment questions, and relief-from-stay timing.
 - Phase 1 outreach rule stays explicit: drafts require human approval before send
 - The runtime must cover data gathering, prospecting, acquisitions, transaction coordination, title, and dispo
 - Source lanes, strategy lanes, and operational stages must stay separate concepts
@@ -184,16 +186,17 @@
 
 ## Open Work
 
-1. capture stronger primary Alen Sultanic source material and update `docs/copywriting-wiki/`; current YouTube transcript access is blocked from this environment
-2. add Mission Control read/approval endpoints for Ares offer/copy assets
-3. add dedicated Mission Control frontend campaign-launch review page for the Harris probate HOT/WARM/COLD API contract
-4. enrich Harris probate campaign exports with email/phone before any Instantly/TextGrid enrollment; current source artifact is direct-mail-ready only
-5. consider an atomic backend bulk-record endpoint if large batch throughput/transaction semantics become necessary; current Records bulk UI fans out through real single-record command callbacks
-6. defer owner/property graph, research cockpit, and map UI until Records and stage model are stable
-7. preserve production evidence files as the handoff source of truth
-8. optionally replace the REST rollback bundle with native pg_dump once Supabase CLI container DNS is fixed
-9. add production monitoring/alerts for provider callback failures
-10. keep browser acquisition and ambiguous research in Hermes or other driver agents, not inside Ares
+1. activate/upgrade the newly keyed Instantly workspace to a paid plan, then rerun real-account sync from `docs/marketing/exports/instantly-campaign-backups-2026-05-02/`; current preflight is blocked by HTTP 402 / workspace has no active paid plan
+2. capture stronger primary Alen Sultanic source material and update `docs/copywriting-wiki/`; current YouTube transcript access is blocked from this environment
+3. add Mission Control read/approval endpoints for Ares offer/copy assets
+4. add dedicated Mission Control frontend campaign-launch review page for the Harris probate HOT/WARM/COLD API contract
+5. enrich Harris probate campaign exports with email/phone via Tracerfy before any Instantly/TextGrid enrollment; single-record CRM skiptrace endpoint is wired, batch export enrichment remains next
+6. consider an atomic backend bulk-record endpoint if large batch throughput/transaction semantics become necessary; current Records bulk UI fans out through real single-record command callbacks
+7. defer owner/property graph, research cockpit, and map UI until Records and stage model are stable
+8. preserve production evidence files as the handoff source of truth
+9. optionally replace the REST rollback bundle with native pg_dump once Supabase CLI container DNS is fixed
+10. add production monitoring/alerts for provider callback failures
+11. keep browser acquisition and ambiguous research in Hermes or other driver agents, not inside Ares
 
 ## Completed Branch Work
 
@@ -203,6 +206,50 @@
 - `TasksRepository` now treats `lead_machine_backend=supabase` as a Supabase-backed task path so title-packet review tasks persist with lead-machine records.
 
 ## Change Log
+
+### 2026-05-04 Tracerfy Skiptrace Provider Slice
+
+- Added Tracerfy as the current Ares skiptrace provider with `TRACERFY_API_KEY` / `TRACERFY_BASE_URL` config.
+- Added `app/providers/tracerfy.py` for synchronous address lookup, APN lookup, DNC lookup, queues, and address autocomplete request contracts.
+- Added `app/services/skiptrace_service.py` to enrich canonical CRM records, store compact skiptrace facts, preserve raw Tracerfy response evidence, and move `needs_skip_trace` records to `clean` when contact data is returned.
+- Added Mission Control endpoint `POST /mission-control/records/{record_id}/skiptrace` for one-record-at-a-time operator enrichment.
+- Docs: `docs/integrations/tracerfy-skiptrace.md`.
+- Focused/provider/API/repository tests pass: `uv run pytest tests/services/test_skiptrace_service.py tests/providers/test_tracerfy.py tests/api/test_mission_control.py tests/db/test_crm_records_repository.py -q` (`46 passed`).
+- Full backend test suite passes after test-environment isolation hardening: `uv run pytest -q` (`620 passed`). QC: `docs/qc/2026-05-04/tracerfy-skiptrace-provider/`.
+
+### 2026-05-03 Instantly Real Account Sync Attempt
+
+- Updated local `.env` so `INSTANTLY_API_KEY` uses the newly supplied real-account key; backup created as `.env.before-instantly-real-account-20260503T215318Z`.
+- Safe read-only preflight through `InstantlyClient.list_campaigns(limit=100)` reached Instantly but failed with HTTP 402 / `Workspace does not have an active paid plan`.
+- No campaigns, subsequences, leads, sends, or activations were created on the newly keyed account.
+- Existing campaign/subsequence backups remain ready under `docs/marketing/exports/instantly-campaign-backups-2026-05-02/`; rerun sync after the workspace has an active paid plan.
+- QC: `docs/qc/2026-05-03/instantly-real-account-sync/`.
+
+### 2026-05-02 Instantly Campaign Nurture Upload
+
+- Added Ares Instantly client support for campaign subsequences: create/list/get/pause/resume methods, with focused request-construction coverage.
+- Created two Instantly long-nurture subsequences from the local campaign docs:
+  - Probate: `Long Nurture | Probate | 2026-05`, ID `7db2176c-2ce5-4633-a2e9-346fdc8fff43`, parent campaign `9b306264-b8d6-4ca3-8628-8d0e10f84d9c`.
+  - Tax/title-friction: `Long Nurture | Tax + Title Friction | 2026-05`, ID `494fd6b6-6456-46ea-a79d-0547a172ca95`, parent campaign `70c5b447-2a72-431c-a63d-1fe8fb67c1fe`.
+- Both trigger on Instantly `lead_activity: [91]` / campaign completed without reply, have 6 nurture email steps through Day 300, and use a 31-day first pre-delay after the active campaign completes.
+- No leads were uploaded, no campaigns were activated, and no sends were triggered.
+- Generated provider payload/response/readback backups under `docs/marketing/exports/instantly-campaign-backups-2026-05-02/` and QC under `docs/qc/2026-05-02/instantly-campaign-nurture-upload/`.
+
+### 2026-05-02 Instantly Campaign Draft Upload
+
+- Uploaded two Instantly draft campaigns from local campaign backups:
+  - Probate: `Email | Probate | Inherited Property Relief Plan | Texas | 2026-05`, ID `9b306264-b8d6-4ca3-8628-8d0e10f84d9c`.
+  - Tax/title-friction: `Email | Tax + Title Friction | Property Situation Review | Texas | 2026-05`, ID `70c5b447-2a72-431c-a63d-1fe8fb67c1fe`.
+- Both campaigns have 4 active email steps, 2 subject variants per step, weekday 09:00-17:00 `America/Chicago` schedule, `stop_on_reply: true`, and `open_tracking: false`.
+- No leads were uploaded, no campaigns were activated, and no sends were triggered.
+- Generated provider payload/response/readback backups under `docs/marketing/exports/instantly-campaign-backups-2026-05-02/` and QC under `docs/qc/2026-05-02/instantly-campaign-draft-upload/`.
+
+### 2026-05-02 Instantly Client Fingerprint Patch
+
+- Patched Ares Instantly request headers to include `Accept: application/json` and `User-Agent: Mozilla/5.0 Ares/1.0 InstantlyClient`.
+- Root cause narrowed to Cloudflare rejecting the default Python urllib fingerprint with HTTP 403 / `error code: 1010`, not a missing API key.
+- Live patched preflight `InstantlyClient.list_campaigns(limit=1)` returned 200 with `items: []`; no campaign creation, lead upload, send, activation, or provider mutation was performed.
+- Verification/QC: `docs/qc/2026-05-02/instantly-client-fingerprint-patch/`; focused tests passed `6 passed`.
 
 ### 2026-05-02 Cold Email Campaign Packets
 

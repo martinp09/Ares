@@ -15,6 +15,9 @@ def test_build_request_uses_bearer_auth() -> None:
     )
 
     assert request["headers"]["Authorization"] == "Bearer inst_1234567890"
+    assert request["headers"]["Accept"] == "application/json"
+    assert request["headers"]["Content-Type"] == "application/json"
+    assert request["headers"]["User-Agent"] == "Mozilla/5.0 Ares/1.0 InstantlyClient"
     assert request["endpoint"] == "https://api.instantly.ai/api/v2/leads"
     assert request["payload"] == {"email": "lead@example.com"}
 
@@ -45,6 +48,29 @@ def test_normalize_webhook_payload_maps_to_canonical_event() -> None:
     assert normalized["lead_email"] == "lead@example.com"
     assert normalized["metadata"]["step"] == 2
     assert normalized["provider_email_id"] == "msg_123"
+
+
+def test_client_builds_subsequence_requests() -> None:
+    captured: list[dict] = []
+
+    def sender(outbound_request: dict) -> dict:
+        captured.append(outbound_request)
+        return {"id": "sub_123"}
+
+    client = InstantlyClient(api_key="inst_123", request_sender=sender)
+
+    assert client.create_subsequence({"name": "Nurture"}) == {"id": "sub_123"}
+    assert captured[-1]["method"] == "POST"
+    assert captured[-1]["endpoint"] == "https://api.instantly.ai/api/v2/subsequences"
+
+    client.list_subsequences(parent_campaign="cmp_123", limit=10)
+    assert captured[-1]["method"] == "GET"
+    assert captured[-1]["endpoint"] == "https://api.instantly.ai/api/v2/subsequences?parent_campaign=cmp_123&limit=10"
+
+    client.get_subsequence("sub_123")
+    assert captured[-1]["method"] == "GET"
+    assert captured[-1]["endpoint"] == "https://api.instantly.ai/api/v2/subsequences/sub_123"
+
 
 
 def test_client_retries_transport_errors_before_failing() -> None:

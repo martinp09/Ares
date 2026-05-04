@@ -5,7 +5,7 @@ from copy import deepcopy
 from typing import Callable, TypeVar
 
 from app.core.config import get_settings
-from app.db.client import ControlPlaneClient, InMemoryControlPlaneStore, get_control_plane_client
+from app.db.client import ControlPlaneClient, InMemoryControlPlaneStore, STORE, get_control_plane_client
 
 RepositoryT = TypeVar("RepositoryT")
 
@@ -18,6 +18,9 @@ def resolve_repository_for_active_backend(
     settings = get_settings()
     expected_backend = settings.control_plane_backend
     client = getattr(repository, "client", None)
+    client_store = getattr(client, "store", getattr(client, "_store", STORE))
+    if client is not None and getattr(client, "backend", None) == "memory" and client_store is not STORE:
+        return repository
     if client is not None and getattr(client, "backend", None) == expected_backend:
         return repository
     return factory(get_control_plane_client(settings))

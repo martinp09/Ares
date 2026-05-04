@@ -69,6 +69,14 @@ class Settings(BaseSettings):
         default=0.25,
         validation_alias=AliasChoices("instantly_batch_wait_seconds", "INSTANTLY_BATCH_WAIT_SECONDS"),
     )
+    tracerfy_api_key: str | None = Field(
+        default=None,
+        validation_alias=AliasChoices("tracerfy_api_key", "TRACERFY_API_KEY"),
+    )
+    tracerfy_base_url: str = Field(
+        default="https://tracerfy.com/v1/api",
+        validation_alias=AliasChoices("tracerfy_base_url", "TRACERFY_BASE_URL"),
+    )
     anthropic_api_key: str | None = Field(
         default=None,
         validation_alias=AliasChoices("anthropic_api_key", "ANTHROPIC_API_KEY"),

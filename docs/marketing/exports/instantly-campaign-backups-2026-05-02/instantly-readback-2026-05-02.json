@@ -1,0 +1,26 @@
+{
+  "campaigns": [
+    {
+      "id": "9b306264-b8d6-4ca3-8628-8d0e10f84d9c",
+      "name": "Email | Probate | Inherited Property Relief Plan | Texas | 2026-05",
+      "status": 0,
+      "steps": 4,
+      "open_tracking": false,
+      "link_tracking": null,
+      "stop_on_reply": true,
+      "timestamp_created": "2026-05-02T03:31:13.046Z"
+    },
+    {
+      "id": "70c5b447-2a72-431c-a63d-1fe8fb67c1fe",
+      "name": "Email | Tax + Title Friction | Property Situation Review | Texas | 2026-05",
+      "status": 0,
+      "steps": 4,
+      "open_tracking": false,
+      "link_tracking": null,
+      "stop_on_reply": true,
+      "timestamp_created": "2026-05-02T03:31:13.200Z"
+    }
+  ],
+  "no_leads_uploaded": true,
+  "no_activation": true
+}

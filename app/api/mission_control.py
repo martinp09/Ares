@@ -26,6 +26,8 @@ from app.models.mission_control import (
     MissionControlRecordActionResponse,
     MissionControlRecordImportRequest,
     MissionControlRecordPromotionRequest,
+    MissionControlRecordSkipTraceRequest,
+    MissionControlRecordSkipTraceResponse,
     MissionControlRecordStatusRequest,
     MissionControlRecordSuppressionRequest,
     MissionControlRecordSavedView,
@@ -177,6 +179,27 @@ def update_record_status(
         )
     except KeyError as exc:
         raise HTTPException(status_code=404, detail="CRM record not found") from exc
+
+
+@router.post("/records/{record_id}/skiptrace", response_model=MissionControlRecordSkipTraceResponse, response_model_exclude_none=True)
+def skiptrace_record(
+    record_id: str,
+    payload: MissionControlRecordSkipTraceRequest,
+    actor_context: ActorContext = Depends(actor_context_dependency),
+) -> MissionControlRecordSkipTraceResponse:
+    try:
+        return mission_control_service.skiptrace_record(
+            record_id,
+            payload,
+            actor_id=actor_context.actor_id,
+            actor_type=actor_context.actor_type,
+        )
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail="CRM record not found") from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    except RuntimeError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
 
 
 @router.post("/records/{record_id}/suppress", response_model=MissionControlRecordActionResponse, response_model_exclude_none=True)

@@ -1,0 +1,4 @@
+$ uv run pytest tests/services/test_skiptrace_service.py tests/providers/test_tracerfy.py tests/api/test_mission_control.py tests/db/test_crm_records_repository.py -q
+warning: `VIRTUAL_ENV=/usr/local/lib/hermes-agent/venv` does not match the project environment path `.venv` and will be ignored; use `--active` to target the active environment instead
+..............................................                           [100%]
+46 passed in 1.57s

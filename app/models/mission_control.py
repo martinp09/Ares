@@ -204,6 +204,33 @@ class MissionControlRecordStatusRequest(BaseModel):
     reason: str | None = None
 
 
+class MissionControlRecordSkipTraceRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    address: str | None = None
+    city: str | None = None
+    state: str | None = None
+    zip_code: str | None = None
+    parcel_id: str | None = None
+    county: str | None = None
+    find_owner: bool = True
+    first_name: str | None = None
+    last_name: str | None = None
+
+
+class MissionControlRecordSkipTraceResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    record: MissionControlRecordSummary
+    provider: Literal["tracerfy"] = "tracerfy"
+    lookup_method: Literal["address", "apn"]
+    hit: bool
+    persons_count: int = Field(ge=0)
+    credits_deducted: int = Field(ge=0)
+    phone: str | None = None
+    email: str | None = None
+
+
 class MissionControlRecordSuppressionRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 

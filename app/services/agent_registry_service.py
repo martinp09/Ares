@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from app.db.agents import AgentsRepository
+from app.db.audit import AuditRepository
 from app.core.config import get_settings
 from app.models.agents import AgentCreateRequest, AgentRecord, AgentResponse, AgentRevisionState, AgentVisibility
 from app.models.providers import ProviderCapability, ProviderKind
@@ -17,7 +18,12 @@ class AgentRegistryService:
         audit: AuditService | None = None,
     ) -> None:
         self.agents_repository = agents_repository or AgentsRepository()
-        self.audit = audit or audit_service
+        if audit is not None:
+            self.audit = audit
+        elif agents_repository is not None and getattr(agents_repository.client, "backend", "memory") != "supabase":
+            self.audit = AuditService(AuditRepository(client=agents_repository.client))
+        else:
+            self.audit = audit_service
 
     def _agents_repository(self) -> AgentsRepository:
         self.agents_repository = resolve_repository_for_active_backend(
