@@ -1,10 +1,10 @@
 ---
 title: "Ares TODO / Handoff"
 status: active
-updated_at: "2026-04-25T18:30:00Z"
+updated_at: "2026-05-09T06:16:00Z"
 repo: "martinp09/Ares"
-local_checkout: "/Users/solomartin/Projects/Ares/.worktrees/probate-intake-supabase-wiring"
-current_branch: "feature/probate-intake-supabase-wiring"
+local_checkout: "/root/Ares-inspect"
+current_branch: "feat/harris-daily-lead-machine-foundation"
 production_wiring_commit: "47be904"
 ---
 
@@ -12,7 +12,7 @@ production_wiring_commit: "47be904"
 
 ## Current status
 
-Ares is production-ready for a controlled live operator rollout.
+Ares production wiring remains live for the controlled operator rollout. The current local branch adds the Harris daily probate + HCAD `Estate Of` lead-machine foundation and has not been deployed.
 
 Live production evidence:
 
@@ -23,47 +23,43 @@ Live production evidence:
 - Production evidence: `docs/rollout-evidence/production-2026-04-25.json`
 - Preview/current-main evidence: `docs/rollout-evidence/preview-2026-04-25.json`
 
-Proven live wiring:
-
-- Runtime health/auth on production Vercel.
-- Supabase-backed runtime state.
-- Trigger lifecycle callbacks.
-- Instantly reply webhook.
-- TextGrid SMS send and signed form-encoded status callback.
-- Cal.com booking webhook.
-- Resend live email smoke.
-- Rollback bundle at `/Users/solomartin/Projects/Ares-backups/2026-04-25-awmsrjeawcxndfnggoxw`.
-
-Known caveat:
+Known caveats:
 
 - Native `pg_dump` backup is not captured because the Supabase CLI container could not resolve the Supabase DB host from Colima. A REST table-export rollback bundle exists instead.
+- Slack digest delivery for the Harris daily import is blocked until `SLACK_BOT_TOKEN` and target channels are available.
+- Vercel deployment/hosted smoke for the Harris daily import branch is blocked until Vercel auth is available.
 
-## Next product slice
+## Current product slice
 
-### 0. Probate title-packet Supabase wiring
+### 0. Harris daily lead-machine foundation
 
-- [done] Rebuild `origin/feature/lead-machine-probate-intake` onto current `origin/main`.
-- [done] Add `title_packets` Supabase migration with tenant FK, lead FK, RLS, indexes, and idempotent identity key.
-- [done] Add `TitlePacketsRepository` with memory and `lead_machine_backend=supabase` paths.
-- [done] Add `POST /mission-control/lead-machine/title-packets/import`.
-- [done] Normalize title-packet imports into probate-intake leads and create idempotent manual-review tasks.
-- [ ] Run final full backend verification before merge.
+- [done] Add `POST /lead-machine/harris/daily-import` for daily Harris probate + HCAD `Estate Of` source payloads.
+- [done] Default daily import to `dry_run=true` and require at least one source payload.
+- [done] Process probate rows through deterministic keep-now/HCAD/scoring preview, with existing write path used when `dry_run=false`.
+- [done] Process HCAD `Estate Of` rows into CRM source records/records/memberships when `dry_run=false`.
+- [done] Preserve no-send behavior: `provider_send_count=0`, no Instantly/TextGrid/Resend sends, no Slack posts.
+- [done] Add Slack readiness config fields without requiring credentials for dry-run/import.
+- [done] Add Trigger runtime endpoint/types and `harris-daily-import` task wrapper.
+- [done] Save QC evidence at `docs/qc/2026-05-09/harris-daily-lead-machine-foundation/`.
+- [done] Commit and push `feat/harris-daily-lead-machine-foundation` to origin.
+- [ ] Open PR/merge after operator review.
+- [ ] Wire real Slack digest delivery only after Slack token/channels are available.
+- [ ] Deploy/smoke hosted runtime only after Vercel auth is available.
 
-### 1. Dashboard UI polish
-
-- [ ] Build the approved ARES dashboard theme direction.
-- [ ] Use `docs/design/ares-dashboard-theme-2026-04-25.md` as the design source.
-- [ ] Keep it a real dense Mission Control dashboard, not a game menu.
-- [ ] Keep gothic/flame treatment concentrated around the `ARES` title and subtle dashboard accents.
-- [ ] Preserve readability, operator density, and existing Mission Control workflows.
-
-### 2. Harris probate outreach campaign
+### 1. Harris probate outreach campaign
 
 - [done] Use `docs/marketing/2026-04-30-harris-probate-hot-warm-cold-campaign.md` as the operator-review campaign plan.
 - [done] Add/export HOT/WARM/COLD segment manifests from the current Harris probate lead data before any live sends.
 - [done] Add a backend operator approval gate for Instantly/TextGrid/direct-mail enrollment.
 - [ ] Add a dedicated Mission Control frontend campaign-launch review page; current API contract is live and approvals can be reviewed from the existing approvals surface.
 - [ ] Add email/phone enrichment before Instantly/TextGrid enrollment; current artifact has direct-mail-ready rows only.
+
+### 2. Dashboard UI polish
+
+- [ ] Build the approved ARES dashboard theme direction from `docs/design/ares-dashboard-theme-2026-04-25.md`.
+- [ ] Keep it a real dense Mission Control dashboard, not a game menu.
+- [ ] Keep gothic/flame treatment concentrated around the `ARES` title and subtle dashboard accents.
+- [ ] Preserve readability, operator density, and existing Mission Control workflows.
 
 ### 3. Production hardening follow-up
 
@@ -89,3 +85,5 @@ npm --prefix apps/mission-control run typecheck
 npm --prefix apps/mission-control run test -- --run
 npm --prefix apps/mission-control run build
 ```
+
+For the current backend/Trigger-only branch, completed verification is recorded in `docs/qc/2026-05-09/harris-daily-lead-machine-foundation/`.

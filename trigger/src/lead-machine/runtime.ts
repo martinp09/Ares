@@ -1,6 +1,7 @@
 export const LEAD_MACHINE_ENDPOINTS = {
   leadIntake: "/lead-machine/intake",
   probateIntake: "/lead-machine/probate/intake",
+  harrisDailyImport: "/lead-machine/harris/daily-import",
   outboundEnqueue: "/lead-machine/outbound/enqueue",
   instantlyWebhookIngest: "/lead-machine/webhooks/instantly",
   followupStepRunner: "/lead-machine/internal/followup-step-runner",
@@ -42,6 +43,47 @@ export type ProbateIntakeResponse = {
     hcad_match_status: string;
     contact_confidence: string;
     bridged_lead_id: string | null;
+  }>;
+};
+
+export type HarrisDailyImportRecordInput = Record<string, unknown>;
+
+export type HarrisDailyImportPayload = {
+  business_id: string;
+  environment: string;
+  run_date: string;
+  probate_records?: HarrisDailyImportRecordInput[];
+  hcad_estate_of_records?: HarrisDailyImportRecordInput[];
+  dry_run?: boolean;
+  keep_only?: boolean;
+} & LeadMachineRunContext;
+
+export type HarrisDailyImportResponse = {
+  run_key: string;
+  run_date: string;
+  dry_run: boolean;
+  live_send_policy: string;
+  counts: {
+    probate_received?: number;
+    probate_keep_now?: number;
+    probate_bridged?: number;
+    estate_of_received?: number;
+    estate_of_candidates?: number;
+    estate_of_imported?: number;
+    qc_warning_count: number;
+    provider_send_count: number;
+    [key: string]: number | undefined;
+  };
+  probate: Record<string, unknown>;
+  estate_of: Record<string, unknown>;
+  qc_warnings: Array<Record<string, unknown>>;
+  notifications: Array<{
+    type: string;
+    status: string;
+    reason?: string;
+    channel_id?: string | null;
+    counts?: Record<string, unknown>;
+    [key: string]: unknown;
   }>;
 };
 

@@ -192,6 +192,26 @@ class Settings(BaseSettings):
             "TRIGGER_NON_BOOKER_CHECK_TASK_ID",
         ),
     )
+    slack_bot_token: str | None = Field(
+        default=None,
+        validation_alias=AliasChoices("slack_bot_token", "SLACK_BOT_TOKEN"),
+    )
+    slack_channel_leads: str | None = Field(
+        default=None,
+        validation_alias=AliasChoices("slack_channel_leads", "SLACK_CHANNEL_LEADS"),
+    )
+    slack_channel_hot_leads: str | None = Field(
+        default=None,
+        validation_alias=AliasChoices("slack_channel_hot_leads", "SLACK_CHANNEL_HOT_LEADS"),
+    )
+    slack_channel_errors: str | None = Field(
+        default=None,
+        validation_alias=AliasChoices("slack_channel_errors", "SLACK_CHANNEL_ERRORS"),
+    )
+    slack_channel_qc: str | None = Field(
+        default=None,
+        validation_alias=AliasChoices("slack_channel_qc", "SLACK_CHANNEL_QC"),
+    )
 
     model_config = SettingsConfigDict(
         env_file=".env",

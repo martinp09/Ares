@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import date, datetime
 from typing import Any, Literal
 
 from fastapi import APIRouter, Header, HTTPException, Query, Request, status
@@ -11,6 +11,10 @@ from app.db.tasks import TasksRepository
 from app.models.commands import utc_now
 from app.models.lead_events import LeadEventRecord
 from app.models.tasks import TaskPriority, TaskRecord, TaskStatus, TaskType
+from app.services.harris_daily_lead_machine_service import (
+    HarrisDailyLeadMachineService,
+    harris_daily_lead_machine_service,
+)
 from app.services.inbound_sms_service import LeaseOptionSequenceStepRequest, inbound_sms_service
 from app.services.lead_intake_service import LeadIntakeRequest as ServiceLeadIntakeRequest
 from app.services.lead_intake_service import lead_intake_service
@@ -92,6 +96,28 @@ class ProbateIntakeResponse(BaseModel):
     keep_now_count: int
     bridged_count: int
     records: list[ProbateIntakeRecordResult]
+
+
+class HarrisDailyImportRecordInput(BaseModel):
+    model_config = ConfigDict(extra="allow")
+
+
+class HarrisDailyImportRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    business_id: str = Field(min_length=1)
+    environment: str = Field(min_length=1)
+    run_date: date
+    probate_records: list[HarrisDailyImportRecordInput] = Field(default_factory=list)
+    hcad_estate_of_records: list[HarrisDailyImportRecordInput] = Field(default_factory=list)
+    dry_run: bool = True
+    keep_only: bool = True
+
+    @model_validator(mode="after")
+    def _validate_sources(self) -> "HarrisDailyImportRequest":
+        if not self.probate_records and not self.hcad_estate_of_records:
+            raise ValueError("probate_records or hcad_estate_of_records is required")
+        return self
 
 
 class OutboundEnqueueRequest(BaseModel):
@@ -210,6 +236,10 @@ def _build_write_path_service() -> ProbateWritePathService:
     return probate_write_path_service
 
 
+def _build_daily_lead_machine_service() -> HarrisDailyLeadMachineService:
+    return harris_daily_lead_machine_service
+
+
 @router.post("/intake", response_model=LeadMachineIntakeResponse, status_code=status.HTTP_201_CREATED)
 def intake_lead(request: LeadMachineIntakeRequest) -> LeadMachineIntakeResponse:
     try:
@@ -231,10 +261,17 @@ def intake_lead(request: LeadMachineIntakeRequest) -> LeadMachineIntakeResponse:
 @router.post("/probate/intake", response_model=ProbateIntakeResponse, status_code=status.HTTP_201_CREATED)
 def intake_probate_records(request: ProbateIntakeRequest) -> ProbateIntakeResponse:
     service = _build_write_path_service()
+    payloads = [record.model_dump(mode="python", exclude_none=True) for record in request.records]
+    hcad_candidates_by_case = {
+        str(payload.get("case_number") or payload.get("cause_number") or "").strip(): payload.get("hcad_candidates") or []
+        for payload in payloads
+        if (payload.get("hcad_candidates") or [])
+    }
     result = service.intake_probate_cases(
         business_id=request.business_id,
         environment=request.environment,
-        payloads=[record.model_dump(mode="python", exclude_none=True) for record in request.records],
+        payloads=payloads,
+        hcad_candidates_by_case=hcad_candidates_by_case or None,
         keep_only=request.keep_only,
     )
 
@@ -244,6 +281,27 @@ def intake_probate_records(request: ProbateIntakeRequest) -> ProbateIntakeRespon
         bridged_count=result["bridged_count"],
         records=[ProbateIntakeRecordResult(**record) for record in result["records"]],
     )
+
+
+@router.post("/harris/daily-import", status_code=status.HTTP_201_CREATED)
+def import_harris_daily_leads(request: HarrisDailyImportRequest) -> dict[str, Any]:
+    service = _build_daily_lead_machine_service()
+    try:
+        probate_payloads = [record.model_dump(mode="python", exclude_none=True) for record in request.probate_records]
+        estate_payloads = [
+            record.model_dump(mode="python", exclude_none=True) for record in request.hcad_estate_of_records
+        ]
+        return service.run_daily_import(
+            business_id=request.business_id,
+            environment=request.environment,
+            run_date=request.run_date,
+            probate_records=probate_payloads,
+            hcad_estate_of_records=estate_payloads,
+            dry_run=request.dry_run,
+            keep_only=request.keep_only,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(exc)) from exc
 
 
 @router.post("/outbound/enqueue", response_model=OutboundEnqueueResponse)
