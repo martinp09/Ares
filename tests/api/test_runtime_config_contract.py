@@ -8,10 +8,18 @@ ENV_EXAMPLE = REPO_ROOT / ".env.example"
 VITE_CONFIG = REPO_ROOT / "apps" / "mission-control" / "vite.config.ts"
 
 
-def test_runtime_config_defaults_are_local_safe() -> None:
+def test_runtime_config_defaults_are_local_safe(monkeypatch) -> None:
+    monkeypatch.delenv("RUNTIME_API_KEY", raising=False)
+    monkeypatch.delenv("RUNTIME_ACTOR_HEADER_OVERRIDES_ENABLED", raising=False)
+    monkeypatch.delenv("PROVIDER_WEBHOOK_SIGNATURES_REQUIRED", raising=False)
+    monkeypatch.delenv("PROVIDER_LIVE_SENDS_ENABLED", raising=False)
     settings = Settings(_env_file=None)
 
-    assert settings.runtime_api_key == "dev-runtime-key"
+    assert settings.runtime_api_key is None
+    assert settings.runtime_docs_enabled is False
+    assert settings.runtime_actor_header_overrides_enabled is False
+    assert settings.provider_webhook_signatures_required is True
+    assert settings.provider_live_sends_enabled is False
     assert settings.control_plane_backend == "memory"
     assert settings.marketing_backend == "memory"
     assert settings.lead_machine_backend == "memory"
@@ -25,9 +33,13 @@ def test_env_example_declares_full_stack_contract() -> None:
 
     required = (
         "HERMES_RUNTIME_API_BASE_URL=http://127.0.0.1:8000",
-        "HERMES_RUNTIME_API_KEY=dev-runtime-key",
+        "HERMES_RUNTIME_API_KEY=<local-runtime-api-key>",
         "RUNTIME_API_BASE_URL=http://127.0.0.1:8000",
-        "RUNTIME_API_KEY=dev-runtime-key",
+        "RUNTIME_API_KEY=<local-runtime-api-key>",
+        "RUNTIME_DOCS_ENABLED=false",
+        "RUNTIME_ACTOR_HEADER_OVERRIDES_ENABLED=false",
+        "PROVIDER_WEBHOOK_SIGNATURES_REQUIRED=true",
+        "PROVIDER_LIVE_SENDS_ENABLED=false",
         "CONTROL_PLANE_BACKEND=memory",
         "MARKETING_BACKEND=memory",
         "SITE_EVENTS_BACKEND=memory",
@@ -64,7 +76,7 @@ def test_mission_control_vite_proxy_injects_runtime_auth_server_side() -> None:
     assert "HERMES_RUNTIME_API_BASE_URL" in source
     assert "RUNTIME_API_KEY" in source
     assert "HERMES_RUNTIME_API_KEY" in source
-    assert 'proxyReq.setHeader("Authorization", `Bearer ${runtimeApiKey}`)' in source
+    assert "options.headers = { Authorization: `Bearer ${runtimeApiKey}` }" in source
     assert '"/mission-control": runtimeProxy(runtimeApiBaseUrl, runtimeApiKey)' in source
     assert '"/release-management": runtimeProxy(runtimeApiBaseUrl, runtimeApiKey)' in source
     assert '"/usage": runtimeProxy(runtimeApiBaseUrl, runtimeApiKey)' in source

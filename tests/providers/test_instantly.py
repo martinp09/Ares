@@ -3,6 +3,7 @@ from app.providers.instantly import (
     InstantlyClient,
     build_instantly_request,
     normalize_webhook_payload,
+    verify_webhook_signature,
 )
 
 
@@ -64,3 +65,17 @@ def test_client_retries_transport_errors_before_failing() -> None:
         raise AssertionError("expected ProviderTransportError")
 
     assert len(attempts) == 3
+
+
+def test_verify_webhook_signature_accepts_hex_and_base64_hmac() -> None:
+    import base64
+    import hashlib
+    import hmac
+
+    raw_body = b'{"event_type":"reply_received"}'
+    digest = hmac.new(b"webhook-secret", raw_body, hashlib.sha256).digest()
+
+    assert verify_webhook_signature("webhook-secret", digest.hex(), raw_body) is True
+    assert verify_webhook_signature("webhook-secret", "sha256=" + digest.hex(), raw_body) is True
+    assert verify_webhook_signature("webhook-secret", base64.b64encode(digest).decode("utf-8"), raw_body) is True
+    assert verify_webhook_signature("webhook-secret", "bad-signature", raw_body) is False

@@ -1,0 +1,11 @@
+# bandit
+# command: uvx bandit -r app -f json -o /root/Ares-inspect/docs/qc/2026-05-09/ares-security-audit-patches/bandit.json
+# started: 2026-05-09T15:54:37Z
+[main]	INFO	profile include tests: None
+[main]	INFO	profile exclude tests: None
+[main]	INFO	cli include tests: None
+[main]	INFO	cli exclude tests: None
+Working... ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 100% 0:00:02
+[json]	INFO	JSON output written to file: /root/Ares-inspect/docs/qc/2026-05-09/ares-security-audit-patches/bandit.json
+# exit_code: 0
+# finished: 2026-05-09T15:54:40Z

@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import base64
 import hashlib
+import hmac
 import json
 import time
 from datetime import UTC, datetime
@@ -99,6 +101,19 @@ def canonical_event_type_for(raw_event_type: str | None) -> str:
     if normalized:
         return "lead.label.custom"
     return "provider.unknown"
+
+
+def verify_webhook_signature(secret: str, signature: str | None, raw_body: bytes) -> bool:
+    if not signature:
+        return False
+    candidate = signature.strip()
+    for prefix in ("sha256=", "v1="):
+        if candidate.startswith(prefix):
+            candidate = candidate[len(prefix):]
+    digest = hmac.new(secret.encode("utf-8"), raw_body, hashlib.sha256).digest()
+    expected_hex = digest.hex()
+    expected_b64 = base64.b64encode(digest).decode("utf-8")
+    return hmac.compare_digest(candidate, expected_hex) or hmac.compare_digest(candidate, expected_b64)
 
 
 def build_webhook_idempotency_key(payload: Mapping[str, Any]) -> str:
@@ -411,7 +426,7 @@ class InstantlyClient:
             method=outbound_request.get("method") or "GET",
         )
         try:
-            with request.urlopen(req, timeout=10) as response:
+            with request.urlopen(req, timeout=10) as response:  # nosec B310
                 raw = response.read().decode("utf-8")
                 return json.loads(raw) if raw else {}
         except error.HTTPError as exc:

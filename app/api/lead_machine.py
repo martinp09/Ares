@@ -11,6 +11,7 @@ from app.db.tasks import TasksRepository
 from app.models.commands import utc_now
 from app.models.lead_events import LeadEventRecord
 from app.models.tasks import TaskPriority, TaskRecord, TaskStatus, TaskType
+from app.providers.instantly import verify_webhook_signature
 from app.services.harris_daily_lead_machine_service import (
     HarrisDailyLeadMachineService,
     harris_daily_lead_machine_service,
@@ -161,8 +162,6 @@ class InstantlyWebhookRequest(BaseModel):
     business_id: str = Field(min_length=1)
     environment: str = Field(min_length=1)
     payload: dict[str, Any]
-    trusted: bool = False
-    trust_reason: str | None = None
 
 
 class FollowupStepRunnerRequest(BaseModel):
@@ -347,12 +346,11 @@ async def ingest_instantly_webhook(
     x_instantly_signature: str | None = Header(default=None),
 ) -> InstantlyWebhookResponse:
     settings = get_settings()
+    raw_body = await request.body()
     if isinstance(body, InstantlyWebhookRequest):
         request_business_id = body.business_id
         request_environment = body.environment
         payload = body.payload
-        trusted = body.trusted
-        trust_reason = body.trust_reason
     else:
         if not business_id or not environment:
             raise HTTPException(
@@ -362,15 +360,25 @@ async def ingest_instantly_webhook(
         request_business_id = business_id
         request_environment = environment
         payload = body
-        trusted = False
-        trust_reason = None
-    if not isinstance(trust_reason, str) or not trust_reason.strip():
-        if x_instantly_signature:
-            trust_reason = "signature_present_unverified"
-        elif settings.instantly_webhook_secret:
-            trust_reason = "secret_configured_signature_missing"
-        else:
-            trust_reason = "signature_verification_not_configured"
+
+    trusted = False
+    if settings.provider_webhook_signatures_required or settings.instantly_webhook_secret:
+        if not settings.instantly_webhook_secret:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="Instantly webhook secret is required",
+            )
+        if not verify_webhook_signature(settings.instantly_webhook_secret, x_instantly_signature, raw_body):
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid Instantly webhook signature",
+            )
+        trusted = True
+        trust_reason = "signature_verified"
+    elif x_instantly_signature:
+        trust_reason = "signature_present_unverified"
+    else:
+        trust_reason = "signature_verification_not_configured"
 
     result = _build_write_path_service().handle_instantly_webhook(
         business_id=request_business_id,

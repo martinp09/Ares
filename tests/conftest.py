@@ -9,6 +9,9 @@ from app.main import app
 def test_settings(monkeypatch: pytest.MonkeyPatch):
     monkeypatch.setenv("SITE_EVENTS_BACKEND", "memory")
     monkeypatch.setenv("RUNTIME_API_KEY", "dev-runtime-key")
+    monkeypatch.setenv("RUNTIME_ACTOR_HEADER_OVERRIDES_ENABLED", "true")
+    monkeypatch.setenv("PROVIDER_WEBHOOK_SIGNATURES_REQUIRED", "false")
+    monkeypatch.setenv("PROVIDER_LIVE_SENDS_ENABLED", "true")
     get_settings.cache_clear()
     yield
     get_settings.cache_clear()

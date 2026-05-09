@@ -128,9 +128,11 @@ class _DefaultCalcomWebhookAdapter:
         signature: str | None,
         raw_body: bytes | None = None,
     ) -> NormalizedBookingEvent:
-        if self.settings.cal_webhook_secret:
-            if raw_body is None or not verify_webhook_signature(self.settings.cal_webhook_secret, signature, raw_body):
-                raise ValueError("Invalid Cal.com webhook signature")
+        if not self.settings.cal_webhook_secret:
+            if self.settings.provider_webhook_signatures_required:
+                raise ValueError("Cal.com webhook secret is required")
+        elif raw_body is None or not verify_webhook_signature(self.settings.cal_webhook_secret, signature, raw_body):
+            raise ValueError("Invalid Cal.com webhook signature")
         normalized = normalize_booking_webhook(payload)
         lead_id = str(normalized.get("lead_id") or "").strip()
         if not lead_id:
@@ -232,6 +234,8 @@ class _RepositoryBookingMessageLogService:
         lead: MarketingLeadRecord,
         provider_message_ids: dict[str, str | None] | None = None,
     ) -> None:
+        if not self.settings.provider_live_sends_enabled:
+            return None
         resolved_provider_message_ids = provider_message_ids or {}
         confirmation = f"Thanks {lead.first_name}, your lease-option appointment is confirmed."
         if (
@@ -322,7 +326,7 @@ class _ConfiguredAppointmentNotifier:
 
     def send_appointment_confirmation(self, *, lead_id: str) -> dict[str, str | None]:
         lead = self.contacts.get_lead(lead_id)
-        if lead is None:
+        if lead is None or not self.settings.provider_live_sends_enabled:
             return {}
         provider_message_ids: dict[str, str | None] = {}
         message = f"Thanks {lead.first_name}, your lease-option appointment is confirmed."
@@ -450,8 +454,8 @@ class BookingService:
         if newly_booked:
             try:
                 provider_message_ids = self.appointment_notifier.send_appointment_confirmation(lead_id=event.lead_id) or {}
-            except Exception:
-                pass
+            except Exception as exc:
+                provider_message_ids = {"notification_error": str(exc)}
             if lead is not None:
                 self.message_log_service.log_appointment_confirmation(
                     lead=lead,
@@ -550,7 +554,7 @@ def _default_request_sender(outbound_request: dict[str, Any]) -> Any:
         headers=headers,
         method="POST",
     )
-    with http_request.urlopen(req, timeout=10) as response:
+    with http_request.urlopen(req, timeout=10) as response:  # nosec B310
         response_body = response.read()
     if not response_body:
         return None

@@ -42,6 +42,7 @@ from app.models.mission_control import (
 )
 from app.models.audit import AuditListResponse
 from app.models.provider_extras import InstantlyProviderExtrasSnapshot
+from app.models.providers import ProviderPolicyError
 from app.models.secrets import SecretBindingListResponse, SecretListResponse
 from app.models.usage import UsageEventKind, UsageResponse
 from app.services.campaign_launch_service import CampaignLaunchService
@@ -547,6 +548,8 @@ def get_instantly_provider_extras(
 def send_test_sms(payload: MissionControlSmsTestRequest) -> MissionControlOutboundSendResponse:
     try:
         return mission_control_service.send_test_sms(payload)
+    except ProviderPolicyError as exc:
+        raise HTTPException(status_code=403, detail=str(exc)) from exc
     except RuntimeError as exc:
         raise HTTPException(status_code=502, detail=str(exc)) from exc
 
@@ -555,6 +558,8 @@ def send_test_sms(payload: MissionControlSmsTestRequest) -> MissionControlOutbou
 def send_test_email(payload: MissionControlEmailTestRequest) -> MissionControlOutboundSendResponse:
     try:
         return mission_control_service.send_test_email(payload)
+    except ProviderPolicyError as exc:
+        raise HTTPException(status_code=403, detail=str(exc)) from exc
     except RuntimeError as exc:
         raise HTTPException(status_code=502, detail=str(exc)) from exc
 

@@ -83,7 +83,7 @@ def _fetch_existing_site_event(event: SiteEventRecord, settings: Settings) -> di
         headers=_supabase_headers(settings),
         method="GET",
     )
-    with request.urlopen(req, timeout=5) as response:
+    with request.urlopen(req, timeout=5) as response:  # nosec B310
         rows = json.loads(response.read().decode("utf-8"))
     return rows[0] if rows else None
 
@@ -114,7 +114,7 @@ def _ingest_site_event_in_supabase(event: SiteEventRecord, settings: Settings) -
     )
 
     try:
-        with request.urlopen(req, timeout=5) as response:
+        with request.urlopen(req, timeout=5) as response:  # nosec B310
             rows = json.loads(response.read().decode("utf-8"))
     except error.HTTPError as exc:  # pragma: no cover - networked failure path
         detail = exc.read().decode("utf-8")

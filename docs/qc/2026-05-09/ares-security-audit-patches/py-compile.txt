@@ -1,0 +1,5 @@
+# py-compile
+# command: python -m py_compile app/core/config.py app/core/dependencies.py app/main.py app/api/lead_machine.py app/api/mission_control.py app/providers/instantly.py app/services/booking_service.py app/services/inbound_sms_service.py app/services/probate_write_path_service.py app/services/mission_control_service.py
+# started: 2026-05-09T15:53:18Z
+# exit_code: 0
+# finished: 2026-05-09T15:53:18Z

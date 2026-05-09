@@ -116,6 +116,8 @@ class ProbateWritePathService:
         chunk_size: int | None = None,
         wait_seconds: float | None = None,
     ) -> OutboundEnrollmentResult:
+        if not self.settings.provider_live_sends_enabled:
+            raise RuntimeError("PROVIDER_LIVE_SENDS_ENABLED must be true before outbound provider enrollment")
         service = self._get_outbound_service()
         return service.enqueue_leads(
             OutboundEnrollmentRequest(

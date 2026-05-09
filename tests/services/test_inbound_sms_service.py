@@ -15,7 +15,7 @@ from app.models.conversations import ConversationRecord
 from app.models.marketing_leads import LeadUpsertRequest
 from app.models.sequences import SequenceEnrollmentStatus
 from app.providers.textgrid import normalize_incoming_webhook
-from app.services.inbound_sms_service import InboundSmsService, NormalizedSmsEvent
+from app.services.inbound_sms_service import InboundSmsService, LeaseOptionSequenceStepRequest, NormalizedSmsEvent
 
 
 class _StubTextgridAdapter:
@@ -534,3 +534,45 @@ def test_textgrid_normalize_incoming_webhook_preserves_tenant_metadata() -> None
     assert normalized["metadata"]["provider_thread_id"] == "thread_123"
     assert normalized["metadata"]["business_id"] == "limitless"
     assert normalized["metadata"]["environment"] == "dev"
+
+
+def test_sequence_step_does_not_send_when_live_sends_disabled() -> None:
+    client = InMemoryControlPlaneClient(InMemoryControlPlaneStore())
+    contacts = ContactsRepository(client)
+    lead = contacts.upsert_lead(
+        LeadUpsertRequest(
+            business_id="limitless",
+            environment="dev",
+            first_name="Maya",
+            phone="+155****4567",
+            email="maya@example.com",
+            property_address="123 Main St, Houston, TX",
+        )
+    )
+
+    def request_sender(_payload):
+        raise AssertionError("provider request should not be sent when live sends are disabled")
+
+    service = InboundSmsService(
+        settings=Settings(
+            provider_live_sends_enabled=False,
+            textgrid_account_sid="acct_123",
+            textgrid_auth_token="token_123",
+            textgrid_from_number="+134****5914",
+        ),
+        contacts=contacts,
+        request_sender=request_sender,
+    )
+
+    result = service.dispatch_lease_option_sequence_step(
+        LeaseOptionSequenceStepRequest(
+            lead_id=lead.id,
+            business_id="limitless",
+            environment="dev",
+            day=0,
+            channel="sms",
+            template_id="followup_day_1_sms",
+        )
+    )
+
+    assert result == {"message_id": f"msg_{lead.id}_0_sms", "channel": "sms", "status": "dry_run"}

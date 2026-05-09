@@ -290,3 +290,36 @@ def test_configured_booking_notifier_preserves_partial_provider_message_ids() ->
         "email": None,
     }
     assert len(calls) == 2
+
+
+def test_configured_booking_notifier_does_not_send_when_live_sends_disabled() -> None:
+    client = InMemoryControlPlaneClient(InMemoryControlPlaneStore())
+    contacts = ContactsRepository(client)
+    lead = contacts.upsert_lead(
+        LeadUpsertRequest(
+            business_id="limitless",
+            environment="dev",
+            first_name="Maya",
+            phone="+155****4567",
+            email="maya@example.com",
+            property_address="123 Main St, Houston, TX",
+        )
+    )
+
+    def request_sender(_payload):
+        raise AssertionError("provider request should not be sent when live sends are disabled")
+
+    notifier = _ConfiguredAppointmentNotifier(
+        settings=Settings(
+            provider_live_sends_enabled=False,
+            textgrid_account_sid="acct_123",
+            textgrid_auth_token="token_123",
+            textgrid_from_number="+134****5914",
+            resend_api_key="resend_123",
+            resend_from_email="ops@example.com",
+        ),
+        contacts=contacts,
+        request_sender=request_sender,
+    )
+
+    assert notifier.send_appointment_confirmation(lead_id=lead.id) == {}

@@ -33,6 +33,7 @@ from app.models.crm_records import (
 from app.models.leads import LeadInterestStatus, LeadLifecycleStatus, LeadRecord, LeadSource
 from app.models.marketing_leads import MarketingLeadRecord
 from app.models.opportunities import OpportunitySourceLane
+from app.models.providers import ProviderPolicyError
 from app.models.tasks import TaskStatus, TaskType
 from app.models.agents import AgentRevisionState
 from app.models.release_management import ReleaseEventType
@@ -2071,9 +2072,14 @@ class MissionControlService:
 
     def get_provider_status(self) -> MissionControlProvidersStatusResponse:
         settings = get_settings()
+        sms_status = get_textgrid_status(settings)
+        email_status = get_resend_status(settings)
+        if not settings.provider_live_sends_enabled:
+            sms_status["can_send"] = False
+            email_status["can_send"] = False
         return MissionControlProvidersStatusResponse(
-            sms=MissionControlProviderStatus(**get_textgrid_status(settings)),
-            email=MissionControlProviderStatus(**get_resend_status(settings)),
+            sms=MissionControlProviderStatus(**sms_status),
+            email=MissionControlProviderStatus(**email_status),
         )
 
     def get_instantly_provider_extras(
@@ -2167,11 +2173,15 @@ class MissionControlService:
 
     def send_test_sms(self, request: MissionControlSmsTestRequest) -> MissionControlOutboundSendResponse:
         settings = get_settings()
+        if not settings.provider_live_sends_enabled:
+            raise ProviderPolicyError("PROVIDER_LIVE_SENDS_ENABLED must be true before Mission Control test sends")
         result = send_test_sms(settings, to=request.to, body=request.body)
         return MissionControlOutboundSendResponse(**result)
 
     def send_test_email(self, request: MissionControlEmailTestRequest) -> MissionControlOutboundSendResponse:
         settings = get_settings()
+        if not settings.provider_live_sends_enabled:
+            raise ProviderPolicyError("PROVIDER_LIVE_SENDS_ENABLED must be true before Mission Control test sends")
         result = send_test_email(
             settings,
             to=request.to,

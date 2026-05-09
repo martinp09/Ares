@@ -15,6 +15,7 @@ def test_trigger_runtime_api_uses_explicit_ares_env_contract() -> None:
     assert "RUNTIME_API_BASE_URL" in source
     assert "HERMES_RUNTIME_API_KEY" in source
     assert "RUNTIME_API_KEY" in source
+    assert "Missing HERMES_RUNTIME_API_KEY (or RUNTIME_API_KEY)" in source
     assert 'headers.authorization = `Bearer ${apiKey}`' in source
 
 

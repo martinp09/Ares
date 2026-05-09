@@ -2463,6 +2463,66 @@ def test_provider_status_endpoint_reflects_configured_sms_and_email(client, monk
     assert body["email"]["sender_identity"] == "Relay <relay@send.limitleshome.com>"
 
 
+def test_provider_status_endpoint_reflects_live_send_gate(client, monkeypatch) -> None:
+    reset_control_plane_state()
+    monkeypatch.setenv("TEXTGRID_ACCOUNT_SID", "AC123")
+    monkeypatch.setenv("TEXTGRID_AUTH_TOKEN", "token123")
+    monkeypatch.setenv("TEXTGRID_FROM_NUMBER", "+134****0123")
+    monkeypatch.setenv("RESEND_API_KEY", "re_test_key")
+    monkeypatch.setenv("RESEND_FROM_EMAIL", "Relay <relay@send.limitleshome.com>")
+    monkeypatch.setenv("PROVIDER_LIVE_SENDS_ENABLED", "false")
+    get_settings.cache_clear()
+
+    response = client.get("/mission-control/providers/status", headers=AUTH_HEADERS)
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["sms"]["configured"] is True
+    assert body["sms"]["can_send"] is False
+    assert body["email"]["configured"] is True
+    assert body["email"]["can_send"] is False
+
+
+def test_sms_test_endpoint_requires_live_send_gate(client, monkeypatch) -> None:
+    reset_control_plane_state()
+
+    def fake_send(settings, *, to: str, body: str):
+        raise AssertionError("provider send should not run when live sends are disabled")
+
+    monkeypatch.setattr("app.services.mission_control_service.send_test_sms", fake_send)
+    monkeypatch.setenv("PROVIDER_LIVE_SENDS_ENABLED", "false")
+    get_settings.cache_clear()
+
+    response = client.post(
+        "/mission-control/outbound/sms/test",
+        json={"to": "+134****0123", "body": "hello human"},
+        headers=AUTH_HEADERS,
+    )
+
+    assert response.status_code == 403
+    assert response.json()["detail"] == "PROVIDER_LIVE_SENDS_ENABLED must be true before Mission Control test sends"
+
+
+def test_email_test_endpoint_requires_live_send_gate(client, monkeypatch) -> None:
+    reset_control_plane_state()
+
+    def fake_send(settings, *, to: str, subject: str, text: str, html: str | None = None):
+        raise AssertionError("provider send should not run when live sends are disabled")
+
+    monkeypatch.setattr("app.services.mission_control_service.send_test_email", fake_send)
+    monkeypatch.setenv("PROVIDER_LIVE_SENDS_ENABLED", "false")
+    get_settings.cache_clear()
+
+    response = client.post(
+        "/mission-control/outbound/email/test",
+        json={"to": "martinhomeoffers@gmail.com", "subject": "Mission Control smoke test", "text": "hello human"},
+        headers=AUTH_HEADERS,
+    )
+
+    assert response.status_code == 403
+    assert response.json()["detail"] == "PROVIDER_LIVE_SENDS_ENABLED must be true before Mission Control test sends"
+
+
 def test_sms_test_endpoint_returns_provider_acceptance(client, monkeypatch) -> None:
     reset_control_plane_state()
     captured = {}

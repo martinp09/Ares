@@ -1,3 +1,7 @@
+import hashlib
+import hmac
+import json
+
 from fastapi.testclient import TestClient
 
 from app.db.campaign_memberships import CampaignMembershipsRepository
@@ -7,6 +11,7 @@ from app.db.lead_events import LeadEventsRepository
 from app.db.leads import LeadsRepository
 from app.db.provider_webhooks import ProviderWebhooksRepository
 from app.db.suppression import SuppressionRepository
+from app.core.config import get_settings
 from app.db.tasks import TasksRepository
 from app.main import app, create_app
 from app.services.campaign_lifecycle_service import CampaignLifecycleService
@@ -16,6 +21,10 @@ from app.services.lead_task_service import LeadTaskService
 from app.services.lead_webhook_service import LeadWebhookService
 
 AUTH_HEADERS = {"Authorization": "Bearer dev-runtime-key"}
+
+
+def _instantly_signature(secret: str, raw_body: bytes) -> str:
+    return "sha256=" + hmac.new(secret.encode("utf-8"), raw_body, hashlib.sha256).hexdigest()
 
 
 def build_webhook_service() -> LeadWebhookService:
@@ -491,6 +500,105 @@ def test_post_instantly_webhook_accepts_raw_provider_payload_with_tenant_query(m
     assert stub.calls[0]["payload"]["event_type"] == "reply_received"
     assert stub.calls[0]["trusted"] is False
     assert stub.calls[0]["trust_reason"] == "signature_present_unverified"
+
+
+def test_post_instantly_webhook_rejects_client_supplied_trust_metadata(monkeypatch) -> None:
+    monkeypatch.setenv("PROVIDER_WEBHOOK_SIGNATURES_REQUIRED", "false")
+    get_settings.cache_clear()
+    client = TestClient(app)
+
+    try:
+        response = client.post(
+            "/lead-machine/webhooks/instantly",
+            json={
+                "business_id": "limitless",
+                "environment": "dev",
+                "payload": {"event_type": "email_sent"},
+                "trusted": True,
+                "trust_reason": "caller_claimed_trust",
+            },
+            headers=AUTH_HEADERS,
+        )
+    finally:
+        get_settings.cache_clear()
+
+    assert response.status_code == 422
+
+
+def test_post_instantly_webhook_requires_secret_when_signatures_required(monkeypatch) -> None:
+    monkeypatch.setenv("PROVIDER_WEBHOOK_SIGNATURES_REQUIRED", "true")
+    monkeypatch.delenv("INSTANTLY_WEBHOOK_SECRET", raising=False)
+    get_settings.cache_clear()
+    client = TestClient(app)
+
+    try:
+        response = client.post(
+            "/lead-machine/webhooks/instantly",
+            json={
+                "business_id": "limitless",
+                "environment": "dev",
+                "payload": {"event_type": "email_sent"},
+            },
+            headers=AUTH_HEADERS,
+        )
+    finally:
+        get_settings.cache_clear()
+
+    assert response.status_code == 503
+    assert response.json()["detail"] == "Instantly webhook secret is required"
+
+
+def test_post_instantly_webhook_accepts_valid_server_verified_signature(monkeypatch) -> None:
+    class StubWritePathService:
+        def __init__(self) -> None:
+            self.calls = []
+
+        def handle_instantly_webhook(self, **kwargs):
+            self.calls.append(kwargs)
+            return {
+                "status": "processed",
+                "receipt_id": "wh_signed",
+                "event_id": "evt_signed",
+                "lead_id": "lead_signed",
+                "suppression_id": None,
+                "membership_id": None,
+                "task_id": None,
+            }
+
+    from app.api import lead_machine as lead_machine_api
+
+    stub = StubWritePathService()
+    monkeypatch.setattr(lead_machine_api, "_build_write_path_service", lambda: stub)
+    monkeypatch.setenv("PROVIDER_WEBHOOK_SIGNATURES_REQUIRED", "true")
+    monkeypatch.setenv("INSTANTLY_WEBHOOK_SECRET", "instantly-webhook-secret")
+    get_settings.cache_clear()
+    raw_body = json.dumps(
+        {
+            "business_id": "limitless",
+            "environment": "dev",
+            "payload": {"event_type": "reply_received", "lead_email": "seller@example.com"},
+        },
+        separators=(",", ":"),
+    ).encode("utf-8")
+    client = TestClient(app)
+
+    try:
+        response = client.post(
+            "/lead-machine/webhooks/instantly",
+            content=raw_body,
+            headers={
+                **AUTH_HEADERS,
+                "content-type": "application/json",
+                "x-instantly-signature": _instantly_signature("instantly-webhook-secret", raw_body),
+            },
+        )
+    finally:
+        get_settings.cache_clear()
+
+    assert response.status_code == 200
+    assert response.json()["receipt_id"] == "wh_signed"
+    assert stub.calls[0]["trusted"] is True
+    assert stub.calls[0]["trust_reason"] == "signature_verified"
 
 
 def test_post_instantly_webhook_is_replay_safe(monkeypatch) -> None:

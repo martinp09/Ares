@@ -1,0 +1,9 @@
+# mission-control-typecheck
+# command: npm --prefix apps/mission-control run typecheck
+# started: 2026-05-09T15:53:31Z
+
+> @hermes/mission-control@0.1.0 typecheck
+> tsc --noEmit
+
+# exit_code: 0
+# finished: 2026-05-09T15:53:34Z

@@ -27,7 +27,7 @@
 
 ## Current Direction
 
-- `/root/Ares-inspect` is on `main`; Harris daily lead-machine foundation merged via PR #5 at `1abcff0` and production wiring remains untouched.
+- `/root/Ares-inspect` is on `main`; Harris daily lead-machine foundation and security-audit hardening are merged, and production wiring remains untouched.
 - `POST /lead-machine/harris/daily-import` is implemented for Harris daily probate + HCAD `Estate Of` imports; it defaults to dry-run, records QC warnings, and never sends providers/Slack.
 - CRM control-plane work has been merged to `origin/main`.
 - CRM control-plane draft spec: `docs/superpowers/specs/2026-04-25-ares-crm-control-plane-design.md`.
@@ -185,17 +185,18 @@
 
 ## Open Work
 
-1. wire real Slack daily digest delivery only after Slack bot token and target channel config are available
-2. run a dedicated production promotion only when intentionally preserving/updating production runtime/provider env wiring
-3. add dedicated Mission Control frontend campaign-launch review page for the Harris probate HOT/WARM/COLD API contract
-4. enrich Harris probate campaign exports with email/phone before any Instantly/TextGrid enrollment; current source artifact is direct-mail-ready only
-5. consider an atomic backend bulk-record endpoint if large batch throughput/transaction semantics become necessary; current Records bulk UI fans out through real single-record command callbacks
-6. defer owner/property graph, research cockpit, and map UI until Records and stage model are stable
-7. add explicit canonical source-lane metadata for CRM records before broadening promote routing beyond probate/lease-option lanes
-8. preserve production evidence files as the handoff source of truth
-9. optionally replace the REST rollback bundle with native pg_dump once Supabase CLI container DNS is fixed
-10. add production monitoring/alerts for provider callback failures
-11. keep browser acquisition and ambiguous research in Hermes or other driver agents, not inside Ares
+1. handle production/provider callback env updates in a dedicated handoff if any deployed callback still uses old query-string runtime-key URLs
+2. wire real Slack daily digest delivery only after Slack bot token and target channel config are available
+3. run a dedicated production promotion only when intentionally preserving/updating production runtime/provider env wiring
+4. add dedicated Mission Control frontend campaign-launch review page for the Harris probate HOT/WARM/COLD API contract
+5. enrich Harris probate campaign exports with email/phone before any Instantly/TextGrid enrollment; current source artifact is direct-mail-ready only
+6. consider an atomic backend bulk-record endpoint if large batch throughput/transaction semantics become necessary; current Records bulk UI fans out through real single-record command callbacks
+7. defer owner/property graph, research cockpit, and map UI until Records and stage model are stable
+8. add explicit canonical source-lane metadata for CRM records before broadening promote routing beyond probate/lease-option lanes
+9. preserve production evidence files as the handoff source of truth
+10. optionally replace the REST rollback bundle with native pg_dump once Supabase CLI container DNS is fixed
+11. add production monitoring/alerts for provider callback failures
+12. keep browser acquisition and ambiguous research in Hermes or other driver agents, not inside Ares
 
 ## Completed Branch Work
 
@@ -205,6 +206,16 @@
 - `TasksRepository` now treats `lead_machine_backend=supabase` as a Supabase-backed task path so title-packet review tasks persist with lead-machine records.
 
 ## Change Log
+
+### 2026-05-09 Security Audit Hardening
+
+- Completed security-audit patch set on branch `hardening/ares-security-audit-patches-2026-05-09`; QC evidence lives under `docs/qc/2026-05-09/ares-security-audit-patches/`.
+- Runtime auth is now bearer-only, constant-time, fail-closed without `RUNTIME_API_KEY`, and docs/OpenAPI are auth-protected when explicitly enabled; query-string runtime auth is removed.
+- Provider webhooks fail closed by default (`PROVIDER_WEBHOOK_SIGNATURES_REQUIRED=true`), Instantly trust is server-derived via HMAC verification, and Cal/TextGrid require webhook secrets when enforcement is on.
+- `PROVIDER_LIVE_SENDS_ENABLED=false` is the default global send gate; outbound enrollment, sequence dispatch, booking confirmations, and Mission Control test sends are blocked unless enabled.
+- Mission Control no longer reads browser-exposed runtime bearer tokens; local Vite proxy injects auth server-side and Vercel headers add CSP/referrer/frame/content/permissions/HSTS protections.
+- Dependency/static posture is clean: backend pytest `633 passed`, Mission Control tests `72 passed`, Trigger typecheck passed, root/Trigger/Mission Control npm audits clean, pip-audit clean, and Bandit clean.
+- Deferred: Slack delivery, production promotion, and external provider callback URL updates if any deployed provider still references old query-string runtime-key URLs.
 
 ### 2026-05-09 Harris Daily Lead-Machine Foundation
 

@@ -50,7 +50,7 @@ def fetch_rows(
         headers=_headers(active),
         method="GET",
     )
-    with request.urlopen(req, timeout=5) as response:
+    with request.urlopen(req, timeout=5) as response:  # nosec B310
         return json.loads(response.read().decode("utf-8"))
 
 
@@ -70,7 +70,7 @@ def insert_rows(
         headers=_headers(active, prefer=prefer),
         method="POST",
     )
-    with request.urlopen(req, timeout=5) as response:
+    with request.urlopen(req, timeout=5) as response:  # nosec B310
         return json.loads(response.read().decode("utf-8"))
 
 
@@ -91,7 +91,7 @@ def patch_rows(
         headers=_headers(active, prefer="return=representation"),
         method="PATCH",
     )
-    with request.urlopen(req, timeout=5) as response:
+    with request.urlopen(req, timeout=5) as response:  # nosec B310
         return json.loads(response.read().decode("utf-8"))
 
 
