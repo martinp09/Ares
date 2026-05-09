@@ -41,8 +41,16 @@ def test_post_probate_intake_normalizes_scores_and_bridges_keep_now(monkeypatch)
         def __init__(self) -> None:
             self.calls = []
 
-        def intake_probate_cases(self, *, business_id: str, environment: str, payloads, keep_only: bool):
-            self.calls.append((business_id, environment, payloads, keep_only))
+        def intake_probate_cases(
+            self,
+            *,
+            business_id: str,
+            environment: str,
+            payloads,
+            hcad_candidates_by_case=None,
+            keep_only: bool,
+        ):
+            self.calls.append((business_id, environment, payloads, hcad_candidates_by_case, keep_only))
             return {
                 "processed_count": 1,
                 "keep_now_count": 1,
@@ -122,9 +130,104 @@ def test_post_probate_intake_normalizes_scores_and_bridges_keep_now(monkeypatch)
                     "hcad_candidates": [],
                 },
             ],
+            {"2026-11111": [{"account": "123"}]},
             True,
         )
     ]
+
+
+def test_harris_daily_import_endpoint_dry_runs_without_provider_send(monkeypatch) -> None:
+    class StubDailyLeadMachineService:
+        def __init__(self) -> None:
+            self.calls = []
+
+        def run_daily_import(
+            self,
+            *,
+            business_id,
+            environment,
+            run_date,
+            probate_records,
+            hcad_estate_of_records,
+            dry_run,
+            keep_only,
+        ):
+            self.calls.append(
+                (business_id, environment, run_date.isoformat(), probate_records, hcad_estate_of_records, dry_run, keep_only)
+            )
+            return {
+                "run_key": f"harris-daily-lead-machine:{run_date.isoformat()}",
+                "run_date": run_date.isoformat(),
+                "dry_run": dry_run,
+                "live_send_policy": "no_provider_sends_or_slack_posts_from_daily_import",
+                "counts": {"provider_send_count": 0, "qc_warning_count": 0},
+                "probate": {"received_count": len(probate_records), "records": []},
+                "estate_of": {"received_count": len(hcad_estate_of_records), "records": []},
+                "qc_warnings": [],
+                "notifications": [{"type": "daily_digest", "status": "skipped_missing_token"}],
+            }
+
+    from app.api import lead_machine as lead_machine_api
+
+    stub = StubDailyLeadMachineService()
+    monkeypatch.setattr(lead_machine_api, "_build_daily_lead_machine_service", lambda: stub)
+    client = TestClient(app)
+
+    response = client.post(
+        "/lead-machine/harris/daily-import",
+        json={
+            "business_id": "limitless",
+            "environment": "dev",
+            "run_date": "2026-05-09",
+            "dry_run": True,
+            "probate_records": [
+                {
+                    "case_number": "2026-10001",
+                    "filing_type": "INDEPENDENT ADMINISTRATION",
+                    "hcad_candidates": [{"acct": "123"}],
+                }
+            ],
+            "hcad_estate_of_records": [
+                {"hcad_account": "1234567890123", "owner_name": "Estate Of Jane Example"}
+            ],
+        },
+        headers=AUTH_HEADERS,
+    )
+
+    assert response.status_code == 201
+    body = response.json()
+    assert body["run_key"] == "harris-daily-lead-machine:2026-05-09"
+    assert body["counts"]["provider_send_count"] == 0
+    assert body["notifications"][0]["status"] == "skipped_missing_token"
+    assert stub.calls == [
+        (
+            "limitless",
+            "dev",
+            "2026-05-09",
+            [
+                {
+                    "case_number": "2026-10001",
+                    "filing_type": "INDEPENDENT ADMINISTRATION",
+                    "hcad_candidates": [{"acct": "123"}],
+                }
+            ],
+            [{"hcad_account": "1234567890123", "owner_name": "Estate Of Jane Example"}],
+            True,
+            True,
+        )
+    ]
+
+
+def test_harris_daily_import_endpoint_requires_at_least_one_source_payload() -> None:
+    client = TestClient(app)
+
+    response = client.post(
+        "/lead-machine/harris/daily-import",
+        json={"business_id": "limitless", "environment": "dev", "run_date": "2026-05-09"},
+        headers=AUTH_HEADERS,
+    )
+
+    assert response.status_code == 422
 
 
 def test_post_lead_machine_intake_creates_canonical_lead_and_event() -> None:
