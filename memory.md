@@ -27,7 +27,7 @@
 
 ## Current Direction
 
-- `/root/Ares-inspect` has active branch `feat/landing-ares-intake-sms-agent`; Harris daily lead-machine foundation and security-audit hardening are merged to `main`, and production wiring remains untouched.
+- `/root/Ares-inspect` has active branch `feat/landing-ares-intake-sms-agent`; it now owns lease-option intake confirmation SMS/email, Slack intake scaffold, and appointment reminders. Harris daily lead-machine foundation and security-audit hardening are merged to `main`, and production wiring remains untouched.
 - `POST /lead-machine/harris/daily-import` is implemented for Harris daily probate + HCAD `Estate Of` imports; it defaults to dry-run, records QC warnings, and never sends providers/Slack.
 - CRM control-plane work has been merged to `origin/main`.
 - CRM control-plane draft spec: `docs/superpowers/specs/2026-04-25-ares-crm-control-plane-design.md`.
@@ -207,6 +207,12 @@
 - `TasksRepository` now treats `lead_machine_backend=supabase` as a Supabase-backed task path so title-packet review tasks persist with lead-machine records.
 
 ## Change Log
+
+### 2026-05-09 Live SMS/Resend/Slack Reminder Finish
+
+- Extended `feat/landing-ares-intake-sms-agent` so Ares lead intake sends live-gated TextGrid confirmation SMS with booking link/STOP copy, Resend confirmation email, and server-side Slack intake alerts when configured.
+- Added Cal.com `starts_at` preservation, Trigger task `marketing-send-appointment-reminder`, and `/marketing/internal/appointment-reminder` dispatch for 24h/1h booked-lead reminders.
+- Approved route smoke to Martin's phone/email reached Ares; TextGrid returned an account balance blocker and Resend now fails fast on invalid `RESEND_FROM_EMAIL`, so no delivery is claimed until provider env/funding is fixed.
 
 ### 2026-05-09 Landing Page Ares Intake Bridge
 

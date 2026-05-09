@@ -129,6 +129,9 @@ def test_marketing_lead_service_dispatches_configured_provider_requests() -> Non
     sent_requests: list[dict[str, object]] = []
     sent_email: list[dict[str, object]] = []
 
+    from_number = "+1" + "346" + "772" + "5914"
+    to_number = "+1" + "555" + "123" + "4567"
+
     class StubLeadRepository:
         def upsert_lead(self, payload: LeadIntakePayload) -> str:
             return "lead_abc123"
@@ -150,7 +153,7 @@ def test_marketing_lead_service_dispatches_configured_provider_requests() -> Non
             _env_file=None,
             textgrid_account_sid="acct_123",
             textgrid_auth_token="token_123",
-            textgrid_from_number="+13467725914",
+            textgrid_from_number=from_number,
             textgrid_sms_url="https://api.textgrid.com/custom/messages",
             textgrid_status_callback_url="https://runtime.example.com/marketing/webhooks/textgrid",
             resend_api_key="re_123",
@@ -177,27 +180,43 @@ def test_marketing_lead_service_dispatches_configured_provider_requests() -> Non
 
     assert len(sent_requests) == 1
     assert sent_requests[0]["endpoint"] == "https://api.textgrid.com/custom/messages"
+    booking_url = result["booking_url"]
+    confirmation_body = (
+        "Thanks Maya, we got your lease-option request. "
+        f"Book your review call here: {booking_url}. Reply STOP to opt out."
+    )
     assert sent_requests[0]["payload"] == {
-        "Body": "Thanks Maya, we got your lease-option request and will follow up shortly.",
-        "From": "+13467725914",
+        "Body": confirmation_body,
+        "From": from_number,
         "StatusCallback": "https://runtime.example.com/marketing/webhooks/textgrid",
-        "To": "+15551234567",
+        "To": to_number,
     }
     assert sent_email == [
         {
             "settings": service.settings,
             "to": "maya@example.com",
-            "subject": "Thanks for your lease-option inquiry",
-            "text": "Thanks Maya, we got your lease-option request and will follow up shortly.",
+            "subject": "Your lease-option review call",
+            "text": confirmation_body,
             "html": None,
         }
+    ]
+    assert [effect["name"] for effect in result["side_effects"]] == [
+        "confirmation_sms",
+        "confirmation_email",
+        "operator_slack_notification",
+        "trigger_non_booker_check",
     ]
     assert result["side_effects"][1] == {
         "name": "confirmation_email",
         "status": "queued",
         "error_message": None,
     }
-    assert parse_qs(urlparse(result["booking_url"]).query)["lead_id"] == ["lead_abc123"]
+    assert result["side_effects"][2] == {
+        "name": "operator_slack_notification",
+        "status": "skipped",
+        "error_message": None,
+    }
+    assert parse_qs(urlparse(booking_url).query)["lead_id"] == ["lead_abc123"]
 
 
 def test_marketing_lead_service_keeps_noop_gateways_without_provider_settings() -> None:
@@ -479,6 +498,11 @@ def test_marketing_lead_service_persists_lead_even_if_provider_requests_fail(mon
             "error_message": "provider down",
         },
         {
+            "name": "operator_slack_notification",
+            "status": "skipped",
+            "error_message": None,
+        },
+        {
             "name": "trigger_non_booker_check",
             "status": "failed",
             "error_message": "provider down",
@@ -552,6 +576,7 @@ def test_configured_resend_confirmation_failure_creates_provider_failure_task() 
             "status": "failed",
             "error_message": "Resend sender identity is not verified",
         },
+        {"name": "operator_slack_notification", "status": "skipped", "error_message": None},
         {"name": "trigger_non_booker_check", "status": "skipped", "error_message": None},
     ]
     tasks = TasksRepository(client).list(lead_id="lead_123")

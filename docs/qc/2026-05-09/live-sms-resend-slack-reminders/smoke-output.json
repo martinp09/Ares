@@ -1,0 +1,63 @@
+{
+  "approved_recipients": {
+    "sms_to": "+1***5914",
+    "email_to": "[redacted-email]"
+  },
+  "loaded_env_sources": [
+    "/opt/ares/Ares/.env"
+  ],
+  "provider_env_present": {
+    "TEXTGRID_ACCOUNT_SID": true,
+    "TEXTGRID_AUTH_TOKEN": true,
+    "TEXTGRID_FROM_NUMBER": true,
+    "RESEND_API_KEY": true,
+    "RESEND_FROM_EMAIL": true,
+    "SLACK_BOT_TOKEN": false,
+    "SLACK_CHANNEL_INTAKE": false,
+    "SLACK_CHANNEL_LEADS": false,
+    "CAL_BOOKING_URL": false,
+    "TRIGGER_SECRET_KEY": true
+  },
+  "provider_env_fingerprints": {
+    "TEXTGRID_ACCOUNT_SID": "d32b30f619",
+    "TEXTGRID_FROM_NUMBER": "+1***1390",
+    "RESEND_FROM_EMAIL_sha10": "e030be5ec4"
+  },
+  "routes": {
+    "provider_status": {
+      "status_code": 200,
+      "body": {
+        "sms": {
+          "provider": "textgrid",
+          "configured": true,
+          "can_send": true,
+          "sender_identity": "+1***1390",
+          "endpoint": "https://api.textgrid.com/2010-04-01/Accounts/[REDACTED]/Messages.json",
+          "details": null,
+          "checked_at": "2026-05-09T22:09:49.861914Z"
+        },
+        "email": {
+          "provider": "resend",
+          "configured": false,
+          "can_send": false,
+          "sender_identity": "[redacted-phone]",
+          "endpoint": "https://api.resend.com/emails",
+          "details": "Invalid RESEND_FROM_EMAIL format",
+          "checked_at": "2026-05-09T22:09:49.861963Z"
+        }
+      }
+    },
+    "sms_test": {
+      "status_code": 502,
+      "body": {
+        "detail": "Balance is below 0. Please Add Funds and try again"
+      }
+    },
+    "email_test": {
+      "status_code": 502,
+      "body": {
+        "detail": "RESEND_FROM_EMAIL must be an email address or Name <email@example.com>"
+      }
+    }
+  }
+}

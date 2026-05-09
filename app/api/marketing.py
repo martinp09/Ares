@@ -85,6 +85,23 @@ class NonBookerCheckRequestModel(BaseModel):
     environment: str = Field(min_length=1)
 
 
+class AppointmentReminderRequestModel(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    leadId: str = Field(min_length=1)
+    businessId: str = Field(min_length=1)
+    environment: str = Field(min_length=1)
+    reminderLabel: str = Field(min_length=1)
+    startsAt: str | None = None
+
+
+class AppointmentReminderResponse(BaseModel):
+    leadId: str
+    status: str
+    smsProviderMessageId: str | None = None
+    emailProviderMessageId: str | None = None
+
+
 class LeaseOptionSequenceGuardRequestModel(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -256,6 +273,23 @@ def run_non_booker_check(request: NonBookerCheckRequestModel) -> NonBookerCheckR
         bookingStatus=str(result["booking_status"]),
         shouldEnrollInSequence=bool(result["should_enroll_in_sequence"]),
         startDay=int(result["start_day"]) if result.get("start_day") is not None else None,
+    )
+
+
+@router.post("/internal/appointment-reminder", response_model=AppointmentReminderResponse)
+def send_appointment_reminder(request: AppointmentReminderRequestModel) -> AppointmentReminderResponse:
+    result = booking_service.send_appointment_reminder(
+        lead_id=request.leadId,
+        business_id=request.businessId,
+        environment=request.environment,
+        reminder_label=request.reminderLabel,
+        starts_at=request.startsAt,
+    )
+    return AppointmentReminderResponse(
+        leadId=str(result["lead_id"]),
+        status=str(result["status"]),
+        smsProviderMessageId=result.get("sms_provider_message_id"),
+        emailProviderMessageId=result.get("email_provider_message_id"),
     )
 
 

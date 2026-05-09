@@ -139,9 +139,10 @@ def test_booked_calcom_event_logs_outbound_confirmation_messages() -> None:
             business_id="limitless",
             environment="dev",
             first_name="Maya",
-            phone="+15551234567",
+            phone="+155****4567",
             email="maya@example.com",
             property_address="123 Main St, Houston, TX",
+            sms_consent=True,
         )
     )
 
@@ -259,9 +260,10 @@ def test_configured_booking_notifier_preserves_partial_provider_message_ids() ->
             business_id="limitless",
             environment="dev",
             first_name="Maya",
-            phone="+15551234567",
+            phone="+155****4567",
             email="maya@example.com",
             property_address="123 Main St, Houston, TX",
+            sms_consent=True,
         )
     )
     calls: list[str] = []
@@ -275,9 +277,11 @@ def test_configured_booking_notifier_preserves_partial_provider_message_ids() ->
 
     notifier = _ConfiguredAppointmentNotifier(
         settings=Settings(
+            _env_file=None,
+            provider_live_sends_enabled=True,
             textgrid_account_sid="acct_123",
             textgrid_auth_token="token_123",
-            textgrid_from_number="+13467725914",
+            textgrid_from_number="+134****5914",
             resend_api_key="resend_123",
             resend_from_email="ops@example.com",
         ),

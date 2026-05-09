@@ -5,6 +5,7 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 RUNTIME_API = REPO_ROOT / "trigger" / "src" / "shared" / "runtimeApi.ts"
 LEAD_MACHINE_RUNTIME = REPO_ROOT / "trigger" / "src" / "lead-machine" / "runtime.ts"
 HARRIS_DAILY_IMPORT_TASK = REPO_ROOT / "trigger" / "src" / "lead-machine" / "harrisDailyImport.ts"
+APPOINTMENT_REMINDER_TASK = REPO_ROOT / "trigger" / "src" / "marketing" / "sendAppointmentReminder.ts"
 TRIGGER_PACKAGE = REPO_ROOT / "trigger" / "package.json"
 
 
@@ -35,3 +36,13 @@ def test_trigger_exposes_harris_daily_import_contract() -> None:
     assert 'id: "harris-daily-import"' in task_source
     assert '"harrisDailyImport"' in task_source
     assert "lead_machine_harris_daily_import" in task_source
+
+
+def test_trigger_exposes_appointment_reminder_contract() -> None:
+    task_source = APPOINTMENT_REMINDER_TASK.read_text(encoding="utf-8")
+
+    assert "export type SendAppointmentReminderPayload" in task_source
+    assert 'id: "marketing-send-appointment-reminder"' in task_source
+    assert '"/marketing/internal/appointment-reminder"' in task_source
+    assert "smsProviderMessageId" in task_source
+    assert "emailProviderMessageId" in task_source

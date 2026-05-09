@@ -129,6 +129,48 @@ def test_post_non_booker_check_runs_internal_check(monkeypatch) -> None:
     assert len(stub.calls) == 1
 
 
+def test_post_appointment_reminder_dispatches_internal_reminder(monkeypatch) -> None:
+    class StubBookingService:
+        def __init__(self) -> None:
+            self.calls = []
+
+        def send_appointment_reminder(self, *, lead_id, business_id, environment, reminder_label, starts_at=None):
+            self.calls.append((lead_id, business_id, environment, reminder_label, starts_at))
+            return {
+                "lead_id": lead_id,
+                "status": "queued",
+                "sms_provider_message_id": "SM_REMINDER_1H",
+                "email_provider_message_id": "email_reminder_1h",
+            }
+
+    from app.api import marketing as marketing_api
+
+    stub = StubBookingService()
+    monkeypatch.setattr(marketing_api, "booking_service", stub)
+    client = TestClient(app)
+
+    response = client.post(
+        "/marketing/internal/appointment-reminder",
+        json={
+            "leadId": "lead_123",
+            "businessId": "limitless",
+            "environment": "dev",
+            "reminderLabel": "1h",
+            "startsAt": "2026-05-12T16:00:00Z",
+        },
+        headers=AUTH_HEADERS,
+    )
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "leadId": "lead_123",
+        "status": "queued",
+        "smsProviderMessageId": "SM_REMINDER_1H",
+        "emailProviderMessageId": "email_reminder_1h",
+    }
+    assert stub.calls == [("lead_123", "limitless", "dev", "1h", "2026-05-12T16:00:00Z")]
+
+
 def test_booking_service_rejects_invalid_calcom_signature() -> None:
     service = BookingService(settings=Settings(cal_webhook_secret="cal_whsec_1"))
 

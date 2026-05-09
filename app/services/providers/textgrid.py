@@ -6,6 +6,7 @@ from typing import Any
 import httpx
 
 from app.core.config import Settings
+from app.providers.textgrid import normalize_phone_number
 
 
 def _build_endpoint(settings: Settings) -> str:
@@ -86,7 +87,11 @@ def send_test_sms(settings: Settings, *, to: str, body: str) -> dict[str, Any]:
     response = httpx.post(
         endpoint,
         auth=(settings.textgrid_account_sid, settings.textgrid_auth_token),
-        data={"To": to, "From": settings.textgrid_from_number, "Body": body},
+        data={
+            "To": normalize_phone_number(to),
+            "From": normalize_phone_number(settings.textgrid_from_number),
+            "Body": body,
+        },
         headers={"Accept": "application/json"},
         timeout=settings.provider_request_timeout_seconds,
     )
@@ -107,8 +112,8 @@ def send_test_sms(settings: Settings, *, to: str, body: str) -> dict[str, Any]:
         "provider": "textgrid",
         "status": provider_status if provider_status in {"queued", "sent", "delivered"} else "queued",
         "provider_message_id": str(provider_message_id) if provider_message_id is not None else None,
-        "to": to,
-        "from_identity": settings.textgrid_from_number,
+        "to": normalize_phone_number(to),
+        "from_identity": normalize_phone_number(settings.textgrid_from_number),
         "attempted_at": datetime.now(UTC),
         "error_message": None,
     }

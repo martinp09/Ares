@@ -56,11 +56,15 @@ class LeadRepository(Protocol):
 
 
 class SmsGateway(Protocol):
-    def send_confirmation(self, payload: LeadIntakePayload) -> str | None: ...
+    def send_confirmation(self, payload: LeadIntakePayload, *, booking_url: str) -> str | None: ...
 
 
 class EmailGateway(Protocol):
-    def send_confirmation(self, payload: LeadIntakePayload) -> str | None: ...
+    def send_confirmation(self, payload: LeadIntakePayload, *, booking_url: str) -> str | None: ...
+
+
+class OperatorNotifier(Protocol):
+    def notify_new_lead(self, payload: LeadIntakePayload, *, lead_id: str, booking_url: str) -> str | None: ...
 
 
 class BookingLinkProvider(Protocol):
@@ -130,12 +134,17 @@ class _ContactsLeadRepository:
 
 
 class _NoopSmsGateway:
-    def send_confirmation(self, payload: LeadIntakePayload) -> str | None:
+    def send_confirmation(self, payload: LeadIntakePayload, *, booking_url: str) -> str | None:
         return None
 
 
 class _NoopEmailGateway:
-    def send_confirmation(self, payload: LeadIntakePayload) -> str | None:
+    def send_confirmation(self, payload: LeadIntakePayload, *, booking_url: str) -> str | None:
+        return None
+
+
+class _NoopOperatorNotifier:
+    def notify_new_lead(self, payload: LeadIntakePayload, *, lead_id: str, booking_url: str) -> str | None:
         return None
 
 
@@ -157,13 +166,13 @@ class _ConfiguredTextgridSmsGateway:
         self.sms_url = sms_url
         self.status_callback_url = status_callback_url
 
-    def send_confirmation(self, payload: LeadIntakePayload) -> str | None:
+    def send_confirmation(self, payload: LeadIntakePayload, *, booking_url: str) -> str | None:
         outbound_request = build_outbound_sms_request(
             account_sid=self.account_sid,
             auth_token=self.auth_token,
             from_number=self.from_number,
             to_number=payload.phone,
-            body=_build_confirmation_message(payload),
+            body=_build_confirmation_message(payload, booking_url=booking_url),
             status_callback_url=self.status_callback_url,
         )
         if self.sms_url:
@@ -181,17 +190,74 @@ class _ConfiguredResendEmailGateway:
         self.settings = settings
         self.email_sender = email_sender
 
-    def send_confirmation(self, payload: LeadIntakePayload) -> str | None:
+    def send_confirmation(self, payload: LeadIntakePayload, *, booking_url: str) -> str | None:
         if not payload.email:
             return None
         return _extract_provider_message_id(
             self.email_sender(
                 self.settings,
                 to=payload.email,
-                subject="Thanks for your lease-option inquiry",
-                text=_build_confirmation_message(payload),
+                subject="Your lease-option review call",
+                text=_build_confirmation_message(payload, booking_url=booking_url),
             )
         )
+
+
+class _ConfiguredSlackOperatorNotifier:
+    def __init__(
+        self,
+        *,
+        token: str,
+        channel: str,
+        request_sender: RequestSender,
+    ) -> None:
+        self.token = token
+        self.channel = channel
+        self.request_sender = request_sender
+
+    def notify_new_lead(self, payload: LeadIntakePayload, *, lead_id: str, booking_url: str) -> str | None:
+        last_name = f" {payload.last_name}" if payload.last_name else ""
+        lead_name = f"{payload.first_name}{last_name}"
+        text = f"New lease-option lead: {lead_name} — {payload.property_address}"
+        fields = [
+            {"type": "mrkdwn", "text": f"*Lead:*\n{lead_name}"},
+            {"type": "mrkdwn", "text": f"*Phone:*\n{payload.phone}"},
+            {"type": "mrkdwn", "text": f"*Email:*\n{payload.email or 'not provided'}"},
+            {"type": "mrkdwn", "text": f"*Timeline:*\n{payload.timeline_to_sell or 'not provided'}"},
+            {"type": "mrkdwn", "text": f"*Asking goal:*\n{payload.asking_price_goal or 'not provided'}"},
+            {"type": "mrkdwn", "text": f"*LP variant:*\n{payload.lp_var or 'not provided'}"},
+        ]
+        provider_response = self.request_sender(
+            {
+                "endpoint": "https://slack.com/api/chat.postMessage",
+                "headers": {
+                    "Authorization": f"Bearer {self.token}",
+                    "Content-Type": "application/json",
+                    "Accept": "application/json",
+                },
+                "payload": {
+                    "channel": self.channel,
+                    "text": text,
+                    "unfurl_links": False,
+                    "unfurl_media": False,
+                    "blocks": [
+                        {"type": "header", "text": {"type": "plain_text", "text": "New lease-option lead"}},
+                        {"type": "section", "fields": fields},
+                        {"type": "section", "text": {"type": "mrkdwn", "text": f"*Property:*\n{payload.property_address}"}},
+                        {"type": "section", "text": {"type": "mrkdwn", "text": f"*Booking link:* {booking_url}"}},
+                        {"type": "context", "elements": [{"type": "mrkdwn", "text": f"lead_id={lead_id} • source={payload.utm_source or 'unknown'}"}]},
+                    ],
+                },
+            }
+        )
+        if isinstance(provider_response, dict) and provider_response.get("ok") is False:
+            raise RuntimeError(str(provider_response.get("error") or "Slack notification failed"))
+        if isinstance(provider_response, dict):
+            channel = provider_response.get("channel")
+            ts = provider_response.get("ts")
+            if channel and ts:
+                return f"{channel}:{ts}"
+        return _extract_provider_message_id(provider_response)
 
 
 class _DefaultBookingLinkProvider:
@@ -348,8 +414,13 @@ def _build_default_trigger_scheduler(settings: Settings) -> TriggerScheduler:
     )
 
 
-def _build_confirmation_message(payload: LeadIntakePayload) -> str:
-    return f"Thanks {payload.first_name}, we got your lease-option request and will follow up shortly."
+def _build_confirmation_message(payload: LeadIntakePayload, *, booking_url: str | None = None) -> str:
+    if booking_url:
+        return (
+            f"Thanks {payload.first_name}, we got your lease-option request. "
+            f"Book your review call here: {booking_url}. Reply STOP to opt out."
+        )
+    return f"Thanks {payload.first_name}, we got your lease-option request and will follow up shortly. Reply STOP to opt out."
 
 
 def _default_request_sender(outbound_request: dict[str, Any]) -> None:
@@ -391,6 +462,7 @@ class MarketingLeadService:
         lead_repository: LeadRepository | None = None,
         sms_gateway: SmsGateway | None = None,
         email_gateway: EmailGateway | None = None,
+        operator_notifier: OperatorNotifier | None = None,
         booking_link_provider: BookingLinkProvider | None = None,
         trigger_scheduler: TriggerScheduler | None = None,
         request_sender: RequestSender | None = None,
@@ -413,6 +485,10 @@ class MarketingLeadService:
             active_settings,
             email_sender=resend_email_sender or send_resend_email,
         )
+        self.operator_notifier = operator_notifier or self._build_operator_notifier(
+            active_settings,
+            request_sender=active_request_sender,
+        )
         self.booking_link_provider = booking_link_provider or self._build_booking_link_provider(active_settings)
         self.trigger_scheduler = trigger_scheduler or _build_default_trigger_scheduler(active_settings)
         self.side_effect_recorder = _LeadIntakeSideEffectRecorder(
@@ -424,6 +500,7 @@ class MarketingLeadService:
 
     def intake_lead(self, payload: LeadIntakePayload) -> dict[str, Any]:
         lead_id = self.lead_repository.upsert_lead(payload) or self._generate_lead_id()
+        booking_url = self.booking_link_provider.get_booking_url(payload, lead_id=lead_id)
         side_effects: list[SideEffectStatus] = []
         side_effects.append(
             self._run_side_effect(
@@ -433,8 +510,8 @@ class MarketingLeadService:
                 skipped=not payload.sms_consent or isinstance(self.sms_gateway, _NoopSmsGateway),
                 channel="sms",
                 provider="textgrid",
-                body=_build_confirmation_message(payload),
-                send=lambda: self.sms_gateway.send_confirmation(payload),
+                body=_build_confirmation_message(payload, booking_url=booking_url),
+                send=lambda: self.sms_gateway.send_confirmation(payload, booking_url=booking_url),
             )
         )
         side_effects.append(
@@ -445,8 +522,22 @@ class MarketingLeadService:
                 skipped=not payload.email or isinstance(self.email_gateway, _NoopEmailGateway),
                 channel="email",
                 provider="resend",
-                body=_build_confirmation_message(payload),
-                send=lambda: self.email_gateway.send_confirmation(payload),
+                body=_build_confirmation_message(payload, booking_url=booking_url),
+                send=lambda: self.email_gateway.send_confirmation(payload, booking_url=booking_url),
+            )
+        )
+        side_effects.append(
+            self._run_side_effect(
+                payload=payload,
+                lead_id=lead_id,
+                name="operator_slack_notification",
+                skipped=isinstance(self.operator_notifier, _NoopOperatorNotifier),
+                provider="slack",
+                send=lambda: self.operator_notifier.notify_new_lead(
+                    payload,
+                    lead_id=lead_id,
+                    booking_url=booking_url,
+                ),
             )
         )
         side_effects.append(
@@ -461,7 +552,7 @@ class MarketingLeadService:
         return {
             "lead_id": lead_id,
             "booking_status": payload.booking_status,
-            "booking_url": self.booking_link_provider.get_booking_url(payload, lead_id=lead_id),
+            "booking_url": booking_url,
             "side_effects": side_effects,
         }
 
@@ -532,6 +623,17 @@ class MarketingLeadService:
                 email_sender=email_sender,
             )
         return _NoopEmailGateway()
+
+    @staticmethod
+    def _build_operator_notifier(settings: Settings, *, request_sender: RequestSender) -> OperatorNotifier:
+        channel = settings.slack_channel_intake or settings.slack_channel_leads
+        if settings.slack_bot_token and channel:
+            return _ConfiguredSlackOperatorNotifier(
+                token=settings.slack_bot_token,
+                channel=channel,
+                request_sender=request_sender,
+            )
+        return _NoopOperatorNotifier()
 
     @staticmethod
     def _build_booking_link_provider(settings: Settings) -> BookingLinkProvider:

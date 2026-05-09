@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime
+from email.utils import parseaddr
 from typing import Any
 
 import httpx
@@ -36,8 +37,16 @@ def _extract_error(payload: dict[str, Any], response: httpx.Response) -> str:
     return f"Resend request failed with HTTP {response.status_code}"
 
 
+def _looks_like_email_identity(value: str | None) -> bool:
+    if not value:
+        return False
+    _, parsed = parseaddr(value)
+    return bool(parsed and "@" in parsed and "." in parsed.rsplit("@", 1)[-1])
+
+
 def get_resend_status(settings: Settings) -> dict[str, Any]:
-    configured = bool(settings.resend_api_key and settings.resend_from_email)
+    sender_valid = _looks_like_email_identity(settings.resend_from_email)
+    configured = bool(settings.resend_api_key and sender_valid)
     detail = None
     if not configured:
         missing = [
@@ -48,7 +57,10 @@ def get_resend_status(settings: Settings) -> dict[str, Any]:
             )
             if not present
         ]
-        detail = f"Missing: {', '.join(missing)}"
+        if missing:
+            detail = f"Missing: {', '.join(missing)}"
+        elif settings.resend_from_email and not sender_valid:
+            detail = "Invalid RESEND_FROM_EMAIL format"
 
     return {
         "provider": "resend",
@@ -73,6 +85,8 @@ def send_test_email(
         raise RuntimeError("RESEND_API_KEY is required")
     if not settings.resend_from_email:
         raise RuntimeError("RESEND_FROM_EMAIL is required")
+    if not _looks_like_email_identity(settings.resend_from_email):
+        raise RuntimeError("RESEND_FROM_EMAIL must be an email address or Name <email@example.com>")
 
     payload: dict[str, Any] = {
         "from": settings.resend_from_email,
