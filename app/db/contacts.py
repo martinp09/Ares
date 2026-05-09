@@ -12,6 +12,27 @@ from app.db.marketing_supabase import (
 from app.models.marketing_leads import LeadUpsertRequest, MarketingLeadRecord
 
 
+_LANDING_CONTEXT_FIELDS = (
+    "last_name",
+    "property_type",
+    "timeline_to_sell",
+    "monthly_payment_goal",
+    "asking_price_goal",
+    "seller_goal",
+    "notes",
+    "sms_consent",
+    "consent_page_url",
+    "consent_ip",
+    "consent_user_agent",
+    "utm_source",
+    "utm_medium",
+    "utm_campaign",
+    "utm_term",
+    "utm_content",
+    "lp_var",
+)
+
+
 class ContactsRepository:
     def __init__(self, client: ControlPlaneClient | None = None, settings: Settings | None = None):
         self.client = client or get_control_plane_client()
@@ -40,6 +61,23 @@ class ContactsRepository:
                         "email": request.email,
                         "property_address": request.property_address,
                         "booking_status": request.booking_status,
+                        "last_name": request.last_name,
+                        "property_type": request.property_type,
+                        "timeline_to_sell": request.timeline_to_sell,
+                        "monthly_payment_goal": request.monthly_payment_goal,
+                        "asking_price_goal": request.asking_price_goal,
+                        "seller_goal": request.seller_goal,
+                        "notes": request.notes,
+                        "sms_consent": request.sms_consent,
+                        "consent_page_url": request.consent_page_url,
+                        "consent_ip": request.consent_ip,
+                        "consent_user_agent": request.consent_user_agent,
+                        "utm_source": request.utm_source,
+                        "utm_medium": request.utm_medium,
+                        "utm_campaign": request.utm_campaign,
+                        "utm_term": request.utm_term,
+                        "utm_content": request.utm_content,
+                        "lp_var": request.lp_var,
                         "updated_at": utc_now(),
                     }
                 )
@@ -54,6 +92,23 @@ class ContactsRepository:
                 email=request.email,
                 property_address=request.property_address,
                 booking_status=request.booking_status,
+                last_name=request.last_name,
+                property_type=request.property_type,
+                timeline_to_sell=request.timeline_to_sell,
+                monthly_payment_goal=request.monthly_payment_goal,
+                asking_price_goal=request.asking_price_goal,
+                seller_goal=request.seller_goal,
+                notes=request.notes,
+                sms_consent=request.sms_consent,
+                consent_page_url=request.consent_page_url,
+                consent_ip=request.consent_ip,
+                consent_user_agent=request.consent_user_agent,
+                utm_source=request.utm_source,
+                utm_medium=request.utm_medium,
+                utm_campaign=request.utm_campaign,
+                utm_term=request.utm_term,
+                utm_content=request.utm_content,
+                lp_var=request.lp_var,
             )
             contact_rows[record.id] = record
             contact_keys[dedupe_key] = record.id
@@ -148,10 +203,7 @@ class ContactsRepository:
             "email": request.email,
             "phone": request.phone,
             "channel": "sms",
-            "metadata": {
-                "property_address": request.property_address,
-                "booking_status": request.booking_status,
-            },
+            "metadata": self._metadata_from_request(request),
         }
         if existing_rows:
             row = existing_rows[0]
@@ -276,6 +328,35 @@ class ContactsRepository:
             email=row.get("email"),
             property_address=str(metadata.get("property_address") or ""),
             booking_status=str(metadata.get("booking_status") or "pending"),
+            last_name=metadata.get("last_name"),
+            property_type=metadata.get("property_type"),
+            timeline_to_sell=metadata.get("timeline_to_sell"),
+            monthly_payment_goal=metadata.get("monthly_payment_goal"),
+            asking_price_goal=metadata.get("asking_price_goal"),
+            seller_goal=metadata.get("seller_goal"),
+            notes=metadata.get("notes"),
+            sms_consent=bool(metadata.get("sms_consent") or False),
+            consent_page_url=metadata.get("consent_page_url"),
+            consent_ip=metadata.get("consent_ip"),
+            consent_user_agent=metadata.get("consent_user_agent"),
+            utm_source=metadata.get("utm_source"),
+            utm_medium=metadata.get("utm_medium"),
+            utm_campaign=metadata.get("utm_campaign"),
+            utm_term=metadata.get("utm_term"),
+            utm_content=metadata.get("utm_content"),
+            lp_var=metadata.get("lp_var"),
             created_at=row.get("created_at") or utc_now(),
             updated_at=row.get("updated_at") or utc_now(),
         )
+
+    @staticmethod
+    def _metadata_from_request(request: LeadUpsertRequest) -> dict:
+        metadata = {
+            "property_address": request.property_address,
+            "booking_status": request.booking_status,
+        }
+        for field in _LANDING_CONTEXT_FIELDS:
+            value = getattr(request, field)
+            if value is not None:
+                metadata[field] = value
+        return metadata

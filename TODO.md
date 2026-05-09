@@ -1,7 +1,7 @@
 ---
 title: "Ares TODO / Handoff"
 status: active
-updated_at: "2026-05-09T16:05:03Z"
+updated_at: "2026-05-09T20:02:00Z"
 repo: "martinp09/Ares"
 local_checkout: "/root/Ares-inspect"
 current_branch: "main"
@@ -12,7 +12,7 @@ production_wiring_commit: "47be904"
 
 ## Current status
 
-Ares production wiring remains live for the controlled operator rollout. The Harris daily probate + HCAD `Estate Of` lead-machine foundation is merged to `main`; hosted preview smoke passed without Slack or provider sends. Security-audit hardening is complete with QC evidence at `docs/qc/2026-05-09/ares-security-audit-patches/` and is ready to operate from `main` after merge.
+Ares production wiring remains live for the controlled operator rollout. The Harris daily probate + HCAD `Estate Of` lead-machine foundation is merged to `main`; hosted preview smoke passed without Slack or provider sends. Security-audit hardening is complete with QC evidence at `docs/qc/2026-05-09/ares-security-audit-patches/` and is ready to operate from `main` after merge. The lease-options landing-page contact form is being moved onto Ares as the canonical intake backend through `feat/landing-ares-intake-sms-agent`.
 
 Live production evidence:
 
@@ -31,6 +31,16 @@ Known caveats:
 - Deployed provider callback configurations should be checked/updated externally after this security branch lands if any still use old `runtime_api_key` query-string URLs; runtime auth is now bearer-only plus provider signatures.
 
 ## Current product slice
+
+### 0.5. Lease-options landing -> Ares intake bridge
+
+- [done] Expand `POST /marketing/leads` to accept the full seller-form payload instead of a skinny contact record.
+- [done] Preserve seller-fit fields, consent metadata, and attribution in Ares contact records/metadata.
+- [done] Return `side_effects` so the landing page can show/log whether confirmation SMS/email/Trigger work was queued, skipped, or failed.
+- [done] Gate confirmation SMS/email and non-booker Trigger scheduling behind `PROVIDER_LIVE_SENDS_ENABLED`; first deploy remains no-live-send by default.
+- [done] Replace the landing page active submit path with a server-side Ares bearer-auth handoff and remove Supabase+n8n active code.
+- [ ] Set landing runtime envs in the deployment target: `BUSINESS_RUNTIME_MARKETING_LEADS_URL`, `BUSINESS_RUNTIME_API_KEY`, `BUSINESS_RUNTIME_BUSINESS_ID`, `BUSINESS_RUNTIME_ENVIRONMENT`.
+- [ ] Only after explicit approval, run a live SMS smoke with approved recipient(s) and `PROVIDER_LIVE_SENDS_ENABLED=true`.
 
 ### 0. Security audit hardening
 

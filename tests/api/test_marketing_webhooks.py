@@ -208,8 +208,9 @@ def test_sequence_step_and_manual_call_task_use_live_repositories() -> None:
         settings=Settings(
             textgrid_account_sid="acct_123",
             textgrid_auth_token="token_123",
-            textgrid_from_number="+13467725914",
+            textgrid_from_number="+134****5914",
             textgrid_sms_url="https://api.textgrid.com/custom/messages",
+            provider_live_sends_enabled=True,
         ),
         request_sender=sender,
     )
@@ -218,9 +219,10 @@ def test_sequence_step_and_manual_call_task_use_live_repositories() -> None:
             business_id="limitless",
             environment="dev",
             first_name="Maya",
-            phone="+15551234567",
+            phone="+155****4567",
             email="maya@example.com",
             property_address="123 Main St, Houston, TX",
+            sms_consent=True,
         )
     )
 

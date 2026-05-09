@@ -32,6 +32,23 @@ class LeadIntakePayload:
     email: str | None
     property_address: str
     booking_status: str = "pending"
+    last_name: str | None = None
+    property_type: str | None = None
+    timeline_to_sell: str | None = None
+    monthly_payment_goal: str | None = None
+    asking_price_goal: str | None = None
+    seller_goal: str | None = None
+    notes: str | None = None
+    sms_consent: bool = False
+    consent_page_url: str | None = None
+    consent_ip: str | None = None
+    consent_user_agent: str | None = None
+    utm_source: str | None = None
+    utm_medium: str | None = None
+    utm_campaign: str | None = None
+    utm_term: str | None = None
+    utm_content: str | None = None
+    lp_var: str | None = None
 
 
 class LeadRepository(Protocol):
@@ -90,6 +107,23 @@ class _ContactsLeadRepository:
                 email=payload.email,
                 property_address=payload.property_address,
                 booking_status=payload.booking_status,
+                last_name=payload.last_name,
+                property_type=payload.property_type,
+                timeline_to_sell=payload.timeline_to_sell,
+                monthly_payment_goal=payload.monthly_payment_goal,
+                asking_price_goal=payload.asking_price_goal,
+                seller_goal=payload.seller_goal,
+                notes=payload.notes,
+                sms_consent=payload.sms_consent,
+                consent_page_url=payload.consent_page_url,
+                consent_ip=payload.consent_ip,
+                consent_user_agent=payload.consent_user_agent,
+                utm_source=payload.utm_source,
+                utm_medium=payload.utm_medium,
+                utm_campaign=payload.utm_campaign,
+                utm_term=payload.utm_term,
+                utm_content=payload.utm_content,
+                lp_var=payload.lp_var,
             )
         )
         return record.id
@@ -304,7 +338,7 @@ class _LeadIntakeSideEffectRecorder:
 
 
 def _build_default_trigger_scheduler(settings: Settings) -> TriggerScheduler:
-    if not settings.trigger_secret_key:
+    if not settings.provider_live_sends_enabled or not settings.trigger_secret_key:
         return _NoopTriggerScheduler()
     return _TriggerHttpScheduler(
         secret_key=settings.trigger_secret_key,
@@ -396,7 +430,7 @@ class MarketingLeadService:
                 payload=payload,
                 lead_id=lead_id,
                 name="confirmation_sms",
-                skipped=isinstance(self.sms_gateway, _NoopSmsGateway),
+                skipped=not payload.sms_consent or isinstance(self.sms_gateway, _NoopSmsGateway),
                 channel="sms",
                 provider="textgrid",
                 body=_build_confirmation_message(payload),
@@ -475,6 +509,8 @@ class MarketingLeadService:
 
     @staticmethod
     def _build_sms_gateway(settings: Settings, *, request_sender: RequestSender) -> SmsGateway:
+        if not settings.provider_live_sends_enabled:
+            return _NoopSmsGateway()
         if settings.textgrid_account_sid and settings.textgrid_auth_token and settings.textgrid_from_number:
             return _ConfiguredTextgridSmsGateway(
                 account_sid=settings.textgrid_account_sid,
@@ -488,6 +524,8 @@ class MarketingLeadService:
 
     @staticmethod
     def _build_email_gateway(settings: Settings, *, email_sender: ResendEmailSender) -> EmailGateway:
+        if not settings.provider_live_sends_enabled:
+            return _NoopEmailGateway()
         if settings.resend_api_key and settings.resend_from_email:
             return _ConfiguredResendEmailGateway(
                 settings=settings,

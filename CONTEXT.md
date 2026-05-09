@@ -10,6 +10,8 @@
 - Trigger project: `proj_puouljyhwiraonjkpiki`
 
 ## Current Scope
+- Landing-page -> Ares intake/SMS bridge is the active feature branch `feat/landing-ares-intake-sms-agent`: Ares now accepts full seller-form context through `POST /marketing/leads`, preserves consent/UTM metadata, returns side-effect status, and keeps SMS/email/Trigger sends gated by `PROVIDER_LIVE_SENDS_ENABLED`.
+- Landing page branch `feat/landing-ares-intake-sms-agent` now routes `POST /api/contact` directly to Ares server-side; Supabase+n8n is no longer the active submit path.
 - Security-audit hardening is complete and ready to operate from `main` after the merge of `hardening/ares-security-audit-patches-2026-05-09`.
 - QC evidence: `docs/qc/2026-05-09/ares-security-audit-patches/`.
 - Patched: secret/build-context hygiene, runtime auth fail-closed behavior, docs/auth/security headers, server-derived provider webhook trust, Cal/TextGrid/Instantly signature enforcement, global provider live-send gate, Mission Control no-browser-token behavior, Node/Python advisory cleanup, and Bandit static-scan cleanup.
@@ -18,12 +20,14 @@
 - Production wiring is live and must remain untouched unless explicitly requested.
 
 ## Current TODO
-1. Wire/test real Slack digest delivery only after Slack bot token + target channels are available.
-2. Run a dedicated production promotion only when intentionally preserving/updating the production runtime/provider env contract.
-3. Update provider callback configurations externally if any deployed provider still references old query-string runtime-key callback URLs.
-4. Add dedicated Mission Control frontend campaign-launch review page for the Harris probate HOT/WARM/COLD API contract.
+1. Deploy/update landing envs only after setting `BUSINESS_RUNTIME_MARKETING_LEADS_URL`, `BUSINESS_RUNTIME_API_KEY`, `BUSINESS_RUNTIME_BUSINESS_ID`, and `BUSINESS_RUNTIME_ENVIRONMENT`; keep `PROVIDER_LIVE_SENDS_ENABLED=false` in Ares until a live SMS smoke is explicitly approved.
+2. Wire/test real Slack digest delivery only after Slack bot token + target channels are available.
+3. Run a dedicated production promotion only when intentionally preserving/updating the production runtime/provider env contract.
+4. Update provider callback configurations externally if any deployed provider still references old query-string runtime-key callback URLs.
+5. Add dedicated Mission Control frontend campaign-launch review page for the Harris probate HOT/WARM/COLD API contract.
 
 ## Recent Change
+- 2026-05-09: Added Ares-owned lease-options landing contact intake contract and landing server-side Ares handoff branch; no live sends are enabled by this code path.
 - 2026-05-09: Completed security-audit hardening patch set and QC at `docs/qc/2026-05-09/ares-security-audit-patches/`.
 - 2026-05-09: Merged Harris daily probate + HCAD `Estate Of` import foundation to `main` via PR #5; Vercel preview smoke passed and Slack remains intentionally last.
 - 2026-04-30: Added Harris probate campaign launch backend slice and QC at `docs/qc/2026-04-30/harris-probate-campaign-launch/`.

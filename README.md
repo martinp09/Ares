@@ -56,6 +56,9 @@ Ares is a self-hosted operating system for distressed real-estate lead managemen
 - `GET /mission-control/dashboard`
 - `GET /mission-control/inbox`
 - `GET /mission-control/runs`
+- `POST /marketing/leads`
+- `POST /marketing/webhooks/textgrid`
+- `POST /marketing/webhooks/calcom`
 - `POST /site-events`
 - `POST /trigger/callbacks/runs/{run_id}/started`
 - `POST /trigger/callbacks/runs/{run_id}/completed`
@@ -72,6 +75,46 @@ Current implementation notes:
 - Mission Control UI now follows the approved dark industrial terminal / pixel CRT style system
 - site-event ingestion is append-only and non-blocking at the API layer
 - Production wiring is live for Supabase-backed runtime state, Trigger callbacks, Instantly reply webhooks, TextGrid SMS/status callbacks, Cal.com booking callbacks, and Resend email smoke. Evidence is in `docs/rollout-evidence/production-2026-04-25.json`.
+- Lease-options landing-page contact intake is owned by Ares through `POST /marketing/leads`; the endpoint preserves seller-fit fields, consent metadata, and attribution from the public form, returns booking/side-effect status, and keeps SMS/email/Trigger side effects gated by `PROVIDER_LIVE_SENDS_ENABLED`.
+
+## Landing Page Intake Contract
+
+External seller forms should submit contact intake server-side to `POST /marketing/leads` with `Authorization: Bearer <RUNTIME_API_KEY>`. Do not expose runtime tokens in browser code or query strings.
+
+Required request fields:
+
+- `business_id`
+- `environment`
+- `first_name`
+- `phone`
+- `property_address`
+
+Supported context fields:
+
+- `last_name`, `email`, `property_type`
+- `timeline_to_sell`, `monthly_payment_goal`, `asking_price_goal`
+- `seller_goal`, `notes`
+- `sms_consent`, `consent_page_url`, `consent_ip`, `consent_user_agent`
+- `utm_source`, `utm_medium`, `utm_campaign`, `utm_term`, `utm_content`, `lp_var`
+
+Response fields:
+
+- `lead_id`
+- `booking_status`
+- `booking_url`
+- `side_effects[]` with `name`, `status`, and optional `error_message`
+
+Safe first deploy env:
+
+```bash
+RUNTIME_API_KEY=<runtime-api-key>
+PROVIDER_LIVE_SENDS_ENABLED=false
+CAL_BOOKING_URL=<seller-review-booking-url>
+TEXTGRID_ACCOUNT_SID=<set only for live SMS readiness>
+TEXTGRID_AUTH_TOKEN=<set only for live SMS readiness>
+TEXTGRID_FROM_NUMBER=<set only for live SMS readiness>
+TEXTGRID_STATUS_CALLBACK_URL=https://<ares-runtime>/marketing/webhooks/textgrid
+```
 
 ## Local Runtime Contract
 

@@ -36,6 +36,9 @@ def test_post_marketing_leads_returns_lead_booking_shape(monkeypatch) -> None:
                 "lead_id": "lead_123",
                 "booking_status": "pending",
                 "booking_url": "https://cal.com/lease-option/lead_123",
+                "side_effects": [
+                    {"name": "confirmation_sms", "status": "skipped", "error_message": None},
+                ],
             }
 
     from app.api import marketing as marketing_api
@@ -50,9 +53,19 @@ def test_post_marketing_leads_returns_lead_booking_shape(monkeypatch) -> None:
             "business_id": "limitless",
             "environment": "dev",
             "first_name": "Maya",
-            "phone": "+15551234567",
+            "phone": "+155****4567",
             "email": "maya@example.com",
             "property_address": "123 Main St, Houston, TX",
+            "asking_price_goal": "$350,000",
+            "timeline_to_sell": "30-60 days",
+            "seller_goal": "Need a plan B after the listing stalled.",
+            "notes": "Prefers text first.",
+            "sms_consent": True,
+            "consent_page_url": "https://example.com/?utm_campaign=plan-b",
+            "utm_source": "direct-mail",
+            "utm_medium": "qr",
+            "utm_campaign": "plan-b",
+            "lp_var": "houston-unsold-v1",
         },
         headers=AUTH_HEADERS,
     )
@@ -62,8 +75,18 @@ def test_post_marketing_leads_returns_lead_booking_shape(monkeypatch) -> None:
         "lead_id": "lead_123",
         "booking_status": "pending",
         "booking_url": "https://cal.com/lease-option/lead_123",
+        "side_effects": [
+            {"name": "confirmation_sms", "status": "skipped", "error_message": None},
+        ],
     }
     assert len(stub.calls) == 1
+    assert stub.calls[0].asking_price_goal == "$350,000"
+    assert stub.calls[0].timeline_to_sell == "30-60 days"
+    assert stub.calls[0].seller_goal == "Need a plan B after the listing stalled."
+    assert stub.calls[0].notes == "Prefers text first."
+    assert stub.calls[0].sms_consent is True
+    assert stub.calls[0].utm_campaign == "plan-b"
+    assert stub.calls[0].lp_var == "houston-unsold-v1"
 
 
 def test_post_marketing_leads_rejects_invalid_payload() -> None:
@@ -93,6 +116,7 @@ def test_marketing_lead_service_uses_settings_backed_gateways_when_configured() 
             resend_api_key="re_123",
             resend_from_email="Hermes <team@example.com>",
             cal_booking_url="https://cal.com/limitless/lease-option-review",
+            provider_live_sends_enabled=True,
         )
     )
 
@@ -132,6 +156,7 @@ def test_marketing_lead_service_dispatches_configured_provider_requests() -> Non
             resend_api_key="re_123",
             resend_from_email="Hermes <team@example.com>",
             cal_booking_url="https://cal.com/limitless/lease-option-review",
+            provider_live_sends_enabled=True,
         ),
         lead_repository=StubLeadRepository(),
         request_sender=sent_requests.append,
@@ -146,6 +171,7 @@ def test_marketing_lead_service_dispatches_configured_provider_requests() -> Non
             phone="+15551234567",
             email="maya@example.com",
             property_address="123 Main St, Houston, TX",
+            sms_consent=True,
         )
     )
 
@@ -179,6 +205,128 @@ def test_marketing_lead_service_keeps_noop_gateways_without_provider_settings() 
 
     assert isinstance(service.sms_gateway, _NoopSmsGateway)
     assert isinstance(service.email_gateway, _NoopEmailGateway)
+
+
+def test_marketing_lead_service_skips_confirmation_sms_when_live_sends_disabled() -> None:
+    sent_requests: list[dict[str, object]] = []
+
+    class StubLeadRepository:
+        def upsert_lead(self, payload: LeadIntakePayload) -> str:
+            return "lead_abc123"
+
+    service = MarketingLeadService(
+        settings=Settings(
+            _env_file=None,
+            textgrid_account_sid="acct_123",
+            textgrid_auth_token="token_123",
+            textgrid_from_number="+134****5914",
+            provider_live_sends_enabled=False,
+        ),
+        lead_repository=StubLeadRepository(),
+        request_sender=sent_requests.append,
+    )
+
+    result = service.intake_lead(
+        LeadIntakePayload(
+            business_id="limitless",
+            environment="dev",
+            first_name="Maya",
+            phone="+155****4567",
+            email=None,
+            property_address="123 Main St, Houston, TX",
+            sms_consent=True,
+        )
+    )
+
+    assert sent_requests == []
+    assert result["side_effects"][0] == {
+        "name": "confirmation_sms",
+        "status": "skipped",
+        "error_message": None,
+    }
+
+
+def test_marketing_lead_service_skips_confirmation_sms_without_sms_consent() -> None:
+    sent_requests: list[dict[str, object]] = []
+
+    class StubLeadRepository:
+        def upsert_lead(self, payload: LeadIntakePayload) -> str:
+            return "lead_abc123"
+
+    service = MarketingLeadService(
+        settings=Settings(
+            _env_file=None,
+            textgrid_account_sid="acct_123",
+            textgrid_auth_token="token_123",
+            textgrid_from_number="+134****5914",
+            provider_live_sends_enabled=True,
+        ),
+        lead_repository=StubLeadRepository(),
+        request_sender=sent_requests.append,
+    )
+
+    result = service.intake_lead(
+        LeadIntakePayload(
+            business_id="limitless",
+            environment="dev",
+            first_name="Maya",
+            phone="+155****4567",
+            email=None,
+            property_address="123 Main St, Houston, TX",
+            sms_consent=False,
+        )
+    )
+
+    assert sent_requests == []
+    assert result["side_effects"][0] == {
+        "name": "confirmation_sms",
+        "status": "skipped",
+        "error_message": None,
+    }
+
+
+def test_marketing_lead_service_preserves_landing_context_in_contact_records() -> None:
+    client = InMemoryControlPlaneClient(InMemoryControlPlaneStore())
+    contacts = ContactsRepository(client)
+    service = MarketingLeadService(
+        settings=Settings(_env_file=None, provider_live_sends_enabled=False),
+        contacts=contacts,
+    )
+
+    result = service.intake_lead(
+        LeadIntakePayload(
+            business_id="limitless",
+            environment="dev",
+            first_name="Maya",
+            phone="+155****4567",
+            email="maya@example.com",
+            property_address="123 Main St, Houston, TX",
+            asking_price_goal="$350,000",
+            timeline_to_sell="30-60 days",
+            seller_goal="Need a plan B after the listing stalled.",
+            notes="Prefers text first.",
+            sms_consent=True,
+            consent_page_url="https://example.com/?utm_campaign=plan-b",
+            utm_source="direct-mail",
+            utm_medium="qr",
+            utm_campaign="plan-b",
+            lp_var="houston-unsold-v1",
+        )
+    )
+
+    lead = contacts.get_lead(result["lead_id"])
+
+    assert lead is not None
+    assert lead.asking_price_goal == "$350,000"
+    assert lead.timeline_to_sell == "30-60 days"
+    assert lead.seller_goal == "Need a plan B after the listing stalled."
+    assert lead.notes == "Prefers text first."
+    assert lead.sms_consent is True
+    assert lead.consent_page_url == "https://example.com/?utm_campaign=plan-b"
+    assert lead.utm_source == "direct-mail"
+    assert lead.utm_medium == "qr"
+    assert lead.utm_campaign == "plan-b"
+    assert lead.lp_var == "houston-unsold-v1"
 
 
 def test_settings_accepts_existing_provider_env_aliases(tmp_path) -> None:
@@ -233,7 +381,7 @@ def test_marketing_lead_service_dispatches_trigger_non_booker_check_over_http(mo
     monkeypatch.setattr(marketing_lead_service_module.request, "urlopen", fake_urlopen)
 
     service = marketing_lead_service_module.MarketingLeadService(
-        settings=Settings(_env_file=None),
+        settings=Settings(_env_file=None, provider_live_sends_enabled=True),
         lead_repository=StubLeadRepository(),
     )
 
@@ -242,9 +390,10 @@ def test_marketing_lead_service_dispatches_trigger_non_booker_check_over_http(mo
             business_id="limitless",
             environment="dev",
             first_name="Maya",
-            phone="+15551234567",
+            phone="+155****4567",
             email="maya@example.com",
             property_address="123 Main St, Houston, TX",
+            sms_consent=True,
         )
     )
 
@@ -293,10 +442,11 @@ def test_marketing_lead_service_persists_lead_even_if_provider_requests_fail(mon
             _env_file=None,
             textgrid_account_sid="acct_123",
             textgrid_auth_token="token_123",
-            textgrid_from_number="+13467725914",
+            textgrid_from_number="+134****5914",
             resend_api_key="re_123",
             resend_from_email="Hermes <team@example.com>",
             trigger_secret_key="tr_dev_123",
+            provider_live_sends_enabled=True,
         ),
         lead_repository=StubLeadRepository(),
         request_sender=fail_request,
@@ -309,9 +459,10 @@ def test_marketing_lead_service_persists_lead_even_if_provider_requests_fail(mon
             business_id="limitless",
             environment="dev",
             first_name="Maya",
-            phone="+15551234567",
+            phone="+155****4567",
             email="maya@example.com",
             property_address="123 Main St, Houston, TX",
+            sms_consent=True,
         )
     )
 
@@ -375,6 +526,7 @@ def test_configured_resend_confirmation_failure_creates_provider_failure_task() 
             _env_file=None,
             resend_api_key="re_123",
             resend_from_email="Hermes <team@example.com>",
+            provider_live_sends_enabled=True,
         ),
         lead_repository=StubLeadRepository(),
         resend_email_sender=fail_resend,
@@ -386,9 +538,10 @@ def test_configured_resend_confirmation_failure_creates_provider_failure_task() 
             business_id="limitless",
             environment="dev",
             first_name="Maya",
-            phone="+15551234567",
+            phone="+155****4567",
             email="maya@example.com",
             property_address="123 Main St, Houston, TX",
+            sms_consent=True,
         )
     )
 
@@ -431,9 +584,10 @@ def test_marketing_lead_service_logs_provider_message_ids_for_status_callbacks()
             _env_file=None,
             textgrid_account_sid="acct_123",
             textgrid_auth_token="token_123",
-            textgrid_from_number="+13467725914",
+            textgrid_from_number="+134****5914",
             resend_api_key="re_123",
             resend_from_email="Hermes <team@example.com>",
+            provider_live_sends_enabled=True,
         ),
         lead_repository=StubLeadRepository(),
         request_sender=fake_request_send,
@@ -449,9 +603,10 @@ def test_marketing_lead_service_logs_provider_message_ids_for_status_callbacks()
             business_id="limitless",
             environment="dev",
             first_name="Maya",
-            phone="+15551234567",
+            phone="+155****4567",
             email="maya@example.com",
             property_address="123 Main St, Houston, TX",
+            sms_consent=True,
         )
     )
 
