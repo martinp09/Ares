@@ -1,0 +1,40 @@
+{
+  "deployment": "https://production-readiness-afternoon-9adxg1gvb.vercel.app",
+  "target": "vercel-preview",
+  "commands": [
+    "vercel link --yes --project production-readiness-afternoon",
+    "vercel --yes",
+    "vercel curl /health --deployment https://production-readiness-afternoon-9adxg1gvb.vercel.app",
+    "vercel curl /lead-machine/harris/daily-import --deployment https://production-readiness-afternoon-9adxg1gvb.vercel.app -- --request POST ..."
+  ],
+  "health": {
+    "status": "ok"
+  },
+  "protected_no_auth_response": {
+    "detail": "Unauthorized"
+  },
+  "daily_import_dry_run": true,
+  "counts": {
+    "probate_received": 1,
+    "probate_keep_now": 1,
+    "probate_bridged": 0,
+    "estate_of_received": 1,
+    "estate_of_candidates": 1,
+    "estate_of_imported": 0,
+    "provider_send_count": 0,
+    "qc_warning_count": 0
+  },
+  "notifications": [
+    {
+      "type": "daily_digest",
+      "status": "skipped_missing_token",
+      "reason": "SLACK_BOT_TOKEN is not configured; import completed without Slack post."
+    }
+  ],
+  "result": "passed",
+  "notes": [
+    "Preview deployment is Vercel-protected; smoke used authenticated `vercel curl`.",
+    "No live provider sends occurred.",
+    "Slack remains intentionally unwired and skipped."
+  ]
+}

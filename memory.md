@@ -27,8 +27,8 @@
 
 ## Current Direction
 
-- `/root/Ares-inspect` on `feat/harris-daily-lead-machine-foundation` is the current active slice checkout; production wiring remains untouched.
-- `POST /lead-machine/harris/daily-import` is implemented locally for Harris daily probate + HCAD `Estate Of` imports; it defaults to dry-run, records QC warnings, and never sends providers/Slack.
+- `/root/Ares-inspect` is on `main`; Harris daily lead-machine foundation merged via PR #5 at `1abcff0` and production wiring remains untouched.
+- `POST /lead-machine/harris/daily-import` is implemented for Harris daily probate + HCAD `Estate Of` imports; it defaults to dry-run, records QC warnings, and never sends providers/Slack.
 - CRM control-plane work has been merged to `origin/main`.
 - CRM control-plane draft spec: `docs/superpowers/specs/2026-04-25-ares-crm-control-plane-design.md`.
 - CRM control-plane roadmap: `docs/superpowers/plans/2026-04-25-ares-crm-control-plane-roadmap.md`.
@@ -185,18 +185,17 @@
 
 ## Open Work
 
-1. open PR/merge `feat/harris-daily-lead-machine-foundation` after operator review; branch is pushed to origin
-2. wire real Slack daily digest delivery only after Slack bot token and target channel config are available
-3. deploy/smoke the Harris daily import branch only after Vercel auth is available
-4. add dedicated Mission Control frontend campaign-launch review page for the Harris probate HOT/WARM/COLD API contract
-5. enrich Harris probate campaign exports with email/phone before any Instantly/TextGrid enrollment; current source artifact is direct-mail-ready only
-6. consider an atomic backend bulk-record endpoint if large batch throughput/transaction semantics become necessary; current Records bulk UI fans out through real single-record command callbacks
-7. defer owner/property graph, research cockpit, and map UI until Records and stage model are stable
-8. add explicit canonical source-lane metadata for CRM records before broadening promote routing beyond probate/lease-option lanes
-9. preserve production evidence files as the handoff source of truth
-10. optionally replace the REST rollback bundle with native pg_dump once Supabase CLI container DNS is fixed
-11. add production monitoring/alerts for provider callback failures
-12. keep browser acquisition and ambiguous research in Hermes or other driver agents, not inside Ares
+1. wire real Slack daily digest delivery only after Slack bot token and target channel config are available
+2. run a dedicated production promotion only when intentionally preserving/updating production runtime/provider env wiring
+3. add dedicated Mission Control frontend campaign-launch review page for the Harris probate HOT/WARM/COLD API contract
+4. enrich Harris probate campaign exports with email/phone before any Instantly/TextGrid enrollment; current source artifact is direct-mail-ready only
+5. consider an atomic backend bulk-record endpoint if large batch throughput/transaction semantics become necessary; current Records bulk UI fans out through real single-record command callbacks
+6. defer owner/property graph, research cockpit, and map UI until Records and stage model are stable
+7. add explicit canonical source-lane metadata for CRM records before broadening promote routing beyond probate/lease-option lanes
+8. preserve production evidence files as the handoff source of truth
+9. optionally replace the REST rollback bundle with native pg_dump once Supabase CLI container DNS is fixed
+10. add production monitoring/alerts for provider callback failures
+11. keep browser acquisition and ambiguous research in Hermes or other driver agents, not inside Ares
 
 ## Completed Branch Work
 
@@ -211,9 +210,10 @@
 
 - Added local Ares runtime foundation for Harris daily probate + HCAD `Estate Of` imports at `POST /lead-machine/harris/daily-import`.
 - Daily import defaults to dry-run, can persist CRM records/source records/memberships when `dry_run=false`, forwards probate HCAD candidates, records structured QC warnings, and preserves `provider_send_count=0`.
-- Added Slack readiness config fields without live Slack posting; Slack delivery is blocked until token/channel config exists. Vercel deploy/hosted smoke is blocked until auth exists.
+- Added Slack readiness config fields without live Slack posting; Slack delivery is blocked until token/channel config exists. Hosted Vercel preview smoke passed after auth became available; production promotion remains a separate env-preserving handoff.
 - Added Trigger endpoint key/types and `harris-daily-import` task wrapper; QC evidence lives under `docs/qc/2026-05-09/harris-daily-lead-machine-foundation/`.
 - Verification passed: `git diff --check`, focused service/API/Trigger contract tests (`22 passed`), full backend pytest (`613 passed`), and `npm --prefix trigger run typecheck`.
+- GitHub/Vercel auth became available; PR #5 was squash-merged to `main` at `1abcff0`, and Vercel preview smoke passed at `https://production-readiness-afternoon-9adxg1gvb.vercel.app` with authenticated `vercel curl`, dry-run import, `provider_send_count=0`, and Slack `skipped_missing_token`.
 
 ### 2026-04-30 Harris Probate Campaign Launch Slice
 

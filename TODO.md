@@ -1,10 +1,10 @@
 ---
 title: "Ares TODO / Handoff"
 status: active
-updated_at: "2026-05-09T06:16:00Z"
+updated_at: "2026-05-09T13:35:00Z"
 repo: "martinp09/Ares"
 local_checkout: "/root/Ares-inspect"
-current_branch: "feat/harris-daily-lead-machine-foundation"
+current_branch: "main"
 production_wiring_commit: "47be904"
 ---
 
@@ -12,7 +12,7 @@ production_wiring_commit: "47be904"
 
 ## Current status
 
-Ares production wiring remains live for the controlled operator rollout. The current local branch adds the Harris daily probate + HCAD `Estate Of` lead-machine foundation and has not been deployed.
+Ares production wiring remains live for the controlled operator rollout. The Harris daily probate + HCAD `Estate Of` lead-machine foundation is merged to `main`; hosted preview smoke passed without Slack or provider sends.
 
 Live production evidence:
 
@@ -26,8 +26,8 @@ Live production evidence:
 Known caveats:
 
 - Native `pg_dump` backup is not captured because the Supabase CLI container could not resolve the Supabase DB host from Colima. A REST table-export rollback bundle exists instead.
-- Slack digest delivery for the Harris daily import is blocked until `SLACK_BOT_TOKEN` and target channels are available.
-- Vercel deployment/hosted smoke for the Harris daily import branch is blocked until Vercel auth is available.
+- Slack digest delivery for the Harris daily import is intentionally last and blocked until `SLACK_BOT_TOKEN` plus target channels are available.
+- Production promotion for the Harris daily import should be a dedicated handoff that preserves the production runtime/provider env contract; preview smoke passed at `https://production-readiness-afternoon-9adxg1gvb.vercel.app`.
 
 ## Current product slice
 
@@ -42,9 +42,10 @@ Known caveats:
 - [done] Add Trigger runtime endpoint/types and `harris-daily-import` task wrapper.
 - [done] Save QC evidence at `docs/qc/2026-05-09/harris-daily-lead-machine-foundation/`.
 - [done] Commit and push `feat/harris-daily-lead-machine-foundation` to origin.
-- [ ] Open PR/merge after operator review.
+- [done] Open and merge PR #5 to `main`.
+- [done] Deploy and smoke a hosted Vercel preview using authenticated `vercel curl`.
 - [ ] Wire real Slack digest delivery only after Slack token/channels are available.
-- [ ] Deploy/smoke hosted runtime only after Vercel auth is available.
+- [ ] Run dedicated production promotion only when intentionally preserving/updating production runtime/provider env wiring.
 
 ### 1. Harris probate outreach campaign
 
@@ -86,4 +87,4 @@ npm --prefix apps/mission-control run test -- --run
 npm --prefix apps/mission-control run build
 ```
 
-For the current backend/Trigger-only branch, completed verification is recorded in `docs/qc/2026-05-09/harris-daily-lead-machine-foundation/`.
+For the Harris daily backend/Trigger slice, completed verification is recorded in `docs/qc/2026-05-09/harris-daily-lead-machine-foundation/`.

@@ -1,0 +1,19 @@
+Command:
+HOME=/root XDG_CONFIG_HOME=/root/.config vercel link --yes --project production-readiness-afternoon
+HOME=/root XDG_CONFIG_HOME=/root/.config vercel --yes
+
+Output summary:
+Linked to martins-projects-9600e79e/production-readiness-afternoon.
+Deploying martins-projects-9600e79e/production-readiness-afternoon.
+Inspect: https://vercel.com/martins-projects-9600e79e/production-readiness-afternoon/ATfDnAT1PvWcXdSDvSQ34APVKBWK
+Preview: https://production-readiness-afternoon-9adxg1gvb.vercel.app
+Build: Ready / completed successfully.
+Vercel build details:
+- Region: Washington, D.C., USA (iad1)
+- Python: 3.12 from .python-version
+- uv: 0.10.11
+- Virtualenv: /vercel/path0/.vercel/python/.venv
+- Build completed in /vercel/output
+
+Note:
+This was a preview deployment only. It did not promote/alias the production URL.
