@@ -216,6 +216,7 @@ export function RecordsPage({ data, actionState, onRecordStatusChange, onRecordS
           <button
             type="button"
             key={view.id}
+            aria-label={`${view.name} ${data.records.filter((record) => savedViewMatches(record, view)).length}`}
             className={`record-tab${selectedSavedView?.id === view.id ? " record-tab--active" : ""}`}
             onClick={() => {
               setActiveSavedViewId(view.id);

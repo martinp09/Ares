@@ -11,7 +11,32 @@ DEFAULT_INTERNAL_ACTOR_TYPE = "service"
 
 class Settings(BaseSettings):
     app_name: str = "Ares Runtime"
-    runtime_api_key: str = "dev-runtime-key"
+    runtime_api_key: str | None = Field(
+        default=None,
+        validation_alias=AliasChoices("runtime_api_key", "RUNTIME_API_KEY"),
+    )
+    runtime_docs_enabled: bool = Field(
+        default=False,
+        validation_alias=AliasChoices("runtime_docs_enabled", "RUNTIME_DOCS_ENABLED"),
+    )
+    runtime_actor_header_overrides_enabled: bool = Field(
+        default=False,
+        validation_alias=AliasChoices(
+            "runtime_actor_header_overrides_enabled",
+            "RUNTIME_ACTOR_HEADER_OVERRIDES_ENABLED",
+        ),
+    )
+    provider_webhook_signatures_required: bool = Field(
+        default=True,
+        validation_alias=AliasChoices(
+            "provider_webhook_signatures_required",
+            "PROVIDER_WEBHOOK_SIGNATURES_REQUIRED",
+        ),
+    )
+    provider_live_sends_enabled: bool = Field(
+        default=False,
+        validation_alias=AliasChoices("provider_live_sends_enabled", "PROVIDER_LIVE_SENDS_ENABLED"),
+    )
     default_org_id: str = DEFAULT_INTERNAL_ORG_ID
     default_actor_id: str = DEFAULT_INTERNAL_ACTOR_ID
     default_actor_type: Literal["user", "service", "system"] = DEFAULT_INTERNAL_ACTOR_TYPE

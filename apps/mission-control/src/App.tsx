@@ -377,8 +377,8 @@ function fallbackAgentDetailForSnapshot(
 }
 
 export default function App() {
-  const [activeWorkspace, setActiveWorkspace] = useState<WorkspaceId>("pipeline");
-  const [activeView, setActiveView] = useState<MissionControlView>("pipeline");
+  const [activeWorkspace, setActiveWorkspace] = useState<WorkspaceId>("lead-machine");
+  const [activeView, setActiveView] = useState<MissionControlView>("agents");
   const [searchValue, setSearchValue] = useState("");
   const [snapshot, setSnapshot] = useState<MissionControlSnapshot>(missionControlFixtures);
   const [catalogEntries, setCatalogEntries] = useState<CatalogEntrySummary[]>([]);
@@ -1702,22 +1702,23 @@ export default function App() {
     throw new Error(`Missing page definition for ${activeWorkspace}:${activeView}`);
   }
 
-  const fallbackLabel = fallbackViews.length > 0 ? ` (${fallbackViews.join(", ")})` : "";
-  const isFullFixtureMode = fallbackViews.length === 9;
+  const visibleFallbackViews = fallbackViews.filter((viewId) => viewId !== "pipeline" || activeWorkspace === "pipeline");
+  const fallbackLabel = visibleFallbackViews.length > 0 ? ` (${visibleFallbackViews.join(", ")})` : "";
+  const isFullFixtureMode = visibleFallbackViews.length === 9;
   const statusBadge = isLoading
     ? "Loading shell"
-    : dataSource === "api"
+    : visibleFallbackViews.length === 0
       ? "Live API"
       : isFullFixtureMode
         ? "Fixture mode"
         : `API + fixture fallback${fallbackLabel}`;
   const footerNote = isLoading
     ? "Collecting Mission Control surfaces..."
-    : dataSource === "api"
+    : visibleFallbackViews.length === 0
       ? "Mission Control is reading Hermes runtime data."
       : isFullFixtureMode
         ? "Using local fixtures until the native read-model endpoints are wired."
-        : `Using fixture fallback for: ${fallbackViews.join(", ")}.`;
+        : `Using fixture fallback for: ${visibleFallbackViews.join(", ")}.`;
   const scopeControls = (
     <OrgSwitcher
       orgs={organizationOptions.map((organization) => ({

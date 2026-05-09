@@ -1,0 +1,45 @@
+# mission-control-tests
+# command: npm --prefix apps/mission-control run test -- --run
+# started: 2026-05-09T15:53:35Z
+
+> @hermes/mission-control@0.1.0 test
+> vitest --run
+
+
+[1m[30m[46m RUN [49m[39m[22m [36mv4.1.5 [39m[90m/root/Ares-inspect/apps/mission-control[39m
+
+ [32m✓[39m src/pages/PipelinePage.test.tsx [2m([22m[2m3 tests[22m[2m)[22m[33m 416[2mms[22m[39m
+ [32m✓[39m src/pages/RecordsPage.test.tsx [2m([22m[2m5 tests[22m[2m)[22m[33m 769[2mms[22m[39m
+ [32m✓[39m src/pages/AgentDetailPage.test.tsx [2m([22m[2m4 tests[22m[2m)[22m[33m 385[2mms[22m[39m
+     [33m[2m✓[22m[39m renders a read-only lifecycle page from typed detail data [33m 307[2mms[22m[39m
+ [32m✓[39m src/pages/AgentsPage.test.tsx [2m([22m[2m2 tests[22m[2m)[22m[33m 399[2mms[22m[39m
+     [33m[2m✓[22m[39m renders the agent spotlight, adjacent operator views, and registry from fixture data [33m 381[2mms[22m[39m
+ [32m✓[39m src/components/MissionControlShell.test.tsx [2m([22m[2m2 tests[22m[2m)[22m[32m 294[2mms[22m[39m
+ [32m✓[39m src/pages/CatalogPage.test.tsx [2m([22m[2m3 tests[22m[2m)[22m[32m 259[2mms[22m[39m
+ [32m✓[39m src/App.test.tsx [2m([22m[2m23 tests[22m[2m)[22m[33m 3620[2mms[22m[39m
+     [33m[2m✓[22m[39m refetches inbox detail when the operator selects a different conversation [33m 496[2mms[22m[39m
+     [33m[2m✓[22m[39m opens the read-only agent lifecycle page from the agents-first workspace [33m 315[2mms[22m[39m
+     [33m[2m✓[22m[39m applies org scope first, keeps business and environment as secondary filters, and clears stale selections on scope changes [33m 307[2mms[22m[39m
+ [32m✓[39m src/pages/UsagePage.test.tsx [2m([22m[2m1 test[22m[2m)[22m[32m 152[2mms[22m[39m
+ [32m✓[39m src/pages/IntakePage.test.tsx [2m([22m[2m1 test[22m[2m)[22m[32m 202[2mms[22m[39m
+ [32m✓[39m src/components/OrgSwitcher.test.tsx [2m([22m[2m1 test[22m[2m)[22m[32m 214[2mms[22m[39m
+ [32m✓[39m src/pages/SuppressionPage.test.tsx [2m([22m[2m1 test[22m[2m)[22m[32m 179[2mms[22m[39m
+ [32m✓[39m src/components/UsagePanel.test.tsx [2m([22m[2m2 tests[22m[2m)[22m[32m 184[2mms[22m[39m
+ [32m✓[39m src/pages/SecretsPage.test.tsx [2m([22m[2m1 test[22m[2m)[22m[32m 171[2mms[22m[39m
+ [32m✓[39m src/pages/TurnsPage.test.tsx [2m([22m[2m1 test[22m[2m)[22m[32m 153[2mms[22m[39m
+ [32m✓[39m src/components/AuditTimeline.test.tsx [2m([22m[2m2 tests[22m[2m)[22m[32m 162[2mms[22m[39m
+ [32m✓[39m src/pages/AuditPage.test.tsx [2m([22m[2m1 test[22m[2m)[22m[32m 172[2mms[22m[39m
+ [32m✓[39m src/pages/DashboardPage.test.tsx [2m([22m[2m2 tests[22m[2m)[22m[32m 85[2mms[22m[39m
+ [32m✓[39m src/components/SecretHealthPanel.test.tsx [2m([22m[2m3 tests[22m[2m)[22m[32m 65[2mms[22m[39m
+ [32m✓[39m src/pages/SettingsPage.test.tsx [2m([22m[2m1 test[22m[2m)[22m[32m 54[2mms[22m[39m
+ [32m✓[39m src/pages/TasksPage.test.tsx [2m([22m[2m2 tests[22m[2m)[22m[32m 57[2mms[22m[39m
+ [32m✓[39m src/pages/InboxPage.test.tsx [2m([22m[2m1 test[22m[2m)[22m[32m 42[2mms[22m[39m
+ [32m✓[39m src/lib/api.test.ts [2m([22m[2m10 tests[22m[2m)[22m[32m 28[2mms[22m[39m
+
+[2m Test Files [22m [1m[32m22 passed[39m[22m[90m (22)[39m
+[2m      Tests [22m [1m[32m72 passed[39m[22m[90m (72)[39m
+[2m   Start at [22m 15:53:35
+[2m   Duration [22m 11.10s[2m (transform 975ms, setup 1.41s, import 2.94s, tests 8.06s, environment 16.78s)[22m
+
+# exit_code: 0
+# finished: 2026-05-09T15:53:46Z

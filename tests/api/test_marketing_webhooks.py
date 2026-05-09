@@ -162,6 +162,39 @@ def test_inbound_sms_service_rejects_invalid_textgrid_signature() -> None:
         raise AssertionError("Expected invalid signature to raise")
 
 
+def test_booking_service_requires_calcom_secret_when_signatures_required() -> None:
+    service = BookingService(settings=Settings(provider_webhook_signatures_required=True, cal_webhook_secret=None))
+
+    try:
+        service.handle_calcom_webhook(
+            {
+                "triggerEvent": "BOOKING_CREATED",
+                "payload": {"booking": {"uid": "book_1", "metadata": {"lead_id": "lead_1"}}},
+            },
+            signature=None,
+            raw_body=b"{}",
+        )
+    except ValueError as exc:
+        assert str(exc) == "Cal.com webhook secret is required"
+    else:
+        raise AssertionError("Expected missing Cal.com secret to raise")
+
+
+def test_inbound_sms_service_requires_textgrid_secret_when_signatures_required() -> None:
+    service = InboundSmsService(settings=Settings(provider_webhook_signatures_required=True, textgrid_webhook_secret=None))
+
+    try:
+        service.handle_textgrid_webhook(
+            {"From": "+155****4567", "To": "+155****4321", "Body": "stop"},
+            signature=None,
+            request_url="https://runtime.example.com/marketing/webhooks/textgrid",
+        )
+    except ValueError as exc:
+        assert str(exc) == "Invalid TextGrid webhook signature"
+    else:
+        raise AssertionError("Expected missing TextGrid secret to raise")
+
+
 def test_sequence_step_and_manual_call_task_use_live_repositories() -> None:
     class StubRequestSender:
         def __init__(self) -> None:

@@ -1,6 +1,6 @@
 from fastapi import Depends, FastAPI, Request
 from fastapi.exceptions import RequestValidationError
-from fastapi.encoders import jsonable_encoder
+from fastapi.openapi.docs import get_redoc_html, get_swagger_ui_html
 from fastapi.responses import JSONResponse
 
 from app.api.ares import router as ares_router
@@ -29,23 +29,58 @@ from app.api.site_events import router as site_events_router
 from app.api.audit import router as audit_router
 from app.api.usage import router as usage_router
 from app.api.trigger_callbacks import router as trigger_callbacks_router
-from app.core.config import Settings
+from app.core.config import Settings, get_settings
 from app.core.dependencies import runtime_api_key_dependency, settings_dependency
 from app.services.ares_autonomous_operator_service import autonomous_operator_service
 
 
 def create_app() -> FastAPI:
-    app = FastAPI(title="Ares Runtime")
+    settings = get_settings()
+    app = FastAPI(
+        title="Ares Runtime",
+        docs_url=None,
+        redoc_url=None,
+        openapi_url=None,
+    )
     autonomous_operator_service.initialize_surface()
 
     protected_dependencies = [Depends(runtime_api_key_dependency)]
+
+    if settings.runtime_docs_enabled:
+
+        @app.get("/openapi.json", include_in_schema=False, dependencies=protected_dependencies)
+        def protected_openapi() -> dict[str, object]:
+            return app.openapi()
+
+        @app.get("/docs", include_in_schema=False, dependencies=protected_dependencies)
+        def protected_docs():  # type: ignore[no-untyped-def]
+            return get_swagger_ui_html(openapi_url="/openapi.json", title="Ares Runtime - Swagger UI")
+
+        @app.get("/redoc", include_in_schema=False, dependencies=protected_dependencies)
+        def protected_redoc():  # type: ignore[no-untyped-def]
+            return get_redoc_html(openapi_url="/openapi.json", title="Ares Runtime - ReDoc")
+
+    @app.middleware("http")
+    async def security_headers_middleware(request: Request, call_next):  # type: ignore[no-untyped-def]
+        response = await call_next(request)
+        response.headers.setdefault("X-Content-Type-Options", "nosniff")
+        response.headers.setdefault("X-Frame-Options", "DENY")
+        response.headers.setdefault("Referrer-Policy", "no-referrer")
+        response.headers.setdefault("Permissions-Policy", "camera=(), microphone=(), geolocation=()")
+        return response
 
     @app.exception_handler(RequestValidationError)
     async def request_validation_exception_handler(
         _request: Request,
         exc: RequestValidationError,
     ) -> JSONResponse:
-        return JSONResponse(status_code=422, content={"detail": jsonable_encoder(exc.errors())})
+        safe_errors = []
+        for error in exc.errors():
+            redacted = dict(error)
+            redacted.pop("input", None)
+            redacted.pop("ctx", None)
+            safe_errors.append(redacted)
+        return JSONResponse(status_code=422, content={"detail": safe_errors})
 
     app.include_router(commands_router, dependencies=protected_dependencies)
     app.include_router(approvals_router, dependencies=protected_dependencies)

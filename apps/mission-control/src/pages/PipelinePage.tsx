@@ -270,7 +270,7 @@ export function PipelinePage({
                         <span>{record?.propertyAddress ?? record?.mailingAddress ?? opportunity.leadId ?? opportunity.contactId}</span>
                         <div className="opportunity-card__meta">
                           <span>{opportunityValue(opportunity)}</span>
-                          <span>{formatStageLabel(opportunity.titleStatus)}</span>
+                          <span>Title: {formatStageLabel(opportunity.titleStatus)}</span>
                         </div>
                         <small>{opportunityNextAction(opportunity)}</small>
                       </button>
@@ -278,7 +278,7 @@ export function PipelinePage({
                   })}
                   {stageOpportunities.length === 0 ? (
                     <div className="pipeline-column__empty">
-                      <span>{formatStageLabel(stage)}</span>
+                      <span>Empty: {formatStageLabel(stage)}</span>
                       <p>Ready for the next qualified handoff.</p>
                     </div>
                   ) : null}
@@ -353,7 +353,7 @@ export function PipelinePage({
                   <select value={targetStage} onChange={(event) => setTargetStage(event.target.value)}>
                     {stageOptions.map((stage) => (
                       <option key={stage} value={stage}>
-                        {formatStageLabel(stage)}
+                        Move to {formatStageLabel(stage)}
                       </option>
                     ))}
                   </select>

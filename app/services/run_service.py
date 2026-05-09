@@ -9,11 +9,12 @@ from app.services.agent_execution_service import agent_execution_service as defa
 from app.services.runtime_observability_service import runtime_observability_service
 import shutil
 from pathlib import Path
+from tempfile import gettempdir
 
 
 def reset_control_plane_state() -> None:
     reset_control_plane_store(STORE)
-    runtime_root = Path("/tmp/ares-runtime")
+    runtime_root = Path(gettempdir()) / "ares-runtime"
     if runtime_root.exists():
         shutil.rmtree(runtime_root)
 

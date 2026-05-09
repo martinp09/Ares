@@ -1,3 +1,4 @@
+from app.core.config import Settings
 from app.db.automation_runs import AutomationRunsRepository
 from app.db.campaign_memberships import CampaignMembershipsRepository
 from app.db.campaigns import CampaignsRepository
@@ -143,6 +144,29 @@ def test_intake_probate_cases_applies_upstream_overlays_before_keep_filtering() 
     assert probate_lead.tax_delinquent is True
     assert probate_lead.estate_of is True
     assert probate_lead.pain_stack == {"estate_of": True, "tax_delinquent": True}
+
+
+def test_enqueue_probate_leads_requires_live_send_gate() -> None:
+    class StubOutboundService:
+        def enqueue_leads(self, _request):
+            raise AssertionError("outbound provider service should not run when live sends are disabled")
+
+    service = ProbateWritePathService(
+        settings=Settings(provider_live_sends_enabled=False),
+        outbound_service=StubOutboundService(),
+    )
+
+    try:
+        service.enqueue_probate_leads(
+            business_id="limitless",
+            environment="dev",
+            lead_ids=["lead_123"],
+            campaign_id="camp_123",
+        )
+    except RuntimeError as exc:
+        assert str(exc) == "PROVIDER_LIVE_SENDS_ENABLED must be true before outbound provider enrollment"
+    else:
+        raise AssertionError("Expected live-send gate to raise")
 
 
 def test_enqueue_probate_leads_records_runs_and_memberships() -> None:

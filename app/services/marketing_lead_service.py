@@ -224,7 +224,7 @@ class _TriggerHttpScheduler:
             },
             method="POST",
         )
-        with request.urlopen(req, timeout=5):
+        with request.urlopen(req, timeout=5):  # nosec B310
             return None
 
 
@@ -339,7 +339,7 @@ def _default_request_sender(outbound_request: dict[str, Any]) -> None:
         headers=headers,
         method="POST",
     )
-    with request.urlopen(req, timeout=10) as response:
+    with request.urlopen(req, timeout=10) as response:  # nosec B310
         response_body = response.read()
     if not response_body:
         return None

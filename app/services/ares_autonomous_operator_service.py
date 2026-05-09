@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from collections.abc import Callable, Iterable, Mapping
 from pathlib import Path
+from tempfile import gettempdir
 from typing import Any, Literal
 from uuid import uuid4
 
@@ -71,7 +72,7 @@ class AresAutonomousOperatorService:
         runtime_root: Path | None = None,
     ) -> None:
         self._agent_registry = agent_registry_service or AresAgentRegistryService()
-        self._runtime_root = runtime_root or Path("/tmp/ares-runtime")
+        self._runtime_root = runtime_root or Path(gettempdir()) / "ares-runtime"
         self._memory_service_factory = memory_service_factory or self._default_memory_service_factory
         self._eval_loop_service_factory = eval_loop_service_factory or self._default_eval_loop_service_factory
 

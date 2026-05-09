@@ -1,0 +1,31 @@
+# Keep Docker/build contexts from accidentally carrying local secrets or heavy artifacts.
+.git/
+.env
+.env.*
+*.env
+!.env.example
+.vercel/
+
+# Python/local caches
+.venv/
+venv/
+__pycache__/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+*.pyc
+*.pyo
+
+# Node/build outputs
+node_modules/
+apps/mission-control/node_modules/
+trigger/node_modules/
+dist/
+build/
+coverage/
+*.tsbuildinfo
+
+# Local/editor artifacts
+.DS_Store
+.worktrees/
+scripts/ralph/last-message.txt

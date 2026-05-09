@@ -10,17 +10,14 @@ const runtimeApiBaseUrl =
 const runtimeApiKey = env.RUNTIME_API_KEY ?? env.HERMES_RUNTIME_API_KEY;
 
 function runtimeProxy(runtimeApiBaseUrl: string, runtimeApiKey?: string): ProxyOptions {
-  return {
+  const options: ProxyOptions = {
     target: runtimeApiBaseUrl,
     changeOrigin: true,
-    configure(proxy) {
-      proxy.on("proxyReq", (proxyReq) => {
-        if (runtimeApiKey) {
-          proxyReq.setHeader("Authorization", `Bearer ${runtimeApiKey}`);
-        }
-      });
-    },
   };
+  if (runtimeApiKey) {
+    options.headers = { Authorization: `Bearer ${runtimeApiKey}` };
+  }
+  return options;
 }
 
 export default defineConfig({

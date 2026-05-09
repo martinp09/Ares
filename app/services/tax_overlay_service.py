@@ -317,7 +317,7 @@ def _default_post(url: str, data: dict[str, str]) -> str:
         },
         method="POST",
     )
-    with urllib.request.urlopen(request, timeout=20) as response:  # noqa: S310 - public county tax portal
+    with urllib.request.urlopen(request, timeout=20) as response:  # noqa: S310 - public county tax portal  # nosec B310
         return response.read().decode("utf-8", errors="replace")
 
 

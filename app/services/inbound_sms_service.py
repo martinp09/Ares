@@ -146,7 +146,7 @@ class _DefaultTextgridWebhookAdapter:
         request_url: str | None = None,
     ) -> bool:
         if not self.settings.textgrid_webhook_secret:
-            return True
+            return not self.settings.provider_webhook_signatures_required
         if not request_url:
             return False
         return verify_webhook_signature(
@@ -536,6 +536,8 @@ class InboundSmsService:
         lead = self.contacts.get_lead(request.lead_id)
         if lead is None:
             return {"message_id": f"msg_{request.lead_id}_{request.day}_{request.channel}", "channel": request.channel, "status": "queued"}
+        if not self.settings.provider_live_sends_enabled:
+            return {"message_id": f"msg_{request.lead_id}_{request.day}_{request.channel}", "channel": request.channel, "status": "dry_run"}
         if request.channel == "sms":
             if not (
                 self.settings.textgrid_account_sid
@@ -788,7 +790,7 @@ def _default_request_sender(outbound_request: dict[str, Any]) -> Any:
         headers=headers,
         method="POST",
     )
-    with request.urlopen(req, timeout=10) as response:
+    with request.urlopen(req, timeout=10) as response:  # nosec B310
         response_body = response.read()
     if not response_body:
         return None

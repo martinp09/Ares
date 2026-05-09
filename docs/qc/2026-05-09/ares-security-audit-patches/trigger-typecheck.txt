@@ -1,0 +1,9 @@
+# trigger-typecheck
+# command: npm --prefix trigger run typecheck
+# started: 2026-05-09T15:53:30Z
+
+> typecheck
+> tsc --noEmit -p tsconfig.json
+
+# exit_code: 0
+# finished: 2026-05-09T15:53:31Z

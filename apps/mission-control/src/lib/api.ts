@@ -626,7 +626,6 @@ export interface MissionControlApi {
 
 export interface MissionControlApiOptions {
   baseUrl?: string;
-  runtimeApiKey?: string;
   fetchImpl?: typeof fetch;
   orgId?: string;
   businessId?: string;
@@ -2339,10 +2338,6 @@ async function requestJson<T>(
     headers[key] = value;
   });
 
-  if (options.runtimeApiKey) {
-    headers.Authorization = `Bearer ${options.runtimeApiKey}`;
-  }
-
   if (options.orgId) {
     headers["X-Ares-Org-Id"] = options.orgId;
   }
@@ -2376,7 +2371,6 @@ export function createMissionControlApi(
 ): MissionControlApi {
   const resolvedOptions: MissionControlApiOptions = {
     baseUrl: options.baseUrl ?? defaultBaseUrl,
-    runtimeApiKey: options.runtimeApiKey,
     fetchImpl: options.fetchImpl,
     orgId: options.orgId,
     businessId: options.businessId,

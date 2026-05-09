@@ -15,8 +15,16 @@ function getRuntimeApiBaseUrl(): string {
   return rawBaseUrl.endsWith("/") ? rawBaseUrl.slice(0, -1) : rawBaseUrl;
 }
 
-function getRuntimeApiKey(explicitApiKey?: string): string | undefined {
-  return explicitApiKey ?? process.env.HERMES_RUNTIME_API_KEY ?? process.env.RUNTIME_API_KEY;
+function getRuntimeApiKey(explicitApiKey?: string): string {
+  const apiKey = explicitApiKey ?? process.env.HERMES_RUNTIME_API_KEY ?? process.env.RUNTIME_API_KEY;
+
+  if (!apiKey) {
+    throw new Error(
+      "Missing HERMES_RUNTIME_API_KEY (or RUNTIME_API_KEY) environment variable."
+    );
+  }
+
+  return apiKey;
 }
 
 export async function invokeRuntimeApi<TResponse, TPayload = unknown>(
@@ -32,9 +40,7 @@ export async function invokeRuntimeApi<TResponse, TPayload = unknown>(
     "content-type": "application/json"
   };
 
-  if (apiKey) {
-    headers.authorization = `Bearer ${apiKey}`;
-  }
+  headers.authorization = `Bearer ${apiKey}`;
 
   const response = await fetch(`${baseUrl}${normalizedPath}`, {
     method: "POST",
