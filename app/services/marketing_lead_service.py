@@ -626,6 +626,8 @@ class MarketingLeadService:
 
     @staticmethod
     def _build_operator_notifier(settings: Settings, *, request_sender: RequestSender) -> OperatorNotifier:
+        if not settings.provider_live_sends_enabled:
+            return _NoopOperatorNotifier()
         channel = settings.slack_channel_intake or settings.slack_channel_leads
         if settings.slack_bot_token and channel:
             return _ConfiguredSlackOperatorNotifier(

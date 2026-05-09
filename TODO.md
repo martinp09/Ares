@@ -1,7 +1,7 @@
 ---
 title: "Ares TODO / Handoff"
 status: active
-updated_at: "2026-05-09T22:10:00Z"
+updated_at: "2026-05-09T22:25:23Z"
 repo: "martinp09/Ares"
 local_checkout: "/root/Ares-inspect"
 current_branch: "feat/landing-ares-intake-sms-agent"
@@ -41,9 +41,9 @@ Known caveats:
 - [done] Return `side_effects` so the landing page can show/log whether confirmation SMS/email/Trigger work was queued, skipped, or failed.
 - [done] Add TextGrid confirmation SMS with E.164 normalization, booking link, and STOP language.
 - [done] Add Resend confirmation email using the same booking link copy.
-- [done] Add server-side Slack `chat.postMessage` intake notifier scaffold with safe no-op when token/channel are missing.
-- [done] Add Cal.com `starts_at` preservation plus Trigger-backed 24h/1h appointment reminder scheduling and `/marketing/internal/appointment-reminder` dispatch.
-- [done] Gate confirmation SMS/email, appointment reminders, and non-booker Trigger scheduling behind `PROVIDER_LIVE_SENDS_ENABLED`; first deploy remains no-live-send by default.
+- [done] Add server-side Slack `chat.postMessage` intake notifier scaffold with safe no-op when live sends are disabled or token/channel are missing.
+- [done] Add Cal.com `starts_at` preservation plus Trigger-backed 24h/1h appointment reminder scheduling and `/marketing/internal/appointment-reminder` dispatch, including reschedule reminder refresh.
+- [done] Gate confirmation SMS/email, Slack intake alerts, appointment reminders, and non-booker Trigger scheduling behind `PROVIDER_LIVE_SENDS_ENABLED`; first deploy remains no-live-send by default.
 - [done] Replace the landing page active submit path with a server-side Ares bearer-auth handoff and remove Supabase+n8n active code.
 - [blocked] Approved local route smoke to Martin `+1***5914` / email reached Ares; TextGrid needs account funds and Resend needs valid `RESEND_FROM_EMAIL` before delivery succeeds.
 - [ ] Set landing runtime envs in the deployment target: `BUSINESS_RUNTIME_MARKETING_LEADS_URL`, `BUSINESS_RUNTIME_API_KEY`, `BUSINESS_RUNTIME_BUSINESS_ID`, `BUSINESS_RUNTIME_ENVIRONMENT`.

@@ -108,13 +108,13 @@ Current side effects:
 
 - `confirmation_sms`: TextGrid confirmation with booking link and STOP language when `sms_consent=true`, TextGrid config exists, and `PROVIDER_LIVE_SENDS_ENABLED=true`.
 - `confirmation_email`: Resend confirmation with the same booking link when Resend config exists and `PROVIDER_LIVE_SENDS_ENABLED=true`.
-- `operator_slack_notification`: Slack `chat.postMessage` operator alert with lead/booking context when `SLACK_BOT_TOKEN` and `SLACK_CHANNEL_INTAKE` or `SLACK_CHANNEL_LEADS` are configured; otherwise skipped safely.
+- `operator_slack_notification`: Slack `chat.postMessage` operator alert with lead/booking context when `PROVIDER_LIVE_SENDS_ENABLED=true` and `SLACK_BOT_TOKEN` plus `SLACK_CHANNEL_INTAKE` or `SLACK_CHANNEL_LEADS` are configured; otherwise skipped safely.
 - `trigger_non_booker_check`: delayed Trigger follow-up check when Trigger config exists and `PROVIDER_LIVE_SENDS_ENABLED=true`.
 
 Appointment reminder flow:
 
 - Cal.com booking webhooks now preserve `starts_at` when provided.
-- Booked leads schedule Trigger reminder jobs for `24h` and `1h` before the appointment when `PROVIDER_LIVE_SENDS_ENABLED=true`, `MARKETING_APPOINTMENT_REMINDERS_ENABLED=true`, and `TRIGGER_SECRET_KEY` is set.
+- Booked or rescheduled leads schedule Trigger reminder jobs for `24h` and `1h` before the appointment when `PROVIDER_LIVE_SENDS_ENABLED=true`, `MARKETING_APPOINTMENT_REMINDERS_ENABLED=true`, and `TRIGGER_SECRET_KEY` is set.
 - Trigger task `marketing-send-appointment-reminder` calls `POST /marketing/internal/appointment-reminder` with bearer runtime auth.
 - Reminder dispatch sends TextGrid SMS only for opted-in booked/rescheduled leads and sends Resend email when an email is present; both outbound message IDs are logged when providers return IDs.
 

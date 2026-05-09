@@ -84,6 +84,86 @@ def test_booked_calcom_event_creates_lease_option_opportunity() -> None:
     }
 
 
+def test_rescheduled_calcom_event_reschedules_reminders_without_new_confirmation() -> None:
+    client = InMemoryControlPlaneClient(InMemoryControlPlaneStore())
+    contacts = ContactsRepository(client)
+    lead = contacts.upsert_lead(
+        LeadUpsertRequest(
+            business_id="limitless",
+            environment="dev",
+            first_name="Maya",
+            phone="+155****4567",
+            email="maya@example.com",
+            property_address="123 Main St, Houston, TX",
+            sms_consent=True,
+        )
+    )
+    contacts.update_booking_status(lead.id, "booked")
+
+    class StubCalcomAdapter:
+        def normalize(self, payload, *, signature, raw_body=None):
+            return NormalizedBookingEvent(
+                lead_id=lead.id,
+                booking_status="rescheduled",
+                event_name="booking.rescheduled",
+                external_booking_id="book_rescheduled_123",
+                starts_at="2026-05-13T16:00:00Z",
+            )
+
+    class StubAppointmentNotifier:
+        def __init__(self) -> None:
+            self.confirmations = 0
+
+        def send_appointment_confirmation(self, *, lead_id: str):
+            self.confirmations += 1
+            raise AssertionError("rescheduled events should not send a new booking confirmation")
+
+        def send_appointment_reminder(self, *, lead_id: str, reminder_label: str, starts_at: str | None = None):
+            return {"sms": f"SM_REMINDER_{reminder_label}", "email": f"email_reminder_{reminder_label}"}
+
+    class StubSequenceService:
+        def __init__(self) -> None:
+            self.suppressed = 0
+
+        def suppress_for_booked_lead(self, *, lead_id: str) -> None:
+            self.suppressed += 1
+
+        def enroll_non_booker(self, *, lead_id: str, business_id: str, environment: str) -> None:
+            return None
+
+    class StubReminderScheduler:
+        def __init__(self) -> None:
+            self.calls = []
+
+        def schedule_appointment_reminders(self, *, lead, event):
+            self.calls.append((lead, event))
+            return [{"name": "appointment_reminder_24h", "status": "scheduled", "delay": "86400s"}]
+
+    notifier = StubAppointmentNotifier()
+    sequence = StubSequenceService()
+    scheduler = StubReminderScheduler()
+    service = BookingService(
+        calcom_adapter=StubCalcomAdapter(),
+        booking_repository=_MarketingBookingStateRepository(
+            contacts=contacts,
+            bookings=BookingsRepository(client),
+        ),
+        appointment_notifier=notifier,
+        appointment_reminder_scheduler=scheduler,
+        sequence_service=sequence,
+        contacts=contacts,
+    )
+
+    result = service.handle_calcom_webhook({}, signature=None)
+
+    assert result == {"status": "processed", "lead_id": lead.id, "booking_status": "rescheduled"}
+    assert notifier.confirmations == 0
+    assert sequence.suppressed == 1
+    assert len(scheduler.calls) == 1
+    assert scheduler.calls[0][0].id == lead.id
+    assert scheduler.calls[0][1].starts_at == "2026-05-13T16:00:00Z"
+
+
 def test_sequence_guard_uses_latest_sequence_state_for_pending_leads() -> None:
     client = InMemoryControlPlaneClient(InMemoryControlPlaneStore())
     contacts = ContactsRepository(client)

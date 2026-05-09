@@ -712,11 +712,12 @@ class BookingService:
                     lead=lead,
                     provider_message_ids=provider_message_ids,
                 )
-                try:
-                    self.appointment_reminder_scheduler.schedule_appointment_reminders(lead=lead, event=event)
-                except Exception:
-                    pass
             self._sync_opportunity(lead, event)
+        if lead is not None and event.booking_status in {"booked", "rescheduled"}:
+            try:
+                self.appointment_reminder_scheduler.schedule_appointment_reminders(lead=lead, event=event)
+            except Exception:
+                pass
         if event.booking_status in {"booked", "rescheduled"}:
             self.sequence_service.suppress_for_booked_lead(lead_id=event.lead_id)
         self.webhook_receipts.mark_processed(receipt_id)

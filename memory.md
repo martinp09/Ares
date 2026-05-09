@@ -63,7 +63,7 @@
 - The current MVP path is a two-lane cut:
   - outbound probate as source lane with cold email as outbound method
   - inbound lease-option marketing as a separate first-class lane
-- Lease-options landing contact intake now belongs in Ares `POST /marketing/leads`: preserve rich seller context/consent/UTM fields, return booking and side-effect statuses, and keep provider sends gated by `PROVIDER_LIVE_SENDS_ENABLED`.
+- Lease-options landing contact intake now belongs in Ares `POST /marketing/leads`: preserve rich seller context/consent/UTM fields, return booking and side-effect statuses, keep SMS/email/Slack/Trigger sends gated by `PROVIDER_LIVE_SENDS_ENABLED`, and refresh appointment reminders on booked/rescheduled Cal.com events.
 - Supabase should be the canonical backend for both live MVP lanes
 - The runtime should preserve a thin contract-to-close skeleton even while the MVP stays focused on lead intake, outreach, replies, and operator handoff
 - Mission Control now has CRM Records, saved views, row/bulk actions, promotion, Pipeline config/stage history, and stage movement UI/API. Records prefer canonical CRM rows and fall back to live lead-machine leads when no canonical records exist.
@@ -210,8 +210,9 @@
 
 ### 2026-05-09 Live SMS/Resend/Slack Reminder Finish
 
-- Extended `feat/landing-ares-intake-sms-agent` so Ares lead intake sends live-gated TextGrid confirmation SMS with booking link/STOP copy, Resend confirmation email, and server-side Slack intake alerts when configured.
-- Added Cal.com `starts_at` preservation, Trigger task `marketing-send-appointment-reminder`, and `/marketing/internal/appointment-reminder` dispatch for 24h/1h booked-lead reminders.
+- Extended `feat/landing-ares-intake-sms-agent` so Ares lead intake sends live-gated TextGrid confirmation SMS with booking link/STOP copy, Resend confirmation email, and server-side Slack intake alerts when configured and `PROVIDER_LIVE_SENDS_ENABLED=true`.
+- Added Cal.com `starts_at` preservation, Trigger task `marketing-send-appointment-reminder`, and `/marketing/internal/appointment-reminder` dispatch for 24h/1h booked/rescheduled-lead reminders.
+- Merge-readiness audit tightened Slack behind the same global live-send gate and made Cal.com reschedule events refresh reminder scheduling without sending duplicate booking confirmations.
 - Approved route smoke to Martin's phone/email reached Ares; TextGrid returned an account balance blocker and Resend now fails fast on invalid `RESEND_FROM_EMAIL`, so no delivery is claimed until provider env/funding is fixed.
 
 ### 2026-05-09 Landing Page Ares Intake Bridge

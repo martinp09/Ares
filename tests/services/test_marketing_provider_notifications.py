@@ -120,6 +120,53 @@ def test_lead_intake_sends_confirmation_sms_email_and_slack_with_booking_link() 
     assert "123 Main St" in json.dumps(slack_request["payload"])
 
 
+def test_lead_intake_skips_slack_when_live_sends_are_disabled_even_if_configured() -> None:
+    class StubLeadRepository:
+        def upsert_lead(self, payload: LeadIntakePayload) -> str:
+            return "lead_safe_123"
+
+    def request_sender(_outbound_request):
+        raise AssertionError("Slack/TextGrid requests should not be sent when live sends are disabled")
+
+    def resend_sender(*_args, **_kwargs):
+        raise AssertionError("Resend requests should not be sent when live sends are disabled")
+
+    service = MarketingLeadService(
+        settings=Settings(
+            _env_file=None,
+            provider_live_sends_enabled=False,
+            textgrid_account_sid="acct_123",
+            textgrid_auth_token="token_123",
+            textgrid_from_number="3462891390",
+            resend_api_key="re_123",
+            resend_from_email="Martin at Limitless <martin@example.com>",
+            slack_bot_token="xoxb-test",
+            slack_channel_intake="CINTAKE",
+            cal_booking_url="https://cal.com/limitless/lease-option-review",
+        ),
+        lead_repository=StubLeadRepository(),
+        request_sender=request_sender,
+        resend_email_sender=resend_sender,
+    )
+
+    result = service.intake_lead(
+        LeadIntakePayload(
+            business_id="limitless",
+            environment="prod",
+            first_name="Maya",
+            phone="5551234567",
+            email="maya@example.com",
+            property_address="123 Main St, Houston, TX",
+            sms_consent=True,
+        )
+    )
+
+    side_effects = {effect["name"]: effect["status"] for effect in result["side_effects"]}
+    assert side_effects["confirmation_sms"] == "skipped"
+    assert side_effects["confirmation_email"] == "skipped"
+    assert side_effects["operator_slack_notification"] == "skipped"
+
+
 def test_booking_service_schedules_appointment_reminders_when_calcom_booking_is_created() -> None:
     client = InMemoryControlPlaneClient(InMemoryControlPlaneStore())
     contacts = ContactsRepository(client)
