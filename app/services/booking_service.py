@@ -2,8 +2,10 @@ from __future__ import annotations
 
 import json
 from dataclasses import dataclass
+from datetime import UTC, datetime, timedelta
 from typing import Any, Callable, Literal, Protocol
 from urllib import request as http_request
+from urllib.parse import quote
 
 from app.core.config import Settings, get_settings
 from app.db.bookings import BookingsRepository
@@ -67,6 +69,7 @@ class NormalizedBookingEvent:
     event_name: str
     provider: str = "cal.com"
     external_booking_id: str | None = None
+    starts_at: str | None = None
     metadata: dict[str, object] | None = None
 
 
@@ -89,6 +92,23 @@ class BookingStateRepository(Protocol):
 class AppointmentNotifier(Protocol):
     def send_appointment_confirmation(self, *, lead_id: str) -> dict[str, str | None]: ...
 
+    def send_appointment_reminder(
+        self,
+        *,
+        lead_id: str,
+        reminder_label: str,
+        starts_at: str | None = None,
+    ) -> dict[str, str | None]: ...
+
+
+class AppointmentReminderScheduler(Protocol):
+    def schedule_appointment_reminders(
+        self,
+        *,
+        lead: MarketingLeadRecord,
+        event: NormalizedBookingEvent,
+    ) -> list[dict[str, str | None]]: ...
+
 
 class SequenceEnrollmentService(Protocol):
     def suppress_for_booked_lead(self, *, lead_id: str) -> None: ...
@@ -101,6 +121,15 @@ class BookingMessageLogService(Protocol):
         self,
         *,
         lead: MarketingLeadRecord,
+        provider_message_ids: dict[str, str | None] | None = None,
+    ) -> None: ...
+
+    def log_appointment_reminder(
+        self,
+        *,
+        lead: MarketingLeadRecord,
+        reminder_label: str,
+        starts_at: str | None = None,
         provider_message_ids: dict[str, str | None] | None = None,
     ) -> None: ...
 
@@ -147,6 +176,7 @@ class _DefaultCalcomWebhookAdapter:
             external_booking_id=(
                 None if normalized.get("external_booking_id") is None else str(normalized["external_booking_id"])
             ),
+            starts_at=None if normalized.get("starts_at") is None else str(normalized["starts_at"]),
             metadata=dict(normalized.get("metadata") or {}),
         )
 
@@ -166,6 +196,9 @@ class _MarketingBookingStateRepository:
         previous_status = lead.booking_status if lead is not None else "pending"
         updated = self.contacts.update_booking_status(event.lead_id, event.booking_status)
         if updated is not None:
+            metadata = dict(event.metadata or {})
+            if event.starts_at:
+                metadata.setdefault("starts_at", event.starts_at)
             self.bookings.append_event(
                 business_id=updated.business_id,
                 environment=updated.environment,
@@ -174,7 +207,7 @@ class _MarketingBookingStateRepository:
                 event_type=event.booking_status,
                 provider=event.provider,
                 external_booking_id=event.external_booking_id,
-                metadata=event.metadata or {},
+                metadata=metadata,
             )
         return previous_status != "booked" and event.booking_status == "booked"
 
@@ -188,6 +221,25 @@ class _MarketingBookingStateRepository:
 class _NoopAppointmentNotifier:
     def send_appointment_confirmation(self, *, lead_id: str) -> dict[str, str | None]:
         return {}
+
+    def send_appointment_reminder(
+        self,
+        *,
+        lead_id: str,
+        reminder_label: str,
+        starts_at: str | None = None,
+    ) -> dict[str, str | None]:
+        return {}
+
+
+class _NoopAppointmentReminderScheduler:
+    def schedule_appointment_reminders(
+        self,
+        *,
+        lead: MarketingLeadRecord,
+        event: NormalizedBookingEvent,
+    ) -> list[dict[str, str | None]]:
+        return []
 
 
 class _NoopWebhookReceiptService:
@@ -209,6 +261,16 @@ class _NoopBookingMessageLogService:
         self,
         *,
         lead: MarketingLeadRecord,
+        provider_message_ids: dict[str, str | None] | None = None,
+    ) -> None:
+        return None
+
+    def log_appointment_reminder(
+        self,
+        *,
+        lead: MarketingLeadRecord,
+        reminder_label: str,
+        starts_at: str | None = None,
         provider_message_ids: dict[str, str | None] | None = None,
     ) -> None:
         return None
@@ -242,6 +304,7 @@ class _RepositoryBookingMessageLogService:
             self.settings.textgrid_account_sid
             and self.settings.textgrid_auth_token
             and self.settings.textgrid_from_number
+            and lead.sms_consent
         ):
             conversation = self.conversations.get_or_create(
                 business_id=lead.business_id,
@@ -275,6 +338,60 @@ class _RepositoryBookingMessageLogService:
                 provider="resend",
                 body=confirmation,
                 external_message_id=resolved_provider_message_ids.get("email"),
+            )
+
+    def log_appointment_reminder(
+        self,
+        *,
+        lead: MarketingLeadRecord,
+        reminder_label: str,
+        starts_at: str | None = None,
+        provider_message_ids: dict[str, str | None] | None = None,
+    ) -> None:
+        if not self.settings.provider_live_sends_enabled:
+            return None
+        resolved_provider_message_ids = provider_message_ids or {}
+        reminder = _build_appointment_reminder_message(lead, reminder_label=reminder_label, starts_at=starts_at)
+        if (
+            self.settings.textgrid_account_sid
+            and self.settings.textgrid_auth_token
+            and self.settings.textgrid_from_number
+            and lead.sms_consent
+        ):
+            conversation = self.conversations.get_or_create(
+                business_id=lead.business_id,
+                environment=lead.environment,
+                contact_id=lead.id,
+                channel="sms",
+            )
+            self.messages.append_outbound(
+                business_id=lead.business_id,
+                environment=lead.environment,
+                contact_id=lead.id,
+                conversation_id=conversation.provider_thread_id,
+                channel="sms",
+                provider="textgrid",
+                body=reminder,
+                external_message_id=resolved_provider_message_ids.get("sms"),
+                metadata={"side_effect": f"appointment_reminder_{reminder_label}"},
+            )
+        if lead.email and self.settings.resend_api_key and self.settings.resend_from_email:
+            conversation = self.conversations.get_or_create(
+                business_id=lead.business_id,
+                environment=lead.environment,
+                contact_id=lead.id,
+                channel="email",
+            )
+            self.messages.append_outbound(
+                business_id=lead.business_id,
+                environment=lead.environment,
+                contact_id=lead.id,
+                conversation_id=conversation.provider_thread_id,
+                channel="email",
+                provider="resend",
+                body=reminder,
+                external_message_id=resolved_provider_message_ids.get("email"),
+                metadata={"side_effect": f"appointment_reminder_{reminder_label}"},
             )
 
 
@@ -328,31 +445,66 @@ class _ConfiguredAppointmentNotifier:
         lead = self.contacts.get_lead(lead_id)
         if lead is None or not self.settings.provider_live_sends_enabled:
             return {}
+        message = _build_appointment_confirmation_message(lead)
+        return self._send_to_lead(
+            lead,
+            subject="Your lease-option appointment is confirmed",
+            message=message,
+            side_effect="appointment_confirmation",
+        )
+
+    def send_appointment_reminder(
+        self,
+        *,
+        lead_id: str,
+        reminder_label: str,
+        starts_at: str | None = None,
+    ) -> dict[str, str | None]:
+        lead = self.contacts.get_lead(lead_id)
+        if lead is None or not self.settings.provider_live_sends_enabled:
+            return {}
+        message = _build_appointment_reminder_message(lead, reminder_label=reminder_label, starts_at=starts_at)
+        return self._send_to_lead(
+            lead,
+            subject="Reminder: your lease-option review call",
+            message=message,
+            side_effect=f"appointment_reminder_{reminder_label}",
+        )
+
+    def _send_to_lead(
+        self,
+        lead: MarketingLeadRecord,
+        *,
+        subject: str,
+        message: str,
+        side_effect: str,
+    ) -> dict[str, str | None]:
         provider_message_ids: dict[str, str | None] = {}
-        message = f"Thanks {lead.first_name}, your lease-option appointment is confirmed."
         if (
             self.settings.textgrid_account_sid
             and self.settings.textgrid_auth_token
             and self.settings.textgrid_from_number
+            and lead.sms_consent
         ):
-            provider_message_ids["sms"] = self._send_and_extract(
-                build_outbound_sms_request(
-                    account_sid=self.settings.textgrid_account_sid,
-                    auth_token=self.settings.textgrid_auth_token,
-                    from_number=self.settings.textgrid_from_number,
-                    to_number=lead.phone,
-                    body=message,
-                    base_url=self.settings.textgrid_sms_url or "https://api.textgrid.com",
-                    status_callback_url=self.settings.textgrid_status_callback_url,
-                )
+            sms_request = build_outbound_sms_request(
+                account_sid=self.settings.textgrid_account_sid,
+                auth_token=self.settings.textgrid_auth_token,
+                from_number=self.settings.textgrid_from_number,
+                to_number=lead.phone,
+                body=message,
+                base_url=self.settings.textgrid_base_url,
+                status_callback_url=self.settings.textgrid_status_callback_url,
             )
+            if self.settings.textgrid_sms_url:
+                sms_request["endpoint"] = self.settings.textgrid_sms_url
+            provider_message_ids["sms"] = self._send_and_extract(sms_request)
         if lead.email and self.settings.resend_api_key and self.settings.resend_from_email:
             provider_message_ids["email"] = self._send_and_extract(
                 build_send_email_request(
                     api_key=self.settings.resend_api_key,
                     from_email=self.settings.resend_from_email,
                     to_email=lead.email,
-                    subject="Your lease-option appointment is confirmed",
+                    subject=subject,
                     text_body=message,
                 )
             )
@@ -363,6 +515,101 @@ class _ConfiguredAppointmentNotifier:
             return _extract_provider_message_id(self.request_sender(outbound_request))
         except Exception:
             return None
+
+
+def _build_appointment_confirmation_message(lead: MarketingLeadRecord) -> str:
+    return f"Thanks {lead.first_name}, your lease-option appointment is confirmed. Reply STOP to opt out."
+
+
+def _build_appointment_reminder_message(
+    lead: MarketingLeadRecord,
+    *,
+    reminder_label: str,
+    starts_at: str | None = None,
+) -> str:
+    starts = f" at {starts_at}" if starts_at else ""
+    label = reminder_label.upper() if reminder_label else "soon"
+    return f"Reminder: your lease-option review call is coming up {label}{starts}. Reply STOP to opt out."
+
+
+def _parse_starts_at(starts_at: str | None) -> datetime | None:
+    if not starts_at:
+        return None
+    try:
+        return datetime.fromisoformat(starts_at.replace("Z", "+00:00")).astimezone(UTC)
+    except ValueError:
+        return None
+
+
+class _TriggerAppointmentReminderScheduler:
+    _REMINDERS: tuple[tuple[str, timedelta], ...] = (
+        ("24h", timedelta(hours=24)),
+        ("1h", timedelta(hours=1)),
+    )
+
+    def __init__(
+        self,
+        *,
+        settings: Settings,
+        now_fn: Callable[[], datetime] | None = None,
+    ) -> None:
+        self.settings = settings
+        self.now_fn = now_fn or (lambda: datetime.now(UTC))
+
+    def schedule_appointment_reminders(
+        self,
+        *,
+        lead: MarketingLeadRecord,
+        event: NormalizedBookingEvent,
+    ) -> list[dict[str, str | None]]:
+        if (
+            not self.settings.provider_live_sends_enabled
+            or not self.settings.marketing_appointment_reminders_enabled
+            or not self.settings.trigger_secret_key
+        ):
+            return []
+        starts_at = _parse_starts_at(event.starts_at)
+        if starts_at is None:
+            return []
+        scheduled: list[dict[str, str | None]] = []
+        now = self.now_fn().astimezone(UTC)
+        for label, offset in self._REMINDERS:
+            run_at = starts_at - offset
+            delay_seconds = int((run_at - now).total_seconds())
+            if delay_seconds <= 0:
+                continue
+            body = json.dumps(
+                {
+                    "payload": {
+                        "leadId": lead.id,
+                        "businessId": lead.business_id,
+                        "environment": lead.environment,
+                        "reminderLabel": label,
+                        "startsAt": event.starts_at,
+                        "bookingId": event.external_booking_id,
+                    },
+                    "options": {"delay": f"{delay_seconds}s"},
+                }
+            ).encode("utf-8")
+            req = http_request.Request(
+                f"{self.settings.trigger_api_url.rstrip('/')}/api/v1/tasks/{quote(self.settings.trigger_appointment_reminder_task_id, safe='')}/trigger",
+                data=body,
+                headers={
+                    "Authorization": f"Bearer {self.settings.trigger_secret_key}",
+                    "Content-Type": "application/json",
+                },
+                method="POST",
+            )
+            with http_request.urlopen(req, timeout=5):  # nosec B310
+                pass
+            scheduled.append(
+                {
+                    "name": f"appointment_reminder_{label}",
+                    "status": "scheduled",
+                    "delay": f"{delay_seconds}s",
+                }
+            )
+        return scheduled
 
 
 class _SequenceEnrollmentAdapter:
@@ -413,6 +660,7 @@ class BookingService:
         calcom_adapter: CalcomWebhookAdapter | None = None,
         booking_repository: BookingStateRepository | None = None,
         appointment_notifier: AppointmentNotifier | None = None,
+        appointment_reminder_scheduler: AppointmentReminderScheduler | None = None,
         sequence_service: SequenceEnrollmentService | None = None,
         contacts: ContactsRepository | None = None,
         webhook_receipts: WebhookReceiptService | None = None,
@@ -424,6 +672,9 @@ class BookingService:
         self.calcom_adapter = calcom_adapter or _DefaultCalcomWebhookAdapter(self.settings)
         self.booking_repository = booking_repository or _MarketingBookingStateRepository()
         self.appointment_notifier = appointment_notifier or _ConfiguredAppointmentNotifier(settings=self.settings)
+        self.appointment_reminder_scheduler = appointment_reminder_scheduler or _TriggerAppointmentReminderScheduler(
+            settings=self.settings
+        )
         self.sequence_service = sequence_service or _SequenceEnrollmentAdapter()
         self.contacts = contacts or ContactsRepository()
         self.webhook_receipts = webhook_receipts or _ProviderWebhookReceiptAdapter(
@@ -462,10 +713,58 @@ class BookingService:
                     provider_message_ids=provider_message_ids,
                 )
             self._sync_opportunity(lead, event)
+        if lead is not None and event.booking_status in {"booked", "rescheduled"}:
+            try:
+                self.appointment_reminder_scheduler.schedule_appointment_reminders(lead=lead, event=event)
+            except Exception:
+                pass
         if event.booking_status in {"booked", "rescheduled"}:
             self.sequence_service.suppress_for_booked_lead(lead_id=event.lead_id)
         self.webhook_receipts.mark_processed(receipt_id)
         return {"status": "processed", "lead_id": event.lead_id, "booking_status": event.booking_status}
+
+    def send_appointment_reminder(
+        self,
+        *,
+        lead_id: str,
+        business_id: str,
+        environment: str,
+        reminder_label: str,
+        starts_at: str | None = None,
+    ) -> dict[str, str | None]:
+        lead = self.contacts.get_lead(lead_id)
+        if lead is None or lead.business_id != business_id or lead.environment != environment:
+            return {
+                "lead_id": lead_id,
+                "status": "skipped",
+                "sms_provider_message_id": None,
+                "email_provider_message_id": None,
+            }
+        if lead.booking_status not in {"booked", "rescheduled"}:
+            return {
+                "lead_id": lead_id,
+                "status": "skipped",
+                "sms_provider_message_id": None,
+                "email_provider_message_id": None,
+            }
+        provider_message_ids = self.appointment_notifier.send_appointment_reminder(
+            lead_id=lead_id,
+            reminder_label=reminder_label,
+            starts_at=starts_at,
+        )
+        self.message_log_service.log_appointment_reminder(
+            lead=lead,
+            reminder_label=reminder_label,
+            starts_at=starts_at,
+            provider_message_ids=provider_message_ids,
+        )
+        sent = bool(provider_message_ids.get("sms") or provider_message_ids.get("email"))
+        return {
+            "lead_id": lead_id,
+            "status": "queued" if sent else "skipped",
+            "sms_provider_message_id": provider_message_ids.get("sms"),
+            "email_provider_message_id": provider_message_ids.get("email"),
+        }
 
     def run_non_booker_check(self, request: NonBookerCheckRequest) -> dict[str, str | bool | int]:
         booking_status = self.booking_repository.get_booking_status(request.lead_id)

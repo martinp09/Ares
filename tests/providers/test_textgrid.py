@@ -2,6 +2,7 @@ import base64
 import hashlib
 import hmac
 
+from app.core.config import Settings
 from app.providers.textgrid import (
     build_outbound_sms_request,
     normalize_incoming_webhook,
@@ -37,6 +38,48 @@ def test_textgrid_outbound_request_shape_and_auth() -> None:
     expected = base64.b64encode(b"AC123:token-123").decode("utf-8")
     assert request["headers"]["Authorization"] == f"Basic {expected}"
     assert request["headers"]["Content-Type"] == "application/x-www-form-urlencoded"
+
+
+def test_mission_control_textgrid_send_normalizes_route_numbers(monkeypatch) -> None:
+    from app.services.providers import textgrid as mission_textgrid
+
+    captured: dict[str, object] = {}
+
+    class StubResponse:
+        is_error = False
+        text = ""
+
+        def json(self):
+            return {"sid": "SM_TEST_123", "status": "queued"}
+
+    def fake_post(endpoint, *, auth, data, headers, timeout):
+        captured.update(
+            {
+                "endpoint": endpoint,
+                "auth": auth,
+                "data": data,
+                "headers": headers,
+                "timeout": timeout,
+            }
+        )
+        return StubResponse()
+
+    monkeypatch.setattr(mission_textgrid.httpx, "post", fake_post)
+
+    result = mission_textgrid.send_test_sms(
+        Settings(
+            _env_file=None,
+            textgrid_account_sid="AC123",
+            textgrid_auth_token="token-123",
+            textgrid_from_number="3462891390",
+        ),
+        to="555-123-4567",
+        body="Ares smoke",
+    )
+
+    assert captured["data"] == {"To": "+15551234567", "From": "+13462891390", "Body": "Ares smoke"}
+    assert result["to"] == "+15551234567"
+    assert result["from_identity"] == "+13462891390"
 
 
 def test_textgrid_webhook_signature_validation() -> None:

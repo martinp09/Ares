@@ -24,15 +24,39 @@ class LeadIntakeRequest(BaseModel):
     business_id: str = Field(min_length=1)
     environment: str = Field(min_length=1)
     first_name: str = Field(min_length=1)
+    last_name: str | None = None
     phone: str = Field(min_length=1)
     email: str | None = None
     property_address: str = Field(min_length=1)
+    property_type: str | None = None
+    timeline_to_sell: str | None = None
+    monthly_payment_goal: str | None = None
+    asking_price_goal: str | None = None
+    seller_goal: str | None = None
+    notes: str | None = None
+    sms_consent: bool = False
+    consent_page_url: str | None = None
+    consent_ip: str | None = None
+    consent_user_agent: str | None = None
+    utm_source: str | None = None
+    utm_medium: str | None = None
+    utm_campaign: str | None = None
+    utm_term: str | None = None
+    utm_content: str | None = None
+    lp_var: str | None = None
+
+
+class LeadIntakeSideEffectResponse(BaseModel):
+    name: str
+    status: str
+    error_message: str | None = None
 
 
 class LeadIntakeResponse(BaseModel):
     lead_id: str
     booking_status: str
     booking_url: str
+    side_effects: list[LeadIntakeSideEffectResponse] = Field(default_factory=list)
 
 
 class BookingWebhookResponse(BaseModel):
@@ -59,6 +83,23 @@ class NonBookerCheckRequestModel(BaseModel):
     leadId: str = Field(min_length=1)
     businessId: str = Field(min_length=1)
     environment: str = Field(min_length=1)
+
+
+class AppointmentReminderRequestModel(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    leadId: str = Field(min_length=1)
+    businessId: str = Field(min_length=1)
+    environment: str = Field(min_length=1)
+    reminderLabel: str = Field(min_length=1)
+    startsAt: str | None = None
+
+
+class AppointmentReminderResponse(BaseModel):
+    leadId: str
+    status: str
+    smsProviderMessageId: str | None = None
+    emailProviderMessageId: str | None = None
 
 
 class LeaseOptionSequenceGuardRequestModel(BaseModel):
@@ -120,9 +161,26 @@ def create_marketing_lead(request: LeadIntakeRequest) -> LeadIntakeResponse:
             business_id=request.business_id,
             environment=request.environment,
             first_name=request.first_name,
+            last_name=request.last_name,
             phone=request.phone,
             email=request.email,
             property_address=request.property_address,
+            property_type=request.property_type,
+            timeline_to_sell=request.timeline_to_sell,
+            monthly_payment_goal=request.monthly_payment_goal,
+            asking_price_goal=request.asking_price_goal,
+            seller_goal=request.seller_goal,
+            notes=request.notes,
+            sms_consent=request.sms_consent,
+            consent_page_url=request.consent_page_url,
+            consent_ip=request.consent_ip,
+            consent_user_agent=request.consent_user_agent,
+            utm_source=request.utm_source,
+            utm_medium=request.utm_medium,
+            utm_campaign=request.utm_campaign,
+            utm_term=request.utm_term,
+            utm_content=request.utm_content,
+            lp_var=request.lp_var,
         )
     )
     return LeadIntakeResponse(**result)
@@ -215,6 +273,23 @@ def run_non_booker_check(request: NonBookerCheckRequestModel) -> NonBookerCheckR
         bookingStatus=str(result["booking_status"]),
         shouldEnrollInSequence=bool(result["should_enroll_in_sequence"]),
         startDay=int(result["start_day"]) if result.get("start_day") is not None else None,
+    )
+
+
+@router.post("/internal/appointment-reminder", response_model=AppointmentReminderResponse)
+def send_appointment_reminder(request: AppointmentReminderRequestModel) -> AppointmentReminderResponse:
+    result = booking_service.send_appointment_reminder(
+        lead_id=request.leadId,
+        business_id=request.businessId,
+        environment=request.environment,
+        reminder_label=request.reminderLabel,
+        starts_at=request.startsAt,
+    )
+    return AppointmentReminderResponse(
+        leadId=str(result["lead_id"]),
+        status=str(result["status"]),
+        smsProviderMessageId=result.get("sms_provider_message_id"),
+        emailProviderMessageId=result.get("email_provider_message_id"),
     )
 
 

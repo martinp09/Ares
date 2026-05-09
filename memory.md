@@ -27,7 +27,7 @@
 
 ## Current Direction
 
-- `/root/Ares-inspect` is on `main`; Harris daily lead-machine foundation and security-audit hardening are merged, and production wiring remains untouched.
+- `/root/Ares-inspect` has active branch `feat/landing-ares-intake-sms-agent`; it now owns lease-option intake confirmation SMS/email, Slack intake scaffold, and appointment reminders. Harris daily lead-machine foundation and security-audit hardening are merged to `main`, and production wiring remains untouched.
 - `POST /lead-machine/harris/daily-import` is implemented for Harris daily probate + HCAD `Estate Of` imports; it defaults to dry-run, records QC warnings, and never sends providers/Slack.
 - CRM control-plane work has been merged to `origin/main`.
 - CRM control-plane draft spec: `docs/superpowers/specs/2026-04-25-ares-crm-control-plane-design.md`.
@@ -63,6 +63,7 @@
 - The current MVP path is a two-lane cut:
   - outbound probate as source lane with cold email as outbound method
   - inbound lease-option marketing as a separate first-class lane
+- Lease-options landing contact intake now belongs in Ares `POST /marketing/leads`: preserve rich seller context/consent/UTM fields, return booking and side-effect statuses, keep SMS/email/Slack/Trigger sends gated by `PROVIDER_LIVE_SENDS_ENABLED`, and refresh appointment reminders on booked/rescheduled Cal.com events.
 - Supabase should be the canonical backend for both live MVP lanes
 - The runtime should preserve a thin contract-to-close skeleton even while the MVP stays focused on lead intake, outreach, replies, and operator handoff
 - Mission Control now has CRM Records, saved views, row/bulk actions, promotion, Pipeline config/stage history, and stage movement UI/API. Records prefer canonical CRM rows and fall back to live lead-machine leads when no canonical records exist.
@@ -87,8 +88,8 @@
 - Trigger.dev local worker boot verified against project `proj_puouljyhwiraonjkpiki`
 - Local `.env` already includes `Cal.com`, `TextGrid`, and `Resend` credentials needed for the lease-option MVP
 - Local development defaults `SITE_EVENTS_BACKEND=memory` unless a Supabase persistence slice is explicitly enabled.
-- The active landing page lives at `/Users/solomartin/Business/website/lease-options-landing`
-- The landing page currently persists form submissions and redirects to `Cal.com`, but still hands automation off to `n8n`
+- The active landing page lives at `/Users/solomartin/Business/website/lease-options-landing`; inspection/implementation copy in this environment is `/root/lease-options-landing-inspect`.
+- The landing page contact form now submits server-side to Ares with bearer auth; Supabase+n8n is no longer the active contact-submit path.
 - A proven `TextGrid` adapter exists in `/Users/solomartin/Projects/Phone System/api/_lib/providers/textgrid.js`
 
 ## Runtime Architecture
@@ -206,6 +207,19 @@
 - `TasksRepository` now treats `lead_machine_backend=supabase` as a Supabase-backed task path so title-packet review tasks persist with lead-machine records.
 
 ## Change Log
+
+### 2026-05-09 Live SMS/Resend/Slack Reminder Finish
+
+- Extended `feat/landing-ares-intake-sms-agent` so Ares lead intake sends live-gated TextGrid confirmation SMS with booking link/STOP copy, Resend confirmation email, and server-side Slack intake alerts when configured and `PROVIDER_LIVE_SENDS_ENABLED=true`.
+- Added Cal.com `starts_at` preservation, Trigger task `marketing-send-appointment-reminder`, and `/marketing/internal/appointment-reminder` dispatch for 24h/1h booked/rescheduled-lead reminders.
+- Merge-readiness audit tightened Slack behind the same global live-send gate and made Cal.com reschedule events refresh reminder scheduling without sending duplicate booking confirmations.
+- Approved route smoke to Martin's phone/email reached Ares; TextGrid returned an account balance blocker and Resend now fails fast on invalid `RESEND_FROM_EMAIL`, so no delivery is claimed until provider env/funding is fixed.
+
+### 2026-05-09 Landing Page Ares Intake Bridge
+
+- Added Ares-owned lease-options landing contact intake on branch `feat/landing-ares-intake-sms-agent`: `POST /marketing/leads` accepts full seller-form context, consent metadata, and UTM attribution.
+- Confirmation SMS/email and non-booker Trigger scheduling remain gated by `PROVIDER_LIVE_SENDS_ENABLED`; no live sends are enabled by the code change.
+- Landing page branch `feat/landing-ares-intake-sms-agent` replaces active Supabase+n8n form submission with server-side Ares bearer-auth submission and keeps anonymous site-events forwarding separate.
 
 ### 2026-05-09 Security Audit Hardening
 

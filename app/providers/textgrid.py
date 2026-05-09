@@ -19,6 +19,18 @@ def normalize_status(raw_status: str | None) -> str:
     return "queued"
 
 
+def normalize_phone_number(phone_number: str) -> str:
+    stripped = str(phone_number or "").strip()
+    if stripped.startswith("+"):
+        return "+" + "".join(ch for ch in stripped[1:] if ch.isdigit())
+    digits = "".join(ch for ch in stripped if ch.isdigit())
+    if len(digits) == 10:
+        return f"+1{digits}"
+    if len(digits) == 11 and digits.startswith("1"):
+        return f"+{digits}"
+    return stripped
+
+
 def build_outbound_sms_request(
     *,
     account_sid: str,
@@ -33,8 +45,8 @@ def build_outbound_sms_request(
     token = base64.b64encode(f"{account_sid}:{auth_token}".encode("utf-8")).decode("utf-8")
     payload: dict[str, str] = {
         "Body": body,
-        "From": from_number,
-        "To": to_number,
+        "From": normalize_phone_number(from_number),
+        "To": normalize_phone_number(to_number),
     }
     if status_callback_url:
         payload["StatusCallback"] = status_callback_url

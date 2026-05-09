@@ -184,7 +184,7 @@ class Settings(BaseSettings):
     )
     resend_from_email: str | None = Field(
         default=None,
-        validation_alias=AliasChoices("resend_from_email", "RESEND_FROM_EMAIL", "RESEND_EMAIL_URL"),
+        validation_alias=AliasChoices("resend_from_email", "RESEND_FROM_EMAIL"),
     )
     resend_reply_to_email: str | None = Field(
         default=None,
@@ -217,6 +217,20 @@ class Settings(BaseSettings):
             "TRIGGER_NON_BOOKER_CHECK_TASK_ID",
         ),
     )
+    trigger_appointment_reminder_task_id: str = Field(
+        default="marketing-send-appointment-reminder",
+        validation_alias=AliasChoices(
+            "trigger_appointment_reminder_task_id",
+            "TRIGGER_APPOINTMENT_REMINDER_TASK_ID",
+        ),
+    )
+    marketing_appointment_reminders_enabled: bool = Field(
+        default=True,
+        validation_alias=AliasChoices(
+            "marketing_appointment_reminders_enabled",
+            "MARKETING_APPOINTMENT_REMINDERS_ENABLED",
+        ),
+    )
     slack_bot_token: str | None = Field(
         default=None,
         validation_alias=AliasChoices("slack_bot_token", "SLACK_BOT_TOKEN"),
@@ -224,6 +238,10 @@ class Settings(BaseSettings):
     slack_channel_leads: str | None = Field(
         default=None,
         validation_alias=AliasChoices("slack_channel_leads", "SLACK_CHANNEL_LEADS"),
+    )
+    slack_channel_intake: str | None = Field(
+        default=None,
+        validation_alias=AliasChoices("slack_channel_intake", "SLACK_CHANNEL_INTAKE"),
     )
     slack_channel_hot_leads: str | None = Field(
         default=None,

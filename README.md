@@ -56,6 +56,9 @@ Ares is a self-hosted operating system for distressed real-estate lead managemen
 - `GET /mission-control/dashboard`
 - `GET /mission-control/inbox`
 - `GET /mission-control/runs`
+- `POST /marketing/leads`
+- `POST /marketing/webhooks/textgrid`
+- `POST /marketing/webhooks/calcom`
 - `POST /site-events`
 - `POST /trigger/callbacks/runs/{run_id}/started`
 - `POST /trigger/callbacks/runs/{run_id}/completed`
@@ -72,6 +75,71 @@ Current implementation notes:
 - Mission Control UI now follows the approved dark industrial terminal / pixel CRT style system
 - site-event ingestion is append-only and non-blocking at the API layer
 - Production wiring is live for Supabase-backed runtime state, Trigger callbacks, Instantly reply webhooks, TextGrid SMS/status callbacks, Cal.com booking callbacks, and Resend email smoke. Evidence is in `docs/rollout-evidence/production-2026-04-25.json`.
+- Lease-options landing-page contact intake is owned by Ares through `POST /marketing/leads`; the endpoint preserves seller-fit fields, consent metadata, and attribution from the public form, returns booking/side-effect status, and keeps seller-facing SMS/email plus Trigger reminder side effects gated by `PROVIDER_LIVE_SENDS_ENABLED`. Slack intake alerts are server-side and safely skipped until `SLACK_BOT_TOKEN` plus an intake/lead channel are configured.
+
+## Landing Page Intake Contract
+
+External seller forms should submit contact intake server-side to `POST /marketing/leads` with `Authorization: Bearer <RUNTIME_API_KEY>`. Do not expose runtime tokens in browser code or query strings.
+
+Required request fields:
+
+- `business_id`
+- `environment`
+- `first_name`
+- `phone`
+- `property_address`
+
+Supported context fields:
+
+- `last_name`, `email`, `property_type`
+- `timeline_to_sell`, `monthly_payment_goal`, `asking_price_goal`
+- `seller_goal`, `notes`
+- `sms_consent`, `consent_page_url`, `consent_ip`, `consent_user_agent`
+- `utm_source`, `utm_medium`, `utm_campaign`, `utm_term`, `utm_content`, `lp_var`
+
+Response fields:
+
+- `lead_id`
+- `booking_status`
+- `booking_url`
+- `side_effects[]` with `name`, `status`, and optional `error_message`
+
+Current side effects:
+
+- `confirmation_sms`: TextGrid confirmation with booking link and STOP language when `sms_consent=true`, TextGrid config exists, and `PROVIDER_LIVE_SENDS_ENABLED=true`.
+- `confirmation_email`: Resend confirmation with the same booking link when Resend config exists and `PROVIDER_LIVE_SENDS_ENABLED=true`.
+- `operator_slack_notification`: Slack `chat.postMessage` operator alert with lead/booking context when `PROVIDER_LIVE_SENDS_ENABLED=true` and `SLACK_BOT_TOKEN` plus `SLACK_CHANNEL_INTAKE` or `SLACK_CHANNEL_LEADS` are configured; otherwise skipped safely.
+- `trigger_non_booker_check`: delayed Trigger follow-up check when Trigger config exists and `PROVIDER_LIVE_SENDS_ENABLED=true`.
+
+Appointment reminder flow:
+
+- Cal.com booking webhooks now preserve `starts_at` when provided.
+- Booked or rescheduled leads schedule Trigger reminder jobs for `24h` and `1h` before the appointment when `PROVIDER_LIVE_SENDS_ENABLED=true`, `MARKETING_APPOINTMENT_REMINDERS_ENABLED=true`, and `TRIGGER_SECRET_KEY` is set.
+- Trigger task `marketing-send-appointment-reminder` calls `POST /marketing/internal/appointment-reminder` with bearer runtime auth.
+- Reminder dispatch sends TextGrid SMS only for opted-in booked/rescheduled leads and sends Resend email when an email is present; both outbound message IDs are logged when providers return IDs.
+
+Safe first deploy env:
+
+```bash
+RUNTIME_API_KEY=<runtime-api-key>
+PROVIDER_LIVE_SENDS_ENABLED=false
+CAL_BOOKING_URL=<seller-review-booking-url>
+CAL_WEBHOOK_SECRET=<cal-webhook-secret>
+TEXTGRID_ACCOUNT_SID=<set only for live SMS readiness>
+TEXTGRID_AUTH_TOKEN=<set only for live SMS readiness>
+TEXTGRID_FROM_NUMBER=<set only for live SMS readiness>
+TEXTGRID_STATUS_CALLBACK_URL=https://<ares-runtime>/marketing/webhooks/textgrid
+TEXTGRID_WEBHOOK_SECRET=<textgrid-webhook-secret>
+RESEND_API_KEY=<set only for confirmation/reminder email readiness>
+RESEND_FROM_EMAIL=<verified-sender>
+RESEND_REPLY_TO_EMAIL=<reply-to-email>
+SLACK_BOT_TOKEN=<set when Slack intake alerts are ready>
+SLACK_CHANNEL_INTAKE=<slack-channel-id>
+TRIGGER_SECRET_KEY=<trigger-secret-key>
+TRIGGER_NON_BOOKER_CHECK_TASK_ID=marketing-check-submitted-lead-booking
+TRIGGER_APPOINTMENT_REMINDER_TASK_ID=marketing-send-appointment-reminder
+MARKETING_APPOINTMENT_REMINDERS_ENABLED=true
+```
 
 ## Local Runtime Contract
 

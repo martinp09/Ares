@@ -20,6 +20,23 @@ class LeadUpsertRequest(BaseModel):
     email: str | None = None
     property_address: str = Field(min_length=1)
     booking_status: BookingStatus = "pending"
+    last_name: str | None = None
+    property_type: str | None = None
+    timeline_to_sell: str | None = None
+    monthly_payment_goal: str | None = None
+    asking_price_goal: str | None = None
+    seller_goal: str | None = None
+    notes: str | None = None
+    sms_consent: bool = False
+    consent_page_url: str | None = None
+    consent_ip: str | None = None
+    consent_user_agent: str | None = None
+    utm_source: str | None = None
+    utm_medium: str | None = None
+    utm_campaign: str | None = None
+    utm_term: str | None = None
+    utm_content: str | None = None
+    lp_var: str | None = None
 
 
 class MarketingLeadRecord(BaseModel):
@@ -33,5 +50,22 @@ class MarketingLeadRecord(BaseModel):
     email: str | None = None
     property_address: str = Field(min_length=1)
     booking_status: BookingStatus = "pending"
+    last_name: str | None = None
+    property_type: str | None = None
+    timeline_to_sell: str | None = None
+    monthly_payment_goal: str | None = None
+    asking_price_goal: str | None = None
+    seller_goal: str | None = None
+    notes: str | None = None
+    sms_consent: bool = False
+    consent_page_url: str | None = None
+    consent_ip: str | None = None
+    consent_user_agent: str | None = None
+    utm_source: str | None = None
+    utm_medium: str | None = None
+    utm_campaign: str | None = None
+    utm_term: str | None = None
+    utm_content: str | None = None
+    lp_var: str | None = None
     created_at: datetime = Field(default_factory=utc_now)
     updated_at: datetime = Field(default_factory=utc_now)
