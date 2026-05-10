@@ -6,7 +6,7 @@ repo: "martinp09/Ares"
 local_checkout: "/root/Ares-inspect"
 current_branch: "main"
 production_wiring_commit: "47be904"
-latest_main_commit: "9addc1de72ec2f80a86fb51f608d44eb24c4627e"
+activation_readiness_code_commit: "9addc1de72ec2f80a86fb51f608d44eb24c4627e"
 ---
 
 # Ares TODO / Handoff

@@ -4,7 +4,7 @@
 - Repo: `martinp09/Ares`
 - Current working checkout: `/root/Ares-inspect`
 - Active branch: `main`
-- Latest main: `9addc1de72ec2f80a86fb51f608d44eb24c4627e` (`chore: support env-file activation readiness`)
+- Latest activation-readiness code commit: `9addc1de72ec2f80a86fb51f608d44eb24c4627e` (`chore: support env-file activation readiness`)
 - Runtime production URL: `https://production-readiness-afternoon.vercel.app`
 - Mission Control URL: `https://mission-control-g8un1ly0w-martins-projects-9600e79e.vercel.app`
 - Supabase project ref: `awmsrjeawcxndfnggoxw`
