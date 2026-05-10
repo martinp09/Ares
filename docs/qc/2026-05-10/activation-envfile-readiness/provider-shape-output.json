@@ -1,0 +1,29 @@
+{
+  "live_email_requested": false,
+  "live_sms_requested": false,
+  "resend": {
+    "endpoint": "https://api.resend.com/emails",
+    "has_authorization": true,
+    "payload_keys": [
+      "from",
+      "subject",
+      "text",
+      "to"
+    ],
+    "to": [
+      "operator@example.com"
+    ]
+  },
+  "textgrid": {
+    "endpoint": "https://api.textgrid.com/2010-04-01/Accounts/acct_smoke/Messages.json",
+    "has_authorization": true,
+    "payload_keys": [
+      "Body",
+      "From",
+      "StatusCallback",
+      "To"
+    ],
+    "status_callback": "https://runtime.example.com/marketing/webhooks/textgrid",
+    "to": "+15551112222"
+  }
+}

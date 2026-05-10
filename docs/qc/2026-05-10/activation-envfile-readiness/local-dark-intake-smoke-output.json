@@ -1,0 +1,56 @@
+{
+  "marketing_lead": {
+    "body": {
+      "booking_status": "pending",
+      "booking_url": "https://cal.com/martin-perales-nbqk7r/20min?<redacted-local-smoke-query>",
+      "lead_id": "ctc_<redacted-local-smoke>",
+      "side_effects": [
+        {
+          "error_message": null,
+          "name": "confirmation_sms",
+          "status": "skipped"
+        },
+        {
+          "error_message": null,
+          "name": "confirmation_email",
+          "status": "skipped"
+        },
+        {
+          "error_message": null,
+          "name": "operator_slack_notification",
+          "status": "skipped"
+        },
+        {
+          "error_message": null,
+          "name": "trigger_non_booker_check",
+          "status": "skipped"
+        }
+      ]
+    },
+    "status_code": 201
+  },
+  "provider_live_sends_enabled": false,
+  "provider_status": {
+    "body": {
+      "email": {
+        "can_send": false,
+        "checked_at": "2026-05-10T02:25:15.923300Z",
+        "configured": false,
+        "details": "Invalid RESEND_FROM_EMAIL format",
+        "endpoint": "https://api.resend.com/emails",
+        "provider": "resend",
+        "sender_identity": "<present-invalid-sender>"
+      },
+      "sms": {
+        "can_send": false,
+        "checked_at": "2026-05-10T02:25:15.923223Z",
+        "configured": true,
+        "details": null,
+        "endpoint": "https://api.textgrid.com/2010-04-01/Accounts/<redacted-account>/Messages.json",
+        "provider": "textgrid",
+        "sender_identity": "<redacted-sender-number>"
+      }
+    },
+    "status_code": 200
+  }
+}

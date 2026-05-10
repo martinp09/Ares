@@ -1,0 +1,168 @@
+{
+  "blockers": [
+    "live_send_gate: PROVIDER_LIVE_SENDS_ENABLED is false; safe default blocks live provider delivery",
+    "resend: RESEND_FROM_EMAIL must be an email address or Name <email@example.com>",
+    "slack: SLACK_BOT_TOKEN is missing",
+    "slack: SLACK_CHANNEL_INTAKE or SLACK_CHANNEL_LEADS is missing",
+    "calcom: CAL_WEBHOOK_SECRET is missing"
+  ],
+  "gates": {
+    "calcom": {
+      "blockers": [
+        "CAL_WEBHOOK_SECRET is missing"
+      ],
+      "booking_url": {
+        "has_sensitive_query": false,
+        "present": true,
+        "sanitized": "https://cal.com/martin-perales-nbqk7r/20min",
+        "sensitive_query_keys": []
+      },
+      "configured": false,
+      "warnings": [],
+      "webhook_secret": {
+        "fingerprint": null,
+        "length": 0,
+        "present": false
+      }
+    },
+    "landing": {
+      "blockers": [],
+      "configured": true,
+      "env": {
+        "BUSINESS_RUNTIME_API_KEY": {
+          "fingerprint": "3ac308ff",
+          "length": 48,
+          "present": true
+        },
+        "BUSINESS_RUNTIME_BUSINESS_ID": {
+          "length": 9,
+          "present": true
+        },
+        "BUSINESS_RUNTIME_ENVIRONMENT": {
+          "length": 4,
+          "present": true
+        },
+        "BUSINESS_RUNTIME_MARKETING_LEADS_URL": {
+          "has_sensitive_query": false,
+          "present": true,
+          "sanitized": "https://production-readiness-afternoon.vercel.app/marketing/leads",
+          "sensitive_query_keys": []
+        },
+        "BUSINESS_RUNTIME_SITE_EVENTS_URL": {
+          "has_sensitive_query": false,
+          "present": true,
+          "sanitized": "https://production-readiness-afternoon.vercel.app/site-events",
+          "sensitive_query_keys": []
+        }
+      },
+      "warnings": []
+    },
+    "live_send_gate": {
+      "blockers": [
+        "PROVIDER_LIVE_SENDS_ENABLED is false; safe default blocks live provider delivery"
+      ],
+      "configured": false,
+      "provider_live_sends_enabled": false,
+      "warnings": []
+    },
+    "resend": {
+      "api_key": {
+        "fingerprint": "82dcb71c",
+        "length": 36,
+        "present": true
+      },
+      "blockers": [
+        "RESEND_FROM_EMAIL must be an email address or Name <email@example.com>"
+      ],
+      "configured": false,
+      "from_email_present": true,
+      "from_email_valid": false,
+      "reply_to_present": false,
+      "warnings": []
+    },
+    "runtime_auth": {
+      "actor_header_overrides_enabled": false,
+      "blockers": [],
+      "configured": true,
+      "docs_enabled": false,
+      "provider_webhook_signatures_required": true,
+      "runtime_api_key": {
+        "fingerprint": "3ac308ff",
+        "length": 48,
+        "present": true
+      },
+      "warnings": []
+    },
+    "slack": {
+      "blockers": [
+        "SLACK_BOT_TOKEN is missing",
+        "SLACK_CHANNEL_INTAKE or SLACK_CHANNEL_LEADS is missing"
+      ],
+      "bot_token": {
+        "fingerprint": null,
+        "length": 0,
+        "present": false
+      },
+      "configured": false,
+      "errors_channel_present": false,
+      "intake_channel_present": false,
+      "leads_channel_present": false,
+      "warnings": []
+    },
+    "textgrid": {
+      "account_sid": {
+        "fingerprint": "d32b30f6",
+        "length": 24,
+        "present": true
+      },
+      "auth_token": {
+        "fingerprint": "b2af5c18",
+        "length": 32,
+        "present": true
+      },
+      "blockers": [],
+      "configured": true,
+      "from_number_present": true,
+      "status_callback_url": {
+        "has_sensitive_query": false,
+        "present": true,
+        "sanitized": "https://production-readiness-afternoon.vercel.app/marketing/webhooks/textgrid",
+        "sensitive_query_keys": []
+      },
+      "warnings": [],
+      "webhook_secret": {
+        "fingerprint": "6d79f5c8",
+        "length": 32,
+        "present": true
+      }
+    },
+    "trigger": {
+      "api_url": {
+        "has_sensitive_query": false,
+        "present": true,
+        "sanitized": "https://api.trigger.dev",
+        "sensitive_query_keys": []
+      },
+      "appointment_reminder_task_id": "marketing-send-appointment-reminder",
+      "blockers": [],
+      "configured": true,
+      "marketing_appointment_reminders_enabled": true,
+      "non_booker_task_id": "marketing-check-submitted-lead-booking",
+      "secret_key": {
+        "fingerprint": "1c5794b9",
+        "length": 27,
+        "present": true
+      },
+      "warnings": []
+    }
+  },
+  "generated_at": "2026-05-10T02:23:54.691356+00:00",
+  "next_commands": [
+    "python scripts/activation_readiness.py --json",
+    "python scripts/smoke_provider_readiness.py",
+    "PROVIDER_LIVE_SENDS_ENABLED=true python scripts/activation_readiness.py --json"
+  ],
+  "safe_to_deploy_without_live_sends": true,
+  "verdict": "blocked",
+  "warnings": []
+}

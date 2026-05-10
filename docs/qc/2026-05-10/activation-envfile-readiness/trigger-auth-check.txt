@@ -1,0 +1,6 @@
+Trigger.dev (4.4.5)
+
+Displaying account details [default]
+
+You must login first. Use `trigger.dev login --profile default` to login
+Whoami failed: You must login first

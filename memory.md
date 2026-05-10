@@ -209,6 +209,12 @@
 
 ## Change Log
 
+### 2026-05-10 Activation Env-File Readiness Pass
+
+- Added `--env-file`, `--runtime-url`, and `--derive-local-defaults` to `scripts/activation_readiness.py` so the existing local VPS env can be checked without copying secrets into `/root/Ares-inspect` or printing raw values.
+- Using `/opt/ares/Ares/.env` plus the production runtime URL reduced the readiness blocker list from the empty-checkout 17-key baseline to 5 external gates: safe live-send default, invalid `RESEND_FROM_EMAIL`, missing Slack token/channel, and missing `CAL_WEBHOOK_SECRET`.
+- Local dark intake smoke with `PROVIDER_LIVE_SENDS_ENABLED=false` returned provider status 200 and `POST /marketing/leads` 201 with SMS/email/Slack/Trigger side effects skipped; hosted protected Mission Control route still returned 401 with the local runtime key, so production/Vercel env verification remains required.
+
 ### 2026-05-10 Activation Readiness Handoff
 
 - Added `scripts/activation_readiness.py` to report runtime/provider/landing launch gates without printing raw secrets; it fingerprints secret presence and redacts sensitive URL queries.

@@ -1,0 +1,16 @@
+[
+  {
+    "body": {
+      "status": "ok"
+    },
+    "content_type": "application/json",
+    "path": "/health",
+    "status": 200
+  },
+  {
+    "body": "{\"detail\":\"Unauthorized\"}",
+    "content_type": "application/json",
+    "path": "/mission-control/providers/status",
+    "status": 401
+  }
+]

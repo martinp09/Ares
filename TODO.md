@@ -1,19 +1,19 @@
 ---
 title: "Ares TODO / Handoff"
 status: active
-updated_at: "2026-05-10T02:00:00Z"
+updated_at: "2026-05-10T02:25:39Z"
 repo: "martinp09/Ares"
 local_checkout: "/root/Ares-inspect"
-current_branch: "chore/activation-readiness-handoff-2026-05-09"
+current_branch: "chore/activation-readiness-envfile-2026-05-10"
 production_wiring_commit: "47be904"
-latest_main_commit: "cda9c828de40f9738bf936b185685ff47e5aac26"
+latest_main_commit: "39eb239122754e3fb2ed98b888d833a6b897a58f"
 ---
 
 # Ares TODO / Handoff
 
 ## Current status
 
-Ares production wiring remains live for the controlled operator rollout. The Harris daily probate + HCAD `Estate Of` lead-machine foundation is merged to `main`; hosted preview smoke passed without Slack or provider sends. Security-audit hardening is merged to `main` with QC evidence at `docs/qc/2026-05-09/ares-security-audit-patches/`. The lease-options landing-page -> Ares intake/provider/reminder backend is merged to `main` via PR #7 at `cda9c828`; live sends are still gated by provider/env readiness. Current branch `chore/activation-readiness-handoff-2026-05-09` adds non-secret activation readiness tooling and handoff docs.
+Ares production wiring remains live for the controlled operator rollout. The Harris daily probate + HCAD `Estate Of` lead-machine foundation is merged to `main`; hosted preview smoke passed without Slack or provider sends. Security-audit hardening is merged to `main` with QC evidence at `docs/qc/2026-05-09/ares-security-audit-patches/`. The lease-options landing-page -> Ares intake/provider/reminder backend is merged to `main` via PR #7 at `cda9c828`; activation readiness handoff is merged via PR #8 at `39eb2391`. Current branch `chore/activation-readiness-envfile-2026-05-10` adds env-file/local-default activation checking so the existing local VPS env can be reused without copying or printing secrets.
 
 Live production evidence:
 
@@ -47,9 +47,12 @@ Known caveats:
 - [done] Gate confirmation SMS/email, Slack intake alerts, appointment reminders, and non-booker Trigger scheduling behind `PROVIDER_LIVE_SENDS_ENABLED`; first deploy remains no-live-send by default.
 - [done] Replace the landing page active submit path with a server-side Ares bearer-auth handoff and remove Supabase+n8n active code.
 - [done] Add `scripts/activation_readiness.py` plus `docs/activation-readiness-handoff.md` for non-secret launch gate checks and smoke sequencing; QC evidence at `docs/qc/2026-05-10/activation-readiness-handoff/`.
+- [done] Add `--env-file`, `--runtime-url`, and `--derive-local-defaults` readiness options so `/opt/ares/Ares/.env` can be checked safely without copying secrets; latest sanitized run reduced the empty-checkout blocker list to 5 remaining external gates.
+- [done] Run local dark Ares intake smoke with available local env and `PROVIDER_LIVE_SENDS_ENABLED=false`: provider status route returned 200, `POST /marketing/leads` returned 201, and SMS/email/Slack/Trigger side effects were skipped.
 - [blocked] Approved local route smoke to Martin `+1***5914` / email reached Ares; TextGrid needs account funds and Resend needs valid `RESEND_FROM_EMAIL` before delivery succeeds.
+- [blocked] Hosted protected Mission Control routes still returned `401 Unauthorized` with the local runtime key; Vercel/production env access is required to verify or update the deployed `RUNTIME_API_KEY` and landing envs.
 - [ ] Set landing runtime envs in the deployment target: `BUSINESS_RUNTIME_MARKETING_LEADS_URL`, `BUSINESS_RUNTIME_API_KEY`, `BUSINESS_RUNTIME_BUSINESS_ID`, `BUSINESS_RUNTIME_ENVIRONMENT`.
-- [ ] Set Ares runtime envs for live launch: valid `CAL_BOOKING_URL`, `CAL_WEBHOOK_SECRET`, TextGrid callback secret/url, verified `RESEND_FROM_EMAIL`, `SLACK_BOT_TOKEN`, `SLACK_CHANNEL_INTAKE`, and Trigger reminder task env.
+- [ ] Set Ares runtime envs for live launch: valid `CAL_WEBHOOK_SECRET`, verified `RESEND_FROM_EMAIL`, `SLACK_BOT_TOKEN`, `SLACK_CHANNEL_INTAKE`/`SLACK_CHANNEL_LEADS`, and confirm TextGrid account funding before live smoke.
 
 ### 0. Security audit hardening
 

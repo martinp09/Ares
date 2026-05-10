@@ -4,11 +4,12 @@ import argparse
 import hashlib
 import json
 import os
+import shlex
 import sys
 from datetime import UTC, datetime
 from email.utils import parseaddr
 from pathlib import Path
-from typing import Any, Mapping
+from typing import Any, Mapping, Sequence
 from urllib.parse import parse_qsl, urlparse, urlunparse
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -88,6 +89,91 @@ def _gate(*, configured: bool, blockers: list[str], warnings: list[str] | None =
         "warnings": warnings or [],
         **details,
     }
+
+
+def _load_env_file(path: Path) -> dict[str, str]:
+    values: dict[str, str] = {}
+    for raw_line in path.read_text(encoding="utf-8").splitlines():
+        line = raw_line.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        if line.startswith("export "):
+            line = line.removeprefix("export ").strip()
+        name, raw_value = line.split("=", 1)
+        name = name.strip()
+        raw_value = raw_value.strip()
+        if not name:
+            continue
+        try:
+            parsed = shlex.split(raw_value, comments=False, posix=True)
+            value = parsed[0] if parsed else ""
+        except ValueError:
+            value = raw_value.strip("'\"")
+        values[name] = value
+    return values
+
+
+def _clean_runtime_url(runtime_url: str | None) -> str | None:
+    if not _present(runtime_url):
+        return None
+    return (runtime_url or "").strip().rstrip("/")
+
+
+def _first_present(environ: Mapping[str, str], *names: str) -> str | None:
+    for name in names:
+        value = environ.get(name)
+        if _present(value):
+            return value
+    return None
+
+
+def build_activation_environment(
+    *,
+    base_environ: Mapping[str, str] | None = None,
+    env_files: Sequence[Path] = (),
+    runtime_url: str | None = None,
+    derive_local_defaults: bool = False,
+) -> dict[str, str]:
+    merged = dict(base_environ or os.environ)
+    for env_file in env_files:
+        merged.update(_load_env_file(env_file))
+
+    if not derive_local_defaults:
+        return merged
+
+    clean_runtime_url = _clean_runtime_url(runtime_url)
+    if clean_runtime_url:
+        merged.setdefault("TEXTGRID_STATUS_CALLBACK_URL", f"{clean_runtime_url}/marketing/webhooks/textgrid")
+        merged.setdefault("BUSINESS_RUNTIME_MARKETING_LEADS_URL", f"{clean_runtime_url}/marketing/leads")
+        merged.setdefault("BUSINESS_RUNTIME_SITE_EVENTS_URL", f"{clean_runtime_url}/site-events")
+
+    if _present(merged.get("RUNTIME_API_KEY")):
+        merged.setdefault("BUSINESS_RUNTIME_API_KEY", merged["RUNTIME_API_KEY"])
+
+    merged.setdefault("BUSINESS_RUNTIME_BUSINESS_ID", "limitless")
+    merged.setdefault("BUSINESS_RUNTIME_ENVIRONMENT", "prod")
+    merged.setdefault("PROVIDER_LIVE_SENDS_ENABLED", "false")
+    merged.setdefault("TRIGGER_API_URL", "https://api.trigger.dev")
+    merged.setdefault("TRIGGER_NON_BOOKER_CHECK_TASK_ID", "marketing-check-submitted-lead-booking")
+    merged.setdefault("TRIGGER_APPOINTMENT_REMINDER_TASK_ID", "marketing-send-appointment-reminder")
+    merged.setdefault("MARKETING_APPOINTMENT_REMINDERS_ENABLED", "true")
+
+    booking_url = _first_present(merged, "CAL_BOOKING_URL", "NEXT_PUBLIC_CAL_BOOKING_URL", "SCHEDULING_URL", "Scheduling_URL")
+    if booking_url:
+        merged.setdefault("CAL_BOOKING_URL", booking_url)
+
+    return merged
+
+
+def _with_process_environ(environ: Mapping[str, str]) -> Settings:
+    previous = os.environ.copy()
+    try:
+        os.environ.clear()
+        os.environ.update(environ)
+        return Settings(_env_file=None)
+    finally:
+        os.environ.clear()
+        os.environ.update(previous)
 
 
 def activation_readiness(
@@ -272,8 +358,30 @@ def activation_readiness(
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Report Ares activation readiness without printing raw secrets.")
     parser.add_argument("--json", action="store_true", help="Emit JSON output. This is the default for automation.")
+    parser.add_argument(
+        "--env-file",
+        action="append",
+        default=[],
+        type=Path,
+        help="Load additional dotenv-style env file(s) before reporting. Values are never printed raw.",
+    )
+    parser.add_argument(
+        "--runtime-url",
+        help="Runtime base URL used with --derive-local-defaults to fill callback and landing endpoint URLs.",
+    )
+    parser.add_argument(
+        "--derive-local-defaults",
+        action="store_true",
+        help="Derive safe local activation defaults from loaded envs without copying secrets into a new file.",
+    )
     args = parser.parse_args(argv)
-    report = activation_readiness()
+    environ = build_activation_environment(
+        env_files=tuple(args.env_file),
+        runtime_url=args.runtime_url,
+        derive_local_defaults=args.derive_local_defaults,
+    )
+    settings = _with_process_environ(environ)
+    report = activation_readiness(settings=settings, environ=environ)
     print(json.dumps(report, indent=2, sort_keys=True))
     return 0 if report["verdict"] == "ready_for_live_smoke" else 2
 

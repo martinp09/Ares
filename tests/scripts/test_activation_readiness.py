@@ -104,3 +104,55 @@ def test_activation_readiness_cli_exits_nonzero_until_live_ready(monkeypatch, ca
     output = json.loads(capsys.readouterr().out)
     assert output["verdict"] == "blocked"
     assert "runtime-secret" not in json.dumps(output)
+
+
+def test_activation_readiness_cli_can_load_env_file_and_derive_local_defaults(tmp_path, monkeypatch, capsys) -> None:
+    monkeypatch.delenv("RUNTIME_API_KEY", raising=False)
+    monkeypatch.delenv("BUSINESS_RUNTIME_API_KEY", raising=False)
+    env_file = tmp_path / "ares.env"
+    env_file.write_text(
+        "\n".join(
+            [
+                "RUNTIME_API_KEY=runtime-secret",
+                "TEXTGRID_ACCOUNT_SID=acct_123",
+                "TEXTGRID_AUTH_TOKEN=token_123",
+                "TEXTGRID_FROM_NUMBER=3467725914",
+                "TEXTGRID_WEBHOOK_SECRET=textgrid-webhook-secret",
+                "RESEND_API_KEY=re_123",
+                "RESEND_FROM_EMAIL=bad-sender",
+                "SCHEDULING_URL=https://cal.com/limitless/review",
+                "TRIGGER_SECRET_KEY=tr_secret",
+            ]
+        )
+    )
+
+    code = main(
+        [
+            "--json",
+            "--env-file",
+            str(env_file),
+            "--runtime-url",
+            "https://ares.example.com",
+            "--derive-local-defaults",
+        ]
+    )
+
+    assert code == 2
+    output = json.loads(capsys.readouterr().out)
+    rendered = json.dumps(output)
+    assert "runtime-secret" not in rendered
+    assert "token_123" not in rendered
+    assert "textgrid-webhook-secret" not in rendered
+    assert "tr_secret" not in rendered
+    assert output["gates"]["runtime_auth"]["configured"] is True
+    assert output["gates"]["textgrid"]["configured"] is True
+    assert output["gates"]["trigger"]["configured"] is True
+    assert output["gates"]["landing"]["configured"] is True
+    assert output["gates"]["calcom"]["booking_url"]["sanitized"] == "https://cal.com/limitless/review"
+    assert output["gates"]["textgrid"]["status_callback_url"]["sanitized"] == (
+        "https://ares.example.com/marketing/webhooks/textgrid"
+    )
+    assert output["gates"]["landing"]["env"]["BUSINESS_RUNTIME_MARKETING_LEADS_URL"]["sanitized"] == (
+        "https://ares.example.com/marketing/leads"
+    )
+    assert "RESEND_FROM_EMAIL must be an email address" in "\n".join(output["blockers"])

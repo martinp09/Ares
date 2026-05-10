@@ -15,6 +15,14 @@ Move the merged lease-options intake work from code-ready to live-operational wi
 - The first deploy can stay safe with `PROVIDER_LIVE_SENDS_ENABLED=false`.
 - Live delivery is still blocked by provider/account/env setup, not by missing Ares code.
 - Run `python scripts/activation_readiness.py --json` before any live smoke. It reports missing gates without printing raw secrets.
+- If the existing VPS env file is available, run the env-file variant below to reuse known local credentials without copying secrets into this checkout:
+
+```bash
+python scripts/activation_readiness.py --json \
+  --env-file /opt/ares/Ares/.env \
+  --runtime-url https://production-readiness-afternoon.vercel.app \
+  --derive-local-defaults
+```
 
 ## Required Ares Runtime Env
 
@@ -100,6 +108,10 @@ Ares should receive provider callbacks through signed/provider-authenticated rou
 
 ```bash
 python scripts/activation_readiness.py --json
+python scripts/activation_readiness.py --json \
+  --env-file /opt/ares/Ares/.env \
+  --runtime-url https://production-readiness-afternoon.vercel.app \
+  --derive-local-defaults
 python scripts/smoke_provider_readiness.py
 ```
 
@@ -125,11 +137,20 @@ python scripts/activation_readiness.py --json
 
 ## Expected Remaining Blockers From Local Readiness Run
 
-Captured at `docs/qc/2026-05-10/activation-readiness-handoff/activation-readiness-output.json`:
+Captured at `docs/qc/2026-05-10/activation-readiness-handoff/activation-readiness-output.json` before loading the VPS env file:
 
 - `PROVIDER_LIVE_SENDS_ENABLED=false` safe default blocks live delivery.
 - Local `/root/Ares-inspect` env is missing TextGrid/Resend/Slack/Cal/Trigger live settings.
 - Landing runtime env is not present in this shell, so hosted envs still need to be set/verified externally.
+
+After loading `/opt/ares/Ares/.env` with `--derive-local-defaults`, the locally fixable gates shrink to these remaining blockers:
+
+- `PROVIDER_LIVE_SENDS_ENABLED=false` remains the safe default until the final approved live smoke.
+- `RESEND_FROM_EMAIL` is present but invalid; set it to a verified sender identity.
+- `SLACK_BOT_TOKEN` is missing.
+- `SLACK_CHANNEL_INTAKE` or `SLACK_CHANNEL_LEADS` is missing.
+- `CAL_WEBHOOK_SECRET` is missing and must match the external Cal.com webhook configuration.
+- Hosted Ares still returned `401 Unauthorized` for protected Mission Control routes with the local runtime key, so Vercel/production env access is required to verify or update the deployed `RUNTIME_API_KEY`/landing envs.
 
 ## Do Not Claim Until Proven
 
