@@ -75,7 +75,8 @@ Current implementation notes:
 - Mission Control UI now follows the approved dark industrial terminal / pixel CRT style system
 - site-event ingestion is append-only and non-blocking at the API layer
 - Production wiring is live for Supabase-backed runtime state, Trigger callbacks, Instantly reply webhooks, TextGrid SMS/status callbacks, Cal.com booking callbacks, and Resend email smoke. Evidence is in `docs/rollout-evidence/production-2026-04-25.json`.
-- Lease-options landing-page contact intake is owned by Ares through `POST /marketing/leads`; the endpoint preserves seller-fit fields, consent metadata, and attribution from the public form, returns booking/side-effect status, and keeps seller-facing SMS/email plus Trigger reminder side effects gated by `PROVIDER_LIVE_SENDS_ENABLED`. Slack intake alerts are server-side and safely skipped until `SLACK_BOT_TOKEN` plus an intake/lead channel are configured.
+- Lease-options landing-page contact intake is owned by Ares through `POST /marketing/leads`; the endpoint preserves seller-fit fields, consent metadata, and attribution from the public form, returns booking/side-effect status, and keeps seller-facing SMS/email plus Trigger reminder side effects gated by `PROVIDER_LIVE_SENDS_ENABLED`. Slack intake alerts are server-side and safely skipped until `PROVIDER_LIVE_SENDS_ENABLED=true` plus `SLACK_BOT_TOKEN` and an intake/lead channel are configured.
+- Activation readiness handoff: `docs/activation-readiness-handoff.md`; non-secret gate report: `python scripts/activation_readiness.py --json`.
 
 ## Landing Page Intake Contract
 
@@ -174,6 +175,8 @@ curl -sS -H 'Authorization: Bearer dev-runtime-key' http://127.0.0.1:8000/hermes
 
 ## Verification
 
+- Activation gates: `python scripts/activation_readiness.py --json`
+- Provider request shape: `python scripts/smoke_provider_readiness.py`
 - Python: `uv run pytest -q`
 - Lead machine smoke: `uv run python scripts/smoke/lead_machine_smoke.py`
 - Trigger.dev: `npm --prefix trigger run typecheck`
@@ -194,6 +197,7 @@ curl -sS -H 'Authorization: Bearer dev-runtime-key' http://127.0.0.1:8000/hermes
 - `docs/superpowers/plans/2026-04-21-ares-crm-master-scope-prd.json` as the overnight loop handoff artifact
 - future runtime database for canonical business state
 - curative-title workflow wiki: `docs/curative-title-wiki/index.md`
+- activation-readiness handoff: `docs/activation-readiness-handoff.md`
 - production-readiness handoff for live wiring gates: `docs/production-readiness-handoff.md`
 - production-readiness execution plan: `docs/superpowers/plans/2026-04-24-ares-production-readiness-test-branch-plan.md`
 

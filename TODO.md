@@ -1,18 +1,19 @@
 ---
 title: "Ares TODO / Handoff"
 status: active
-updated_at: "2026-05-09T22:25:23Z"
+updated_at: "2026-05-10T02:00:00Z"
 repo: "martinp09/Ares"
 local_checkout: "/root/Ares-inspect"
-current_branch: "feat/landing-ares-intake-sms-agent"
+current_branch: "chore/activation-readiness-handoff-2026-05-09"
 production_wiring_commit: "47be904"
+latest_main_commit: "cda9c828de40f9738bf936b185685ff47e5aac26"
 ---
 
 # Ares TODO / Handoff
 
 ## Current status
 
-Ares production wiring remains live for the controlled operator rollout. The Harris daily probate + HCAD `Estate Of` lead-machine foundation is merged to `main`; hosted preview smoke passed without Slack or provider sends. Security-audit hardening is merged to `main` with QC evidence at `docs/qc/2026-05-09/ares-security-audit-patches/`. The lease-options landing-page contact form is being moved onto Ares as the canonical intake backend through `feat/landing-ares-intake-sms-agent`; the backend now includes production-ready SMS/email confirmation, Slack intake scaffold, and appointment reminder plumbing, with credentialed live sends still gated by provider/env readiness.
+Ares production wiring remains live for the controlled operator rollout. The Harris daily probate + HCAD `Estate Of` lead-machine foundation is merged to `main`; hosted preview smoke passed without Slack or provider sends. Security-audit hardening is merged to `main` with QC evidence at `docs/qc/2026-05-09/ares-security-audit-patches/`. The lease-options landing-page -> Ares intake/provider/reminder backend is merged to `main` via PR #7 at `cda9c828`; live sends are still gated by provider/env readiness. Current branch `chore/activation-readiness-handoff-2026-05-09` adds non-secret activation readiness tooling and handoff docs.
 
 Live production evidence:
 
@@ -27,10 +28,10 @@ Known caveats:
 
 - Native `pg_dump` backup is not captured because the Supabase CLI container could not resolve the Supabase DB host from Colima. A REST table-export rollback bundle exists instead.
 - Slack digest delivery for the Harris daily import is intentionally last and blocked until `SLACK_BOT_TOKEN` plus target channels are available.
-- Slack intake notification delivery for lease-option leads is scaffolded but blocked until `SLACK_BOT_TOKEN` plus `SLACK_CHANNEL_INTAKE` or `SLACK_CHANNEL_LEADS` are available.
+- Slack intake notification delivery for lease-option leads is scaffolded but blocked until `SLACK_BOT_TOKEN` plus `SLACK_CHANNEL_INTAKE` or `SLACK_CHANNEL_LEADS` are available and `PROVIDER_LIVE_SENDS_ENABLED=true`.
 - Local approved live smoke to Martin's phone/email reached Ares routes; TextGrid returned `Balance is below 0` before SMS delivery and Resend was blocked by invalid `RESEND_FROM_EMAIL` format, so provider funding/sender env must be fixed before claiming live delivery.
 - Production promotion for the Harris daily import should be a dedicated handoff that preserves the production runtime/provider env contract; preview smoke passed at `https://production-readiness-afternoon-9adxg1gvb.vercel.app`.
-- Deployed provider callback configurations should be checked/updated externally after this security branch lands if any still use old `runtime_api_key` query-string URLs; runtime auth is now bearer-only plus provider signatures.
+- Deployed provider callback configurations should be checked/updated externally if any still use old `runtime_api_key` query-string URLs; runtime auth is now bearer-only plus provider signatures.
 
 ## Current product slice
 
@@ -45,6 +46,7 @@ Known caveats:
 - [done] Add Cal.com `starts_at` preservation plus Trigger-backed 24h/1h appointment reminder scheduling and `/marketing/internal/appointment-reminder` dispatch, including reschedule reminder refresh.
 - [done] Gate confirmation SMS/email, Slack intake alerts, appointment reminders, and non-booker Trigger scheduling behind `PROVIDER_LIVE_SENDS_ENABLED`; first deploy remains no-live-send by default.
 - [done] Replace the landing page active submit path with a server-side Ares bearer-auth handoff and remove Supabase+n8n active code.
+- [done] Add `scripts/activation_readiness.py` plus `docs/activation-readiness-handoff.md` for non-secret launch gate checks and smoke sequencing; QC evidence at `docs/qc/2026-05-10/activation-readiness-handoff/`.
 - [blocked] Approved local route smoke to Martin `+1***5914` / email reached Ares; TextGrid needs account funds and Resend needs valid `RESEND_FROM_EMAIL` before delivery succeeds.
 - [ ] Set landing runtime envs in the deployment target: `BUSINESS_RUNTIME_MARKETING_LEADS_URL`, `BUSINESS_RUNTIME_API_KEY`, `BUSINESS_RUNTIME_BUSINESS_ID`, `BUSINESS_RUNTIME_ENVIRONMENT`.
 - [ ] Set Ares runtime envs for live launch: valid `CAL_BOOKING_URL`, `CAL_WEBHOOK_SECRET`, TextGrid callback secret/url, verified `RESEND_FROM_EMAIL`, `SLACK_BOT_TOKEN`, `SLACK_CHANNEL_INTAKE`, and Trigger reminder task env.

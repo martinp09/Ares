@@ -27,7 +27,7 @@
 
 ## Current Direction
 
-- `/root/Ares-inspect` has active branch `feat/landing-ares-intake-sms-agent`; it now owns lease-option intake confirmation SMS/email, Slack intake scaffold, and appointment reminders. Harris daily lead-machine foundation and security-audit hardening are merged to `main`, and production wiring remains untouched.
+- `/root/Ares-inspect` has active branch `chore/activation-readiness-handoff-2026-05-09`; PR #7 is merged to `main` at `cda9c828` and lease-option intake confirmation SMS/email, Slack intake scaffold, and appointment reminders are code-ready behind live-send gates. Current activation docs/tooling: `docs/activation-readiness-handoff.md` and `scripts/activation_readiness.py`.
 - `POST /lead-machine/harris/daily-import` is implemented for Harris daily probate + HCAD `Estate Of` imports; it defaults to dry-run, records QC warnings, and never sends providers/Slack.
 - CRM control-plane work has been merged to `origin/main`.
 - CRM control-plane draft spec: `docs/superpowers/specs/2026-04-25-ares-crm-control-plane-design.md`.
@@ -186,18 +186,19 @@
 
 ## Open Work
 
-1. handle production/provider callback env updates in a dedicated handoff if any deployed callback still uses old query-string runtime-key URLs
-2. wire real Slack daily digest delivery only after Slack bot token and target channel config are available
-3. run a dedicated production promotion only when intentionally preserving/updating production runtime/provider env wiring
-4. add dedicated Mission Control frontend campaign-launch review page for the Harris probate HOT/WARM/COLD API contract
-5. enrich Harris probate campaign exports with email/phone before any Instantly/TextGrid enrollment; current source artifact is direct-mail-ready only
-6. consider an atomic backend bulk-record endpoint if large batch throughput/transaction semantics become necessary; current Records bulk UI fans out through real single-record command callbacks
-7. defer owner/property graph, research cockpit, and map UI until Records and stage model are stable
-8. add explicit canonical source-lane metadata for CRM records before broadening promote routing beyond probate/lease-option lanes
-9. preserve production evidence files as the handoff source of truth
-10. optionally replace the REST rollback bundle with native pg_dump once Supabase CLI container DNS is fixed
-11. add production monitoring/alerts for provider callback failures
-12. keep browser acquisition and ambiguous research in Hermes or other driver agents, not inside Ares
+1. set/fix provider envs/accounts, then rerun `python scripts/activation_readiness.py --json` before any live smoke; current expected blockers are TextGrid funds/config, valid Resend sender, Slack token/channel, Cal URL/secret, Trigger secret, and landing runtime envs
+2. handle production/provider callback env updates in a dedicated handoff if any deployed callback still uses old query-string runtime-key URLs
+3. wire real Slack daily digest delivery only after Slack bot token and target channel config are available
+4. run a dedicated production promotion only when intentionally preserving/updating production runtime/provider env wiring
+5. add dedicated Mission Control frontend campaign-launch review page for the Harris probate HOT/WARM/COLD API contract
+6. enrich Harris probate campaign exports with email/phone before any Instantly/TextGrid enrollment; current source artifact is direct-mail-ready only
+7. consider an atomic backend bulk-record endpoint if large batch throughput/transaction semantics become necessary; current Records bulk UI fans out through real single-record command callbacks
+8. defer owner/property graph, research cockpit, and map UI until Records and stage model are stable
+9. add explicit canonical source-lane metadata for CRM records before broadening promote routing beyond probate/lease-option lanes
+10. preserve production evidence files as the handoff source of truth
+11. optionally replace the REST rollback bundle with native pg_dump once Supabase CLI container DNS is fixed
+12. add production monitoring/alerts for provider callback failures
+13. keep browser acquisition and ambiguous research in Hermes or other driver agents, not inside Ares
 
 ## Completed Branch Work
 
@@ -207,6 +208,12 @@
 - `TasksRepository` now treats `lead_machine_backend=supabase` as a Supabase-backed task path so title-packet review tasks persist with lead-machine records.
 
 ## Change Log
+
+### 2026-05-10 Activation Readiness Handoff
+
+- Added `scripts/activation_readiness.py` to report runtime/provider/landing launch gates without printing raw secrets; it fingerprints secret presence and redacts sensitive URL queries.
+- Added `docs/activation-readiness-handoff.md` plus QC under `docs/qc/2026-05-10/activation-readiness-handoff/`.
+- Updated `.env.example`, README, TODO, and CONTEXT so PR #7 is treated as merged and the remaining work is provider/env activation plus external callback cleanup.
 
 ### 2026-05-09 Live SMS/Resend/Slack Reminder Finish
 
