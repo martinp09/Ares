@@ -10,6 +10,9 @@ describe("RecordsPage", () => {
 
     expect(screen.getByText("Records")).toBeInTheDocument();
     expect(screen.getByText("128 inventory records")).toBeInTheDocument();
+    expect(screen.getByRole("table", { name: "Records SmartLists table" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Filter builder" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Manage fields" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /All records/i })).toBeInTheDocument();
     expect(screen.getAllByText("Needs skip trace").length).toBeGreaterThan(0);
     expect(screen.getByText("Marketable / active")).toBeInTheDocument();
@@ -21,6 +24,7 @@ describe("RecordsPage", () => {
     expect(within(promotedRecord).getByText("Pipeline: Contract Sent")).toBeInTheDocument();
     expect(within(promotedRecord).getByText("Phone ready")).toBeInTheDocument();
     expect(within(promotedRecord).getByText("High quality")).toBeInTheDocument();
+    expect(within(promotedRecord).getByText("2 tasks")).toBeInTheDocument();
 
     const inventoryRecord = screen.getByLabelText("record-lead-1002");
     expect(within(inventoryRecord).getByText("Record actions call the CRM command API; promotion is gated until source identity is exposed to the row.")).toBeInTheDocument();

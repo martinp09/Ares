@@ -12,9 +12,9 @@ export function InboxList({
   onSelectConversation,
 }: InboxListProps) {
   return (
-    <section className="panel-stack">
+    <section className="inbox-thread-list" aria-label="Conversation list">
       <div className="section-heading">
-        <h3>Inbox queue</h3>
+        <h3>Conversation list</h3>
         <span>{conversations.length} threads</span>
       </div>
       <div className="list-stack">

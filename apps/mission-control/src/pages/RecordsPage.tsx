@@ -284,82 +284,117 @@ export function RecordsPage({ data, actionState, onRecordStatusChange, onRecordS
         </button>
       </div>
 
-      <div className="list-stack">
-        {visibleRecords.map((record) => (
-          <article className="list-card" key={record.id} aria-label={`record-${record.id}`}>
-            <div className="list-card__row">
-              <label className="record-select-row">
-                <input
-                  type="checkbox"
-                  checked={selectedRecordIds.has(record.id)}
-                  disabled={isActionRunning}
-                  aria-label={`Select ${record.displayName}`}
-                  onChange={() => toggleSelectedRecord(record.id)}
-                />
-                <strong>{record.displayName}</strong>
-              </label>
-              <span className="status-pill">{formatLabel(record.recordStatus)}</span>
-            </div>
-            <div className="record-badge-row" aria-label={`record-${record.id}-badges`}>
-              <span className="status-badge">{formatLabel(record.recordType)}</span>
-              <span className="status-badge">{formatLabel(record.source)}</span>
-              <span className="status-badge">{contactabilityLabel(record)}</span>
-              <span className="status-badge">{qualityLabel(record.dataQualityScore)}</span>
-              {record.promotionStatus === "promoted" ? <span className="status-badge status-badge--amber">Promoted</span> : null}
-            </div>
-            <div className="list-card__row list-card__row--muted">
-              <span>{recordAnchor(record)}</span>
-              <span>{record.assignedTo ? `Assigned to ${record.assignedTo}` : "Unassigned"}</span>
-            </div>
-            <p className="list-card__body">
-              {record.promotionStatus === "promoted"
-                ? `Pipeline: ${formatLabel(record.pipelineStage ?? "qualified_opportunity")}`
-                : record.sourceLeadId || record.sourceContactId
-                  ? "Record actions call the CRM command API; promotion is available for rows with source identity."
-                  : "Record actions call the CRM command API; promotion is gated until source identity is exposed to the row."}
-            </p>
-            <div className="record-badge-row" aria-label={`record-${record.id}-actions`}>
-              <button
-                type="button"
-                className="button button--ghost"
-                disabled={!canRunRecordActions || actionState?.status === "running" || record.recordStatus === "marketable"}
-                onClick={() => onRecordStatusChange?.(record, "marketable", "Operator marked record marketable from Mission Control")}
-              >
-                Mark marketable
-              </button>
-              <button
-                type="button"
-                className="button button--ghost"
-                disabled={!canRunRecordActions || actionState?.status === "running" || record.recordStatus === "needs_skip_trace"}
-                onClick={() => onRecordStatusChange?.(record, "needs_skip_trace", "Operator marked record for skip trace from Mission Control")}
-              >
-                Needs skip trace
-              </button>
-              <button
-                type="button"
-                className="button button--ghost"
-                disabled={!canRunRecordActions || actionState?.status === "running" || record.recordStatus === "suppressed"}
-                onClick={() => onRecordSuppress?.(record, "Suppressed from Mission Control Records workspace")}
-              >
-                Suppress
-              </button>
-              <button
-                type="button"
-                className="button button--ghost"
-                disabled={actionState?.status === "running" || !canPromoteRecord(record)}
-                title={canPromoteRecord(record) ? "Promote this record into the opportunity pipeline." : "Promotion requires source lead/contact identity on the Records row."}
-                onClick={() => onRecordPromote?.(record)}
-              >
-                {canPromoteRecord(record) ? "Promote" : "Promote gated"}
-              </button>
-              {actionState?.recordId === record.id ? <span className={`status-badge status-badge--${actionState.status === "error" ? "red" : "amber"}`}>{actionState.message}</span> : null}
-            </div>
-            <div className="list-card__row list-card__row--muted">
-              <span>{record.openTaskCount} open tasks</span>
-              <span>{record.dataQualityScore}% data quality</span>
-            </div>
-          </article>
-        ))}
+      <div className="smartlist-toolbar" aria-label="SmartList controls">
+        <button type="button" className="button button--ghost">Filter builder</button>
+        <button type="button" className="button button--ghost">Manage fields</button>
+        <button type="button" className="button button--ghost">Sort: {formatLabel(selectedSavedView?.sort ?? "last_activity_desc")}</button>
+        <span>AND/OR filters ready for saved-view persistence</span>
+      </div>
+
+      <div className="records-table-wrap">
+        <table className="records-table" aria-label="Records SmartLists table">
+          <thead>
+            <tr>
+              <th scope="col">Select</th>
+              <th scope="col">Owner / Property</th>
+              <th scope="col">Status</th>
+              <th scope="col">Source / List</th>
+              <th scope="col">Contact</th>
+              <th scope="col">Quality</th>
+              <th scope="col">Tasks</th>
+              <th scope="col">Promotion</th>
+              <th scope="col">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {visibleRecords.map((record) => (
+              <tr key={record.id} aria-label={`record-${record.id}`}>
+                <td>
+                  <input
+                    type="checkbox"
+                    checked={selectedRecordIds.has(record.id)}
+                    disabled={isActionRunning}
+                    aria-label={`Select ${record.displayName}`}
+                    onChange={() => toggleSelectedRecord(record.id)}
+                  />
+                </td>
+                <td>
+                  <strong>{record.displayName}</strong>
+                  <span>{recordAnchor(record)}</span>
+                  <small>{record.assignedTo ? `Assigned to ${record.assignedTo}` : "Unassigned"}</small>
+                </td>
+                <td>
+                  <span className="status-pill">{formatLabel(record.recordStatus)}</span>
+                  <small>{formatLabel(record.lifecycleStatus)}</small>
+                </td>
+                <td>
+                  <span>{formatLabel(record.source)}</span>
+                  <small>{formatLabel(record.recordType)}</small>
+                </td>
+                <td>
+                  <span>{contactabilityLabel(record)}</span>
+                  <small>{record.phone ?? record.email ?? "No channel"}</small>
+                </td>
+                <td>
+                  <span className="status-badge">{qualityLabel(record.dataQualityScore)}</span>
+                  <small>{record.dataQualityScore}% data quality</small>
+                </td>
+                <td>
+                  <span>{record.openTaskCount} tasks</span>
+                  <small>{record.lastActivityAt}</small>
+                </td>
+                <td>
+                  {record.promotionStatus === "promoted" ? <span className="status-badge status-badge--amber">Promoted</span> : <span className="status-badge">Not promoted</span>}
+                  <small>
+                    {record.promotionStatus === "promoted"
+                      ? `Pipeline: ${formatLabel(record.pipelineStage ?? "qualified_opportunity")}`
+                      : record.sourceLeadId || record.sourceContactId
+                        ? "Record actions call the CRM command API; promotion is available for rows with source identity."
+                        : "Record actions call the CRM command API; promotion is gated until source identity is exposed to the row."}
+                  </small>
+                </td>
+                <td>
+                  <div className="record-table-actions" aria-label={`record-${record.id}-actions`}>
+                    <button
+                      type="button"
+                      className="button button--ghost"
+                      disabled={!canRunRecordActions || actionState?.status === "running" || record.recordStatus === "marketable"}
+                      onClick={() => onRecordStatusChange?.(record, "marketable", "Operator marked record marketable from Mission Control")}
+                    >
+                      Mark marketable
+                    </button>
+                    <button
+                      type="button"
+                      className="button button--ghost"
+                      disabled={!canRunRecordActions || actionState?.status === "running" || record.recordStatus === "needs_skip_trace"}
+                      onClick={() => onRecordStatusChange?.(record, "needs_skip_trace", "Operator marked record for skip trace from Mission Control")}
+                    >
+                      Needs skip trace
+                    </button>
+                    <button
+                      type="button"
+                      className="button button--ghost"
+                      disabled={!canRunRecordActions || actionState?.status === "running" || record.recordStatus === "suppressed"}
+                      onClick={() => onRecordSuppress?.(record, "Suppressed from Mission Control Records workspace")}
+                    >
+                      Suppress
+                    </button>
+                    <button
+                      type="button"
+                      className="button button--ghost"
+                      disabled={actionState?.status === "running" || !canPromoteRecord(record)}
+                      title={canPromoteRecord(record) ? "Promote this record into the opportunity pipeline." : "Promotion requires source lead/contact identity on the Records row."}
+                      onClick={() => onRecordPromote?.(record)}
+                    >
+                      {canPromoteRecord(record) ? "Promote" : "Promote gated"}
+                    </button>
+                    {actionState?.recordId === record.id ? <span className={`status-badge status-badge--${actionState.status === "error" ? "red" : "amber"}`}>{actionState.message}</span> : null}
+                  </div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
       </div>
 
       {visibleRecords.length === 0 ? <p className="panel-copy">No records match the {selectedSavedView?.name ?? selectedTab.label} view.</p> : null}

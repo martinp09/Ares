@@ -63,7 +63,7 @@ export function ConversationThread({ thread, onSendSmsTest, onSendEmailTest }: C
   }
 
   return (
-    <section className="panel-stack">
+    <section className="conversation-timeline" aria-label="Conversation timeline">
       <div className="section-heading">
         <div>
           <h3>{thread.leadName}</h3>
@@ -84,10 +84,16 @@ export function ConversationThread({ thread, onSendSmsTest, onSendEmailTest }: C
         ))}
       </div>
 
-      <section className="panel-stack">
+      <section className="conversation-composer" aria-label="Conversation composer">
         <div className="section-heading">
-          <h3>Live provider test</h3>
-          <span>TextGrid / Resend</span>
+          <h3>Composer</h3>
+          <span>SMS / Email / Note / Task</span>
+        </div>
+        <div className="composer-mode-tabs" aria-label="Composer modes">
+          <span>SMS</span>
+          <span>Email</span>
+          <span>Note</span>
+          <span>Task</span>
         </div>
 
         <div className="summary-grid summary-grid--secondary">

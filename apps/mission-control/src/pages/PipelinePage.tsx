@@ -35,6 +35,9 @@ const DEFAULT_STAGE_ORDER = [
   "dead",
 ];
 
+const PIPELINE_VIEW_TABS = ["Board", "List", "Forecast", "Stage config"];
+const STAGE_COLOR_CLASSES = ["blue", "teal", "amber", "violet", "green"];
+
 function formatStageLabel(stage: string): string {
   return stage
     .split("_")
@@ -81,6 +84,11 @@ function opportunityNextAction(opportunity: OpportunityRecordSummary): string {
     metadataString(opportunity, "nextBestAction") ??
     (opportunity.stage === "qualified_opportunity" ? "Select offer path" : "Review stage requirements")
   );
+}
+
+function stageColorClass(stage: string): string {
+  const index = DEFAULT_STAGE_ORDER.indexOf(stage);
+  return STAGE_COLOR_CLASSES[index >= 0 ? index % STAGE_COLOR_CLASSES.length : 0];
 }
 
 function matchOpportunityRecord(opportunity: OpportunityRecordSummary, records: CrmRecordSummary[]): CrmRecordSummary | undefined {
@@ -190,6 +198,29 @@ export function PipelinePage({
         </div>
       </div>
 
+      <div className="crm-object-tabs" role="tablist" aria-label="Opportunity views">
+        {PIPELINE_VIEW_TABS.map((view) => (
+          <button
+            key={view}
+            type="button"
+            role="tab"
+            aria-selected={view === "Board"}
+            className={`crm-object-tab${view === "Board" ? " crm-object-tab--active" : ""}`}
+          >
+            {view}
+          </button>
+        ))}
+      </div>
+
+      <div className="crm-control-bar" aria-label="Pipeline controls">
+        <span className="crm-control-pill">Pipeline: Probate / Curative Title</span>
+        <span className="crm-control-pill">Saved view: All open</span>
+        <button type="button" className="crm-control-button">Filter</button>
+        <button type="button" className="crm-control-button">Sort: stage age</button>
+        <button type="button" className="crm-control-button">Manage fields</button>
+        <button type="button" className="crm-control-button crm-control-button--primary">Create opportunity</button>
+      </div>
+
       <div className="crm-lane-tabs" aria-label="Source lane filters">
         <button
           type="button"
@@ -236,18 +267,31 @@ export function PipelinePage({
       </div>
 
       <div className="crm-workspace">
-        <div className="pipeline-board" aria-label="Opportunity pipeline board">
+        <div className="pipeline-board-shell">
+          <div className="pipeline-board-toolbar">
+            <div>
+              <h3>Pipeline board</h3>
+              <span>Stage colors, quick counters, and active opportunity context</span>
+            </div>
+            <button type="button" className="crm-control-button">Card layout</button>
+          </div>
+          <div className="pipeline-board" aria-label="Opportunity pipeline board">
           {boardStages.map((stage) => {
             const stageOpportunities = visibleOpportunities.filter((opportunity) => opportunity.stage === stage);
             const stageSummaryCount = stages
               .filter((summary) => summary.stage === stage && (activeLane === "all" || summary.sourceLane === activeLane))
               .reduce((count, summary) => count + summary.count, 0);
+            const stageTotal = stageOpportunities.reduce((total, opportunity) => {
+              const rawValue = metadataString(opportunity, "estimated_value") ?? metadataString(opportunity, "value") ?? "0";
+              const value = Number(rawValue);
+              return Number.isFinite(value) ? total + value : total;
+            }, 0);
             return (
               <section className="pipeline-column" key={stage} aria-label={`${formatStageLabel(stage)} stage`}>
                 <div className="pipeline-column__header">
                   <div>
-                    <h3>{formatStageLabel(stage)}</h3>
-                    <span>{stageSummaryCount || stageOpportunities.length} opportunities</span>
+                    <h3><i className={`stage-dot stage-dot--${stageColorClass(stage)}`} />{formatStageLabel(stage)}</h3>
+                    <span>{stageSummaryCount || stageOpportunities.length} opportunities | {new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 }).format(stageTotal)}</span>
                   </div>
                   <strong>{stageOpportunities.length}</strong>
                 </div>
@@ -273,6 +317,13 @@ export function PipelinePage({
                           <span>{formatStageLabel(opportunity.titleStatus)}</span>
                         </div>
                         <small>{opportunityNextAction(opportunity)}</small>
+                        <div className="opportunity-card__quick-actions" aria-label={`${opportunity.id} quick counters`}>
+                          <span>C {record?.hasPhone || record?.hasEmail ? 1 : 0}</span>
+                          <span>T {record?.openTaskCount ?? 0}</span>
+                          <span>N {record?.dataQualityScore && record.dataQualityScore >= 80 ? 2 : 1}</span>
+                          <span>Tags</span>
+                          <span>Calls</span>
+                        </div>
                       </button>
                     );
                   })}
@@ -286,6 +337,7 @@ export function PipelinePage({
               </section>
             );
           })}
+          </div>
         </div>
 
         <aside className="opportunity-drawer" aria-label="Opportunity detail">
@@ -374,6 +426,15 @@ export function PipelinePage({
                 <h4>Next actions</h4>
                 <p>{opportunityNextAction(selectedOpportunity)}</p>
                 <p>{selectedRecord?.openTaskCount ?? 0} open record tasks attached to this opportunity.</p>
+              </div>
+
+              <div className="opportunity-next-actions">
+                <h4>Agent workbench</h4>
+                <div className="agent-action-grid">
+                  <button type="button">Summarize evidence</button>
+                  <button type="button">Draft outreach</button>
+                  <button type="button">Audit next task</button>
+                </div>
               </div>
             </>
           ) : (

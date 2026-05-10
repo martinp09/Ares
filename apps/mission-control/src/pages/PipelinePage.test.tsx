@@ -85,9 +85,16 @@ describe("PipelinePage", () => {
     );
 
     expect(screen.getByText("Total pipeline")).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: "Board" })).toHaveAttribute("aria-selected", "true");
+    expect(screen.getByRole("tab", { name: "Forecast" })).toBeInTheDocument();
+    expect(screen.getByText("Pipeline: Probate / Curative Title")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Card layout" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Estate of Avery Stone/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Estate of Avery Stone/i })).toHaveTextContent("C 1");
+    expect(screen.getByRole("button", { name: /Estate of Avery Stone/i })).toHaveTextContent("T 2");
     expect(screen.getByLabelText("Opportunity detail")).toHaveTextContent("Estate of Avery Stone");
     expect(screen.getByLabelText("Opportunity detail")).toHaveTextContent("$210,000");
+    expect(screen.getByLabelText("Opportunity detail")).toHaveTextContent("Agent workbench");
   });
 
   it("moves the selected opportunity through the real stage callback", () => {
