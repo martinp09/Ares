@@ -1,0 +1,26 @@
+{
+  "checked_at_utc": "2026-05-10T19:14:05.570024+00:00",
+  "normalized_to_used": "+1***5914",
+  "diagnosis": {
+    "original_test": {
+      "body": "Ares TextGrid live smoke after funding check. Reply YES if received. Reply STOP to opt out.",
+      "from": "+1***1390",
+      "to": "+1***5914",
+      "status": "failed - Blocked by Textgrid Content Filter",
+      "num_segments": "0",
+      "price": "0.00000"
+    },
+    "minimal_retry": {
+      "body": "Ares test 2.",
+      "route_http_status": 201,
+      "from": "+1***1390",
+      "to": "+1***5914",
+      "provider_message_id": "SMOp…AQ==",
+      "route_status_initial": "queued",
+      "provider_status_after_poll": "delivered",
+      "num_segments": "1",
+      "price": "-0.00700"
+    }
+  },
+  "interpretation": "The phone number was correct. The original message was accepted initially but failed provider-side content filtering after the route returned queued. A shorter retry to the same number delivered and Martin confirmed receipt. Future live smoke must poll TextGrid status or consume callbacks before claiming delivery."
+}

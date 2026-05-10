@@ -186,7 +186,7 @@
 
 ## Open Work
 
-1. set/fix remaining provider/env gates, then rerun `python scripts/activation_readiness.py --json` before broader live launch; TextGrid local live smoke after funding returned `201`/`queued`, while current expected blockers are safe live-send default, valid Resend sender, Slack optional token/channel decision, Cal webhook secret, and production/Vercel runtime env alignment
+1. set/fix remaining provider/env gates, then rerun `python scripts/activation_readiness.py --json` before broader live launch; TextGrid local live smoke after funding reached the correct number but first body was content-filtered, minimal retry delivered; remaining blockers are safe live-send default, valid Resend sender, Slack optional token/channel decision, Cal webhook secret, production/Vercel runtime env alignment, and actual TextGrid copy status polling
 2. handle production/provider callback env updates in a dedicated handoff if any deployed callback still uses old query-string runtime-key URLs
 3. wire real Slack daily digest delivery only after Slack bot token and target channel config are available
 4. run a dedicated production promotion only when intentionally preserving/updating production runtime/provider env wiring
@@ -214,7 +214,9 @@
 - Martin funded TextGrid and explicitly approved a live retry to the operator-owned phone.
 - Local Mission Control routes require `Authorization: Bearer <RUNTIME_API_KEY>` even through `TestClient`; the first unauthenticated attempt returned `401`, then authenticated retry reached provider routes.
 - `GET /mission-control/providers/status` returned `200`; TextGrid was configured/can_send.
-- `POST /mission-control/outbound/sms/test` returned `201` with TextGrid `status=queued` to `+1***5914`; the prior `Balance is below 0` blocker is resolved for local TextGrid SMS smoke.
+- `POST /mission-control/outbound/sms/test` returned `201` with TextGrid initial `status=queued` to `+1***5914`, but Martin did not receive it; querying TextGrid showed final status `failed - Blocked by Textgrid Content Filter`.
+- Retried the same route with minimal body `Ares test 2.` to the same normalized number; TextGrid reported `delivered`, and Martin confirmed receipt.
+- The prior `Balance is below 0` blocker is resolved for local TextGrid SMS smoke, but future provider smoke must poll TextGrid status/callbacks instead of trusting immediate `queued`, and production confirmation/reminder copy needs content-filter validation.
 - Sanitized QC evidence: `docs/qc/2026-05-10/textgrid-live-smoke-after-funding/`.
 
 ### 2026-05-10 Activation Env-File Readiness Pass

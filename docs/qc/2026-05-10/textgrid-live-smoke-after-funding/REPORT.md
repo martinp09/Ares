@@ -17,21 +17,28 @@ One explicitly approved TextGrid SMS test to Martin's owned phone after Martin s
 - Set `PROVIDER_LIVE_SENDS_ENABLED=true` only for this local smoke process.
 - Sent one SMS to the already-approved operator-owned number `+1***5914`.
 
-## Result
+## Initial Result
 
 - Provider status route: `200`
 - TextGrid configured: `true`
 - TextGrid can_send: `true`
 - SMS test route: `201`
-- SMS provider result: `queued`
+- Ares immediate provider result: `queued`
 - Error: `null`
 - From: `+1***1390`
 - To: `+1***5914`
 - Provider message id: masked in artifact
 
+## Delivery diagnostic after Martin did not receive it
+
+- Queried TextGrid messages for the target `+1***5914`.
+- The original smoke message was sent to the correct number but later resolved to `failed - Blocked by Textgrid Content Filter`.
+- A minimal retry body, `Ares test 2.`, through the same Ares Mission Control route returned `201` initially and then TextGrid reported `delivered` after polling.
+- Martin confirmed receipt of the retry SMS: `Ares Test 2.`
+
 ## Interpretation
 
-The previous TextGrid funding blocker cleared. Ares reached TextGrid through the Mission Control route and TextGrid accepted the outbound request as queued. This proves provider routing/funding for this local route smoke; it does not prove final handset delivery until Martin confirms receipt or a TextGrid delivery callback/status is checked.
+The previous TextGrid funding blocker cleared and Ares provider routing works. The first no-receipt was not a wrong-number issue: it was provider-side content filtering after Ares returned the initial queued response. Future live smoke must poll TextGrid status or consume delivery callbacks before claiming delivery, and the production confirmation/reminder copy needs a TextGrid content-filter check before broad live sends.
 
 ## Remaining activation blockers from the follow-up sanitized readiness run
 
