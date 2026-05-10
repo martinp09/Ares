@@ -1,0 +1,196 @@
+$ python scripts/activation_readiness.py --json
+{
+  "blockers": [
+    "live_send_gate: PROVIDER_LIVE_SENDS_ENABLED is false; safe default blocks live provider delivery",
+    "textgrid: TEXTGRID_ACCOUNT_SID is missing",
+    "textgrid: TEXTGRID_AUTH_TOKEN is missing",
+    "textgrid: TEXTGRID_FROM_NUMBER is missing",
+    "textgrid: TEXTGRID_WEBHOOK_SECRET is missing",
+    "textgrid: TEXTGRID_STATUS_CALLBACK_URL is missing",
+    "resend: RESEND_API_KEY is missing",
+    "resend: RESEND_FROM_EMAIL is missing",
+    "slack: SLACK_BOT_TOKEN is missing",
+    "slack: SLACK_CHANNEL_INTAKE or SLACK_CHANNEL_LEADS is missing",
+    "calcom: CAL_BOOKING_URL is missing",
+    "calcom: CAL_WEBHOOK_SECRET is missing",
+    "trigger: TRIGGER_SECRET_KEY is missing",
+    "landing: BUSINESS_RUNTIME_MARKETING_LEADS_URL is missing",
+    "landing: BUSINESS_RUNTIME_API_KEY is missing",
+    "landing: BUSINESS_RUNTIME_BUSINESS_ID is missing",
+    "landing: BUSINESS_RUNTIME_ENVIRONMENT is missing"
+  ],
+  "gates": {
+    "calcom": {
+      "blockers": [
+        "CAL_BOOKING_URL is missing",
+        "CAL_WEBHOOK_SECRET is missing"
+      ],
+      "booking_url": {
+        "has_sensitive_query": false,
+        "present": false,
+        "sanitized": null,
+        "sensitive_query_keys": []
+      },
+      "configured": false,
+      "warnings": [],
+      "webhook_secret": {
+        "fingerprint": null,
+        "length": 0,
+        "present": false
+      }
+    },
+    "landing": {
+      "blockers": [
+        "BUSINESS_RUNTIME_MARKETING_LEADS_URL is missing",
+        "BUSINESS_RUNTIME_API_KEY is missing",
+        "BUSINESS_RUNTIME_BUSINESS_ID is missing",
+        "BUSINESS_RUNTIME_ENVIRONMENT is missing"
+      ],
+      "configured": false,
+      "env": {
+        "BUSINESS_RUNTIME_API_KEY": {
+          "fingerprint": null,
+          "length": 0,
+          "present": false
+        },
+        "BUSINESS_RUNTIME_BUSINESS_ID": {
+          "length": 0,
+          "present": false
+        },
+        "BUSINESS_RUNTIME_ENVIRONMENT": {
+          "length": 0,
+          "present": false
+        },
+        "BUSINESS_RUNTIME_MARKETING_LEADS_URL": {
+          "has_sensitive_query": false,
+          "present": false,
+          "sanitized": null,
+          "sensitive_query_keys": []
+        },
+        "BUSINESS_RUNTIME_SITE_EVENTS_URL": {
+          "has_sensitive_query": false,
+          "present": false,
+          "sanitized": null,
+          "sensitive_query_keys": []
+        }
+      },
+      "warnings": []
+    },
+    "live_send_gate": {
+      "blockers": [
+        "PROVIDER_LIVE_SENDS_ENABLED is false; safe default blocks live provider delivery"
+      ],
+      "configured": false,
+      "provider_live_sends_enabled": false,
+      "warnings": []
+    },
+    "resend": {
+      "api_key": {
+        "fingerprint": null,
+        "length": 0,
+        "present": false
+      },
+      "blockers": [
+        "RESEND_API_KEY is missing",
+        "RESEND_FROM_EMAIL is missing"
+      ],
+      "configured": false,
+      "from_email_present": false,
+      "from_email_valid": false,
+      "reply_to_present": false,
+      "warnings": []
+    },
+    "runtime_auth": {
+      "actor_header_overrides_enabled": false,
+      "blockers": [],
+      "configured": true,
+      "docs_enabled": false,
+      "provider_webhook_signatures_required": true,
+      "runtime_api_key": {
+        "fingerprint": "3ac308ff",
+        "length": 48,
+        "present": true
+      },
+      "warnings": []
+    },
+    "slack": {
+      "blockers": [
+        "SLACK_BOT_TOKEN is missing",
+        "SLACK_CHANNEL_INTAKE or SLACK_CHANNEL_LEADS is missing"
+      ],
+      "bot_token": {
+        "fingerprint": null,
+        "length": 0,
+        "present": false
+      },
+      "configured": false,
+      "errors_channel_present": false,
+      "intake_channel_present": false,
+      "leads_channel_present": false,
+      "warnings": []
+    },
+    "textgrid": {
+      "account_sid": {
+        "fingerprint": null,
+        "length": 0,
+        "present": false
+      },
+      "auth_token": {
+        "fingerprint": null,
+        "length": 0,
+        "present": false
+      },
+      "blockers": [
+        "TEXTGRID_ACCOUNT_SID is missing",
+        "TEXTGRID_AUTH_TOKEN is missing",
+        "TEXTGRID_FROM_NUMBER is missing",
+        "TEXTGRID_WEBHOOK_SECRET is missing",
+        "TEXTGRID_STATUS_CALLBACK_URL is missing"
+      ],
+      "configured": false,
+      "from_number_present": false,
+      "status_callback_url": {
+        "has_sensitive_query": false,
+        "present": false,
+        "sanitized": null,
+        "sensitive_query_keys": []
+      },
+      "warnings": [],
+      "webhook_secret": {
+        "fingerprint": null,
+        "length": 0,
+        "present": false
+      }
+    },
+    "trigger": {
+      "api_url": {
+        "has_sensitive_query": false,
+        "present": true,
+        "sanitized": "https://api.trigger.dev",
+        "sensitive_query_keys": []
+      },
+      "appointment_reminder_task_id": "marketing-send-appointment-reminder",
+      "blockers": [
+        "TRIGGER_SECRET_KEY is missing"
+      ],
+      "configured": false,
+      "marketing_appointment_reminders_enabled": true,
+      "non_booker_task_id": "marketing-check-submitted-lead-booking",
+      "secret_key": {
+        "fingerprint": null,
+        "length": 0,
+        "present": false
+      },
+      "warnings": []
+    }
+  },
+  "generated_at": "2026-05-10T02:00:41.209008+00:00",
+  "next_commands": [
+    "python scripts/activation_readiness.py --json",
+    "python scripts/smoke_provider_readiness.py",
+    "PROVIDER_LIVE_SENDS_ENABLED=true python scripts/activation_readiness.py --json"
+  ],
+  "safe_to_deploy_without_live_sends": true,
+  "verdict": "blocked",
+  "warnings": []
+}
