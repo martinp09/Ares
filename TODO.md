@@ -1,10 +1,10 @@
 ---
 title: "Ares TODO / Handoff"
 status: active
-updated_at: "2026-05-10T02:34:04Z"
+updated_at: "2026-05-10T21:15:00Z"
 repo: "martinp09/Ares"
-local_checkout: "/root/Ares-inspect"
-current_branch: "main"
+local_checkout: "/opt/ares/worktrees/sms-email-vapi-agent-scaffold"
+current_branch: "feature/sms-email-vapi-agent-scaffold"
 production_wiring_commit: "47be904"
 activation_readiness_code_commit: "9addc1de72ec2f80a86fb51f608d44eb24c4627e"
 ---
@@ -29,11 +29,27 @@ Known caveats:
 - Native `pg_dump` backup is not captured because the Supabase CLI container could not resolve the Supabase DB host from Colima. A REST table-export rollback bundle exists instead.
 - Slack digest delivery for the Harris daily import is intentionally last and blocked until `SLACK_BOT_TOKEN` plus target channels are available.
 - Slack intake notification delivery for lease-option leads is scaffolded but blocked until `SLACK_BOT_TOKEN` plus `SLACK_CHANNEL_INTAKE` or `SLACK_CHANNEL_LEADS` are available and `PROVIDER_LIVE_SENDS_ENABLED=true`.
-- Local approved live TextGrid smoke to Martin `+1***5914` reached Ares Mission Control and TextGrid after funding was added; the first body was blocked by TextGrid Content Filter, then a minimal retry delivered. Resend remains blocked by invalid `RESEND_FROM_EMAIL` format before live email delivery can be claimed.
+- Local approved live TextGrid smoke to Martin `+1***5914` reached Ares Mission Control and TextGrid after funding was added; the first body was blocked by TextGrid Content Filter, then a minimal retry delivered.
+- Resend CLI is installed and working (`resend-cli v2.2.1`); test email `1d4172f1-765a-42cf-9a4a-029a5d2f5e5d` to `delivered@resend.dev` delivered from verified domain `send.limitleshome.com`.
+- Vapi voice-agent scaffold is not live-provisioned yet; live callbacks require Ares bearer auth plus `X-Vapi-Secret` when provider signatures are required, and live outbound calls require both global and Vapi-specific live gates.
 - Production promotion for the Harris daily import should be a dedicated handoff that preserves the production runtime/provider env contract; preview smoke passed at `https://production-readiness-afternoon-9adxg1gvb.vercel.app`.
 - Deployed provider callback configurations should be checked/updated externally if any still use old `runtime_api_key` query-string URLs; runtime auth is now bearer-only plus provider signatures.
 
 ## Current product slice
+
+### 0.6. Communication agent scaffold
+
+- [done] Add generic TextGrid SMS agent endpoint at `POST /sms-agent/messages`, separate from lease-options intake.
+- [done] Keep SMS agent live sends dry-run by default behind `PROVIDER_LIVE_SENDS_ENABLED=false`.
+- [done] Require `contact_id` plus `sms_consent_confirmed=true` before any live generic SMS send.
+- [done] Add generic TextGrid webhook alias at `POST /sms-agent/webhooks/textgrid` reusing the existing inbound/status processor.
+- [done] Install Resend CLI and capture delivered CLI smoke evidence for verified `send.limitleshome.com`.
+- [done] Add Vapi provider client and voice routes for assistants, phone numbers, outbound calls, and Server URL webhooks.
+- [done] Keep Vapi provider mutations/calls dry-run unless both `PROVIDER_LIVE_SENDS_ENABLED=true` and `VAPI_PROVIDER_LIVE_SENDS_ENABLED=true` are set.
+- [done] Require Ares runtime bearer auth for Vapi webhook route and `X-Vapi-Secret` when provider signatures are required.
+- [done] Save QC evidence at `docs/qc/2026-05-10/sms-email-vapi-agent-scaffold/` with focused `18 passed`, full backend `672 passed`, Resend smoke evidence, and clean diff check.
+- [ ] Before live Vapi launch, configure Vapi Server URL credentials to send bearer auth and `X-Vapi-Secret`, then run an approved live smoke.
+- [ ] Add Mission Control UI controls for generic SMS/voice actions only after the backend contract is merged.
 
 ### 0.5. Lease-options landing -> Ares intake bridge
 
@@ -50,7 +66,8 @@ Known caveats:
 - [done] Add `--env-file`, `--runtime-url`, and `--derive-local-defaults` readiness options so `/opt/ares/Ares/.env` can be checked safely without copying secrets; latest sanitized run reduced the empty-checkout blocker list to 5 remaining external gates.
 - [done] Run local dark Ares intake smoke with available local env and `PROVIDER_LIVE_SENDS_ENABLED=false`: provider status route returned 200, `POST /marketing/leads` returned 201, and SMS/email/Slack/Trigger side effects were skipped.
 - [done] Approved local live TextGrid smoke to Martin `+1***5914` after funding: first body was later `failed - Blocked by Textgrid Content Filter`, then minimal retry `Ares test 2.` delivered; QC evidence at `docs/qc/2026-05-10/textgrid-live-smoke-after-funding/`.
-- [blocked] Approved local route smoke to Martin's email reached Ares; Resend API/domain are valid, but `RESEND_FROM_EMAIL` must be set as a quoted verified sender identity before delivery smoke, e.g. `RESEND_FROM_EMAIL="Limitless Home Solutions <hello@send.limitleshome.com>"` and `RESEND_REPLY_TO_EMAIL=hello@send.limitleshome.com`.
+- [blocked] Approved local Ares route smoke to Martin's email reached Ares, but hosted/local route delivery still depends on the quoted sender env being loaded in that runtime path.
+- [done] Resend CLI smoke delivered to `delivered@resend.dev` from verified `send.limitleshome.com`; this proves the CLI/API key/domain path works, separate from the hosted Ares route smoke.
 - [blocked] Hosted protected Mission Control routes and direct hosted Ares `/marketing/leads` returned `401 Unauthorized` with the local runtime key; the deployed landing form reproduced a complete-field `500`, so Vercel/production env access is required to verify or update deployed `RUNTIME_API_KEY` and landing `BUSINESS_RUNTIME_API_KEY` alignment.
 - [ ] Set landing runtime envs in the deployment target: `BUSINESS_RUNTIME_MARKETING_LEADS_URL`, `BUSINESS_RUNTIME_API_KEY`, `BUSINESS_RUNTIME_BUSINESS_ID`, `BUSINESS_RUNTIME_ENVIRONMENT`.
 - [ ] Set Ares runtime envs for live launch: valid `CAL_WEBHOOK_SECRET`, quoted verified `RESEND_FROM_EMAIL`/reply-to, chosen Slack behavior (`SLACK_BOT_TOKEN`/channel if Slack is used, or keep Slack optional/disabled), and TextGrid content-filter validation for the actual confirmation/reminder copy with status polling/callback evidence.

@@ -28,6 +28,8 @@
 ## Current Direction
 
 - `/root/Ares-inspect` is on `main`; lease-option intake confirmation SMS/email, Slack intake scaffold, appointment reminders, and env-file activation readiness are merged. Current activation docs/tooling: `docs/activation-readiness-handoff.md` and `scripts/activation_readiness.py`.
+- `/opt/ares/worktrees/sms-email-vapi-agent-scaffold` on `feature/sms-email-vapi-agent-scaffold` adds the first generic communication-agent substrate: `POST /sms-agent/messages`, `POST /sms-agent/webhooks/textgrid`, `POST /voice/assistants`, `POST /voice/phone-numbers`, `POST /voice/calls/outbound`, and `POST /voice/vapi/webhook`. SMS live sends require `contact_id` + `sms_consent_confirmed=true`; Vapi provider actions require both the global live-send gate and `VAPI_PROVIDER_LIVE_SENDS_ENABLED=true`.
+- Resend CLI `resend-cli v2.2.1` is installed in this environment; a CLI smoke to `delivered@resend.dev` delivered with ID `1d4172f1-765a-42cf-9a4a-029a5d2f5e5d` using verified sender domain `send.limitleshome.com`.
 - `POST /lead-machine/harris/daily-import` is implemented for Harris daily probate + HCAD `Estate Of` imports; it defaults to dry-run, records QC warnings, and never sends providers/Slack.
 - CRM control-plane work has been merged to `origin/main`.
 - CRM control-plane draft spec: `docs/superpowers/specs/2026-04-25-ares-crm-control-plane-design.md`.
@@ -139,6 +141,12 @@
   - `GET /mission-control/runs`
   - `POST /marketing/webhooks/calcom`
   - `POST /marketing/webhooks/textgrid`
+  - `POST /sms-agent/messages`
+  - `POST /sms-agent/webhooks/textgrid`
+  - `POST /voice/assistants`
+  - `POST /voice/phone-numbers`
+  - `POST /voice/calls/outbound`
+  - `POST /voice/vapi/webhook`
   - `POST /marketing/internal/non-booker-check`
   - `POST /lead-machine/probate/intake`
   - `POST /lead-machine/outbound/enqueue`
@@ -186,19 +194,21 @@
 
 ## Open Work
 
-1. set/fix remaining provider/env gates, then rerun `python scripts/activation_readiness.py --json` before broader live launch; landing production now uses the Ares-backed contact route but is blocked by missing Vercel contact-intake envs (`BUSINESS_RUNTIME_MARKETING_LEADS_URL`, `BUSINESS_RUNTIME_API_KEY`, `BUSINESS_RUNTIME_BUSINESS_ID`, `BUSINESS_RUNTIME_ENVIRONMENT`); TextGrid local live smoke after funding reached the correct number but first body was content-filtered, minimal retry delivered; remaining blockers are safe live-send default, valid Resend sender, Slack optional token/channel decision, Cal webhook secret, production/Vercel runtime env alignment, and actual TextGrid copy status polling
-2. handle production/provider callback env updates in a dedicated handoff if any deployed callback still uses old query-string runtime-key URLs
-3. wire real Slack daily digest delivery only after Slack bot token and target channel config are available
-4. run a dedicated production promotion only when intentionally preserving/updating production runtime/provider env wiring
-5. add dedicated Mission Control frontend campaign-launch review page for the Harris probate HOT/WARM/COLD API contract
-6. enrich Harris probate campaign exports with email/phone before any Instantly/TextGrid enrollment; current source artifact is direct-mail-ready only
-7. consider an atomic backend bulk-record endpoint if large batch throughput/transaction semantics become necessary; current Records bulk UI fans out through real single-record command callbacks
-8. defer owner/property graph, research cockpit, and map UI until Records and stage model are stable
-9. add explicit canonical source-lane metadata for CRM records before broadening promote routing beyond probate/lease-option lanes
-10. preserve production evidence files as the handoff source of truth
-11. optionally replace the REST rollback bundle with native pg_dump once Supabase CLI container DNS is fixed
-12. add production monitoring/alerts for provider callback failures
-13. keep browser acquisition and ambiguous research in Hermes or other driver agents, not inside Ares
+1. finish and push `feature/sms-email-vapi-agent-scaffold`; QC evidence lives under `docs/qc/2026-05-10/sms-email-vapi-agent-scaffold/` with focused `18 passed`, full backend `672 passed`, clean diff check, and delivered Resend CLI smoke evidence
+2. set/fix remaining provider/env gates, then rerun `python scripts/activation_readiness.py --json` before broader live launch; landing production now uses the Ares-backed contact route but is blocked by missing Vercel contact-intake envs (`BUSINESS_RUNTIME_MARKETING_LEADS_URL`, `BUSINESS_RUNTIME_API_KEY`, `BUSINESS_RUNTIME_BUSINESS_ID`, `BUSINESS_RUNTIME_ENVIRONMENT`); TextGrid local live smoke after funding reached the correct number but first body was content-filtered, minimal retry delivered; remaining blockers are safe live-send default, Slack optional token/channel decision, Cal webhook secret, production/Vercel runtime env alignment, and actual TextGrid copy status polling
+3. before live Vapi callbacks/calls, configure Vapi Server URL credentials to send Ares bearer auth and `X-Vapi-Secret`, then run a dry-run-to-live progression with approved numbers only
+4. handle production/provider callback env updates in a dedicated handoff if any deployed callback still uses old query-string runtime-key URLs
+5. wire real Slack daily digest delivery only after Slack bot token and target channel config are available
+6. run a dedicated production promotion only when intentionally preserving/updating production runtime/provider env wiring
+7. add dedicated Mission Control frontend campaign-launch review page for the Harris probate HOT/WARM/COLD API contract
+8. enrich Harris probate campaign exports with email/phone before any Instantly/TextGrid enrollment; current source artifact is direct-mail-ready only
+9. consider an atomic backend bulk-record endpoint if large batch throughput/transaction semantics become necessary; current Records bulk UI fans out through real single-record command callbacks
+10. defer owner/property graph, research cockpit, and map UI until Records and stage model are stable
+11. add explicit canonical source-lane metadata for CRM records before broadening promote routing beyond probate/lease-option lanes
+12. preserve production evidence files as the handoff source of truth
+13. optionally replace the REST rollback bundle with native pg_dump once Supabase CLI container DNS is fixed
+14. add production monitoring/alerts for provider callback failures
+15. keep browser acquisition and ambiguous research in Hermes or other driver agents, not inside Ares
 
 ## Completed Branch Work
 
@@ -208,6 +218,15 @@
 - `TasksRepository` now treats `lead_machine_backend=supabase` as a Supabase-backed task path so title-packet review tasks persist with lead-machine records.
 
 ## Change Log
+
+### 2026-05-10 SMS/Resend/Vapi Communication Agent Scaffold
+
+- Added the first generic Ares SMS agent substrate on `feature/sms-email-vapi-agent-scaffold`: `POST /sms-agent/messages` and `POST /sms-agent/webhooks/textgrid` reuse TextGrid normalization/config and the existing inbound/status processor without touching the lease-options intake route.
+- Generic SMS live sends are policy-gated: dry-run by default while `PROVIDER_LIVE_SENDS_ENABLED=false`, and when live sends are enabled the request must include a `contact_id` and explicit `sms_consent_confirmed=true` before TextGrid is called.
+- Installed `resend-cli v2.2.1`; `resend doctor` sees the env API key and verified `send.limitleshome.com`, and CLI smoke email `1d4172f1-765a-42cf-9a4a-029a5d2f5e5d` to `delivered@resend.dev` has final event `delivered`. Sanitized evidence: `docs/qc/2026-05-10/sms-email-vapi-agent-scaffold/resend-cli-smoke.json`.
+- Added Vapi voice scaffold routes: `POST /voice/assistants`, `POST /voice/phone-numbers`, `POST /voice/calls/outbound`, and `POST /voice/vapi/webhook`; Vapi provider mutations/calls stay dry-run unless both `PROVIDER_LIVE_SENDS_ENABLED=true` and `VAPI_PROVIDER_LIVE_SENDS_ENABLED=true`.
+- Vapi webhook handling accepts `assistant-request`, `tool-calls`, `status-update`, `transcript`, and `end-of-call-report`; live callbacks must be configured to send Ares bearer auth and, when provider signatures are required, `X-Vapi-Secret` matching `VAPI_WEBHOOK_SECRET`.
+- Verification for the scaffold: focused backend tests `18 passed`, full backend suite `672 passed`, and `git diff --check` clean. QC evidence: `docs/qc/2026-05-10/sms-email-vapi-agent-scaffold/`.
 
 ### 2026-05-10 Landing Submit Debug + Resend Setup Check
 

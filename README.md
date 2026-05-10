@@ -59,6 +59,12 @@ Ares is a self-hosted operating system for distressed real-estate lead managemen
 - `POST /marketing/leads`
 - `POST /marketing/webhooks/textgrid`
 - `POST /marketing/webhooks/calcom`
+- `POST /sms-agent/messages`
+- `POST /sms-agent/webhooks/textgrid`
+- `POST /voice/assistants`
+- `POST /voice/phone-numbers`
+- `POST /voice/calls/outbound`
+- `POST /voice/vapi/webhook`
 - `POST /site-events`
 - `POST /trigger/callbacks/runs/{run_id}/started`
 - `POST /trigger/callbacks/runs/{run_id}/completed`
@@ -107,8 +113,8 @@ Response fields:
 
 Current side effects:
 
-- `confirmation_sms`: TextGrid confirmation with booking link and STOP language when `sms_consent=true`, TextGrid config exists, and `PROVIDER_LIVE_SENDS_ENABLED=true`.
-- `confirmation_email`: Resend confirmation with the same booking link when Resend config exists and `PROVIDER_LIVE_SENDS_ENABLED=true`.
+- `confirmation_sms`: TextGrid confirmation-only copy with STOP language and no booking link when `sms_consent=true`, TextGrid config exists, and `PROVIDER_LIVE_SENDS_ENABLED=true`.
+- `confirmation_email`: Resend confirmation with the booking link fallback when Resend config exists and `PROVIDER_LIVE_SENDS_ENABLED=true`.
 - `operator_slack_notification`: Slack `chat.postMessage` operator alert with lead/booking context when `PROVIDER_LIVE_SENDS_ENABLED=true` and `SLACK_BOT_TOKEN` plus `SLACK_CHANNEL_INTAKE` or `SLACK_CHANNEL_LEADS` are configured; otherwise skipped safely.
 - `trigger_non_booker_check`: delayed Trigger follow-up check when Trigger config exists and `PROVIDER_LIVE_SENDS_ENABLED=true`.
 
@@ -140,6 +146,31 @@ TRIGGER_SECRET_KEY=<trigger-secret-key>
 TRIGGER_NON_BOOKER_CHECK_TASK_ID=marketing-check-submitted-lead-booking
 TRIGGER_APPOINTMENT_REMINDER_TASK_ID=marketing-send-appointment-reminder
 MARKETING_APPOINTMENT_REMINDERS_ENABLED=true
+```
+
+## Communication Agent Scaffold
+
+Ares now has a deterministic provider substrate for broader communications automation, separate from the lease-options landing intake path:
+
+- `POST /sms-agent/messages` sends or dry-runs a generic TextGrid SMS. With `PROVIDER_LIVE_SENDS_ENABLED=false` or `dry_run_only=true`, it returns `dry_run=true` and does not call TextGrid. When live sends are enabled and TextGrid is configured, it requires `contact_id` plus `sms_consent_confirmed=true`, normalizes `to`/`from` to E.164, calls TextGrid, and logs the outbound message.
+- `POST /sms-agent/webhooks/textgrid` is a generic TextGrid webhook alias that reuses the existing inbound/status callback processor.
+- `POST /voice/assistants`, `POST /voice/phone-numbers`, and `POST /voice/calls/outbound` scaffold Vapi assistant/number/call payloads. Vapi provider mutations and outbound calls stay dry-run unless both `PROVIDER_LIVE_SENDS_ENABLED=true` and `VAPI_PROVIDER_LIVE_SENDS_ENABLED=true` are set.
+- `POST /voice/vapi/webhook` accepts Vapi Server URL messages, including `assistant-request`, `tool-calls`, `status-update`, `transcript`, and `end-of-call-report` shapes. The route is protected by the normal Ares runtime bearer auth; when `PROVIDER_WEBHOOK_SIGNATURES_REQUIRED=true`, it also requires `X-Vapi-Secret: <VAPI_WEBHOOK_SECRET>`. Configure the Vapi Server URL credential/header before live callbacks.
+
+Vapi envs:
+
+```bash
+VAPI_API_KEY=<vapi-api-key>
+VAPI_BASE_URL=https://api.vapi.ai
+VAPI_WEBHOOK_URL=https://<ares-runtime>/voice/vapi/webhook
+VAPI_WEBHOOK_SECRET=<vapi-server-url-shared-secret>
+VAPI_DEFAULT_ASSISTANT_ID=<optional-existing-assistant-id>
+VAPI_DEFAULT_PHONE_NUMBER_ID=<optional-existing-phone-number-id>
+VAPI_PROVIDER_LIVE_SENDS_ENABLED=false
+VAPI_DEFAULT_MODEL_PROVIDER=openai
+VAPI_DEFAULT_MODEL=gpt-4o
+VAPI_DEFAULT_VOICE_PROVIDER=11labs
+VAPI_DEFAULT_VOICE_ID=cgSgspJ2msm6clMCkdW9
 ```
 
 ## Local Runtime Contract

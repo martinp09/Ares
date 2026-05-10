@@ -255,6 +255,50 @@ class Settings(BaseSettings):
         default=None,
         validation_alias=AliasChoices("slack_channel_qc", "SLACK_CHANNEL_QC"),
     )
+    vapi_api_key: str | None = Field(
+        default=None,
+        validation_alias=AliasChoices("vapi_api_key", "VAPI_API_KEY", "VAPI_PRIVATE_KEY"),
+    )
+    vapi_base_url: str = Field(
+        default="https://api.vapi.ai",
+        validation_alias=AliasChoices("vapi_base_url", "VAPI_BASE_URL"),
+    )
+    vapi_webhook_secret: str | None = Field(
+        default=None,
+        validation_alias=AliasChoices("vapi_webhook_secret", "VAPI_WEBHOOK_SECRET"),
+    )
+    vapi_webhook_url: str | None = Field(
+        default=None,
+        validation_alias=AliasChoices("vapi_webhook_url", "VAPI_WEBHOOK_URL"),
+    )
+    vapi_default_assistant_id: str | None = Field(
+        default=None,
+        validation_alias=AliasChoices("vapi_default_assistant_id", "VAPI_DEFAULT_ASSISTANT_ID"),
+    )
+    vapi_default_phone_number_id: str | None = Field(
+        default=None,
+        validation_alias=AliasChoices("vapi_default_phone_number_id", "VAPI_DEFAULT_PHONE_NUMBER_ID"),
+    )
+    vapi_provider_live_sends_enabled: bool = Field(
+        default=False,
+        validation_alias=AliasChoices("vapi_provider_live_sends_enabled", "VAPI_PROVIDER_LIVE_SENDS_ENABLED"),
+    )
+    vapi_default_model_provider: str = Field(
+        default="openai",
+        validation_alias=AliasChoices("vapi_default_model_provider", "VAPI_DEFAULT_MODEL_PROVIDER"),
+    )
+    vapi_default_model: str = Field(
+        default="gpt-4o",
+        validation_alias=AliasChoices("vapi_default_model", "VAPI_DEFAULT_MODEL"),
+    )
+    vapi_default_voice_provider: str = Field(
+        default="11labs",
+        validation_alias=AliasChoices("vapi_default_voice_provider", "VAPI_DEFAULT_VOICE_PROVIDER"),
+    )
+    vapi_default_voice_id: str = Field(
+        default="cgSgspJ2msm6clMCkdW9",
+        validation_alias=AliasChoices("vapi_default_voice_id", "VAPI_DEFAULT_VOICE_ID"),
+    )
 
     model_config = SettingsConfigDict(
         env_file=".env",

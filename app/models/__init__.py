@@ -21,6 +21,8 @@ from app.models.probate_leads import (
 from app.models.suppression import SuppressionRecord, SuppressionScope, SuppressionSource
 from app.models.tasks import TaskPriority, TaskRecord, TaskStatus, TaskType
 from app.models.title_packets import TitlePacketPriority, TitlePacketRecord, TitlePacketStatus
+from app.models.sms_agent import SmsAgentSendRequest, SmsAgentSendResponse
+from app.models.voice_agents import VoiceOutboundCallRequest, VoiceProviderActionResponse
 
 __all__ = [
     "AutomationRunRecord",
@@ -45,6 +47,8 @@ __all__ = [
     "SuppressionRecord",
     "SuppressionScope",
     "SuppressionSource",
+    "SmsAgentSendRequest",
+    "SmsAgentSendResponse",
     "TaskPriority",
     "TaskRecord",
     "TaskStatus",
@@ -52,4 +56,6 @@ __all__ = [
     "TitlePacketPriority",
     "TitlePacketRecord",
     "TitlePacketStatus",
+    "VoiceOutboundCallRequest",
+    "VoiceProviderActionResponse",
 ]

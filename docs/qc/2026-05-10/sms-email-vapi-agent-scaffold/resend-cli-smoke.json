@@ -1,0 +1,53 @@
+{
+  "resend_cli": {
+    "command": "resend --version",
+    "installed": true,
+    "version": "resend-cli v2.2.1"
+  },
+  "doctor": {
+    "ok": true,
+    "checks": [
+      {
+        "name": "CLI Version",
+        "status": "pass",
+        "message": "v2.2.1 (latest)"
+      },
+      {
+        "name": "API Key",
+        "status": "pass",
+        "message": "re_...R9bD (source: env)"
+      },
+      {
+        "name": "Credential Storage",
+        "status": "warn",
+        "message": "plaintext file"
+      },
+      {
+        "name": "Domains",
+        "status": "pass",
+        "message": "1 verified, 0 pending",
+        "detail": "send.limitleshome.com (verified)"
+      }
+    ]
+  },
+  "domains": [
+    {
+      "name": "send.limitleshome.com",
+      "status": "verified",
+      "capabilities": {
+        "sending": "enabled",
+        "receiving": "enabled"
+      }
+    }
+  ],
+  "email_test": {
+    "email_id": "1d4172f1-765a-42cf-9a4a-029a5d2f5e5d",
+    "recipient": "delivered@resend.dev",
+    "last_event": "delivered",
+    "from_domain": "send.limitleshome.com",
+    "fetch_exit_code": 0,
+    "created_at": "2026-05-10 20:47:11.797577+00",
+    "subject": "Ares Resend CLI smoke 2026-05-10T20:47:11+00:00"
+  },
+  "raw_secret_values_printed": false
+}
