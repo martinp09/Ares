@@ -341,6 +341,20 @@ function deriveShellDataSource(fallbackViews: MissionControlView[]): MissionCont
   return fallbackViews.length > 0 ? "fixture" : "api";
 }
 
+const SHELL_FALLBACK_VIEWS: MissionControlView[] = [
+  "dashboard",
+  "records",
+  "inbox",
+  "tasks",
+  "approvals",
+  "runs",
+  "agents",
+  "catalog",
+  "pipeline",
+  "settings",
+  "suppression",
+];
+
 function fallbackAgentDetailForSnapshot(
   snapshot: MissionControlSnapshot,
   agentId: string,
@@ -577,6 +591,7 @@ export default function App() {
       const nextFallbackViews = (
         [
           ["dashboard", dashboard.source],
+          ["records", records.source],
           ["inbox", inbox.source],
           ["tasks", tasks.source],
           ["approvals", approvals.source],
@@ -1703,7 +1718,7 @@ export default function App() {
   }
 
   const fallbackLabel = fallbackViews.length > 0 ? ` (${fallbackViews.join(", ")})` : "";
-  const isFullFixtureMode = fallbackViews.length === 9;
+  const isFullFixtureMode = SHELL_FALLBACK_VIEWS.every((viewId) => fallbackViews.includes(viewId));
   const statusBadge = isLoading
     ? "Loading shell"
     : dataSource === "api"

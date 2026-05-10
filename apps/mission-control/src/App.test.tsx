@@ -21,6 +21,11 @@ function createDeferred<T>() {
   return { promise, resolve, reject };
 }
 
+async function openLeadMachineWorkspace() {
+  fireEvent.click(await screen.findByRole("tab", { name: "Lead Machine" }));
+  await screen.findByRole("heading", { name: /lead machine \/ agents/i, level: 2 });
+}
+
 describe("App", () => {
   beforeEach(() => {
     queryClient.clear();
@@ -192,6 +197,7 @@ describe("App", () => {
     vi.stubGlobal("fetch", fetchMock);
 
     render(<App />);
+    await openLeadMachineWorkspace();
 
     fireEvent.click(await screen.findByRole("button", { name: /replies/i }));
 
@@ -443,6 +449,7 @@ describe("App", () => {
     vi.stubGlobal("fetch", fetchMock);
 
     render(<App />);
+    await openLeadMachineWorkspace();
 
     fireEvent.click(await screen.findByRole("button", { name: /view lifecycle for lifecycle agent/i }));
 
@@ -594,6 +601,7 @@ describe("App", () => {
     vi.stubGlobal("fetch", fetchMock);
 
     render(<App />);
+    await openLeadMachineWorkspace();
 
     fireEvent.click(await screen.findByRole("button", { name: /view lifecycle for sierra inbox agent/i }));
 
@@ -766,6 +774,7 @@ describe("App", () => {
     vi.stubGlobal("fetch", fetchMock);
 
     render(<App />);
+    await openLeadMachineWorkspace();
 
     fireEvent.click(await screen.findByRole("button", { name: /view lifecycle for sierra inbox agent/i }));
 
@@ -946,6 +955,7 @@ describe("App", () => {
     vi.stubGlobal("fetch", fetchMock);
 
     render(<App />);
+    await openLeadMachineWorkspace();
 
     fireEvent.click(await screen.findByRole("button", { name: /view lifecycle for sierra inbox agent/i }));
 
@@ -1068,6 +1078,7 @@ describe("App", () => {
     vi.stubGlobal("fetch", fetchMock);
 
     render(<App />);
+    await openLeadMachineWorkspace();
 
     fireEvent.click(await screen.findByRole("button", { name: /view lifecycle for sierra inbox agent/i }));
 
@@ -1079,7 +1090,7 @@ describe("App", () => {
     fireEvent.click(screen.getByRole("button", { name: /queue/i }));
     fireEvent.click(screen.getAllByRole("button", { name: /agents/i })[0]);
 
-    expect(await screen.findByText("Live API")).toBeInTheDocument();
+    expect(await screen.findByText(/API \+ fixture fallback .*records.*pipeline/)).toBeInTheDocument();
     const reopenedLifecycleButton = screen.queryByRole("button", { name: /view lifecycle for sierra inbox agent/i });
     if (reopenedLifecycleButton) {
       fireEvent.click(reopenedLifecycleButton);
@@ -1199,6 +1210,7 @@ describe("App", () => {
     vi.stubGlobal("fetch", fetchMock);
 
     render(<App />);
+    await openLeadMachineWorkspace();
 
     fireEvent.click(await screen.findByRole("button", { name: /view lifecycle for lifecycle agent/i }));
     expect(await screen.findByRole("heading", { name: "Agent lifecycle" })).toBeInTheDocument();
@@ -1330,6 +1342,7 @@ describe("App", () => {
     vi.stubGlobal("fetch", fetchMock);
 
     render(<App />);
+    await openLeadMachineWorkspace();
 
     fireEvent.click(await screen.findByRole("button", { name: /view lifecycle for first agent/i }));
 
@@ -1412,6 +1425,7 @@ describe("App", () => {
     vi.stubGlobal("fetch", fetchMock);
 
     render(<App />);
+    await openLeadMachineWorkspace();
 
     expect(await screen.findByRole("heading", { name: "Agent platform cockpit" })).toBeInTheDocument();
     expect(screen.getByText("Fixture mode")).toBeInTheDocument();
@@ -1498,17 +1512,18 @@ describe("App", () => {
     vi.stubGlobal("fetch", fetchMock);
 
     render(<App />);
+    await openLeadMachineWorkspace();
 
-    expect(await screen.findByText("API + fixture fallback (agents)")).toBeInTheDocument();
+    expect(await screen.findByText(/API \+ fixture fallback .*agents/)).toBeInTheDocument();
     expect(screen.getByText("Fixture fallback / no Supabase wiring")).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: /queue/i }));
     fireEvent.click(screen.getAllByRole("button", { name: /agents/i })[0]);
 
     await screen.findByText("Live API / no Supabase wiring");
-    await screen.findByText("Live API");
+    await screen.findByText(/API \+ fixture fallback .*records.*pipeline/);
 
-    expect(screen.getByText("Mission Control is reading Hermes runtime data.")).toBeInTheDocument();
+    expect(screen.getByText("Using fixture fallback for: records, pipeline.")).toBeInTheDocument();
     expect(screen.queryByText("API + fixture fallback (agents)")).not.toBeInTheDocument();
     expect(screen.queryByText("Using fixture fallback for: agents.")).not.toBeInTheDocument();
   });
@@ -1598,6 +1613,7 @@ describe("App", () => {
     vi.stubGlobal("fetch", fetchMock);
 
     render(<App />);
+    await openLeadMachineWorkspace();
 
     fireEvent.click(await screen.findByRole("button", { name: /view lifecycle for lifecycle agent/i }));
 
@@ -1759,15 +1775,16 @@ describe("App", () => {
     vi.stubGlobal("fetch", fetchMock);
 
     render(<App />);
+    await openLeadMachineWorkspace();
 
     fireEvent.click(await screen.findByRole("button", { name: /replies/i }));
     expect(await screen.findByText("Taylor detail from API")).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: /jordan patel/i }));
 
-    expect(await screen.findByText("API + fixture fallback (inbox)")).toBeInTheDocument();
+    expect(await screen.findByText("API + fixture fallback (records, inbox, pipeline)")).toBeInTheDocument();
     expect(screen.queryByText("Taylor detail from API")).not.toBeInTheDocument();
-    expect(screen.getByText("Using fixture fallback for: inbox.")).toBeInTheDocument();
+    expect(screen.getByText("Using fixture fallback for: records, inbox, pipeline.")).toBeInTheDocument();
   });
 
   it("defaults to agents-first navigation and keeps operator views around each workspace", async () => {
@@ -1922,6 +1939,7 @@ describe("App", () => {
     vi.stubGlobal("fetch", fetchMock);
 
     render(<App />);
+    await openLeadMachineWorkspace();
 
     expect(await screen.findByRole("tab", { name: "Lead Machine" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /agents/i })).toBeInTheDocument();
@@ -1944,8 +1962,8 @@ describe("App", () => {
 
     fireEvent.click(screen.getByRole("tab", { name: "Pipeline" }));
     expect(screen.getByRole("heading", { name: /pipeline board/i, level: 2 })).toBeInTheDocument();
-    expect(screen.getByText("Qualified Opportunity")).toBeInTheDocument();
-    expect(screen.getByText("Under Negotiation")).toBeInTheDocument();
+    expect(screen.getAllByText("Qualified Opportunity").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Under Negotiation").length).toBeGreaterThan(0);
   });
 
   it("renders the settings workspace and governance surface through App", async () => {
@@ -2102,6 +2120,7 @@ describe("App", () => {
     vi.stubGlobal("fetch", fetchMock);
 
     render(<App />);
+    await openLeadMachineWorkspace();
 
     fireEvent.click(await screen.findByRole("button", { name: /settings/i }));
 
@@ -2243,6 +2262,7 @@ describe("App", () => {
     vi.stubGlobal("fetch", fetchMock);
 
     render(<App />);
+    await openLeadMachineWorkspace();
 
     fireEvent.click(await screen.findByRole("button", { name: /settings/i }));
     await screen.findByRole("heading", { name: "Settings / Governance", level: 2 });
@@ -2529,6 +2549,7 @@ describe("App", () => {
     vi.stubGlobal("fetch", fetchMock);
 
     render(<App />);
+    await openLeadMachineWorkspace();
 
     await screen.findByRole("tab", { name: "Alpha Org" });
     await screen.findByRole("button", { name: /view lifecycle for alpha agent/i });
@@ -2713,6 +2734,7 @@ describe("App", () => {
     vi.stubGlobal("fetch", fetchMock);
 
     render(<App />);
+    await openLeadMachineWorkspace();
 
     fireEvent.click(await screen.findByRole("button", { name: /replies/i }));
     expect(await screen.findByText("Alpha detail from API")).toBeInTheDocument();
@@ -2855,6 +2877,7 @@ describe("App", () => {
     vi.stubGlobal("fetch", fetchMock);
 
     render(<App />);
+    await openLeadMachineWorkspace();
 
     expect(await screen.findByText("Fixture fallback / no Supabase wiring")).toBeInTheDocument();
 
@@ -2982,6 +3005,7 @@ describe("App", () => {
     vi.stubGlobal("fetch", fetchMock);
 
     render(<App />);
+    await openLeadMachineWorkspace();
 
     fireEvent.click(await screen.findByRole("tab", { name: "Beta Org" }));
 
@@ -3140,6 +3164,7 @@ describe("App", () => {
     vi.stubGlobal("fetch", fetchMock);
 
     render(<App />);
+    await openLeadMachineWorkspace();
 
     fireEvent.click(await screen.findByRole("button", { name: /settings/i }));
 
@@ -3242,6 +3267,7 @@ describe("App", () => {
     vi.stubGlobal("fetch", fetchMock);
 
     render(<App />);
+    await openLeadMachineWorkspace();
 
     fireEvent.click(await screen.findByRole("button", { name: /catalog/i }));
 
@@ -3389,6 +3415,7 @@ describe("App", () => {
 
     vi.stubGlobal("fetch", fetchMock);
     render(<App />);
+    await openLeadMachineWorkspace();
 
     fireEvent.click(await screen.findByRole("button", { name: /catalog/i }));
     expect(screen.getAllByRole("heading", { name: /internal catalog/i }).length).toBeGreaterThan(0);
@@ -3513,6 +3540,7 @@ describe("App", () => {
 
     vi.stubGlobal("fetch", fetchMock);
     render(<App />);
+    await openLeadMachineWorkspace();
 
     fireEvent.click(await screen.findByRole("button", { name: /catalog/i }));
     fireEvent.click(within(screen.getByRole("group", { name: "Business filter" })).getByRole("button", { name: "default" }));
