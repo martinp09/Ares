@@ -172,7 +172,7 @@ class _ConfiguredTextgridSmsGateway:
             auth_token=self.auth_token,
             from_number=self.from_number,
             to_number=payload.phone,
-            body=_build_confirmation_message(payload, booking_url=booking_url),
+            body=_build_sms_confirmation_message(payload),
             status_callback_url=self.status_callback_url,
         )
         if self.sms_url:
@@ -412,6 +412,10 @@ def _build_default_trigger_scheduler(settings: Settings) -> TriggerScheduler:
         task_id=settings.trigger_non_booker_check_task_id or _DEFAULT_NON_BOOKER_CHECK_TASK_ID,
         delay=_DEFAULT_NON_BOOKER_CHECK_DELAY,
     )
+
+
+def _build_sms_confirmation_message(payload: LeadIntakePayload) -> str:
+    return f"Thanks {payload.first_name}, we received your request. We'll follow up shortly. Reply STOP to opt out."
 
 
 def _build_confirmation_message(payload: LeadIntakePayload, *, booking_url: str | None = None) -> str:

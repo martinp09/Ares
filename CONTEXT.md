@@ -11,7 +11,7 @@
 - Trigger project: `proj_puouljyhwiraonjkpiki`
 
 ## Current Scope
-- Lease-options landing -> Ares intake/SMS/email/Slack/reminder backend plus activation handoff are merged to `main`; main now includes env-file activation checking so existing local env files can be used safely, without copying or printing secrets.
+- Lease-options landing -> Ares intake/SMS/email/Slack/reminder backend plus activation handoff are merged to `main`; main now includes env-file activation checking so existing local env files can be used safely, without copying or printing secrets. Current messaging rule: landing page handles Cal.com redirect, SMS is confirmation-only, and email may carry the booking link fallback.
 - `scripts/activation_readiness.py --env-file /opt/ares/Ares/.env --runtime-url https://production-readiness-afternoon.vercel.app --derive-local-defaults` reuses available local credentials and derived callback/landing URLs; latest sanitized run is blocked by 5 external gates instead of the 17-key empty-checkout baseline.
 - Remaining external gates from the latest sanitized readiness run: live sends still disabled by default, invalid `RESEND_FROM_EMAIL`, missing Slack token/channel, missing `CAL_WEBHOOK_SECRET`, and hosted protected routes still return `401` with the local runtime key until Vercel production envs can be verified.
 - 2026-05-10 approved local TextGrid live smoke after funding reached TextGrid through `POST /mission-control/outbound/sms/test`; first body to Martin `+1***5914` was later `failed - Blocked by Textgrid Content Filter`, while minimal retry `Ares test 2.` delivered. QC evidence: `docs/qc/2026-05-10/textgrid-live-smoke-after-funding/`.
@@ -24,9 +24,9 @@
 4. Add dedicated Mission Control frontend campaign-launch review page for the Harris probate HOT/WARM/COLD API contract.
 
 ## Recent Change
-- 2026-05-10: TextGrid diagnostic confirmed the first funded smoke went to the correct number but was blocked by TextGrid Content Filter; a minimal retry `Ares test 2.` delivered to Martin `+1***5914`.
+- 2026-05-10: Updated Ares intake messaging: SMS confirmation is now confirmation-only with no booking/Cal.com link; Resend email keeps the booking-link fallback because landing page submit already redirects to Cal.com.
 - 2026-05-10: Added non-secret activation readiness tooling/handoff docs after PR #7 merge.
-- 2026-05-09: PR #7 merged landing -> Ares intake provider bundle: TextGrid booking-link SMS, Resend confirmation email, Slack intake scaffold behind live-send gate, Cal.com `starts_at`, and Trigger-backed 24h/1h reminders with reschedule refresh.
+- 2026-05-09: PR #7 merged landing -> Ares intake provider bundle: TextGrid confirmation SMS, Resend confirmation email, Slack intake scaffold behind live-send gate, Cal.com `starts_at`, and Trigger-backed 24h/1h reminders with reschedule refresh.
 - 2026-05-09: Completed security-audit hardening patch set and QC at `docs/qc/2026-05-09/ares-security-audit-patches/`.
 - 2026-05-09: Merged Harris daily probate + HCAD `Estate Of` import foundation to `main` via PR #5; Vercel preview smoke passed and Slack remains intentionally last.
 

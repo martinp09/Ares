@@ -181,22 +181,25 @@ def test_marketing_lead_service_dispatches_configured_provider_requests() -> Non
     assert len(sent_requests) == 1
     assert sent_requests[0]["endpoint"] == "https://api.textgrid.com/custom/messages"
     booking_url = result["booking_url"]
-    confirmation_body = (
+    sms_confirmation_body = "Thanks Maya, we received your request. We'll follow up shortly. Reply STOP to opt out."
+    email_confirmation_body = (
         "Thanks Maya, we got your lease-option request. "
         f"Book your review call here: {booking_url}. Reply STOP to opt out."
     )
     assert sent_requests[0]["payload"] == {
-        "Body": confirmation_body,
+        "Body": sms_confirmation_body,
         "From": from_number,
         "StatusCallback": "https://runtime.example.com/marketing/webhooks/textgrid",
         "To": to_number,
     }
+    assert "cal.com" not in sent_requests[0]["payload"]["Body"]
+    assert booking_url not in sent_requests[0]["payload"]["Body"]
     assert sent_email == [
         {
             "settings": service.settings,
             "to": "maya@example.com",
             "subject": "Your lease-option review call",
-            "text": confirmation_body,
+            "text": email_confirmation_body,
             "html": None,
         }
     ]

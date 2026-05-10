@@ -154,8 +154,9 @@ After loading `/opt/ares/Ares/.env` with `--derive-local-defaults`, the locally 
 
 ## Do Not Claim Until Proven
 
-Do not claim SMS/email/Slack delivery until the provider route response proves a provider request left Ares and the provider accepted it. Known prior blockers:
+Do not claim SMS/email/Slack delivery until the provider route response proves a provider request left Ares and a final provider status or callback proves delivery. Known provider gates/lessons:
 
-- TextGrid: account balance was below zero.
+- TextGrid: account balance blocker cleared after funding, but an initially `queued` message can later fail as `Blocked by Textgrid Content Filter`; poll TextGrid status or consume callbacks before claiming delivery.
+- TextGrid SMS copy: keep intake SMS confirmation-only/no booking link; the landing page handles the Cal.com redirect and email can carry the booking-link fallback.
 - Resend: `RESEND_FROM_EMAIL` was not a valid verified sender identity.
 - Slack: bot token/channel not present.

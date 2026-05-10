@@ -1,0 +1,15 @@
+RED verification before implementation:
+
+Command:
+uv run pytest tests/api/test_marketing_leads.py::test_marketing_lead_service_dispatches_configured_provider_requests -q
+
+Result:
+FAILED before code change.
+
+Expected failure excerpt:
+- Test expected SMS body: `Thanks Maya, we got your lease-option request. We will follow up shortly. Reply STOP to opt out.`
+- Actual SMS body still included booking link:
+  `Thanks Maya, we got your lease-option request. Book your review call here: https://cal.com/... Reply STOP to opt out.`
+
+Interpretation:
+The regression test correctly failed because the existing TextGrid SMS path reused the booking-link confirmation message.

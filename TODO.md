@@ -40,8 +40,8 @@ Known caveats:
 - [done] Expand `POST /marketing/leads` to accept the full seller-form payload instead of a skinny contact record.
 - [done] Preserve seller-fit fields, consent metadata, and attribution in Ares contact records/metadata.
 - [done] Return `side_effects` so the landing page can show/log whether confirmation SMS/email/Trigger work was queued, skipped, or failed.
-- [done] Add TextGrid confirmation SMS with E.164 normalization, booking link, and STOP language.
-- [done] Add Resend confirmation email using the same booking link copy.
+- [done] Add TextGrid confirmation SMS with E.164 normalization, confirmation-only copy, and STOP language; no booking link is sent over SMS.
+- [done] Add Resend confirmation email with the booking link copy as the safer channel for Cal.com fallback.
 - [done] Add server-side Slack `chat.postMessage` intake notifier scaffold with safe no-op when live sends are disabled or token/channel are missing.
 - [done] Add Cal.com `starts_at` preservation plus Trigger-backed 24h/1h appointment reminder scheduling and `/marketing/internal/appointment-reminder` dispatch, including reschedule reminder refresh.
 - [done] Gate confirmation SMS/email, Slack intake alerts, appointment reminders, and non-booker Trigger scheduling behind `PROVIDER_LIVE_SENDS_ENABLED`; first deploy remains no-live-send by default.

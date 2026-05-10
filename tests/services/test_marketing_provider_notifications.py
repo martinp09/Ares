@@ -29,7 +29,7 @@ def test_textgrid_outbound_request_normalizes_us_numbers_to_e164() -> None:
     assert request["payload"]["To"] == "+15551234567"
 
 
-def test_lead_intake_sends_confirmation_sms_email_and_slack_with_booking_link() -> None:
+def test_lead_intake_sends_confirmation_only_sms_and_booking_link_email_slack() -> None:
     sent_requests: list[dict[str, object]] = []
     sent_email: list[dict[str, object]] = []
 
@@ -100,14 +100,20 @@ def test_lead_intake_sends_confirmation_sms_email_and_slack_with_booking_link() 
     sms_request = sent_requests[0]
     assert sms_request["payload"]["To"] == "+15551234567"
     assert sms_request["payload"]["From"] == "+13462891390"
-    assert booking_url in sms_request["payload"]["Body"]
+    assert booking_url not in sms_request["payload"]["Body"]
+    assert "cal.com" not in sms_request["payload"]["Body"]
+    assert sms_request["payload"]["Body"] == "Thanks Maya, we received your request. We'll follow up shortly. Reply STOP to opt out."
     assert "Reply STOP to opt out" in sms_request["payload"]["Body"]
 
+    email_body = (
+        "Thanks Maya, we got your lease-option request. "
+        f"Book your review call here: {booking_url}. Reply STOP to opt out."
+    )
     assert sent_email == [
         {
             "to": "maya@example.com",
             "subject": "Your lease-option review call",
-            "text": sms_request["payload"]["Body"],
+            "text": email_body,
             "html": None,
         }
     ]

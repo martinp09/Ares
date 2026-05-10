@@ -63,7 +63,7 @@
 - The current MVP path is a two-lane cut:
   - outbound probate as source lane with cold email as outbound method
   - inbound lease-option marketing as a separate first-class lane
-- Lease-options landing contact intake now belongs in Ares `POST /marketing/leads`: preserve rich seller context/consent/UTM fields, return booking and side-effect statuses, keep SMS/email/Slack/Trigger sends gated by `PROVIDER_LIVE_SENDS_ENABLED`, and refresh appointment reminders on booked/rescheduled Cal.com events.
+- Lease-options landing contact intake now belongs in Ares `POST /marketing/leads`: preserve rich seller context/consent/UTM fields, return booking and side-effect statuses, keep SMS/email/Slack/Trigger sends gated by `PROVIDER_LIVE_SENDS_ENABLED`, keep SMS confirmation-only/no booking link, allow email booking-link fallback, and refresh appointment reminders on booked/rescheduled Cal.com events.
 - Supabase should be the canonical backend for both live MVP lanes
 - The runtime should preserve a thin contract-to-close skeleton even while the MVP stays focused on lead intake, outreach, replies, and operator handoff
 - Mission Control now has CRM Records, saved views, row/bulk actions, promotion, Pipeline config/stage history, and stage movement UI/API. Records prefer canonical CRM rows and fall back to live lead-machine leads when no canonical records exist.
@@ -209,6 +209,13 @@
 
 ## Change Log
 
+### 2026-05-10 SMS Confirmation-Only Intake Copy
+
+- Updated lease-options intake messaging after confirming the landing page already redirects sellers to Cal.com on submit.
+- TextGrid SMS confirmation is now confirmation-only and does not include a booking/Cal.com link: `Thanks {first_name}, we received your request. We'll follow up shortly. Reply STOP to opt out.`
+- Resend confirmation email keeps the booking link as the safer fallback channel.
+- Regression test covers that SMS excludes `cal.com`/booking URL while email includes the booking URL.
+
 ### 2026-05-10 TextGrid Live Smoke After Funding
 
 - Martin funded TextGrid and explicitly approved a live retry to the operator-owned phone.
@@ -233,7 +240,7 @@
 
 ### 2026-05-09 Live SMS/Resend/Slack Reminder Finish
 
-- Extended `feat/landing-ares-intake-sms-agent` so Ares lead intake sends live-gated TextGrid confirmation SMS with booking link/STOP copy, Resend confirmation email, and server-side Slack intake alerts when configured and `PROVIDER_LIVE_SENDS_ENABLED=true`.
+- Extended `feat/landing-ares-intake-sms-agent` so Ares lead intake sends live-gated TextGrid confirmation SMS, Resend confirmation email, and server-side Slack intake alerts when configured and `PROVIDER_LIVE_SENDS_ENABLED=true`. Current follow-up: SMS is confirmation-only/no booking link; email carries the booking-link fallback.
 - Added Cal.com `starts_at` preservation, Trigger task `marketing-send-appointment-reminder`, and `/marketing/internal/appointment-reminder` dispatch for 24h/1h booked/rescheduled-lead reminders.
 - Merge-readiness audit tightened Slack behind the same global live-send gate and made Cal.com reschedule events refresh reminder scheduling without sending duplicate booking confirmations.
 - Approved route smoke to Martin's phone/email reached Ares; TextGrid returned an account balance blocker and Resend now fails fast on invalid `RESEND_FROM_EMAIL`, so no delivery is claimed until provider env/funding is fixed.
