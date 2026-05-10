@@ -13,18 +13,18 @@
 ## Current Scope
 - Lease-options landing -> Ares intake/SMS/email/Slack/reminder backend plus activation handoff are merged to `main`; main now includes env-file activation checking so existing local env files can be used safely, without copying or printing secrets.
 - `scripts/activation_readiness.py --env-file /opt/ares/Ares/.env --runtime-url https://production-readiness-afternoon.vercel.app --derive-local-defaults` reuses available local credentials and derived callback/landing URLs; latest sanitized run is blocked by 5 external gates instead of the 17-key empty-checkout baseline.
-- Remaining external gates from that run: live sends still disabled, invalid `RESEND_FROM_EMAIL`, missing Slack token/channel, missing `CAL_WEBHOOK_SECRET`, and hosted protected routes still return `401` with the local runtime key until Vercel production envs can be verified.
-- Approved prior route smoke reached Ares provider routes; TextGrid returned `Balance is below 0`, and Resend was blocked by invalid `RESEND_FROM_EMAIL`.
+- Remaining external gates from the latest sanitized readiness run: live sends still disabled by default, invalid `RESEND_FROM_EMAIL`, missing Slack token/channel, missing `CAL_WEBHOOK_SECRET`, and hosted protected routes still return `401` with the local runtime key until Vercel production envs can be verified.
+- 2026-05-10 approved local TextGrid live smoke after funding reached TextGrid through `POST /mission-control/outbound/sms/test` and returned `201`/`queued` to Martin `+1***5914`; QC evidence: `docs/qc/2026-05-10/textgrid-live-smoke-after-funding/`.
 - Security-audit hardening and Harris daily lead-machine foundation are merged to `main`; production wiring is live and must remain untouched unless explicitly requested.
 
 ## Current TODO
-1. Set/fix remaining external provider/env gates, then rerun the env-file readiness command before any live smoke: `PROVIDER_LIVE_SENDS_ENABLED`, verified `RESEND_FROM_EMAIL`, Slack token/channel, `CAL_WEBHOOK_SECRET`, and production/Vercel runtime key alignment.
+1. Set/fix remaining external provider/env gates, then rerun the env-file readiness command before broader live launch: keep `PROVIDER_LIVE_SENDS_ENABLED` safe by default until launch, fix verified `RESEND_FROM_EMAIL`, choose/skip Slack token/channel, set `CAL_WEBHOOK_SECRET`, and verify production/Vercel runtime key alignment.
 2. Set landing runtime envs in the deployment target: `BUSINESS_RUNTIME_MARKETING_LEADS_URL`, `BUSINESS_RUNTIME_API_KEY`, `BUSINESS_RUNTIME_BUSINESS_ID`, `BUSINESS_RUNTIME_ENVIRONMENT`.
 3. Update provider callback configurations externally if any deployed provider still references old query-string runtime-key callback URLs.
 4. Add dedicated Mission Control frontend campaign-launch review page for the Harris probate HOT/WARM/COLD API contract.
 
 ## Recent Change
-- 2026-05-10: Merged env-file/local-default activation readiness into `main` at `9addc1de72ec2f80a86fb51f608d44eb24c4627e`; local dark intake smoke passes with live sends disabled, hosted protected route still needs production env/Vercel verification.
+- 2026-05-10: Approved local TextGrid live smoke after funding reached TextGrid via Mission Control and returned `201`/`queued` to Martin `+1***5914`; QC evidence at `docs/qc/2026-05-10/textgrid-live-smoke-after-funding/`.
 - 2026-05-10: Added non-secret activation readiness tooling/handoff docs after PR #7 merge.
 - 2026-05-09: PR #7 merged landing -> Ares intake provider bundle: TextGrid booking-link SMS, Resend confirmation email, Slack intake scaffold behind live-send gate, Cal.com `starts_at`, and Trigger-backed 24h/1h reminders with reschedule refresh.
 - 2026-05-09: Completed security-audit hardening patch set and QC at `docs/qc/2026-05-09/ares-security-audit-patches/`.

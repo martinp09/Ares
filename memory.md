@@ -27,7 +27,7 @@
 
 ## Current Direction
 
-- `/root/Ares-inspect` has active branch `chore/activation-readiness-handoff-2026-05-09`; PR #7 is merged to `main` at `cda9c828` and lease-option intake confirmation SMS/email, Slack intake scaffold, and appointment reminders are code-ready behind live-send gates. Current activation docs/tooling: `docs/activation-readiness-handoff.md` and `scripts/activation_readiness.py`.
+- `/root/Ares-inspect` is on `main`; lease-option intake confirmation SMS/email, Slack intake scaffold, appointment reminders, and env-file activation readiness are merged. Current activation docs/tooling: `docs/activation-readiness-handoff.md` and `scripts/activation_readiness.py`.
 - `POST /lead-machine/harris/daily-import` is implemented for Harris daily probate + HCAD `Estate Of` imports; it defaults to dry-run, records QC warnings, and never sends providers/Slack.
 - CRM control-plane work has been merged to `origin/main`.
 - CRM control-plane draft spec: `docs/superpowers/specs/2026-04-25-ares-crm-control-plane-design.md`.
@@ -186,7 +186,7 @@
 
 ## Open Work
 
-1. set/fix provider envs/accounts, then rerun `python scripts/activation_readiness.py --json` before any live smoke; current expected blockers are TextGrid funds/config, valid Resend sender, Slack token/channel, Cal URL/secret, Trigger secret, and landing runtime envs
+1. set/fix remaining provider/env gates, then rerun `python scripts/activation_readiness.py --json` before broader live launch; TextGrid local live smoke after funding returned `201`/`queued`, while current expected blockers are safe live-send default, valid Resend sender, Slack optional token/channel decision, Cal webhook secret, and production/Vercel runtime env alignment
 2. handle production/provider callback env updates in a dedicated handoff if any deployed callback still uses old query-string runtime-key URLs
 3. wire real Slack daily digest delivery only after Slack bot token and target channel config are available
 4. run a dedicated production promotion only when intentionally preserving/updating production runtime/provider env wiring
@@ -208,6 +208,14 @@
 - `TasksRepository` now treats `lead_machine_backend=supabase` as a Supabase-backed task path so title-packet review tasks persist with lead-machine records.
 
 ## Change Log
+
+### 2026-05-10 TextGrid Live Smoke After Funding
+
+- Martin funded TextGrid and explicitly approved a live retry to the operator-owned phone.
+- Local Mission Control routes require `Authorization: Bearer <RUNTIME_API_KEY>` even through `TestClient`; the first unauthenticated attempt returned `401`, then authenticated retry reached provider routes.
+- `GET /mission-control/providers/status` returned `200`; TextGrid was configured/can_send.
+- `POST /mission-control/outbound/sms/test` returned `201` with TextGrid `status=queued` to `+1***5914`; the prior `Balance is below 0` blocker is resolved for local TextGrid SMS smoke.
+- Sanitized QC evidence: `docs/qc/2026-05-10/textgrid-live-smoke-after-funding/`.
 
 ### 2026-05-10 Activation Env-File Readiness Pass
 

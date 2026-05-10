@@ -1,0 +1,26 @@
+{
+  "generated_at": "2026-05-10T18:59:11.355316+00:00",
+  "verdict": "blocked",
+  "safe_to_deploy_without_live_sends": true,
+  "blockers": [
+    "live_send_gate: PROVIDER_LIVE_SENDS_ENABLED is false; safe default blocks live provider delivery",
+    "resend: RESEND_FROM_EMAIL must be an email address or Name <email@example.com>",
+    "slack: SLACK_BOT_TOKEN is missing",
+    "slack: SLACK_CHANNEL_INTAKE or SLACK_CHANNEL_LEADS is missing",
+    "calcom: CAL_WEBHOOK_SECRET is missing"
+  ],
+  "textgrid": {
+    "configured": true,
+    "blockers": [],
+    "account_sid": {"present": true, "length": 24, "fingerprint": "d32b30f6"},
+    "auth_token": {"present": true, "length": 32, "fingerprint": "b2af5c18"},
+    "from_number_present": true,
+    "status_callback_url": {
+      "present": true,
+      "sanitized": "https://production-readiness-afternoon.vercel.app/marketing/webhooks/textgrid",
+      "has_sensitive_query": false,
+      "sensitive_query_keys": []
+    },
+    "webhook_secret": {"present": true, "length": 32, "fingerprint": "6d79f5c8"}
+  }
+}

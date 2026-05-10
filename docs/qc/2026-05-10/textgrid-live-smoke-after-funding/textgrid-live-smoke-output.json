@@ -1,0 +1,37 @@
+{
+  "attempted_at_utc": "2026-05-10T18:58:25.600582+00:00",
+  "env_file_used": "/opt/ares/Ares/.env",
+  "live_send_gate_for_this_process": "true",
+  "provider_status_http": 200,
+  "provider_status": {
+    "email": {
+      "can_send": true,
+      "checked_at": "2026-05-10T18:58:25.349461Z",
+      "configured": true,
+      "details": null,
+      "endpoint": "https://api.resend.com/emails",
+      "provider": "resend",
+      "sender_identity": "[redacted]"
+    },
+    "sms": {
+      "can_send": true,
+      "checked_at": "2026-05-10T18:58:25.349343Z",
+      "configured": true,
+      "details": null,
+      "endpoint": "https://api.textgrid.com/2010-04-01/Accounts/[REDACTED]/Messages.json",
+      "provider": "textgrid",
+      "sender_identity": "***1390"
+    }
+  },
+  "sms_test_http": 201,
+  "sms_test_response": {
+    "attempted_at": "2026-05-10T18:58:25.598708Z",
+    "channel": "sms",
+    "error_message": null,
+    "from_identity": "+1***1390",
+    "provider": "textgrid",
+    "provider_message_id": "SMOr…yg==",
+    "status": "queued",
+    "to": "+1***5914"
+  }
+}

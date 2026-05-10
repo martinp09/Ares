@@ -29,7 +29,7 @@ Known caveats:
 - Native `pg_dump` backup is not captured because the Supabase CLI container could not resolve the Supabase DB host from Colima. A REST table-export rollback bundle exists instead.
 - Slack digest delivery for the Harris daily import is intentionally last and blocked until `SLACK_BOT_TOKEN` plus target channels are available.
 - Slack intake notification delivery for lease-option leads is scaffolded but blocked until `SLACK_BOT_TOKEN` plus `SLACK_CHANNEL_INTAKE` or `SLACK_CHANNEL_LEADS` are available and `PROVIDER_LIVE_SENDS_ENABLED=true`.
-- Local approved live smoke to Martin's phone/email reached Ares routes; TextGrid returned `Balance is below 0` before SMS delivery and Resend was blocked by invalid `RESEND_FROM_EMAIL` format, so provider funding/sender env must be fixed before claiming live delivery.
+- Local approved live TextGrid smoke to Martin `+1***5914` reached Ares Mission Control and TextGrid after funding was added; TextGrid returned `201`/`queued`. Resend remains blocked by invalid `RESEND_FROM_EMAIL` format before live email delivery can be claimed.
 - Production promotion for the Harris daily import should be a dedicated handoff that preserves the production runtime/provider env contract; preview smoke passed at `https://production-readiness-afternoon-9adxg1gvb.vercel.app`.
 - Deployed provider callback configurations should be checked/updated externally if any still use old `runtime_api_key` query-string URLs; runtime auth is now bearer-only plus provider signatures.
 
@@ -49,10 +49,11 @@ Known caveats:
 - [done] Add `scripts/activation_readiness.py` plus `docs/activation-readiness-handoff.md` for non-secret launch gate checks and smoke sequencing; QC evidence at `docs/qc/2026-05-10/activation-readiness-handoff/`.
 - [done] Add `--env-file`, `--runtime-url`, and `--derive-local-defaults` readiness options so `/opt/ares/Ares/.env` can be checked safely without copying secrets; latest sanitized run reduced the empty-checkout blocker list to 5 remaining external gates.
 - [done] Run local dark Ares intake smoke with available local env and `PROVIDER_LIVE_SENDS_ENABLED=false`: provider status route returned 200, `POST /marketing/leads` returned 201, and SMS/email/Slack/Trigger side effects were skipped.
-- [blocked] Approved local route smoke to Martin `+1***5914` / email reached Ares; TextGrid needs account funds and Resend needs valid `RESEND_FROM_EMAIL` before delivery succeeds.
+- [done] Approved local live TextGrid smoke to Martin `+1***5914` after funding returned `201`/`queued` via `POST /mission-control/outbound/sms/test`; QC evidence at `docs/qc/2026-05-10/textgrid-live-smoke-after-funding/`.
+- [blocked] Approved local route smoke to Martin's email reached Ares; Resend still needs a valid `RESEND_FROM_EMAIL` before delivery succeeds.
 - [blocked] Hosted protected Mission Control routes still returned `401 Unauthorized` with the local runtime key; Vercel/production env access is required to verify or update the deployed `RUNTIME_API_KEY` and landing envs.
 - [ ] Set landing runtime envs in the deployment target: `BUSINESS_RUNTIME_MARKETING_LEADS_URL`, `BUSINESS_RUNTIME_API_KEY`, `BUSINESS_RUNTIME_BUSINESS_ID`, `BUSINESS_RUNTIME_ENVIRONMENT`.
-- [ ] Set Ares runtime envs for live launch: valid `CAL_WEBHOOK_SECRET`, verified `RESEND_FROM_EMAIL`, `SLACK_BOT_TOKEN`, `SLACK_CHANNEL_INTAKE`/`SLACK_CHANNEL_LEADS`, and confirm TextGrid account funding before live smoke.
+- [ ] Set Ares runtime envs for live launch: valid `CAL_WEBHOOK_SECRET`, verified `RESEND_FROM_EMAIL`, and chosen Slack behavior (`SLACK_BOT_TOKEN`/channel if Slack is used, or keep Slack optional/disabled).
 
 ### 0. Security audit hardening
 
