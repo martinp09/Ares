@@ -50,10 +50,10 @@ Known caveats:
 - [done] Add `--env-file`, `--runtime-url`, and `--derive-local-defaults` readiness options so `/opt/ares/Ares/.env` can be checked safely without copying secrets; latest sanitized run reduced the empty-checkout blocker list to 5 remaining external gates.
 - [done] Run local dark Ares intake smoke with available local env and `PROVIDER_LIVE_SENDS_ENABLED=false`: provider status route returned 200, `POST /marketing/leads` returned 201, and SMS/email/Slack/Trigger side effects were skipped.
 - [done] Approved local live TextGrid smoke to Martin `+1***5914` after funding: first body was later `failed - Blocked by Textgrid Content Filter`, then minimal retry `Ares test 2.` delivered; QC evidence at `docs/qc/2026-05-10/textgrid-live-smoke-after-funding/`.
-- [blocked] Approved local route smoke to Martin's email reached Ares; Resend still needs a valid `RESEND_FROM_EMAIL` before delivery succeeds.
-- [blocked] Hosted protected Mission Control routes still returned `401 Unauthorized` with the local runtime key; Vercel/production env access is required to verify or update the deployed `RUNTIME_API_KEY` and landing envs.
+- [blocked] Approved local route smoke to Martin's email reached Ares; Resend API/domain are valid, but `RESEND_FROM_EMAIL` must be set as a quoted verified sender identity before delivery smoke, e.g. `RESEND_FROM_EMAIL="Limitless Home Solutions <hello@send.limitleshome.com>"` and `RESEND_REPLY_TO_EMAIL=hello@send.limitleshome.com`.
+- [blocked] Hosted protected Mission Control routes and direct hosted Ares `/marketing/leads` returned `401 Unauthorized` with the local runtime key; the deployed landing form reproduced a complete-field `500`, so Vercel/production env access is required to verify or update deployed `RUNTIME_API_KEY` and landing `BUSINESS_RUNTIME_API_KEY` alignment.
 - [ ] Set landing runtime envs in the deployment target: `BUSINESS_RUNTIME_MARKETING_LEADS_URL`, `BUSINESS_RUNTIME_API_KEY`, `BUSINESS_RUNTIME_BUSINESS_ID`, `BUSINESS_RUNTIME_ENVIRONMENT`.
-- [ ] Set Ares runtime envs for live launch: valid `CAL_WEBHOOK_SECRET`, verified `RESEND_FROM_EMAIL`, chosen Slack behavior (`SLACK_BOT_TOKEN`/channel if Slack is used, or keep Slack optional/disabled), and TextGrid content-filter validation for the actual confirmation/reminder copy with status polling/callback evidence.
+- [ ] Set Ares runtime envs for live launch: valid `CAL_WEBHOOK_SECRET`, quoted verified `RESEND_FROM_EMAIL`/reply-to, chosen Slack behavior (`SLACK_BOT_TOKEN`/channel if Slack is used, or keep Slack optional/disabled), and TextGrid content-filter validation for the actual confirmation/reminder copy with status polling/callback evidence.
 
 ### 0. Security audit hardening
 

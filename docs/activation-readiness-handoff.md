@@ -146,7 +146,7 @@ Captured at `docs/qc/2026-05-10/activation-readiness-handoff/activation-readines
 After loading `/opt/ares/Ares/.env` with `--derive-local-defaults`, the locally fixable gates shrink to these remaining blockers:
 
 - `PROVIDER_LIVE_SENDS_ENABLED=false` remains the safe default until the final approved live smoke.
-- `RESEND_FROM_EMAIL` is present but invalid; set it to a verified sender identity.
+- `RESEND_FROM_EMAIL` is present but misparsed by env-file readiness when the display-name sender is unquoted. Use quoted verified sender syntax: `RESEND_FROM_EMAIL="Limitless Home Solutions <hello@send.limitleshome.com>"`, plus `RESEND_REPLY_TO_EMAIL=hello@send.limitleshome.com`.
 - `SLACK_BOT_TOKEN` is missing.
 - `SLACK_CHANNEL_INTAKE` or `SLACK_CHANNEL_LEADS` is missing.
 - `CAL_WEBHOOK_SECRET` is missing and must match the external Cal.com webhook configuration.
@@ -158,5 +158,5 @@ Do not claim SMS/email/Slack delivery until the provider route response proves a
 
 - TextGrid: account balance blocker cleared after funding, but an initially `queued` message can later fail as `Blocked by Textgrid Content Filter`; poll TextGrid status or consume callbacks before claiming delivery.
 - TextGrid SMS copy: keep intake SMS confirmation-only/no booking link; the landing page handles the Cal.com redirect and email can carry the booking-link fallback.
-- Resend: `RESEND_FROM_EMAIL` was not a valid verified sender identity.
+- Resend: API key and verified sending domain `send.limitleshome.com` are present; set the display-name sender as a quoted env value (`RESEND_FROM_EMAIL="Limitless Home Solutions <hello@send.limitleshome.com>"`) and add `RESEND_REPLY_TO_EMAIL=hello@send.limitleshome.com` before live email smoke.
 - Slack: bot token/channel not present.

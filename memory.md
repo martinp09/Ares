@@ -209,6 +209,13 @@
 
 ## Change Log
 
+### 2026-05-10 Landing Submit Debug + Resend Setup Check
+
+- Reproduced the deployed landing `POST /api/contact` failure with a complete synthetic payload: deployed route returned `500 {"error":"Submission failed"}`, while invalid JSON/validation paths still returned `400`/`422`; the failure is post-validation at landing -> hosted Ares handoff.
+- Direct hosted Ares `/marketing/leads` with the local runtime key returned `401`, confirming the active blocker is Vercel/Ares runtime-key/env alignment rather than missing visible form fields.
+- Resend setup check: CLI/API key works, `send.limitleshome.com` is verified and sending-enabled, and the next env fix is to quote the display-name sender: `RESEND_FROM_EMAIL="Limitless Home Solutions <hello@send.limitleshome.com>"`; no live email was sent.
+- Landing PR #3 commit `806394e` adds `ARES_INTAKE_FAILED`/502 handling so users see an intake-unavailable message instead of a false required-fields error.
+
 ### 2026-05-10 SMS Confirmation-Only Intake Copy
 
 - Updated lease-options intake messaging after confirming the landing page already redirects sellers to Cal.com on submit.
@@ -229,8 +236,8 @@
 ### 2026-05-10 Activation Env-File Readiness Pass
 
 - Added `--env-file`, `--runtime-url`, and `--derive-local-defaults` to `scripts/activation_readiness.py` so the existing local VPS env can be checked without copying secrets into `/root/Ares-inspect` or printing raw values.
-- Using `/opt/ares/Ares/.env` plus the production runtime URL reduced the readiness blocker list from the empty-checkout 17-key baseline to 5 external gates: safe live-send default, invalid `RESEND_FROM_EMAIL`, missing Slack token/channel, and missing `CAL_WEBHOOK_SECRET`.
-- Local dark intake smoke with `PROVIDER_LIVE_SENDS_ENABLED=false` returned provider status 200 and `POST /marketing/leads` 201 with SMS/email/Slack/Trigger side effects skipped; hosted protected Mission Control route still returned 401 with the local runtime key, so production/Vercel env verification remains required.
+- Using `/opt/ares/Ares/.env` plus the production runtime URL reduced the readiness blocker list from the empty-checkout 17-key baseline to 5 external gates: safe live-send default, quoted Resend sender/reply-to fix, missing Slack token/channel, and missing `CAL_WEBHOOK_SECRET`. Resend API key and `send.limitleshome.com` domain are valid, but the display-name `RESEND_FROM_EMAIL` must be quoted so env-file parsing does not truncate it.
+- Local dark intake smoke with `PROVIDER_LIVE_SENDS_ENABLED=false` returned provider status 200 and `POST /marketing/leads` 201 with SMS/email/Slack/Trigger side effects skipped; hosted protected Mission Control route and direct hosted Ares submit still returned 401 with the local runtime key, so production/Vercel env verification remains required.
 
 ### 2026-05-10 Activation Readiness Handoff
 
