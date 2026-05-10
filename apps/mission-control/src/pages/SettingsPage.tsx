@@ -51,12 +51,50 @@ function GovernanceOverviewSection({ governance }: Pick<SettingsPageProps, "gove
 
 export function SettingsPage({ governance, assets }: SettingsPageProps) {
   return (
-    <div className="panel-stack">
-      <GovernanceOverviewSection governance={governance} />
-      <SecretsPage secretsHealth={governance.secretsHealth} />
-      <AuditPage events={governance.recentAudit} />
-      <UsagePage usageSummary={governance.usageSummary} recentUsage={governance.recentUsage} />
-      <ConnectLaterPanel assets={assets} />
+    <div className="crm-page">
+      <section className="crm-hero-panel crm-hero-panel--compact">
+        <div className="crm-hero-panel__copy">
+          <span>Admin and governance</span>
+          <h3>Control-room health</h3>
+          <p>Admin controls keep org-wide approvals separate from business and environment runtime bindings.</p>
+        </div>
+        <div className="crm-hero-panel__stats" aria-label="Admin health metrics">
+          <article>
+            <strong>{governance.pendingApprovals.length}</strong>
+            <span>approvals</span>
+          </article>
+          <article>
+            <strong>{governance.secretsHealth.attentionRevisionCount}</strong>
+            <span>secret alerts</span>
+          </article>
+          <article>
+            <strong>{governance.recentAudit.length}</strong>
+            <span>audit events</span>
+          </article>
+          <article>
+            <strong>{assets.length}</strong>
+            <span>assets</span>
+          </article>
+        </div>
+      </section>
+      <div className="crm-object-tabs" role="tablist" aria-label="Admin sections">
+        <button type="button" role="tab" aria-selected="true" className="crm-object-tab crm-object-tab--active">Governance</button>
+        <button type="button" role="tab" aria-selected="false" className="crm-object-tab">Secrets</button>
+        <button type="button" role="tab" aria-selected="false" className="crm-object-tab">Audit</button>
+        <button type="button" role="tab" aria-selected="false" className="crm-object-tab">Usage</button>
+        <button type="button" role="tab" aria-selected="false" className="crm-object-tab">Assets</button>
+      </div>
+      <div className="admin-grid">
+        <div className="admin-grid__primary">
+          <GovernanceOverviewSection governance={governance} />
+          <SecretsPage secretsHealth={governance.secretsHealth} />
+        </div>
+        <div className="admin-grid__secondary">
+          <AuditPage events={governance.recentAudit} />
+          <UsagePage usageSummary={governance.usageSummary} recentUsage={governance.recentUsage} />
+          <ConnectLaterPanel assets={assets} />
+        </div>
+      </div>
     </div>
   );
 }

@@ -44,11 +44,11 @@ describe("CatalogPage", () => {
       />,
     );
 
-    expect(screen.getByRole("heading", { name: /internal catalog/i })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /installable agent library/i })).toBeInTheDocument();
     expect(screen.getByText(/install proven agent revisions into a selected target scope/i)).toBeInTheDocument();
     expect(screen.getByText("Seller Ops")).toBeInTheDocument();
     expect(screen.getByText("Installable seller ops agent")).toBeInTheDocument();
-    expect(screen.getByText(/marketplace candidate/i)).toBeInTheDocument();
+    expect(screen.getAllByText(/marketplace candidate/i).length).toBeGreaterThan(0);
     expect(screen.getByText(/public launch disabled/i)).toBeInTheDocument();
     expect(screen.getByText(/trigger_dev/i)).toBeInTheDocument();
     expect(screen.getByText(/anthropic/i)).toBeInTheDocument();

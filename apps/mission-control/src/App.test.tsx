@@ -1961,7 +1961,7 @@ describe("App", () => {
     expect(screen.getByText(/Work new lease-option submissions/i)).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("tab", { name: "Pipeline" }));
-    expect(screen.getByRole("heading", { name: /pipeline board/i, level: 2 })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /opportunities/i, level: 2 })).toBeInTheDocument();
     expect(screen.getAllByText("Qualified Opportunity").length).toBeGreaterThan(0);
     expect(screen.getAllByText("Under Negotiation").length).toBeGreaterThan(0);
   });

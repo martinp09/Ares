@@ -8,15 +8,15 @@ describe("RecordsPage", () => {
   it("renders inventory KPIs and keeps promoted records linked to pipeline status", () => {
     render(<RecordsPage data={missionControlFixtures.records} />);
 
-    expect(screen.getByText("Records")).toBeInTheDocument();
+    expect(screen.getByText("Records command center")).toBeInTheDocument();
     expect(screen.getByText("128 inventory records")).toBeInTheDocument();
     expect(screen.getByRole("table", { name: "Records SmartLists table" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Filter builder" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Manage fields" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /All records/i })).toBeInTheDocument();
     expect(screen.getAllByText("Needs skip trace").length).toBeGreaterThan(0);
-    expect(screen.getByText("Marketable / active")).toBeInTheDocument();
-    expect(screen.getByText("No phone")).toBeInTheDocument();
+    expect(screen.getByText(/marketable \/ active/i)).toBeInTheDocument();
+    expect(screen.getByText(/no phone/i)).toBeInTheDocument();
     expect(screen.getAllByText("Promoted").length).toBeGreaterThan(0);
 
     const promotedRecord = screen.getByLabelText("record-lead-1001");

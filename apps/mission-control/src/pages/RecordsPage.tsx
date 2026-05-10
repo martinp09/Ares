@@ -175,40 +175,40 @@ export function RecordsPage({ data, actionState, onRecordStatusChange, onRecordS
   };
 
   return (
-    <section className="panel-stack">
-      <div className="section-heading">
-        <div>
-          <h3>Records</h3>
-          <p className="panel-copy">Canonical prospect inventory before promotion into active opportunities.</p>
+    <section className="crm-page">
+      <div className="crm-hero-panel crm-hero-panel--compact">
+        <div className="crm-hero-panel__copy">
+          <span>Records SmartLists</span>
+          <h3>Records command center</h3>
+          <p>Canonical prospect inventory before promotion into active opportunities. Filter, enrich, suppress, and promote from one table.</p>
         </div>
-        <span>{data.kpis.totalCount} inventory records</span>
+        <div className="crm-hero-panel__stats" aria-label="Records health metrics">
+          <article>
+            <strong>{data.kpis.totalCount}</strong>
+            <span>records</span>
+          </article>
+          <article>
+            <strong>{data.kpis.needsSkipTraceCount}</strong>
+            <span>skip trace</span>
+          </article>
+          <article>
+            <strong>{data.kpis.promotedCount}</strong>
+            <span>promoted</span>
+          </article>
+          <article>
+            <strong>{data.kpis.openTaskCount}</strong>
+            <span>tasks</span>
+          </article>
+        </div>
       </div>
 
-      <div className="summary-grid summary-grid--secondary">
-        <article className="summary-card summary-card--compact">
-          <p className="summary-card__label">Total records</p>
-          <strong className="summary-card__value">{data.kpis.totalCount}</strong>
-        </article>
-        <article className="summary-card summary-card--compact">
-          <p className="summary-card__label">Needs skip trace</p>
-          <strong className="summary-card__value">{data.kpis.needsSkipTraceCount}</strong>
-        </article>
-        <article className="summary-card summary-card--compact">
-          <p className="summary-card__label">Marketable / active</p>
-          <strong className="summary-card__value">{data.kpis.activeCount}</strong>
-        </article>
-        <article className="summary-card summary-card--compact">
-          <p className="summary-card__label">No phone</p>
-          <strong className="summary-card__value">{data.kpis.noPhoneCount}</strong>
-        </article>
-        <article className="summary-card summary-card--compact">
-          <p className="summary-card__label">Promoted</p>
-          <strong className="summary-card__value">{data.kpis.promotedCount}</strong>
-        </article>
-        <article className="summary-card summary-card--compact">
-          <p className="summary-card__label">Open tasks</p>
-          <strong className="summary-card__value">{data.kpis.openTaskCount}</strong>
-        </article>
+      <div className="crm-control-bar" aria-label="Records controls">
+        <span className="crm-control-pill">{data.kpis.totalCount} inventory records</span>
+        <span className="crm-control-pill">{data.kpis.activeCount} marketable / active</span>
+        <span className="crm-control-pill">{data.kpis.noPhoneCount} no phone</span>
+        <button type="button" className="crm-control-button">Import</button>
+        <button type="button" className="crm-control-button">Enrich</button>
+        <button type="button" className="crm-control-button crm-control-button--primary">Create record</button>
       </div>
 
       <div className="record-tabs" aria-label="Saved record views">

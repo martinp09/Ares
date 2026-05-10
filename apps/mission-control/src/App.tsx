@@ -1632,12 +1632,13 @@ export default function App() {
             },
             {
               id: "pipeline",
-              label: "Board",
+              label: "Opportunities",
               badge: filteredOpportunities.length,
             },
+            { id: "inbox", label: "Conversations", badge: snapshot.dashboard.unreadConversationCount },
             {
               id: "catalog",
-              label: "Catalog",
+              label: "Agent Catalog",
               badge: filteredCatalogEntries.length,
             },
             {
@@ -1650,8 +1651,8 @@ export default function App() {
       ],
       pages: {
         records: {
-          title: "Records",
-          subtitle: "High-volume owner and prospect inventory before records are promoted into opportunities.",
+          title: "Records SmartLists",
+          subtitle: "Owner, property, and contact records that feed the opportunity pipeline.",
           mainContent: (
             <RecordsPage
               data={snapshot.records}
@@ -1673,8 +1674,8 @@ export default function App() {
           ),
         },
         pipeline: {
-          title: "Pipeline Board",
-          subtitle: "Minimal downstream opportunity stages without collapsing lane boundaries.",
+          title: "Opportunities",
+          subtitle: "Pipeline stages, deal posture, title state, and next action controls.",
           mainContent: (
               <PipelinePage
                 stages={filteredOpportunityStages}
@@ -1699,6 +1700,22 @@ export default function App() {
               items={[
                 "Opportunities stay visible without pretending title or dispo are finished.",
                 "Lead Machine and Marketing can both hand off into the same minimal board.",
+              ]}
+            />
+          ),
+        },
+        inbox: {
+          title: "Conversations",
+          subtitle: "Inbox, thread timeline, contact context, and reply controls for active pipeline work.",
+          mainContent: inboxMainContent,
+          contextContent: (
+            <ContextPanel
+              eyebrow="Conversation context"
+              title={contextThread.nextBestAction}
+              items={[
+                `Stage: ${contextThread.stage}`,
+                `Tags: ${contextThread.tags.join(", ") || "none"}`,
+                ...contextThread.notes,
               ]}
             />
           ),
