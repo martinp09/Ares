@@ -1,19 +1,19 @@
 ---
 title: "Ares TODO / Handoff"
 status: active
-updated_at: "2026-05-10T02:25:39Z"
+updated_at: "2026-05-10T02:34:04Z"
 repo: "martinp09/Ares"
 local_checkout: "/root/Ares-inspect"
-current_branch: "chore/activation-readiness-envfile-2026-05-10"
+current_branch: "main"
 production_wiring_commit: "47be904"
-latest_main_commit: "39eb239122754e3fb2ed98b888d833a6b897a58f"
+latest_main_commit: "9addc1de72ec2f80a86fb51f608d44eb24c4627e"
 ---
 
 # Ares TODO / Handoff
 
 ## Current status
 
-Ares production wiring remains live for the controlled operator rollout. The Harris daily probate + HCAD `Estate Of` lead-machine foundation is merged to `main`; hosted preview smoke passed without Slack or provider sends. Security-audit hardening is merged to `main` with QC evidence at `docs/qc/2026-05-09/ares-security-audit-patches/`. The lease-options landing-page -> Ares intake/provider/reminder backend is merged to `main` via PR #7 at `cda9c828`; activation readiness handoff is merged via PR #8 at `39eb2391`. Current branch `chore/activation-readiness-envfile-2026-05-10` adds env-file/local-default activation checking so the existing local VPS env can be reused without copying or printing secrets.
+Ares production wiring remains live for the controlled operator rollout. The Harris daily probate + HCAD `Estate Of` lead-machine foundation is merged to `main`; hosted preview smoke passed without Slack or provider sends. Security-audit hardening is merged to `main` with QC evidence at `docs/qc/2026-05-09/ares-security-audit-patches/`. The lease-options landing-page -> Ares intake/provider/reminder backend is merged to `main` via PR #7 at `cda9c828`; activation readiness handoff is merged via PR #8 at `39eb2391`; env-file activation readiness is merged to `main` at `9addc1d`.
 
 Live production evidence:
 
