@@ -89,7 +89,7 @@
 - Local `.env` already includes `Cal.com`, `TextGrid`, and `Resend` credentials needed for the lease-option MVP
 - Local development defaults `SITE_EVENTS_BACKEND=memory` unless a Supabase persistence slice is explicitly enabled.
 - The active landing page lives at `/Users/solomartin/Business/website/lease-options-landing`; inspection/implementation copy in this environment is `/root/lease-options-landing-inspect`.
-- The landing page contact form now submits server-side to Ares with bearer auth; Supabase+n8n is no longer the active contact-submit path.
+- The landing page Ares-backed contact form branch submits server-side to Ares with bearer auth; public production may still be on the older Supabase+n8n contact-submit path until the branch is deployed and Vercel envs are aligned.
 - A proven `TextGrid` adapter exists in `/Users/solomartin/Projects/Phone System/api/_lib/providers/textgrid.js`
 
 ## Runtime Architecture
@@ -211,10 +211,11 @@
 
 ### 2026-05-10 Landing Submit Debug + Resend Setup Check
 
-- Reproduced the deployed landing `POST /api/contact` failure with a complete synthetic payload: deployed route returned `500 {"error":"Submission failed"}`, while invalid JSON/validation paths still returned `400`/`422`; the failure is post-validation at landing -> hosted Ares handoff.
-- Direct hosted Ares `/marketing/leads` with the local runtime key returned `401`, confirming the active blocker is Vercel/Ares runtime-key/env alignment rather than missing visible form fields.
+- Reproduced the deployed production landing `POST /api/contact` failure with a complete synthetic payload: deployed route returned `500 {"error":"Submission failed"}`, while invalid JSON/validation paths still returned `400`/`422`; the failure is post-validation.
+- Follow-up showed the public production URL is still behaving like the legacy `origin/main` Supabase+n8n route, not the Ares-backed landing branch: `origin/main` calls Supabase RPC `public.upsert_inbound_lead_and_event`, but Supabase project `awmsrjeawcxndfnggoxw` has no such RPC (`pg_proc` count `0`; PostgREST `404 PGRST202`) and lacks the legacy `provider_logs` table.
+- Direct hosted Ares `/marketing/leads` with the local runtime key still returned `401`, so production needs two gates: deploy/merge the Ares-backed landing route and align hosted Vercel/Ares runtime keys/envs.
 - Resend setup check: CLI/API key works, `send.limitleshome.com` is verified and sending-enabled, and the next env fix is to quote the display-name sender: `RESEND_FROM_EMAIL="Limitless Home Solutions <hello@send.limitleshome.com>"`; no live email was sent.
-- Landing PR #3 commit `806394e` adds `ARES_INTAKE_FAILED`/502 handling so users see an intake-unavailable message instead of a false required-fields error.
+- Landing PR #3 commit `751977f` includes the clearer `ARES_INTAKE_FAILED`/502 handling plus a production Supabase blocker QC artifact.
 
 ### 2026-05-10 SMS Confirmation-Only Intake Copy
 

@@ -24,7 +24,7 @@
 4. Add dedicated Mission Control frontend campaign-launch review page for the Harris probate HOT/WARM/COLD API contract.
 
 ## Recent Change
-- 2026-05-10: Landing deploy submit debug reproduced `500 {"error":"Submission failed"}` with complete fields while invalid input still returned `422`; direct hosted Ares with the local runtime key returned `401`, so the active blocker is Vercel/Ares runtime key/env alignment. Landing PR #3 commit `806394e` adds clearer `ARES_INTAKE_FAILED` UI copy; QC in lease-options-landing `docs/qc/2026-05-10/form-submit-resend-debug/`.
+- 2026-05-10 follow-up: public production `https://lease-options-landing.vercel.app/api/contact` still returns the legacy `500 {"error":"Submission failed"}` body, not the branch's `502 ARES_INTAKE_FAILED`; `origin/main` of the landing repo still uses Supabase RPC `public.upsert_inbound_lead_and_event` + n8n, while Supabase project `awmsrjeawcxndfnggoxw` has no such RPC and lacks the old `provider_logs` table. Landing PR #3 commit `751977f` records the Supabase production blocker; hosted Ares still returns `401` with the local runtime key until Vercel envs are aligned.
 - 2026-05-10: Resend setup check found API key valid and `send.limitleshome.com` verified/sending-enabled; set `RESEND_FROM_EMAIL="Limitless Home Solutions <hello@send.limitleshome.com>"` and `RESEND_REPLY_TO_EMAIL=hello@send.limitleshome.com` so env-file parsing does not truncate the display-name sender.
 - 2026-05-10: Updated Ares intake messaging: SMS confirmation is now confirmation-only with no booking/Cal.com link; Resend email keeps the booking-link fallback because landing page submit already redirects to Cal.com.
 - 2026-05-10: Added non-secret activation readiness tooling/handoff docs after PR #7 merge.
