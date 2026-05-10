@@ -186,7 +186,7 @@
 
 ## Open Work
 
-1. set/fix remaining provider/env gates, then rerun `python scripts/activation_readiness.py --json` before broader live launch; TextGrid local live smoke after funding reached the correct number but first body was content-filtered, minimal retry delivered; remaining blockers are safe live-send default, valid Resend sender, Slack optional token/channel decision, Cal webhook secret, production/Vercel runtime env alignment, and actual TextGrid copy status polling
+1. set/fix remaining provider/env gates, then rerun `python scripts/activation_readiness.py --json` before broader live launch; landing production now uses the Ares-backed contact route but is blocked by missing Vercel contact-intake envs (`BUSINESS_RUNTIME_MARKETING_LEADS_URL`, `BUSINESS_RUNTIME_API_KEY`, `BUSINESS_RUNTIME_BUSINESS_ID`, `BUSINESS_RUNTIME_ENVIRONMENT`); TextGrid local live smoke after funding reached the correct number but first body was content-filtered, minimal retry delivered; remaining blockers are safe live-send default, valid Resend sender, Slack optional token/channel decision, Cal webhook secret, production/Vercel runtime env alignment, and actual TextGrid copy status polling
 2. handle production/provider callback env updates in a dedicated handoff if any deployed callback still uses old query-string runtime-key URLs
 3. wire real Slack daily digest delivery only after Slack bot token and target channel config are available
 4. run a dedicated production promotion only when intentionally preserving/updating production runtime/provider env wiring
@@ -211,11 +211,12 @@
 
 ### 2026-05-10 Landing Submit Debug + Resend Setup Check
 
-- Reproduced the deployed production landing `POST /api/contact` failure with a complete synthetic payload: deployed route returned `500 {"error":"Submission failed"}`, while invalid JSON/validation paths still returned `400`/`422`; the failure is post-validation.
-- Follow-up showed the public production URL is still behaving like the legacy `origin/main` Supabase+n8n route, not the Ares-backed landing branch: `origin/main` calls Supabase RPC `public.upsert_inbound_lead_and_event`, but Supabase project `awmsrjeawcxndfnggoxw` has no such RPC (`pg_proc` count `0`; PostgREST `404 PGRST202`) and lacks the legacy `provider_logs` table.
-- Direct hosted Ares `/marketing/leads` with the local runtime key still returned `401`, so production needs two gates: deploy/merge the Ares-backed landing route and align hosted Vercel/Ares runtime keys/envs.
+- Reproduced the deployed production landing `POST /api/contact` failure with a complete synthetic payload: deployed route returned `500 {"error":"Submission failed"}`, while invalid JSON/validation paths still returned `400`/`422`; the failure was post-validation.
+- Follow-up showed the public production URL was still behaving like the legacy `origin/main` Supabase+n8n route, not the Ares-backed landing branch: `origin/main` called Supabase RPC `public.upsert_inbound_lead_and_event`, but Supabase project `awmsrjeawcxndfnggoxw` had no such RPC (`pg_proc` count `0`; PostgREST `404 PGRST202`) and lacked the legacy `provider_logs` table.
+- Fast-forwarded `martinp09/lease-options-landing` `main` to the Ares-backed route and added safe diagnostic error details; production now returns `502 ARES_INTAKE_FAILED` with `reason=runtime_not_configured` and missing env names instead of the old generic Supabase `500`.
+- Current landing production blocker is missing Vercel contact-intake envs: `BUSINESS_RUNTIME_MARKETING_LEADS_URL`, `BUSINESS_RUNTIME_API_KEY`, `BUSINESS_RUNTIME_BUSINESS_ID`, `BUSINESS_RUNTIME_ENVIRONMENT`. Vercel auth is unavailable in this shell, so env setup must happen externally.
 - Resend setup check: CLI/API key works, `send.limitleshome.com` is verified and sending-enabled, and the next env fix is to quote the display-name sender: `RESEND_FROM_EMAIL="Limitless Home Solutions <hello@send.limitleshome.com>"`; no live email was sent.
-- Landing PR #3 commit `751977f` includes the clearer `ARES_INTAKE_FAILED`/502 handling plus a production Supabase blocker QC artifact.
+- Landing main commit `455fe77` includes the production fix, safe diagnostics, and QC artifacts under `docs/qc/2026-05-10/production-promotion/`.
 
 ### 2026-05-10 SMS Confirmation-Only Intake Copy
 
