@@ -87,7 +87,7 @@ X-Vapi-Secret: <VAPI_WEBHOOK_SECRET>
 Supported Vapi Server URL message types in this scaffold:
 
 - `assistant-request`: returns configured `assistantId` or a transient assistant payload
-- `tool-calls`: returns Vapi `results[]` with unsupported-tool responses until tools are wired
+- `tool-calls`: returns Vapi `results[]` for Mission Control-aware tools including record search/detail, lane scripts, record updates, opportunity stage movement, task completion, lead qualification, follow-up summaries, and human handoff
 - `status-update`: accepted
 - `transcript`: accepted
 - `end-of-call-report`: accepted

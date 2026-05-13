@@ -17,6 +17,7 @@
   - Adds deterministic Vapi REST client for `/assistant`, `/phone-number`, and `/call`.
 - `app/services/voice_agent_service.py`
   - Builds Vapi payloads for assistants, inbound phone numbers, outbound calls, and Server URL webhook responses.
+  - Vapi tool calls are wired into Mission Control-aware record search/detail, lane scripts, record updates, opportunity stage movement, task completion, lead qualification, summaries, and human handoff.
   - Keeps Vapi provider mutations/calls dry-run unless both live gates are enabled.
 - `app/models/voice_agents.py`
   - Adds Pydantic contracts for voice assistant, phone-number, outbound-call, provider-action, and webhook responses.
