@@ -11,6 +11,7 @@ from app.api.agent_installs import router as agent_installs_router
 from app.api.commands import router as commands_router
 from app.api.catalog import router as catalog_router
 from app.api.hermes_tools import router as hermes_tools_router
+from app.api.hubspot_crm import router as hubspot_crm_router
 from app.api.lead_machine import router as lead_machine_router
 from app.api.marketing import router as marketing_router
 from app.api.memberships import router as memberships_router
@@ -89,6 +90,7 @@ def create_app() -> FastAPI:
     app.include_router(runs_router, dependencies=protected_dependencies)
     app.include_router(replays_router, dependencies=protected_dependencies)
     app.include_router(hermes_tools_router, dependencies=protected_dependencies)
+    app.include_router(hubspot_crm_router, dependencies=protected_dependencies)
     app.include_router(agents_router, dependencies=protected_dependencies)
     app.include_router(catalog_router, dependencies=protected_dependencies)
     app.include_router(agent_installs_router, dependencies=protected_dependencies)

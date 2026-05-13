@@ -28,6 +28,7 @@
 ## Current Direction
 
 - `/root/Ares-inspect` is on `main`; lease-option intake confirmation SMS/email, Slack intake scaffold, appointment reminders, and env-file activation readiness are merged. Current activation docs/tooling: `docs/activation-readiness-handoff.md` and `scripts/activation_readiness.py`.
+- `/opt/ares/worktrees/ares-hubspot-crm-customization` on `feature/hubspot-crm-customization` adds a HubSpot CRM customization scaffold: dry-run-first `/crm/hubspot/customization` and `/crm/hubspot/records/sync`, Ares-prefixed contact/deal properties, an acquisition pipeline proposal, and live-write gates requiring both `PROVIDER_LIVE_SENDS_ENABLED=true` and `HUBSPOT_PROVIDER_LIVE_WRITES_ENABLED=true`.
 - `/opt/ares/worktrees/sms-email-vapi-agent-scaffold` on `feature/sms-email-vapi-agent-scaffold` adds the first generic communication-agent substrate: `POST /sms-agent/messages`, `POST /sms-agent/webhooks/textgrid`, `POST /voice/assistants`, `POST /voice/phone-numbers`, `POST /voice/calls/outbound`, and `POST /voice/vapi/webhook`. SMS live sends require `contact_id` + `sms_consent_confirmed=true`; Vapi provider actions require both the global live-send gate and `VAPI_PROVIDER_LIVE_SENDS_ENABLED=true`.
 - Resend CLI `resend-cli v2.2.1` is installed in this environment; a CLI smoke to `delivered@resend.dev` delivered with ID `1d4172f1-765a-42cf-9a4a-029a5d2f5e5d` using verified sender domain `send.limitleshome.com`.
 - `POST /lead-machine/harris/daily-import` is implemented for Harris daily probate + HCAD `Estate Of` imports; it defaults to dry-run, records QC warnings, and never sends providers/Slack.
@@ -194,21 +195,22 @@
 
 ## Open Work
 
-1. finish and push `feature/sms-email-vapi-agent-scaffold`; QC evidence lives under `docs/qc/2026-05-10/sms-email-vapi-agent-scaffold/` with focused `18 passed`, full backend `672 passed`, clean diff check, and delivered Resend CLI smoke evidence
-2. set/fix remaining provider/env gates, then rerun `python scripts/activation_readiness.py --json` before broader live launch; landing production now uses the Ares-backed contact route but is blocked by missing Vercel contact-intake envs (`BUSINESS_RUNTIME_MARKETING_LEADS_URL`, `BUSINESS_RUNTIME_API_KEY`, `BUSINESS_RUNTIME_BUSINESS_ID`, `BUSINESS_RUNTIME_ENVIRONMENT`); TextGrid local live smoke after funding reached the correct number but first body was content-filtered, minimal retry delivered; remaining blockers are safe live-send default, Slack optional token/channel decision, Cal webhook secret, production/Vercel runtime env alignment, and actual TextGrid copy status polling
-3. before live Vapi callbacks/calls, configure Vapi Server URL credentials to send Ares bearer auth and `X-Vapi-Secret`, then run a dry-run-to-live progression with approved numbers only
-4. handle production/provider callback env updates in a dedicated handoff if any deployed callback still uses old query-string runtime-key URLs
-5. wire real Slack daily digest delivery only after Slack bot token and target channel config are available
-6. run a dedicated production promotion only when intentionally preserving/updating production runtime/provider env wiring
-7. add dedicated Mission Control frontend campaign-launch review page for the Harris probate HOT/WARM/COLD API contract
-8. enrich Harris probate campaign exports with email/phone before any Instantly/TextGrid enrollment; current source artifact is direct-mail-ready only
-9. consider an atomic backend bulk-record endpoint if large batch throughput/transaction semantics become necessary; current Records bulk UI fans out through real single-record command callbacks
-10. defer owner/property graph, research cockpit, and map UI until Records and stage model are stable
-11. add explicit canonical source-lane metadata for CRM records before broadening promote routing beyond probate/lease-option lanes
-12. preserve production evidence files as the handoff source of truth
-13. optionally replace the REST rollback bundle with native pg_dump once Supabase CLI container DNS is fixed
-14. add production monitoring/alerts for provider callback failures
-15. keep browser acquisition and ambiguous research in Hermes or other driver agents, not inside Ares
+1. finish and push `feature/hubspot-crm-customization`; before live HubSpot writes, move token to env/secret manager, rotate any token pasted in chat, run dry-run customization, then enable both live-write gates intentionally
+2. finish and push `feature/sms-email-vapi-agent-scaffold`; QC evidence lives under `docs/qc/2026-05-10/sms-email-vapi-agent-scaffold/` with focused `18 passed`, full backend `672 passed`, clean diff check, and delivered Resend CLI smoke evidence
+3. set/fix remaining provider/env gates, then rerun `python scripts/activation_readiness.py --json` before broader live launch; landing production now uses the Ares-backed contact route but is blocked by missing Vercel contact-intake envs (`BUSINESS_RUNTIME_MARKETING_LEADS_URL`, `BUSINESS_RUNTIME_API_KEY`, `BUSINESS_RUNTIME_BUSINESS_ID`, `BUSINESS_RUNTIME_ENVIRONMENT`); TextGrid local live smoke after funding reached the correct number but first body was content-filtered, minimal retry delivered; remaining blockers are safe live-send default, Slack optional token/channel decision, Cal webhook secret, production/Vercel runtime env alignment, and actual TextGrid copy status polling
+4. before live Vapi callbacks/calls, configure Vapi Server URL credentials to send Ares bearer auth and `X-Vapi-Secret`, then run a dry-run-to-live progression with approved numbers only
+5. handle production/provider callback env updates in a dedicated handoff if any deployed callback still uses old query-string runtime-key URLs
+6. wire real Slack daily digest delivery only after Slack bot token and target channel config are available
+7. run a dedicated production promotion only when intentionally preserving/updating production runtime/provider env wiring
+8. add dedicated Mission Control frontend campaign-launch review page for the Harris probate HOT/WARM/COLD API contract
+9. enrich Harris probate campaign exports with email/phone before any Instantly/TextGrid enrollment; current source artifact is direct-mail-ready only
+10. consider an atomic backend bulk-record endpoint if large batch throughput/transaction semantics become necessary; current Records bulk UI fans out through real single-record command callbacks
+11. defer owner/property graph, research cockpit, and map UI until Records and stage model are stable
+12. add explicit canonical source-lane metadata for CRM records before broadening promote routing beyond probate/lease-option lanes
+13. preserve production evidence files as the handoff source of truth
+14. optionally replace the REST rollback bundle with native pg_dump once Supabase CLI container DNS is fixed
+15. add production monitoring/alerts for provider callback failures
+16. keep browser acquisition and ambiguous research in Hermes or other driver agents, not inside Ares
 
 ## Completed Branch Work
 
@@ -218,6 +220,14 @@
 - `TasksRepository` now treats `lead_machine_backend=supabase` as a Supabase-backed task path so title-packet review tasks persist with lead-machine records.
 
 ## Change Log
+
+### 2026-05-13 HubSpot CRM Customization Scaffold
+
+- Added HubSpot env/config aliases without committing credentials: `HUBSPOT_ACCESS_TOKEN`, `HUBSPOT_PERSONAL_KEY`, `HUBSPOT_DEVELOPER_KEY`, `HUBSPOT_PROVIDER_LIVE_WRITES_ENABLED`, default pipeline/stage/owner IDs, and `HUBSPOT_BASE_URL`.
+- Added `HubSpotProviderClient` for authenticated CRM properties, pipelines, search, and object upsert calls against HubSpot v3 endpoints.
+- Added `HubSpotCrmService` and routes `POST /crm/hubspot/customization` and `POST /crm/hubspot/records/sync`; both dry-run by default and require both global provider live gate and HubSpot live-write gate before external writes.
+- Customization payload is real-estate specific: Ares contact roles, source lanes, skiptrace status, HCTax/probate/property/debt/title fields, document-pull status, and an `Ares Acquisition Pipeline` with separate research, skiptrace, contact-ready, title-review, offer, contract, and close/suppression stages.
+- Verification: focused HubSpot tests `13 passed`, full backend suite `690 passed`, `compileall` passed, and `git diff --check` passed; QC evidence lives under `docs/qc/2026-05-13/hubspot-crm-customization/`.
 
 ### 2026-05-10 SMS/Resend/Vapi Communication Agent Scaffold
 

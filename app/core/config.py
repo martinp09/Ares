@@ -94,6 +94,49 @@ class Settings(BaseSettings):
         default=0.25,
         validation_alias=AliasChoices("instantly_batch_wait_seconds", "INSTANTLY_BATCH_WAIT_SECONDS"),
     )
+    hubspot_access_token: str | None = Field(
+        default=None,
+        validation_alias=AliasChoices(
+            "hubspot_access_token",
+            "HUBSPOT_ACCESS_TOKEN",
+            "HUBSPOT_PERSONAL_KEY",
+            "HUBSPOT_PRIVATE_APP_TOKEN",
+            "hubspot_personal_key",
+        ),
+    )
+    hubspot_developer_key: str | None = Field(
+        default=None,
+        validation_alias=AliasChoices(
+            "hubspot_developer_key",
+            "hubspot_developer_keys",
+            "HUBSPOT_DEVELOPER_KEY",
+            "HUBSPOT_DEVELOPER_KEYS",
+            "hubspot-developer_keys",
+        ),
+    )
+    hubspot_base_url: str = Field(
+        default="https://api.hubapi.com",
+        validation_alias=AliasChoices("hubspot_base_url", "HUBSPOT_BASE_URL"),
+    )
+    hubspot_provider_live_writes_enabled: bool = Field(
+        default=False,
+        validation_alias=AliasChoices(
+            "hubspot_provider_live_writes_enabled",
+            "HUBSPOT_PROVIDER_LIVE_WRITES_ENABLED",
+        ),
+    )
+    hubspot_default_pipeline_id: str | None = Field(
+        default=None,
+        validation_alias=AliasChoices("hubspot_default_pipeline_id", "HUBSPOT_DEFAULT_PIPELINE_ID"),
+    )
+    hubspot_default_deal_stage_id: str | None = Field(
+        default=None,
+        validation_alias=AliasChoices("hubspot_default_deal_stage_id", "HUBSPOT_DEFAULT_DEAL_STAGE_ID"),
+    )
+    hubspot_owner_id: str | None = Field(
+        default=None,
+        validation_alias=AliasChoices("hubspot_owner_id", "HUBSPOT_OWNER_ID"),
+    )
     anthropic_api_key: str | None = Field(
         default=None,
         validation_alias=AliasChoices("anthropic_api_key", "ANTHROPIC_API_KEY"),
