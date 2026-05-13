@@ -8,12 +8,12 @@ from pydantic import BaseModel, ConfigDict, Field
 class VoiceAssistantCreateRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    name: str = Field(default="Ares Voice Agent", min_length=1)
-    first_message: str = Field(default="Hi, this is Ares. How can I help?", min_length=1)
-    system_prompt: str = Field(
-        default="You are a concise real-estate phone assistant for Ares. Keep responses under 30 words and hand off when a seller needs an operator.",
+    name: str = Field(default="Ares RE Lead Desk", min_length=1)
+    first_message: str = Field(
+        default="Hi, this is the Ares real estate desk. I can help route your property situation and get the right follow-up started. What can I help with today?",
         min_length=1,
     )
+    system_prompt: str | None = Field(default=None, min_length=1)
     server_url: str | None = None
     model_provider: str | None = None
     model: str | None = None
