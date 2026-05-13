@@ -28,7 +28,7 @@
 ## Current Direction
 
 - `/root/Ares-inspect` is on `main`; lease-option intake confirmation SMS/email, Slack intake scaffold, appointment reminders, and env-file activation readiness are merged. Current activation docs/tooling: `docs/activation-readiness-handoff.md` and `scripts/activation_readiness.py`.
-- `/opt/ares/worktrees/ares-hubspot-crm-customization` on `feature/hubspot-crm-customization` adds a HubSpot CRM customization scaffold: dry-run-first `/crm/hubspot/customization` and `/crm/hubspot/records/sync`, Ares-prefixed contact/deal properties, an acquisition pipeline proposal, and live-write gates requiring both `PROVIDER_LIVE_SENDS_ENABLED=true` and `HUBSPOT_PROVIDER_LIVE_WRITES_ENABLED=true`.
+- `/opt/ares/worktrees/ares-main` on `main` includes the merged HubSpot CRM customization scaffold: dry-run-first `/crm/hubspot/customization` and `/crm/hubspot/records/sync`, Ares-prefixed contact/deal properties, an acquisition pipeline proposal, and live-write gates requiring both `PROVIDER_LIVE_SENDS_ENABLED=true` and `HUBSPOT_PROVIDER_LIVE_WRITES_ENABLED=true`. A targeted live apply on 2026-05-13 was blocked before mutation because the recovered pasted personal key returned HTTP `401`.
 - `/opt/ares/worktrees/sms-email-vapi-agent-scaffold` on `feature/sms-email-vapi-agent-scaffold` adds the first generic communication-agent substrate: `POST /sms-agent/messages`, `POST /sms-agent/webhooks/textgrid`, `POST /voice/assistants`, `POST /voice/phone-numbers`, `POST /voice/calls/outbound`, and `POST /voice/vapi/webhook`. SMS live sends require `contact_id` + `sms_consent_confirmed=true`; Vapi provider actions require both the global live-send gate and `VAPI_PROVIDER_LIVE_SENDS_ENABLED=true`.
 - Resend CLI `resend-cli v2.2.1` is installed in this environment; a CLI smoke to `delivered@resend.dev` delivered with ID `1d4172f1-765a-42cf-9a4a-029a5d2f5e5d` using verified sender domain `send.limitleshome.com`.
 - `POST /lead-machine/harris/daily-import` is implemented for Harris daily probate + HCAD `Estate Of` imports; it defaults to dry-run, records QC warnings, and never sends providers/Slack.
@@ -195,7 +195,7 @@
 
 ## Open Work
 
-1. finish and push `feature/hubspot-crm-customization`; before live HubSpot writes, move token to env/secret manager, rotate any token pasted in chat, run dry-run customization, then enable both live-write gates intentionally
+1. live HubSpot CRM apply remains blocked until a valid HubSpot private-app/personal access token with CRM schema/pipeline scopes is configured as `HUBSPOT_ACCESS_TOKEN`; rotate the pasted chat token/key, then rerun the live customization and set `HUBSPOT_DEFAULT_PIPELINE_ID` / `HUBSPOT_DEFAULT_DEAL_STAGE_ID` from readback
 2. finish and push `feature/sms-email-vapi-agent-scaffold`; QC evidence lives under `docs/qc/2026-05-10/sms-email-vapi-agent-scaffold/` with focused `18 passed`, full backend `672 passed`, clean diff check, and delivered Resend CLI smoke evidence
 3. set/fix remaining provider/env gates, then rerun `python scripts/activation_readiness.py --json` before broader live launch; landing production now uses the Ares-backed contact route but is blocked by missing Vercel contact-intake envs (`BUSINESS_RUNTIME_MARKETING_LEADS_URL`, `BUSINESS_RUNTIME_API_KEY`, `BUSINESS_RUNTIME_BUSINESS_ID`, `BUSINESS_RUNTIME_ENVIRONMENT`); TextGrid local live smoke after funding reached the correct number but first body was content-filtered, minimal retry delivered; remaining blockers are safe live-send default, Slack optional token/channel decision, Cal webhook secret, production/Vercel runtime env alignment, and actual TextGrid copy status polling
 4. before live Vapi callbacks/calls, configure Vapi Server URL credentials to send Ares bearer auth and `X-Vapi-Secret`, then run a dry-run-to-live progression with approved numbers only
@@ -220,6 +220,11 @@
 - `TasksRepository` now treats `lead_machine_backend=supabase` as a Supabase-backed task path so title-packet review tasks persist with lead-machine records.
 
 ## Change Log
+
+### 2026-05-13 HubSpot Live Apply Auth Blocker
+
+- Targeted live HubSpot apply used the prior transcript credentials without printing or storing raw secrets, but stopped before any mutations because the recovered personal key returned HTTP `401` as a bearer token and the developer key is not useful for CRM bearer writes.
+- Sanitized blocker evidence is recorded at `docs/qc/2026-05-13/hubspot-live-apply/`; next step is a valid HubSpot private-app/personal access token with CRM schema/pipeline scopes, then rerun the live apply and readback.
 
 ### 2026-05-13 HubSpot CRM Customization Scaffold
 

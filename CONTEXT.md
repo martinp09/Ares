@@ -2,9 +2,9 @@
 
 ## Stable Facts
 - Repo: `martinp09/Ares`
-- Current working checkout: `/opt/ares/worktrees/ares-hubspot-crm-customization`
-- Active branch: `feature/hubspot-crm-customization`
-- Base: `origin/main` at `397f37e`
+- Current working checkout: `/opt/ares/worktrees/ares-main`
+- Active branch: `main`
+- Base: `origin/main` at `3c4c2f4`
 - Runtime production URL: `https://production-readiness-afternoon.vercel.app`
 - Mission Control URL: `https://mission-control-g8un1ly0w-martins-projects-9600e79e.vercel.app`
 - Supabase project ref: `awmsrjeawcxndfnggoxw`
@@ -19,12 +19,12 @@
 - HubSpot credentials are env-only; do not commit raw keys.
 
 ## Current TODO
-1. Finish ship gate for `feature/hubspot-crm-customization`: QC artifacts, diff checks, commit/push.
-2. Before live HubSpot writes, move credentials to deployment env, rotate any token pasted in chat, dry-run inspect the customization payload, then enable live-write gates intentionally.
-3. After live HubSpot customization, set `HUBSPOT_DEFAULT_PIPELINE_ID` and `HUBSPOT_DEFAULT_DEAL_STAGE_ID` from the created portal pipeline before syncing records.
-4. Keep Vapi setup deferred until a separate voice-agent activation date.
+1. Live HubSpot apply is blocked until Martin provides/configures a valid HubSpot private-app/personal access token with CRM schema/pipeline scopes; the pasted personal key returned HTTP `401`, and the developer key is not useful for CRM bearer writes.
+2. After live HubSpot customization succeeds, set `HUBSPOT_DEFAULT_PIPELINE_ID` and `HUBSPOT_DEFAULT_DEAL_STAGE_ID` from the created portal pipeline before syncing records.
+3. Keep Vapi setup deferred until a separate voice-agent activation date.
 
 ## Recent Change
+- 2026-05-13: Targeted live HubSpot apply attempted from the prior transcript token, but stopped before any mutations because the recovered personal key returned HTTP `401`; sanitized blocker evidence lives under `docs/qc/2026-05-13/hubspot-live-apply/`.
 - 2026-05-13: Added HubSpot provider client, Ares CRM customization service, HubSpot routes, tests, env placeholders, and docs. Verification: focused HubSpot tests `13 passed`, full backend suite `690 passed`, `compileall` passed, and `git diff --check` passed.
 - 2026-05-10: Vapi voice-agent scaffold landed on `origin/main` and remains dry-run until Vapi env/live gates are set.
 
