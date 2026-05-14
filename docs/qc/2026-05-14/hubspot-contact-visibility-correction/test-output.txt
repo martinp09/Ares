@@ -1,0 +1,139 @@
+# HubSpot Contact Visibility Correction Output
+
+## Initial live readback before fix
+
+```text
+contact_id=485815102172
+firstname=Brittany
+lastname=C Edwards
+email=null
+phone=null
+mobilephone=null
+address=null
+city=null
+state=null
+zip=null
+country=null
+ares_best_contact_address=1614 Royal Grantham Ct, Houston TX 77073
+ares_mailing_address=1614 Royal Grantham Ct, Houston TX 77073
+ares_contact_address=1614 Royal Grantham Ct, Houston TX 77073
+ares_best_contact_name=Brittany C Edwards
+ares_best_contact_role=Applicant
+ares_heir_candidate_count=5
+ares_probate_case_number=543678
+
+deal_id=325123310274
+ares_best_contact_address=1614 Royal Grantham Ct, Houston TX 77073
+ares_mailing_address=1614 Royal Grantham Ct, Houston TX 77073
+ares_probate_case_number=543678
+ares_sync_hash=hubspot-real-lead-lead_341-rich-v3
+```
+
+Interpretation: Ares custom properties were populated, but HubSpot standard contact address fields were empty. That explains why the normal HubSpot contact panel looked like it only had the Brittany name.
+
+## HubSpot record layout docs check
+
+Public HubSpot knowledge-base pages show that properties shown in record sidebars/property-list cards are a HubSpot UI record-customization setting:
+
+```text
+Users can customize which properties are displayed in the left sidebar/property-list cards. On a record, use Actions > Customize properties > Add properties; account-wide default record layout is under Settings > Objects > [object] > Record Customization > Default view, requiring Super Admin / Customize record page layout permissions.
+```
+
+The Ares Service Key path can create properties and write property values, but it does not automatically place those properties on Martin's visible HubSpot record card.
+
+## Live Ares/HubSpot correction
+
+```text
+provider=hubspot
+operator_approved=true
+customization_live_applied=true
+customization_mutation_count=0
+customization_preview_property_counts contacts=27 deals=47 companies=7
+customization_properties_created contacts=0 deals=0 companies=0
+customization_properties_skipped_count contacts=27 deals=47 companies=7
+
+lead_id=lead_341
+case_number=543678
+best_contact_name=Brittany C Edwards
+best_contact_role=Applicant
+best_contact_address=1614 Royal Grantham Ct, Houston TX 77073
+property_address_present=false
+mailing_address_present=true
+hcad_account_present=false
+
+live_applied=true
+created_count=0
+updated_count=2
+skipped_count=0
+failed_count=0
+error_count=0
+result record_id=lead_341 object_type=contact action=update provider_object_id=485815102172 provider_link_id=plink_3 sync_hash=hubspot-real-lead-lead_341-visible-v4
+result record_id=lead_341 object_type=deal action=update provider_object_id=325123310274 provider_link_id=plink_4 sync_hash=hubspot-real-lead-lead_341-visible-v4
+instantly_touched=false
+reacher_touched=false
+vapi_touched=false
+source_pull_touched=false
+```
+
+## Final HubSpot readback after fix
+
+```text
+contact_id=485815102172
+firstname=Brittany
+lastname=C Edwards
+address=1614 Royal Grantham Ct
+city=Houston
+state=TX
+zip=77073
+country=United States
+email=null
+phone=null
+mobilephone=null
+ares_best_contact_address=1614 Royal Grantham Ct, Houston TX 77073
+ares_mailing_address=1614 Royal Grantham Ct, Houston TX 77073
+ares_contact_address=1614 Royal Grantham Ct, Houston TX 77073
+ares_heir_candidate_count=5
+ares_probate_case_number=543678
+
+deal_id=325123310274
+ares_best_contact_address=1614 Royal Grantham Ct, Houston TX 77073
+ares_mailing_address=1614 Royal Grantham Ct, Houston TX 77073
+ares_probate_case_number=543678
+ares_sync_hash=hubspot-real-lead-lead_341-visible-v4
+```
+
+Known remaining true-data gaps:
+
+```text
+email=null
+phone=null
+mobilephone=null
+ares_property_address=null
+hcad_account_present=false
+```
+
+## Focused tests
+
+```text
+python -m pytest tests/services/test_hubspot_mirror_service.py tests/api/test_hubspot_mirror.py -q
+.....................................                                    [100%]
+37 passed in 1.47s
+```
+
+## Full backend verification
+
+```text
+python -m pytest -q && git diff --check
+........................................................................ [  9%]
+........................................................................ [ 18%]
+........................................................................ [ 28%]
+........................................................................ [ 37%]
+........................................................................ [ 47%]
+........................................................................ [ 56%]
+........................................................................ [ 66%]
+........................................................................ [ 75%]
+........................................................................ [ 85%]
+........................................................................ [ 94%]
+......................................                                   [100%]
+758 passed in 26.41s
+```

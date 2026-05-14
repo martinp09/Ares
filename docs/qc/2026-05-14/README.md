@@ -3,7 +3,7 @@
 ## Status
 - Overall: Phases 1-9 are implemented and the operating-spine bundle is pushed on commit `8c19c26`; QC artifacts are organized for review.
 - Source-of-truth posture: Ares/Supabase remains canonical; HubSpot, Instantly, Vapi, and Mission Control are mirrors/execution surfaces behind deterministic Ares policy.
-- Live-side-effect posture: Phases 1-9 were implemented without live provider mutations. After operator approval, live HubSpot CRM customization was executed and documented in `hubspot-live-buildout/`; then one synthetic HubSpot record-sync canary plus remote provider-links migration was executed and documented in `hubspot-record-sync-canary/`; then one real hand-selected Harris probate lead was synced to HubSpot and documented in `hubspot-real-lead-sync/`; then HubSpot rich probate/heir fields were added and the same lead was updated with applicant/heir metadata in `hubspot-rich-probate-fields/`. No live Instantly enrollments/sends, Reacher calls, Vapi calls, county/source-provider pulls, Slack sends, batch record sync, or deploys were executed.
+- Live-side-effect posture: Phases 1-9 were implemented without live provider mutations. After operator approval, live HubSpot CRM customization was executed and documented in `hubspot-live-buildout/`; then one synthetic HubSpot record-sync canary plus remote provider-links migration was executed and documented in `hubspot-record-sync-canary/`; then one real hand-selected Harris probate lead was synced to HubSpot and documented in `hubspot-real-lead-sync/`; then HubSpot rich probate/heir fields were added and the same lead was updated with applicant/heir metadata in `hubspot-rich-probate-fields/`; then contact visibility was corrected by writing standard HubSpot address fields and documenting HubSpot record-card customization in `hubspot-contact-visibility-correction/`. No live Instantly enrollments/sends, Reacher calls, Vapi calls, county/source-provider pulls, Slack sends, batch record sync, or deploys were executed.
 - Repository posture: feature branch is pushed; local unrelated tracked/untracked files remain outside the pushed operating-spine/canary scope. Do not describe this state as merged, deployed, or promotable until reviewed/merged intentionally.
 
 ## Phase / slice map
@@ -105,6 +105,13 @@
   - Live-side-effect posture: HubSpot property creates plus two HubSpot record updates only; no new contact/deal creation, no batch sync, no Instantly/Reacher/Vapi/source-provider/Slack/deploy side effect.
   - Remaining gates: selected lead still has no matched property address/HCAD account and no email/phone; property fields now exist and read back `null` until land/tax/property matching supplies those facts.
 
+- Post-Phase HubSpot contact visibility correction — standard address fields + UI guidance
+  - Folder: `hubspot-contact-visibility-correction/`
+  - Scope: root-caused why the HubSpot contact card still looked empty: Ares custom fields were populated, but standard HubSpot contact `address/city/state/zip/country` fields were null and custom fields are not automatically pinned to the visible record card.
+  - Latest status: complete; existing contact/deal updated through provider links `plink_3`/`plink_4` with sync hash `hubspot-real-lead-lead_341-visible-v4`; standard contact address fields now read back as `1614 Royal Grantham Ct`, `Houston`, `TX`, `77073`, `United States`.
+  - Live-side-effect posture: two HubSpot record updates only; no new contact/deal creation, no batch sync, no Instantly/Reacher/Vapi/source-provider/Slack/deploy side effect.
+  - Remaining gates: email/phone/mobile and property/HCAD remain truly absent; HubSpot card visibility for Ares custom fields still requires HubSpot UI record customization.
+
 ## Phase-numbering reconciliation
 - The original master plan shifted Mission Control/observability later in the sequence.
 - The current chat execution labels the provider-ops/Mission Control/Hermes catalog slice as Phase 8 and the docs/QC readiness slice as Phase 9.
@@ -112,5 +119,5 @@
 
 ## Final ship-check gates
 - Required local verification: backend pytest, Mission Control tests/typecheck/build, Trigger typecheck, `git diff --check`.
-- Required process gates: no secrets in evidence; no audit/fix mutation; no live Instantly/Vapi/Reacher/source-provider/Slack calls; HubSpot portal customization, one synthetic record-sync canary, one real hand-selected HubSpot lead sync, and one rich-field correction update are separately documented.
+- Required process gates: no secrets in evidence; no audit/fix mutation; no live Instantly/Vapi/Reacher/source-provider/Slack calls; HubSpot portal customization, one synthetic record-sync canary, one real hand-selected HubSpot lead sync, one rich-field correction update, and one standard-address visibility correction are separately documented.
 - Required before shipping: review/merge intentionally, then decide deployment and remaining live-provider enablement separately.

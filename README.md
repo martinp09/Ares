@@ -24,13 +24,14 @@ This repo is the deterministic runtime, policy layer, orchestration surface, and
 - HubSpot operating spine / agentic company Phases 1-9 are complete and pushed on commit `8c19c26`, with Ares remaining canonical and providers behind preview/apply gates.
 - HubSpot portal customization itself has also been live-applied after operator instruction: Ares property groups/properties are present, and Ares stages were added to the existing single HubSpot `Sales Pipeline`.
 - First HubSpot record-sync canary is complete: one synthetic contact/deal pair was created and provider-linked after the remote provider-links migration was applied; no batch sync.
-- First real HubSpot lead sync is complete: one hand-selected Harris probate lead (`lead_341`, case `543678`) created HubSpot contact `485815102172` and deal `325123310274`; a follow-up rich-field correction added HubSpot properties for probate/heir/contact/mailing/property/tax-overlay metadata and updated those same records with applicant/heir data; no Instantly/Reacher/Vapi/batch/deploy side effects.
+- First real HubSpot lead sync is complete: one hand-selected Harris probate lead (`lead_341`, case `543678`) created HubSpot contact `485815102172` and deal `325123310274`; follow-up corrections added HubSpot properties for probate/heir/contact/mailing/property/tax-overlay metadata, updated those same records with applicant/heir data, and filled standard contact address fields for normal HubSpot visibility; no Instantly/Reacher/Vapi/batch/deploy side effects.
 - QC index: `docs/qc/2026-05-14/README.md`
 - Final readiness artifacts: `docs/qc/2026-05-14/operating-spine-final-readiness/`
 - HubSpot live buildout evidence: `docs/qc/2026-05-14/hubspot-live-buildout/`
 - HubSpot record-sync canary evidence: `docs/qc/2026-05-14/hubspot-record-sync-canary/`
 - HubSpot real-lead sync evidence: `docs/qc/2026-05-14/hubspot-real-lead-sync/`
 - HubSpot rich probate/heir fields evidence: `docs/qc/2026-05-14/hubspot-rich-probate-fields/`
+- HubSpot contact visibility correction evidence: `docs/qc/2026-05-14/hubspot-contact-visibility-correction/`
 - Operating cadence runbook: `docs/runbooks/agentic-company-operating-cadence.md`
 - Provider sync/recovery runbook: `docs/runbooks/provider-sync-and-recovery.md`
 - Current repo state has the feature branch pushed with unrelated local files still unstaged/untracked; review/merge intentionally before any promotable/deployed claim.

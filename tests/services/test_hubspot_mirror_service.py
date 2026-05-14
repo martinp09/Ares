@@ -158,14 +158,14 @@ def test_record_sync_preview_builds_contact_deal_company_payloads_without_provid
                 "record_type": "contact_record",
                 "display_name": "Jane Seller",
                 "property_address": "123 Main St, Houston, TX",
-                "mailing_address": "PO Box 123, Houston, TX",
+                "mailing_address": "PO Box 123, Houston TX 77001",
                 "source": "harris_probate",
                 "source_run_id": "harris_probate_2026_04_28",
                 "record_status": "active",
                 "phone": "7135550100",
                 "email": "jane@example.com",
                 "contact_role": "Applicant",
-                "contact_address": "PO Box 123, Houston, TX",
+                "contact_address": "PO Box 123, Houston TX 77001",
                 "opportunity_id": "opp_1",
                 "county": "Harris",
                 "hcad_account": "0012340000001",
@@ -180,7 +180,7 @@ def test_record_sync_preview_builds_contact_deal_company_payloads_without_provid
                 "decedent_name": "Jane Seller",
                 "best_contact_name": "Jane Applicant",
                 "best_contact_role": "Applicant",
-                "best_contact_address": "PO Box 123, Houston, TX",
+                "best_contact_address": "PO Box 123, Houston TX 77001",
                 "heir_candidate_count": 5,
                 "heir_candidates_summary": "Jane Applicant (Applicant); John Heir (Respondent)",
                 "heir_status": "candidate_identified_relationship_pending",
@@ -216,19 +216,24 @@ def test_record_sync_preview_builds_contact_deal_company_payloads_without_provid
                 "lastname": "Seller",
                 "email": "jane@example.com",
                 "phone": "7135550100",
+                "address": "PO Box 123",
+                "city": "Houston",
+                "state": "TX",
+                "zip": "77001",
+                "country": "United States",
                 "ares_record_id": "crm_1",
                 "ares_source_lane": "harris_probate",
                 "ares_contact_role": "Applicant",
-                "ares_contact_address": "PO Box 123, Houston, TX",
+                "ares_contact_address": "PO Box 123, Houston TX 77001",
                 "ares_property_address": "123 Main St, Houston, TX",
                 "ares_contact_status": "active",
-                "ares_mailing_address": "PO Box 123, Houston, TX",
+                "ares_mailing_address": "PO Box 123, Houston TX 77001",
                 "ares_probate_case_number": "543678",
                 "ares_decedent_name": "Jane Seller",
                 "ares_estate_name": "IN THE ESTATE OF: JANE SELLER, DECEASED",
                 "ares_best_contact_name": "Jane Applicant",
                 "ares_best_contact_role": "Applicant",
-                "ares_best_contact_address": "PO Box 123, Houston, TX",
+                "ares_best_contact_address": "PO Box 123, Houston TX 77001",
                 "ares_heir_candidate_count": 5,
                 "ares_heir_candidates_summary": "Jane Applicant (Applicant); John Heir (Respondent)",
                 "ares_heir_status": "candidate_identified_relationship_pending",
@@ -254,7 +259,7 @@ def test_record_sync_preview_builds_contact_deal_company_payloads_without_provid
     assert first_deal["ares_primary_record_id"] == "crm_1"
     assert first_deal["ares_opportunity_id"] == "opp_1"
     assert first_deal["ares_lead_score"] == 83
-    assert first_deal["ares_mailing_address"] == "PO Box 123, Houston, TX"
+    assert first_deal["ares_mailing_address"] == "PO Box 123, Houston TX 77001"
     assert first_deal["ares_probate_case_number"] == "543678"
     assert first_deal["ares_probate_filing_type"] == "APP FOR INDEPENDENT ADMINISTRATION WITH AN HEIRSHIP"
     assert first_deal["ares_best_contact_name"] == "Jane Applicant"

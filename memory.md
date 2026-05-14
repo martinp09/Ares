@@ -31,7 +31,7 @@
 - HubSpot operating spine / agentic company Phases 1-9 are complete with final QC index/readiness artifacts and runbooks under `docs/qc/2026-05-14/` and `docs/runbooks/`.
 - HubSpot portal customization itself was live-applied after operator instruction; HubSpot now has Ares property groups/properties and all 12 Ares stages in the existing single `Sales Pipeline` (`docs/qc/2026-05-14/hubspot-live-buildout/`).
 - First synthetic HubSpot record-sync canary is complete after remote provider-links migration: contact `486079925950`, deal `325110558439`, provider links verified (`docs/qc/2026-05-14/hubspot-record-sync-canary/`).
-- First real HubSpot-only lead sync is complete: hand-selected Harris probate lead `lead_341` / case `543678` created contact `485815102172` and deal `325123310274`, provider links `plink_3`/`plink_4`; rich-field correction now syncs applicant/heir/probate/mailing/tax-overlay data with sync hash `hubspot-real-lead-lead_341-rich-v3`; no Instantly/Reacher/Vapi/batch/deploy side effects (`docs/qc/2026-05-14/hubspot-real-lead-sync/`, `docs/qc/2026-05-14/hubspot-rich-probate-fields/`).
+- First real HubSpot-only lead sync is complete: hand-selected Harris probate lead `lead_341` / case `543678` created contact `485815102172` and deal `325123310274`, provider links `plink_3`/`plink_4`; rich-field correction syncs applicant/heir/probate/mailing/tax-overlay data and visibility correction fills standard HubSpot contact address fields; sync hash `hubspot-real-lead-lead_341-visible-v4`; no Instantly/Reacher/Vapi/batch/deploy side effects (`docs/qc/2026-05-14/hubspot-real-lead-sync/`, `docs/qc/2026-05-14/hubspot-rich-probate-fields/`, `docs/qc/2026-05-14/hubspot-contact-visibility-correction/`).
 - Reacher/SMTP mailbox probes are blocked from the current Hetzner VPS because outbound port 25 to public MX hosts times out while 443/587 connect (`docs/qc/2026-05-14/reacher-smtp-egress/`).
 - CRM control-plane work has been merged to `origin/main`.
 - CRM control-plane draft spec: `docs/superpowers/specs/2026-04-25-ares-crm-control-plane-design.md`.
@@ -212,6 +212,13 @@
 - `TasksRepository` now treats `lead_machine_backend=supabase` as a Supabase-backed task path so title-packet review tasks persist with lead-machine records.
 
 ## Change Log
+
+### 2026-05-14 HubSpot Contact Visibility Correction
+
+- Root-caused Martin's HubSpot UI complaint: Ares custom fields were populated, but standard HubSpot contact address fields were still blank, and HubSpot does not automatically pin custom Ares fields to the visible record card.
+- Ares contact sync now maps best-contact/mailing/applicant address strings into standard HubSpot `address/city/state/zip/country` fields when parsable.
+- Live-updated existing `lead_341` contact `485815102172` and deal `325123310274` through provider links `plink_3`/`plink_4`; sync hash is now `hubspot-real-lead-lead_341-visible-v4`. Readback confirmed standard contact address fields: `1614 Royal Grantham Ct`, `Houston`, `TX`, `77073`, `United States`.
+- Email/phone/mobile and property/HCAD remain true data gaps. Custom Ares field visibility still needs HubSpot UI record customization. Evidence: `docs/qc/2026-05-14/hubspot-contact-visibility-correction/`.
 
 ### 2026-05-14 HubSpot Rich Probate Fields Correction
 

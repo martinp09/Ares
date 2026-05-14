@@ -541,11 +541,18 @@ class HubSpotMirrorService:
 
     def _contact_payload(self, record: Mapping[str, Any]) -> dict[str, Any]:
         first_name, last_name = self._split_name(str(record.get("display_name") or record.get("owner_name") or "Unknown Contact"))
+        standard_address = self._contact_standard_address(record)
         properties = {
             "firstname": first_name,
             "lastname": last_name,
             "email": record.get("email"),
             "phone": record.get("phone"),
+            "mobilephone": record.get("mobilephone"),
+            "address": record.get("address") or standard_address.get("address"),
+            "city": record.get("city") or standard_address.get("city"),
+            "state": record.get("state") or standard_address.get("state"),
+            "zip": record.get("zip") or standard_address.get("zip"),
+            "country": record.get("country") or standard_address.get("country"),
             "ares_contact_id": record.get("contact_id"),
             "ares_record_id": record.get("id") or record.get("record_id"),
             "ares_source_lane": record.get("source_lane") or record.get("source"),
@@ -668,6 +675,39 @@ class HubSpotMirrorService:
         if len(parts) == 1:
             return parts[0], ""
         return parts[0], " ".join(parts[1:])
+
+    @classmethod
+    def _contact_standard_address(cls, record: Mapping[str, Any]) -> dict[str, str]:
+        raw_address = (
+            record.get("standard_contact_address")
+            or record.get("contact_address")
+            or record.get("best_contact_address")
+            or record.get("mailing_address")
+            or record.get("applicant_address")
+        )
+        parsed = cls._parse_us_address(str(raw_address or ""))
+        return {
+            "address": str(record.get("address") or parsed.get("address") or ""),
+            "city": str(record.get("city") or parsed.get("city") or ""),
+            "state": str(record.get("state") or parsed.get("state") or ""),
+            "zip": str(record.get("zip") or parsed.get("zip") or ""),
+            "country": str(record.get("country") or parsed.get("country") or ""),
+        }
+
+    @staticmethod
+    def _parse_us_address(raw_address: str) -> dict[str, str]:
+        normalized = " ".join(raw_address.replace("\n", ", ").split())
+        if not normalized:
+            return {}
+        parts = [part.strip() for part in normalized.split(",") if part.strip()]
+        street = parts[0]
+        city_state_zip = " ".join(parts[1:]) if len(parts) > 1 else ""
+        parsed = {"address": street}
+        match = re.match(r"^(?P<city>.+?)\s+(?P<state>[A-Z]{2})\s+(?P<zip>\d{5}(?:-\d{4})?)$", city_state_zip)
+        if match:
+            parsed.update(match.groupdict())
+            parsed["country"] = "United States"
+        return parsed
 
     @classmethod
     def _compact(cls, properties: Mapping[str, Any]) -> dict[str, Any]:
