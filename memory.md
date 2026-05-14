@@ -31,6 +31,7 @@
 - HubSpot operating spine / agentic company Phases 1-9 are complete with final QC index/readiness artifacts and runbooks under `docs/qc/2026-05-14/` and `docs/runbooks/`.
 - HubSpot portal customization itself was live-applied after operator instruction; HubSpot now has Ares property groups/properties and all 12 Ares stages in the existing single `Sales Pipeline` (`docs/qc/2026-05-14/hubspot-live-buildout/`).
 - First synthetic HubSpot record-sync canary is complete after remote provider-links migration: contact `486079925950`, deal `325110558439`, provider links verified (`docs/qc/2026-05-14/hubspot-record-sync-canary/`).
+- First real HubSpot-only lead sync is complete: hand-selected Harris probate lead `lead_341` / case `543678` created contact `485815102172` and deal `325123310274`, provider links `plink_3`/`plink_4`, sync hash `hubspot-real-lead-lead_341-v1`; no Instantly/Reacher/Vapi/batch/deploy side effects (`docs/qc/2026-05-14/hubspot-real-lead-sync/`).
 - Reacher/SMTP mailbox probes are blocked from the current Hetzner VPS because outbound port 25 to public MX hosts times out while 443/587 connect (`docs/qc/2026-05-14/reacher-smtp-egress/`).
 - CRM control-plane work has been merged to `origin/main`.
 - CRM control-plane draft spec: `docs/superpowers/specs/2026-04-25-ares-crm-control-plane-design.md`.
@@ -211,6 +212,13 @@
 - `TasksRepository` now treats `lead_machine_backend=supabase` as a Supabase-backed task path so title-packet review tasks persist with lead-machine records.
 
 ## Change Log
+
+### 2026-05-14 HubSpot Real Lead Sync
+
+- Ran the first real HubSpot-only sync after preview for hand-selected `limitless/prod` Harris probate lead `lead_341` / case `543678` (`APP FOR INDEPENDENT ADMINISTRATION WITH AN HEIRSHIP`, score `95`).
+- Created HubSpot contact `485815102172` and HubSpot deal `325123310274`; provider links `plink_3`/`plink_4` verified with sync hash `hubspot-real-lead-lead_341-v1`.
+- Lead remains `skiptrace_status=needed` and `outreach_status=not_ready` because it has no email/phone; no Instantly enrollment/send, Reacher call, Vapi call, source-provider pull, Slack send, batch sync, deploy, or code change occurred.
+- Evidence: `docs/qc/2026-05-14/hubspot-real-lead-sync/`. Future Instantly test requires warmed inboxes plus copy approval first.
 
 ### 2026-05-14 Reacher SMTP Egress Check
 
