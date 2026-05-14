@@ -24,12 +24,14 @@
 ## Current TODO
 1. Review/merge the pushed feature branch or open a PR if needed.
 2. Keep remaining live provider actions behind separate operator approvals and gates: real HubSpot record batches, Instantly enroll/send, Vapi dispatch, source-provider pulls, Slack/provider sends.
-3. Apply current buy-box filters in future scoring/import slices: no mobile homes; SFR/1–4 preferred; commercial review only; $150k–county median core tax/title band; $500k+ creative-finance lane. Canonical note: `docs/lead-scoring/buy-box-filters.md`.
-4. Capture stronger primary Alen Sultanic source material and update `docs/copywriting-wiki/`.
-5. Add Mission Control read/approval endpoints/page for Ares offer/copy assets and Harris probate campaign launch review.
-6. Enrich Harris probate exports with email/phone via Tracerfy only after Martin explicitly approves skiptrace spend.
+3. Reacher SMTP egress is blocked on outbound port 25 from this Hetzner VPS; use DNS/MX-only, request Hetzner unblock, or run SMTP verifier sidecar elsewhere before relying on SMTP mailbox probes.
+4. Apply current buy-box filters in future scoring/import slices: no mobile homes; SFR/1–4 preferred; commercial review only; $150k–county median core tax/title band; $500k+ creative-finance lane. Canonical note: `docs/lead-scoring/buy-box-filters.md`.
+5. Capture stronger primary Alen Sultanic source material and update `docs/copywriting-wiki/`.
+6. Add Mission Control read/approval endpoints/page for Ares offer/copy assets and Harris probate campaign launch review.
+7. Enrich Harris probate exports with email/phone via Tracerfy only after Martin explicitly approves skiptrace spend.
 
 ## Recent Change
+- 2026-05-14: Reacher/SMTP egress check found outbound TCP port 25 to Gmail/Google/Outlook/Yahoo MX hosts timing out while local firewall OUTPUT is ACCEPT and control ports 443/587 connect. Evidence: `docs/qc/2026-05-14/reacher-smtp-egress/`.
 - 2026-05-14: Committed/pushed operating-spine bundle as `8c19c26`; applied remote Supabase migration `20260514090000_provider_object_links.sql`; set local HubSpot default pipeline/stage env with gates off; ran one synthetic HubSpot record-sync canary creating contact `486079925950` and deal `325110558439` with provider links. Evidence: `docs/qc/2026-05-14/hubspot-record-sync-canary/`.
 - 2026-05-14: Live-applied HubSpot portal customization after operator instruction. HubSpot now has Ares property groups/properties and all 12 Ares stages in the existing single `Sales Pipeline`; evidence: `docs/qc/2026-05-14/hubspot-live-buildout/`. No Instantly/Vapi/source-provider/Slack/deploy side effects.
 - 2026-05-14: Added Phase 9 final QC index, final readiness artifacts, operating/provider runbooks, and living-doc updates. Final verification captured in `docs/qc/2026-05-14/operating-spine-final-readiness/test-output.txt`.

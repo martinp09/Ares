@@ -1,0 +1,56 @@
+# Reacher SMTP Egress Test Output
+
+## Port 25 MX probe
+
+Command:
+
+```bash
+python <smtp_egress_probe>
+```
+
+Output:
+
+```text
+smtp_egress_probe=port_25_banner_or_connect_only
+host=gmail-smtp-in.l.google.com | ip=173.194.43.26 connect=false elapsed_ms=6006 error=TimeoutError:timed out | ip=2607:f8b0:400e:c00::1a connect=false elapsed_ms=6006 error=TimeoutError:timed out
+host=aspmx.l.google.com | ip=142.250.99.26 connect=false elapsed_ms=6005 error=TimeoutError:timed out | ip=2607:f8b0:400e:c02::1a connect=false elapsed_ms=6006 error=TimeoutError:timed out
+host=hotmail-com.olc.protection.outlook.com | ip=52.101.9.4 connect=false elapsed_ms=6002 error=TimeoutError:timed out | ip=52.101.41.20 connect=false elapsed_ms=6006 error=TimeoutError:timed out
+host=mta5.am0.yahoodns.net | ip=67.195.204.79 connect=false elapsed_ms=6005 error=TimeoutError:timed out | ip=98.136.96.91 connect=false elapsed_ms=6000 error=TimeoutError:timed out
+```
+
+## Control ports
+
+Command:
+
+```bash
+python <control_port_probe>
+```
+
+Output:
+
+```text
+google_443 host=google.com port=443 connect=true elapsed_ms=8
+gmail_submission_587 host=smtp.gmail.com port=587 connect=true elapsed_ms=11
+gmail_smtps_465 host=smtp.gmail.com port=465 connect=false elapsed_ms=12007 error=TimeoutError:timed out
+```
+
+## Local firewall checks
+
+Command:
+
+```bash
+ufw status verbose
+iptables -S OUTPUT
+nft list ruleset output-policy hints
+```
+
+Output:
+
+```text
+Status: inactive
+--- iptables OUTPUT ---
+-P OUTPUT ACCEPT
+--- nft rules output policy hints ---
+type nat hook output priority dstnat; policy accept;
+type route hook output priority mangle; policy accept;
+```

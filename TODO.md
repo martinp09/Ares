@@ -26,6 +26,7 @@ Primary handoff artifacts:
 - Provider sync/recovery runbook: `docs/runbooks/provider-sync-and-recovery.md`
 - HubSpot live buildout: `docs/qc/2026-05-14/hubspot-live-buildout/`
 - HubSpot record-sync canary: `docs/qc/2026-05-14/hubspot-record-sync-canary/`
+- Reacher/SMTP egress check: `docs/qc/2026-05-14/reacher-smtp-egress/`
 - Master plan status: `docs/superpowers/plans/2026-05-14-hubspot-operating-spine-agentic-company-plan.md`
 
 Do not claim merged, deployed, or promotable until the pushed branch is reviewed/merged intentionally. Local unrelated tracked/untracked files remain outside the pushed operating-spine/canary scope.
@@ -40,6 +41,7 @@ Do not claim merged, deployed, or promotable until the pushed branch is reviewed
 ## Open product follow-ups
 
 - Add Mission Control read/approval endpoints and frontend review page for Ares offer/copy assets and Harris probate campaign launch.
+- Reacher/SMTP-capable email verification cannot run recipient-MX mailbox probes from the current Hetzner VPS while outbound port 25 is blocked; request unblock, move verifier sidecar, or use DNS/MX/disposable-only checks until egress is available.
 - Enrich Harris probate exports with email/phone via Tracerfy only after Martin explicitly approves skiptrace spend.
 - Activate/upgrade the keyed Instantly workspace to a paid plan before real-account campaign sync/enrollment.
 - Capture stronger primary Alen Sultanic source material and update `docs/copywriting-wiki/`.

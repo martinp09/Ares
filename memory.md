@@ -31,6 +31,7 @@
 - HubSpot operating spine / agentic company Phases 1-9 are complete with final QC index/readiness artifacts and runbooks under `docs/qc/2026-05-14/` and `docs/runbooks/`.
 - HubSpot portal customization itself was live-applied after operator instruction; HubSpot now has Ares property groups/properties and all 12 Ares stages in the existing single `Sales Pipeline` (`docs/qc/2026-05-14/hubspot-live-buildout/`).
 - First synthetic HubSpot record-sync canary is complete after remote provider-links migration: contact `486079925950`, deal `325110558439`, provider links verified (`docs/qc/2026-05-14/hubspot-record-sync-canary/`).
+- Reacher/SMTP mailbox probes are blocked from the current Hetzner VPS because outbound port 25 to public MX hosts times out while 443/587 connect (`docs/qc/2026-05-14/reacher-smtp-egress/`).
 - CRM control-plane work has been merged to `origin/main`.
 - CRM control-plane draft spec: `docs/superpowers/specs/2026-04-25-ares-crm-control-plane-design.md`.
 - CRM control-plane roadmap: `docs/superpowers/plans/2026-04-25-ares-crm-control-plane-roadmap.md`.
@@ -210,6 +211,12 @@
 - `TasksRepository` now treats `lead_machine_backend=supabase` as a Supabase-backed task path so title-packet review tasks persist with lead-machine records.
 
 ## Change Log
+
+### 2026-05-14 Reacher SMTP Egress Check
+
+- Port 25 probes to Gmail/Google/Outlook/Yahoo MX hosts timed out from the Hetzner VPS; local firewall was not the blocker (`ufw` inactive, `iptables OUTPUT ACCEPT`).
+- Control ports worked: `google.com:443` and `smtp.gmail.com:587` connected. This confirms general outbound works and points to provider/network-level SMTP egress blocking for recipient-MX port 25.
+- Evidence: `docs/qc/2026-05-14/reacher-smtp-egress/`. No mail was sent and no Reacher config was changed.
 
 ### 2026-05-14 HubSpot Record Sync Canary
 
