@@ -1,7 +1,7 @@
 ---
 title: "Ares TODO / Handoff"
 status: active
-updated_at: "2026-05-14T00:00:00Z"
+updated_at: "2026-05-14T11:50:00Z"
 repo: "martinp09/Ares"
 local_checkout: "/opt/ares/Ares"
 current_branch: "feature/copywriting-brain-offer-engine"
@@ -12,9 +12,11 @@ production_wiring_commit: "47be904"
 
 ## Current status
 
-HubSpot operating spine / agentic company Phases 1-9 are complete in the current prepared working tree. Phase 9 added final QC/readiness documentation, then the HubSpot portal customization itself was live-applied after operator instruction.
+HubSpot operating spine / agentic company Phases 1-9 are complete and pushed on commit `8c19c26`. Phase 9 added final QC/readiness documentation, then the HubSpot portal customization itself was live-applied after operator instruction.
 
 HubSpot live buildout result: Ares property groups/properties are present on contacts/deals/companies, and all 12 Ares stages are present in the existing HubSpot `Sales Pipeline` because the portal is limited to one deal pipeline.
+
+HubSpot record-sync canary result: remote provider-links migration `20260514090000_provider_object_links.sql` is applied; local default HubSpot pipeline/stage env is set with gates off; one synthetic canary created HubSpot contact `486079925950` and deal `325110558439` with provider links. No real batch sync, Instantly, Vapi, source-provider, Slack, or deploy side effects.
 
 Primary handoff artifacts:
 
@@ -23,16 +25,17 @@ Primary handoff artifacts:
 - Operating cadence runbook: `docs/runbooks/agentic-company-operating-cadence.md`
 - Provider sync/recovery runbook: `docs/runbooks/provider-sync-and-recovery.md`
 - HubSpot live buildout: `docs/qc/2026-05-14/hubspot-live-buildout/`
+- HubSpot record-sync canary: `docs/qc/2026-05-14/hubspot-record-sync-canary/`
 - Master plan status: `docs/superpowers/plans/2026-05-14-hubspot-operating-spine-agentic-company-plan.md`
 
-Do not claim committed, merged, deployed, or promotable until the dirty/untracked working tree is staged/committed and reviewed intentionally.
+Do not claim merged, deployed, or promotable until the pushed branch is reviewed/merged intentionally. Local unrelated tracked/untracked files remain outside the pushed operating-spine/canary scope.
 
 ## Immediate next actions
 
-1. Review final readiness and HubSpot live-buildout evidence, then commit/open PR or equivalent review intentionally.
-2. Keep deployment separate from commit/PR review; do not promote a commit different from the evidenced state.
-3. Keep remaining live provider actions behind explicit operator approvals and env gates: HubSpot record sync, Instantly enroll/send, Vapi dispatch, source-provider pulls, Slack/provider sends.
-4. If live provider rollout is approved later, start with preview/dry-run, narrow record scope, provider links/idempotency review, and evidence capture.
+1. Review/open PR or merge the pushed branch intentionally.
+2. Keep deployment separate from branch review/merge; do not promote a commit different from the evidenced state.
+3. Keep remaining live provider actions behind explicit operator approvals and env gates: real HubSpot record batches, Instantly enroll/send, Vapi dispatch, source-provider pulls, Slack/provider sends.
+4. If live provider rollout continues, start with preview/dry-run, narrow hand-selected records, provider links/idempotency review, and evidence capture.
 
 ## Open product follow-ups
 

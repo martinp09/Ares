@@ -27,9 +27,10 @@
 
 ## Current Direction
 
-- `/opt/ares/Ares` on `feature/copywriting-brain-offer-engine` is the active VPS checkout; the operating-spine work is staged for commit with unrelated local files still unstaged.
-- HubSpot operating spine / agentic company Phases 1-9 are complete in the current working tree with final QC index/readiness artifacts and runbooks under `docs/qc/2026-05-14/` and `docs/runbooks/`.
+- `/opt/ares/Ares` on `feature/copywriting-brain-offer-engine` is the active VPS checkout; operating-spine commit `8c19c26` is pushed, with unrelated local tracked/untracked files still outside scope.
+- HubSpot operating spine / agentic company Phases 1-9 are complete with final QC index/readiness artifacts and runbooks under `docs/qc/2026-05-14/` and `docs/runbooks/`.
 - HubSpot portal customization itself was live-applied after operator instruction; HubSpot now has Ares property groups/properties and all 12 Ares stages in the existing single `Sales Pipeline` (`docs/qc/2026-05-14/hubspot-live-buildout/`).
+- First synthetic HubSpot record-sync canary is complete after remote provider-links migration: contact `486079925950`, deal `325110558439`, provider links verified (`docs/qc/2026-05-14/hubspot-record-sync-canary/`).
 - CRM control-plane work has been merged to `origin/main`.
 - CRM control-plane draft spec: `docs/superpowers/specs/2026-04-25-ares-crm-control-plane-design.md`.
 - CRM control-plane roadmap: `docs/superpowers/plans/2026-04-25-ares-crm-control-plane-roadmap.md`.
@@ -209,6 +210,14 @@
 - `TasksRepository` now treats `lead_machine_backend=supabase` as a Supabase-backed task path so title-packet review tasks persist with lead-machine records.
 
 ## Change Log
+
+### 2026-05-14 HubSpot Record Sync Canary
+
+- Committed and pushed operating-spine bundle: `8c19c26` (`feat: add Ares provider operating spine`) on `feature/copywriting-brain-offer-engine`.
+- Set local ignored `.env` defaults: `HUBSPOT_DEFAULT_PIPELINE_ID=default`, `HUBSPOT_DEFAULT_DEAL_STAGE_ID=3668226794`, live gates false. Backup: `/opt/ares/Ares/.env.bak.hubspot-defaults-20260514T113913Z`.
+- Applied remote Supabase migration `20260514090000_provider_object_links.sql`; migration list shows local/remote both applied.
+- Ran first synthetic HubSpot record-sync canary through gated Ares service: contact `486079925950`, deal `325110558439`, provider links `plink_1`/`plink_2`, sync hash `hubspot-canary-20260514-v1`.
+- Evidence: `docs/qc/2026-05-14/hubspot-record-sync-canary/`. No real record batch sync, Instantly, Vapi, source-provider, Slack, or deploy side effects.
 
 ### 2026-05-14 HubSpot Live Portal Buildout
 

@@ -1,10 +1,10 @@
 # 2026-05-14 QC Index — HubSpot Operating Spine / Agentic Company
 
 ## Status
-- Overall: Phases 1-9 are implemented in this working tree and QC artifacts are organized for final review.
+- Overall: Phases 1-9 are implemented and the operating-spine bundle is pushed on commit `8c19c26`; QC artifacts are organized for review.
 - Source-of-truth posture: Ares/Supabase remains canonical; HubSpot, Instantly, Vapi, and Mission Control are mirrors/execution surfaces behind deterministic Ares policy.
-- Live-side-effect posture: Phases 1-9 were implemented without live provider mutations. After the operator explicitly asked whether HubSpot itself was built out, a separate live HubSpot CRM customization buildout was executed and documented in `hubspot-live-buildout/`. No live Instantly enrollments/sends, Vapi calls, county/source-provider pulls, Slack sends, or record sync writes were executed.
-- Repository posture: working tree is staged for the operating-spine commit but still has unrelated unstaged/untracked files; do not describe this state as committed, merged, deployed, or promotable until an operator commits/reviews and separately approves any remaining live gates.
+- Live-side-effect posture: Phases 1-9 were implemented without live provider mutations. After operator approval, live HubSpot CRM customization was executed and documented in `hubspot-live-buildout/`; then one synthetic HubSpot record-sync canary plus remote provider-links migration was executed and documented in `hubspot-record-sync-canary/`. No live Instantly enrollments/sends, Vapi calls, county/source-provider pulls, Slack sends, batch record sync, or deploys were executed.
+- Repository posture: feature branch is pushed; local unrelated tracked/untracked files remain outside the pushed operating-spine/canary scope. Do not describe this state as merged, deployed, or promotable until reviewed/merged intentionally.
 
 ## Phase / slice map
 - Phase 0 supporting setup — HubSpot key/CLI/MCP readiness
@@ -84,6 +84,13 @@
   - Live-side-effect posture: live HubSpot customization mutations only; no HubSpot record sync, Instantly, Vapi, source-provider, Slack, or deploy side effects.
   - Remaining gates: record sync still requires operator approval, provider live gates, provider links/idempotency review, and final committed code.
 
+- Post-Phase HubSpot record-sync canary — one synthetic CRM record
+  - Folder: `hubspot-record-sync-canary/`
+  - Scope: pushed operating-spine bundle, local HubSpot default pipeline/stage env with live gates off, remote provider-links migration apply, one synthetic HubSpot contact/deal canary, HubSpot readback, provider-link verification.
+  - Latest status: complete; contact `486079925950` and deal `325110558439` created and provider-linked for `hubspot_canary_20260514`.
+  - Live-side-effect posture: one synthetic HubSpot contact create, one synthetic HubSpot deal create, provider-link rows in Supabase, and remote migration apply only; no real batch sync or outreach/call/source-provider/deploy side effects.
+  - Remaining gates: inspect canary if desired; use preview and a narrow hand-selected real record before any broader sync.
+
 ## Phase-numbering reconciliation
 - The original master plan shifted Mission Control/observability later in the sequence.
 - The current chat execution labels the provider-ops/Mission Control/Hermes catalog slice as Phase 8 and the docs/QC readiness slice as Phase 9.
@@ -91,5 +98,5 @@
 
 ## Final ship-check gates
 - Required local verification: backend pytest, Mission Control tests/typecheck/build, Trigger typecheck, `git diff --check`.
-- Required process gates: no secrets in evidence; no audit/fix mutation; no live Instantly/Vapi/source-provider/Slack calls; HubSpot portal customization live buildout is separately documented in `hubspot-live-buildout/`.
-- Required before shipping: stage/commit intentionally, open/review PR or equivalent, then decide deployment and remaining live-provider enablement separately.
+- Required process gates: no secrets in evidence; no audit/fix mutation; no live Instantly/Vapi/source-provider/Slack calls; HubSpot portal customization and one synthetic record-sync canary are separately documented.
+- Required before shipping: review/merge intentionally, then decide deployment and remaining live-provider enablement separately.

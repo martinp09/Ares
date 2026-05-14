@@ -1,0 +1,124 @@
+# HubSpot Record Sync Canary Output
+
+## Pre-commit checks
+
+```text
+PRECOMMIT_CHECKS
+staged_secret_scan=PASS
+staged_files=98
+```
+
+## Commit
+
+```text
+[feature/copywriting-brain-offer-engine 8c19c26] feat: add Ares provider operating spine
+ 98 files changed, 11331 insertions(+), 140 deletions(-)
+```
+
+## Push verification
+
+```text
+To https://github.com/martinp09/Ares.git
+   47f4836..8c19c26  feature/copywriting-brain-offer-engine -> feature/copywriting-brain-offer-engine
+branch 'feature/copywriting-brain-offer-engine' set up to track 'origin/feature/copywriting-brain-offer-engine'.
+local_head=8c19c26b63545f4bdb58487710e2994ff5e4fa49
+remote_head=8c19c26b63545f4bdb58487710e2994ff5e4fa49
+```
+
+## Local env default update
+
+```text
+env_update=ok
+backup=/opt/ares/Ares/.env.bak.hubspot-defaults-20260514T113913Z
+HUBSPOT_DEFAULT_PIPELINE_ID=default
+HUBSPOT_DEFAULT_DEAL_STAGE_ID=3668226794
+PROVIDER_LIVE_SENDS_ENABLED=false
+HUBSPOT_PROVIDER_LIVE_WRITES_ENABLED=false
+```
+
+## Supabase migration dry run
+
+```text
+Initialising login role...
+DRY RUN: migrations will *not* be pushed to the database.
+Connecting to remote database...
+Would push these migrations:
+ • 20260514090000_provider_object_links.sql
+Finished supabase db push.
+```
+
+## Supabase migration apply
+
+```text
+Initialising login role...
+Connecting to remote database...
+Do you want to push these migrations to the remote database?
+ • 20260514090000_provider_object_links.sql
+
+ [Y/n] y
+Applying migration 20260514090000_provider_object_links.sql...
+NOTICE (00000): policy "provider_object_links_tenant_isolation" for relation "public.provider_object_links" does not exist, skipping
+NOTICE (00000): policy "provider_sync_cursors_tenant_isolation" for relation "public.provider_sync_cursors" does not exist, skipping
+NOTICE (00000): policy "provider_sync_runs_tenant_isolation" for relation "public.provider_sync_runs" does not exist, skipping
+NOTICE (00000): trigger "provider_object_links_touch_updated_at" for relation "public.provider_object_links" does not exist, skipping
+NOTICE (00000): trigger "provider_sync_cursors_touch_updated_at" for relation "public.provider_sync_cursors" does not exist, skipping
+NOTICE (00000): trigger "provider_sync_runs_touch_updated_at" for relation "public.provider_sync_runs" does not exist, skipping
+Finished supabase db push.
+```
+
+## Supabase migration list after apply
+
+```text
+Local          | Remote         | Time (UTC)
+---------------|----------------|--------------------
+20260514090000 | 20260514090000 | 2026-05-14 09:00:00
+```
+
+## Canary preview
+
+```text
+preview_provider=hubspot
+dry_run=true
+would_call_provider=false
+live_write_enabled=false
+contacts_payload_count=1
+deals_payload_count=1
+companies_payload_count=0
+contact_ares_record_id=hubspot_canary_20260514
+deal_pipeline=default
+dealstage=3668226794
+warnings_count=0
+```
+
+## Canary live apply
+
+```text
+live_applied=true
+created_count=2
+updated_count=0
+skipped_count=0
+failed_count=0
+result record_id=hubspot_canary_20260514 object_type=contact action=create provider_object_id=486079925950 provider_link_id=plink_1
+result record_id=hubspot_canary_20260514 object_type=deal action=create provider_object_id=325110558439 provider_link_id=plink_2
+warnings_count=0
+```
+
+## HubSpot + provider-link readback
+
+```text
+hubspot_readback_start=true
+object_type=contact id=486079925950 archived=False
+  ares_record_id=hubspot_canary_20260514
+  ares_source_lane=ops_canary
+  email=ares.hubspot.canary.20260514@example.com
+object_type=deal id=325110558439 archived=False
+  ares_primary_record_id=hubspot_canary_20260514
+  ares_opportunity_id=opp_hubspot_canary_20260514
+  ares_source_lane=ops_canary
+  ares_sync_hash=hubspot-canary-20260514-v1
+  pipeline=default
+  dealstage=3668226794
+  dealname=Ares HubSpot Canary - Do Not Contact
+provider_link object_type=contact present=true provider_object_id=486079925950 sync_hash=hubspot-canary-20260514-v1
+provider_link object_type=deal present=true provider_object_id=325110558439 sync_hash=hubspot-canary-20260514-v1
+```

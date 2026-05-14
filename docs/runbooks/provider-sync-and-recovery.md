@@ -16,7 +16,9 @@ Ares is canonical. Providers execute or mirror state only after Ares policy, ide
 - HubSpot CRM customization was live-applied on 2026-05-14 after operator instruction; evidence: `docs/qc/2026-05-14/hubspot-live-buildout/`.
 - Ares property groups/properties are present on contacts, deals, and companies.
 - The portal allows only one deal pipeline, so Ares stages were added to the existing `Sales Pipeline` / `default` pipeline.
-- HubSpot CRM record sync is still a separate live action and must use preview, provider-link/idempotency review, and operator approval before any record write.
+- Local default stage seed is `HUBSPOT_DEFAULT_PIPELINE_ID=default` and `HUBSPOT_DEFAULT_DEAL_STAGE_ID=3668226794`; keep live gates false except for the exact approved command.
+- One synthetic HubSpot record-sync canary is complete; evidence: `docs/qc/2026-05-14/hubspot-record-sync-canary/`.
+- Real HubSpot CRM record batches are still separate live actions and must use preview, provider-link/idempotency review, and operator approval before any write.
 
 ## Preview before apply
 1. Run preview/dry-run endpoint or Hermes safe preview tool.
