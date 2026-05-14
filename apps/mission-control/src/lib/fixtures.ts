@@ -1,4 +1,44 @@
-import type { CatalogEntrySummary, AgentDetailData, MissionControlSnapshot, TasksData } from "./api";
+import type { CatalogEntrySummary, AgentDetailData, MissionControlSnapshot, ProviderOperationsData, TasksData } from "./api";
+
+export const providerOperationsFixture: ProviderOperationsData = {
+  hubspot: {
+    wouldCallProvider: false,
+    liveGateStatus: "preview-only / writes gated",
+    customizationPayloadCount: 4,
+    recordPayloadCount: 12,
+    warningCount: 2,
+  },
+  instantly: {
+    wouldCallProvider: false,
+    counts: {
+      eligible: 8,
+      submitted: 0,
+      enrolled: 0,
+      skipped: 3,
+      excluded: 2,
+      errors: 0,
+    },
+  },
+  vapi: {
+    assistantCount: 2,
+    phoneNumberCount: 1,
+    defaultAssistantConfigured: true,
+    defaultPhoneNumberConfigured: true,
+    liveGateStatus: "dry-run enforced",
+    outboundDryRunStatus: "ready for payload validation only",
+  },
+  nightly: {
+    latestBriefStatus: "completed",
+    latestBriefRecordCount: 42,
+    latestBriefWarningCount: 3,
+    liveSourceCallsEnabled: false,
+    sourceRuns: [
+      { sourceLane: "harris_probate", status: "completed", recordCount: 18, warningCount: 1 },
+      { sourceLane: "hcad_estate_of", status: "completed", recordCount: 14, warningCount: 1 },
+      { sourceLane: "hctax_delinquency", status: "completed", recordCount: 10, warningCount: 1 },
+    ],
+  },
+};
 
 export const missionControlCatalogFixtures: CatalogEntrySummary[] = [
   {

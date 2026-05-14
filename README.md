@@ -19,6 +19,17 @@ This repo is the deterministic runtime, policy layer, orchestration surface, and
 - Production-readiness handoff: `docs/production-readiness-handoff.md`
 - Curative-title workflow wiki: `docs/curative-title-wiki/index.md`
 
+## Current Operating-Spine Status
+
+- HubSpot operating spine / agentic company Phases 1-9 are complete in the current working tree, with Ares remaining canonical and providers behind preview/apply gates.
+- HubSpot portal customization itself has also been live-applied after operator instruction: Ares property groups/properties are present, and Ares stages were added to the existing single HubSpot `Sales Pipeline`.
+- QC index: `docs/qc/2026-05-14/README.md`
+- Final readiness artifacts: `docs/qc/2026-05-14/operating-spine-final-readiness/`
+- HubSpot live buildout evidence: `docs/qc/2026-05-14/hubspot-live-buildout/`
+- Operating cadence runbook: `docs/runbooks/agentic-company-operating-cadence.md`
+- Provider sync/recovery runbook: `docs/runbooks/provider-sync-and-recovery.md`
+- Current repo state is staged for the operating-spine commit with unrelated local files still unstaged; commit/review intentionally before any promotable/deployed claim.
+
 ## Initial Direction
 
 - Generalist core first

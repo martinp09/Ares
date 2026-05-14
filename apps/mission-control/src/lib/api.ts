@@ -589,6 +589,131 @@ export interface CatalogInstallResult {
   agent: CatalogInstalledAgent;
 }
 
+export interface ProviderOperationsData {
+  hubspot: {
+    wouldCallProvider: boolean;
+    liveGateStatus: string;
+    customizationPayloadCount: number;
+    recordPayloadCount: number;
+    warningCount: number;
+  };
+  instantly: {
+    wouldCallProvider: boolean;
+    counts: {
+      eligible: number;
+      submitted: number;
+      enrolled: number;
+      skipped: number;
+      excluded: number;
+      errors: number;
+    };
+  };
+  vapi: {
+    assistantCount: number;
+    phoneNumberCount: number;
+    defaultAssistantConfigured: boolean;
+    defaultPhoneNumberConfigured: boolean;
+    liveGateStatus: string;
+    outboundDryRunStatus: string;
+  };
+  nightly: {
+    latestBriefStatus: string;
+    latestBriefRecordCount: number;
+    latestBriefWarningCount: number;
+    liveSourceCallsEnabled: boolean;
+    sourceRuns: Array<{
+      sourceLane: string;
+      status: string;
+      recordCount: number;
+      warningCount: number;
+    }>;
+  };
+}
+
+export interface ProviderScopeRequest {
+  businessId?: string;
+  environment?: string;
+}
+
+export interface SourceRunsRequest extends ProviderScopeRequest {
+  sourceLane?: string;
+  limit?: number;
+}
+
+export type HubSpotCustomizationPreviewResponse = JsonRecord;
+export type HubSpotRecordSyncPreviewResponse = JsonRecord;
+export type InstantlyEnrollmentPreviewResponse = JsonRecord;
+export type VapiAssistantsPreviewResponse = JsonRecord;
+export type VapiPhoneNumbersPreviewResponse = JsonRecord;
+export type VapiOutboundCallPreviewResponse = JsonRecord;
+export type LatestMorningBriefResponse = JsonRecord;
+export type SourceRunsResponse = JsonRecord;
+
+export interface HubSpotCustomizationPreviewRequest {
+  dry_run?: boolean;
+}
+
+export interface HubSpotRecordSyncPreviewRecord {
+  id: string;
+  record_type?: string;
+  display_name: string;
+  owner_name?: string | null;
+  property_address?: string | null;
+  mailing_address?: string | null;
+  source?: string | null;
+  source_lane?: string | null;
+  record_status?: string | null;
+  status?: string | null;
+  phone?: string | null;
+  email?: string | null;
+  opportunity_id?: string | null;
+  campaign_id?: string | null;
+  county?: string | null;
+  hcad_account?: string | null;
+  lead_temperature?: string | null;
+  lead_score?: number | null;
+  data_quality_score?: number | null;
+  skiptrace_status?: string | null;
+  outreach_status?: string | null;
+  next_best_action?: string | null;
+  last_agent_summary?: string | null;
+  sync_hash?: string | null;
+  entity_name?: string | null;
+  entity_id?: string | null;
+  entity_role?: string | null;
+  deal_name?: string | null;
+  hubspot_pipeline_id?: string | null;
+  hubspot_deal_stage_id?: string | null;
+  tax_delinquency_status?: string | null;
+  title_complexity?: string | null;
+  occupancy_hint?: string | null;
+  equity_hint?: string | null;
+}
+
+export interface InstantlyEnrollmentPreviewRecord {
+  id: string;
+  email?: string | null;
+  phone?: string | null;
+  first_name?: string | null;
+  last_name?: string | null;
+  display_name?: string | null;
+  status?: string | null;
+  facts?: JsonRecord;
+  raw_payload?: JsonRecord;
+  verification_status?: string | null;
+  sync_hash?: string | null;
+  custom_variables?: JsonRecord;
+  campaign_id?: string | null;
+}
+
+export interface InstantlyEnrollmentPreviewRequest {
+  records?: InstantlyEnrollmentPreviewRecord[];
+  instantly_campaign_id?: string | null;
+  instantly_list_id?: string | null;
+  campaign_id?: string | null;
+  allow_unverified?: boolean;
+}
+
 export interface MissionControlSnapshot {
   dashboard: DashboardSummaryData;
   records: RecordsData;
@@ -622,6 +747,14 @@ export interface MissionControlApi {
   installCatalogEntry(request: CatalogInstallRequest): Promise<CatalogInstallResult>;
   getAssets(): Promise<AssetSummary[]>;
   getGovernance(): Promise<GovernanceData>;
+  getLatestMorningBrief(request?: ProviderScopeRequest): Promise<LatestMorningBriefResponse>;
+  getSourceRuns(request?: SourceRunsRequest): Promise<SourceRunsResponse>;
+  previewHubSpotCustomization(request?: HubSpotCustomizationPreviewRequest): Promise<HubSpotCustomizationPreviewResponse>;
+  previewHubSpotRecordSync(records: HubSpotRecordSyncPreviewRecord[]): Promise<HubSpotRecordSyncPreviewResponse>;
+  previewInstantlyEnrollment(request: InstantlyEnrollmentPreviewRequest): Promise<InstantlyEnrollmentPreviewResponse>;
+  getVapiAssistantsPreview(request?: ProviderScopeRequest): Promise<VapiAssistantsPreviewResponse>;
+  getVapiPhoneNumbersPreview(request?: ProviderScopeRequest): Promise<VapiPhoneNumbersPreviewResponse>;
+  previewVapiOutboundCall(request: JsonRecord): Promise<VapiOutboundCallPreviewResponse>;
 }
 
 export interface MissionControlApiOptions {
@@ -2306,6 +2439,22 @@ function mapCatalogInstallResult(payload: AgentInstallResponsePayload): CatalogI
   };
 }
 
+function buildProviderScopePath(path: string, request?: ProviderScopeRequest): string {
+  return withQueryParams(path, {
+    business_id: request?.businessId,
+    environment: request?.environment,
+  });
+}
+
+function buildSourceRunsPath(request?: SourceRunsRequest): string {
+  return withQueryParams("/mission-control/source-runs", {
+    business_id: request?.businessId,
+    environment: request?.environment,
+    source_lane: request?.sourceLane,
+    limit: request?.limit !== undefined ? String(request.limit) : undefined,
+  });
+}
+
 type RequestScope = "none" | "mission-control" | "governance";
 
 function buildRequestPath(
@@ -2553,6 +2702,60 @@ export function createMissionControlApi(
           resolvedOptions,
           "governance",
         ),
+      ),
+    getLatestMorningBrief: async (request) =>
+      requestJson<LatestMorningBriefResponse>(
+        buildProviderScopePath("/mission-control/morning-brief/latest", request),
+        resolvedOptions,
+      ),
+    getSourceRuns: async (request) => requestJson<SourceRunsResponse>(buildSourceRunsPath(request), resolvedOptions),
+    previewHubSpotCustomization: async (request = {}) =>
+      requestJson<HubSpotCustomizationPreviewResponse>(
+        "/mission-control/providers/hubspot/customization/preview",
+        resolvedOptions,
+        "none",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(request),
+        },
+      ),
+    previewHubSpotRecordSync: async (records) =>
+      requestJson<HubSpotRecordSyncPreviewResponse>(
+        "/mission-control/providers/hubspot/records/preview-sync",
+        resolvedOptions,
+        "none",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ records }),
+        },
+      ),
+    previewInstantlyEnrollment: async (request) =>
+      requestJson<InstantlyEnrollmentPreviewResponse>(
+        "/mission-control/providers/instantly/enrollments/preview",
+        resolvedOptions,
+        "none",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(request),
+        },
+      ),
+    getVapiAssistantsPreview: async (request) =>
+      requestJson<VapiAssistantsPreviewResponse>(buildProviderScopePath("/voice/assistants", request), resolvedOptions),
+    getVapiPhoneNumbersPreview: async (request) =>
+      requestJson<VapiPhoneNumbersPreviewResponse>(buildProviderScopePath("/voice/phone-numbers", request), resolvedOptions),
+    previewVapiOutboundCall: async (request) =>
+      requestJson<VapiOutboundCallPreviewResponse>(
+        "/voice/calls/outbound",
+        resolvedOptions,
+        "none",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ ...request, dry_run: true }),
+        },
       ),
   };
 }

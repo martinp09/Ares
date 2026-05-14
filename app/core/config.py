@@ -69,6 +69,49 @@ class Settings(BaseSettings):
         default=0.25,
         validation_alias=AliasChoices("instantly_batch_wait_seconds", "INSTANTLY_BATCH_WAIT_SECONDS"),
     )
+    instantly_provider_live_enrollment_enabled: bool = Field(
+        default=False,
+        validation_alias=AliasChoices(
+            "instantly_provider_live_enrollment_enabled",
+            "INSTANTLY_PROVIDER_LIVE_ENROLLMENT_ENABLED",
+        ),
+    )
+    vapi_api_key: str = Field(
+        default="",
+        validation_alias=AliasChoices("vapi_api_key", "VAPI_API_KEY"),
+    )
+    vapi_private_key: str = Field(
+        default="",
+        validation_alias=AliasChoices("vapi_private_key", "VAPI_PRIVATE_KEY"),
+    )
+    vapi_public_key: str = Field(
+        default="",
+        validation_alias=AliasChoices("vapi_public_key", "VAPI_PUBLIC_KEY"),
+    )
+    vapi_base_url: str = Field(
+        default="https://api.vapi.ai",
+        validation_alias=AliasChoices("vapi_base_url", "VAPI_BASE_URL"),
+    )
+    vapi_provider_live_sends_enabled: bool = Field(
+        default=False,
+        validation_alias=AliasChoices("vapi_provider_live_sends_enabled", "VAPI_PROVIDER_LIVE_SENDS_ENABLED"),
+    )
+    vapi_webhook_secret: str = Field(
+        default="",
+        validation_alias=AliasChoices("vapi_webhook_secret", "VAPI_WEBHOOK_SECRET"),
+    )
+    provider_webhook_signatures_required: bool = Field(
+        default=False,
+        validation_alias=AliasChoices("provider_webhook_signatures_required", "PROVIDER_WEBHOOK_SIGNATURES_REQUIRED"),
+    )
+    vapi_default_assistant_id: str = Field(
+        default="",
+        validation_alias=AliasChoices("vapi_default_assistant_id", "VAPI_DEFAULT_ASSISTANT_ID"),
+    )
+    vapi_default_phone_number_id: str = Field(
+        default="",
+        validation_alias=AliasChoices("vapi_default_phone_number_id", "VAPI_DEFAULT_PHONE_NUMBER_ID"),
+    )
     tracerfy_api_key: str | None = Field(
         default=None,
         validation_alias=AliasChoices("tracerfy_api_key", "TRACERFY_API_KEY"),
@@ -76,6 +119,34 @@ class Settings(BaseSettings):
     tracerfy_base_url: str = Field(
         default="https://tracerfy.com/v1/api",
         validation_alias=AliasChoices("tracerfy_base_url", "TRACERFY_BASE_URL"),
+    )
+    hubspot_access_token: str | None = Field(
+        default=None,
+        validation_alias=AliasChoices("hubspot_access_token", "HUBSPOT_ACCESS_TOKEN"),
+    )
+    provider_live_sends_enabled: bool = Field(
+        default=False,
+        validation_alias=AliasChoices("provider_live_sends_enabled", "PROVIDER_LIVE_SENDS_ENABLED"),
+    )
+    hubspot_base_url: str = Field(
+        default="https://api.hubapi.com",
+        validation_alias=AliasChoices("hubspot_base_url", "HUBSPOT_BASE_URL"),
+    )
+    hubspot_provider_live_writes_enabled: bool = Field(
+        default=False,
+        validation_alias=AliasChoices("hubspot_provider_live_writes_enabled", "HUBSPOT_PROVIDER_LIVE_WRITES_ENABLED"),
+    )
+    hubspot_default_pipeline_id: str | None = Field(
+        default=None,
+        validation_alias=AliasChoices("hubspot_default_pipeline_id", "HUBSPOT_DEFAULT_PIPELINE_ID"),
+    )
+    hubspot_default_deal_stage_id: str | None = Field(
+        default=None,
+        validation_alias=AliasChoices("hubspot_default_deal_stage_id", "HUBSPOT_DEFAULT_DEAL_STAGE_ID"),
+    )
+    hubspot_owner_id: str | None = Field(
+        default=None,
+        validation_alias=AliasChoices("hubspot_owner_id", "HUBSPOT_OWNER_ID"),
     )
     anthropic_api_key: str | None = Field(
         default=None,

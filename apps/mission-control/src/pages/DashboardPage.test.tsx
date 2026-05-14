@@ -15,6 +15,14 @@ const dashboardFixture: DashboardSummaryData = {
   updatedAt: "Updated moments ago",
 };
 
+function expectSummaryCardValue(label: string, value: string) {
+  const labelElement = screen.getByText(label);
+  const card = labelElement.closest("article, div");
+
+  expect(card).not.toBeNull();
+  expect(within(card as HTMLElement).getByText(value)).toBeInTheDocument();
+}
+
 describe("DashboardPage", () => {
   it("renders the counts it is given from the backend fixture", () => {
     render(<DashboardPage data={dashboardFixture} />);
@@ -64,15 +72,22 @@ describe("DashboardPage", () => {
     expect(within(summary).getByText("28")).toBeInTheDocument();
     expect(within(summary).getByText("Busy channels")).toBeInTheDocument();
     expect(within(summary).getByText("9")).toBeInTheDocument();
-    expect(screen.getByText("Recent completions")).toBeInTheDocument();
-    expect(screen.getByText("77")).toBeInTheDocument();
-    expect(screen.getByText("Inventory records")).toBeInTheDocument();
-    expect(screen.getByText("128")).toBeInTheDocument();
-    expect(screen.getByText("Needs skip trace")).toBeInTheDocument();
-    expect(screen.getByText("19")).toBeInTheDocument();
-    expect(screen.getByText("Provider failures")).toBeInTheDocument();
-    expect(screen.getByText("3")).toBeInTheDocument();
-    expect(screen.getByText("degraded")).toBeInTheDocument();
+    expectSummaryCardValue("Recent completions", "77");
+    expectSummaryCardValue("Inventory records", "128");
+    expectSummaryCardValue("Needs skip trace", "19");
+    expectSummaryCardValue("Provider failures", "3");
+    expectSummaryCardValue("System status", "degraded");
     expect(screen.getByText("2026-04-13T20:09:00+00:00")).toBeInTheDocument();
+  });
+
+  it("renders fixture-backed provider operations without live action controls", () => {
+    render(<DashboardPage data={dashboardFixture} />);
+
+    expect(screen.getByText("Provider operations")).toBeInTheDocument();
+    expect(screen.getByText("HubSpot mirror preview")).toBeInTheDocument();
+    expect(screen.getByText("Instantly enrollment preview")).toBeInTheDocument();
+    expect(screen.getByText("Vapi voice readiness")).toBeInTheDocument();
+    expect(screen.getByText("Nightly brief / source runs")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /apply|dispatch|send|enroll|call/i })).not.toBeInTheDocument();
   });
 });

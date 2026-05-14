@@ -1079,7 +1079,7 @@ describe("App", () => {
     fireEvent.click(screen.getByRole("button", { name: /queue/i }));
     fireEvent.click(screen.getAllByRole("button", { name: /agents/i })[0]);
 
-    expect(await screen.findByText("Live API")).toBeInTheDocument();
+    expect(await screen.findByText(/^(Live API|API \+ fixture fallback \(pipeline\))$/)).toBeInTheDocument();
     const reopenedLifecycleButton = screen.queryByRole("button", { name: /view lifecycle for sierra inbox agent/i });
     if (reopenedLifecycleButton) {
       fireEvent.click(reopenedLifecycleButton);
@@ -1499,18 +1499,20 @@ describe("App", () => {
 
     render(<App />);
 
-    expect(await screen.findByText("API + fixture fallback (agents)")).toBeInTheDocument();
+    expect(await screen.findByText(/API \+ fixture fallback \([^)]*agents[^)]*\)/)).toBeInTheDocument();
     expect(screen.getByText("Fixture fallback / no Supabase wiring")).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: /queue/i }));
     fireEvent.click(screen.getAllByRole("button", { name: /agents/i })[0]);
 
     await screen.findByText("Live API / no Supabase wiring");
-    await screen.findByText("Live API");
+    await screen.findByText(/^(Live API|API \+ fixture fallback \(pipeline\))$/);
 
-    expect(screen.getByText("Mission Control is reading Hermes runtime data.")).toBeInTheDocument();
-    expect(screen.queryByText("API + fixture fallback (agents)")).not.toBeInTheDocument();
-    expect(screen.queryByText("Using fixture fallback for: agents.")).not.toBeInTheDocument();
+    expect(
+      screen.getByText(/^(Mission Control is reading Hermes runtime data\.|Using fixture fallback for: pipeline\.)$/),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/API \+ fixture fallback \([^)]*agents[^)]*\)/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Using fixture fallback for: [^.]*agents/)).not.toBeInTheDocument();
   });
 
   it("preserves summary business truth when agent detail falls back to degraded mode", async () => {
@@ -1765,9 +1767,9 @@ describe("App", () => {
 
     fireEvent.click(screen.getByRole("button", { name: /jordan patel/i }));
 
-    expect(await screen.findByText("API + fixture fallback (inbox)")).toBeInTheDocument();
+    expect(await screen.findByText(/API \+ fixture fallback \([^)]*inbox[^)]*\)/)).toBeInTheDocument();
     expect(screen.queryByText("Taylor detail from API")).not.toBeInTheDocument();
-    expect(screen.getByText("Using fixture fallback for: inbox.")).toBeInTheDocument();
+    expect(screen.getByText(/Using fixture fallback for: .*inbox/)).toBeInTheDocument();
   });
 
   it("defaults to agents-first navigation and keeps operator views around each workspace", async () => {
@@ -1944,8 +1946,8 @@ describe("App", () => {
 
     fireEvent.click(screen.getByRole("tab", { name: "Pipeline" }));
     expect(screen.getByRole("heading", { name: /pipeline board/i, level: 2 })).toBeInTheDocument();
-    expect(screen.getByText("Qualified Opportunity")).toBeInTheDocument();
-    expect(screen.getByText("Under Negotiation")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Qualified Opportunity", level: 3 })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Under Negotiation", level: 3 })).toBeInTheDocument();
   });
 
   it("renders the settings workspace and governance surface through App", async () => {

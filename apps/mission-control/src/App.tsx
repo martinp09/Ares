@@ -377,8 +377,8 @@ function fallbackAgentDetailForSnapshot(
 }
 
 export default function App() {
-  const [activeWorkspace, setActiveWorkspace] = useState<WorkspaceId>("pipeline");
-  const [activeView, setActiveView] = useState<MissionControlView>("pipeline");
+  const [activeWorkspace, setActiveWorkspace] = useState<WorkspaceId>("lead-machine");
+  const [activeView, setActiveView] = useState<MissionControlView>("agents");
   const [searchValue, setSearchValue] = useState("");
   const [snapshot, setSnapshot] = useState<MissionControlSnapshot>(missionControlFixtures);
   const [catalogEntries, setCatalogEntries] = useState<CatalogEntrySummary[]>([]);
@@ -1703,7 +1703,7 @@ export default function App() {
   }
 
   const fallbackLabel = fallbackViews.length > 0 ? ` (${fallbackViews.join(", ")})` : "";
-  const isFullFixtureMode = fallbackViews.length === 9;
+  const isFullFixtureMode = fallbackViews.length === 10;
   const statusBadge = isLoading
     ? "Loading shell"
     : dataSource === "api"

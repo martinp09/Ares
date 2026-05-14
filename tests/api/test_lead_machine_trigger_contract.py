@@ -53,6 +53,14 @@ def test_phase_four_trigger_jobs_cover_the_expected_id_set() -> None:
             'id: "task-reminder-or-overdue"',
             "invokeLeadMachineRuntimeApi",
         ),
+        LEAD_MACHINE_DIR / "nightlySourcePull.ts": (
+            'id: "nightly-source-pull"',
+            "invokeLeadMachineRuntimeApi",
+        ),
+        LEAD_MACHINE_DIR / "morningBrief.ts": (
+            'id: "morning-brief"',
+            "invokeLeadMachineRuntimeApi",
+        ),
     }
 
     for path, (id_snippet, helper_snippet) in contracts.items():
@@ -73,6 +81,8 @@ def test_phase_four_trigger_jobs_cover_the_expected_id_set() -> None:
         "followup-step-runner",
         "suppression-sync",
         "task-reminder-or-overdue",
+        "nightly-source-pull",
+        "morning-brief",
     }.issubset(ids)
     assert "create-manual-call-task" not in ids
 
@@ -86,6 +96,8 @@ def test_lead_machine_runtime_exports_all_todo_endpoints() -> None:
         'outboundEnqueue: "/lead-machine/outbound/enqueue"',
         'instantlyWebhookIngest: "/lead-machine/webhooks/instantly"',
         'followupStepRunner: "/lead-machine/internal/followup-step-runner"',
+        'nightlySourcePull: "/lead-machine/internal/nightly-source-pull"',
+        'morningBrief: "/lead-machine/internal/morning-brief"',
         'suppressionSync: "/lead-machine/internal/suppression-sync"',
         'taskReminderOrOverdue: "/lead-machine/internal/task-reminder-or-overdue"',
     ):
@@ -119,6 +131,8 @@ def test_trigger_jobs_require_lifecycle_reporting_for_run_mapped_payloads() -> N
         LEAD_MACHINE_DIR / "followupStepRunner.ts",
         LEAD_MACHINE_DIR / "suppressionSync.ts",
         LEAD_MACHINE_DIR / "taskReminderOrOverdue.ts",
+        LEAD_MACHINE_DIR / "nightlySourcePull.ts",
+        LEAD_MACHINE_DIR / "morningBrief.ts",
     ):
         assert "runWithLifecycle" in _source(path)
 
@@ -158,3 +172,17 @@ def test_probate_intake_trigger_job_preserves_probate_endpoint() -> None:
     assert 'ProbateIntakePayload' in source
     assert '"probateIntake"' in source
     assert 'id: "probate-intake"' in source
+
+
+def test_nightly_source_pull_task_uses_endpoint_map_not_raw_path() -> None:
+    source = _source(LEAD_MACHINE_DIR / "nightlySourcePull.ts")
+
+    assert '"nightlySourcePull"' in source
+    assert '"/lead-machine/internal/nightly-source-pull"' not in source
+
+
+def test_morning_brief_task_uses_endpoint_map_not_raw_path() -> None:
+    source = _source(LEAD_MACHINE_DIR / "morningBrief.ts")
+
+    assert '"morningBrief"' in source
+    assert '"/lead-machine/internal/morning-brief"' not in source

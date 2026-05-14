@@ -1,0 +1,90 @@
+{
+  "ares_main_provider_smoke": {
+    "deal_pipelines_read": {
+      "message": "User level OAuth token is not allowed for this endpoint.",
+      "ok": false,
+      "status": 403
+    },
+    "hubspot_access_token_len": 262,
+    "live_hubspot_mutations": 0,
+    "live_writes_enabled": false,
+    "owners_read": {
+      "ok": true,
+      "result_count": 1,
+      "status": 200
+    },
+    "secret_values_printed": false,
+    "settings_loaded": true
+  },
+  "commands": [
+    "HubSpot PAK exchange via /localdevauth/v1/auth/refresh",
+    "local .env update with backup and mode 0600",
+    "read-only HubSpot CRM probe using exchanged OAuth token",
+    "propagate HubSpot env keys to ares-main and ares-hubspot-crm-customization worktrees",
+    "Ares main worktree settings/provider smoke: owners read and deal pipelines read-only check"
+  ],
+  "local_env": {
+    "backup_created": "/opt/ares/Ares/.env.before-hubspot-token-20260514T012600Z",
+    "hubspot_access_token_is_oauth_token": true,
+    "hubspot_personal_key_stored": true,
+    "hubspot_provider_live_writes_enabled": false,
+    "live_hubspot_mutations": 0,
+    "propagated_to_worktrees": [
+      "/opt/ares/worktrees/ares-main",
+      "/opt/ares/worktrees/ares-hubspot-crm-customization"
+    ],
+    "secret_values_printed": false,
+    "updated_env": true
+  },
+  "probe_results": {
+    "contacts_object_read": {
+      "keys": [
+        "results"
+      ],
+      "ok": true,
+      "result_count": 0,
+      "status": 200
+    },
+    "contacts_schema_read": {
+      "keys": [],
+      "ok": true,
+      "status": 200
+    },
+    "deal_pipelines_read": {
+      "category": null,
+      "message": "User level OAuth token is not allowed for this endpoint.",
+      "ok": false,
+      "status": 403
+    },
+    "deals_schema_read": {
+      "keys": [
+        "results"
+      ],
+      "ok": true,
+      "result_count": 212,
+      "status": 200
+    },
+    "owners_read": {
+      "keys": [
+        "results"
+      ],
+      "ok": true,
+      "result_count": 1,
+      "status": 200
+    }
+  },
+  "refresh": {
+    "accountType": "STANDARD",
+    "enabled_feature_count": 11,
+    "expiresAtMillis_present": true,
+    "hubId": 245541537,
+    "hubName_present": true,
+    "oauth_access_token_len": 262,
+    "oauth_access_token_sha12": "024c6ae67e60",
+    "personal_key_len": 107,
+    "personal_key_sha12": "3a8f59a5fc6d",
+    "scope_group_count": 19,
+    "secret_values_printed": false,
+    "status": 200
+  }
+}

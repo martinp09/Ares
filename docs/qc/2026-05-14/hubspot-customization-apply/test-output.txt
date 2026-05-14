@@ -1,0 +1,99 @@
+# Test Output
+
+## Retry-After polish provider suite
+
+Command:
+
+```bash
+python -m pytest tests/providers/test_hubspot.py -q
+```
+
+Result:
+
+```text
+........                                                                 [100%]
+8 passed in 0.98s
+```
+
+## Retry-After polish focused HubSpot suite
+
+Command:
+
+```bash
+python -m pytest tests/providers/test_hubspot.py tests/api/test_hubspot_mirror.py tests/services/test_hubspot_mirror_service.py -q
+```
+
+Result:
+
+```text
+..............................                                           [100%]
+30 passed in 1.60s
+```
+
+## Focused HubSpot/provider suite
+
+Command:
+
+```bash
+python -m pytest tests/services/test_hubspot_mirror_service.py tests/api/test_hubspot_mirror.py tests/providers/test_hubspot.py -q
+```
+
+Result:
+
+```text
+.............................                                            [100%]
+29 passed in 1.57s
+```
+
+## Provider-link regression suite
+
+Command:
+
+```bash
+python -m pytest tests/db/test_provider_links_repository.py tests/db/test_provider_links_schema.py tests/db/test_provider_links_supabase_adapter.py -q
+```
+
+Result:
+
+```text
+.....................                                                    [100%]
+21 passed in 0.27s
+```
+
+## Full backend suite
+
+Command:
+
+```bash
+python -m pytest -q
+```
+
+Result:
+
+```text
+........................................................................ [ 10%]
+........................................................................ [ 21%]
+........................................................................ [ 32%]
+........................................................................ [ 42%]
+........................................................................ [ 53%]
+........................................................................ [ 64%]
+........................................................................ [ 75%]
+........................................................................ [ 85%]
+........................................................................ [ 96%]
+......................                                                   [100%]
+670 passed in 19.23s
+```
+
+## Whitespace/diff hygiene
+
+Command:
+
+```bash
+git diff --check
+```
+
+Result: passed with no output.
+
+## Live-provider safety
+
+No live HubSpot apply/write command was executed. All write behavior was exercised through fake/injected clients in tests only.

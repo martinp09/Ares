@@ -1,0 +1,54 @@
+# Test Output
+
+## Phase 4 record sync fix-lane verification
+
+No live HubSpot/provider calls were made. All record sync write-path coverage uses fake/injected clients and in-memory provider-link repositories only. No secrets are included.
+
+### Focused required suite
+
+Command:
+
+```bash
+python -m pytest tests/services/test_hubspot_mirror_service.py tests/api/test_hubspot_mirror.py tests/providers/test_hubspot.py tests/db/test_provider_links_repository.py -q
+```
+
+Result:
+
+```text
+....................................................                     [100%]
+52 passed in 2.58s
+```
+
+### Full suite
+
+Command:
+
+```bash
+python -m pytest -q
+```
+
+Result:
+
+```text
+........................................................................ [ 10%]
+........................................................................ [ 21%]
+........................................................................ [ 31%]
+........................................................................ [ 42%]
+........................................................................ [ 52%]
+........................................................................ [ 63%]
+........................................................................ [ 73%]
+........................................................................ [ 84%]
+........................................................................ [ 94%]
+....................................                                     [100%]
+684 passed in 20.47s
+```
+
+### Diff whitespace check
+
+Command:
+
+```bash
+git diff --check
+```
+
+Result: passed with no output.

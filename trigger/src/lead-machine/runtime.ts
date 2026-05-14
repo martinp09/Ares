@@ -4,6 +4,8 @@ export const LEAD_MACHINE_ENDPOINTS = {
   outboundEnqueue: "/lead-machine/outbound/enqueue",
   instantlyWebhookIngest: "/lead-machine/webhooks/instantly",
   followupStepRunner: "/lead-machine/internal/followup-step-runner",
+  nightlySourcePull: "/lead-machine/internal/nightly-source-pull",
+  morningBrief: "/lead-machine/internal/morning-brief",
   suppressionSync: "/lead-machine/internal/suppression-sync",
   taskReminderOrOverdue: "/lead-machine/internal/task-reminder-or-overdue",
 } as const;
@@ -170,4 +172,82 @@ export type TaskReminderOrOverdueResponse = {
   reminder_task_id?: string | null;
   overdue: boolean;
   reminder_created: boolean;
+};
+
+export type SourceRunArtifact = {
+  path: string;
+  artifact_type: string;
+  record_count?: number;
+  checksum?: string | null;
+  warnings?: string[];
+  metadata?: Record<string, unknown>;
+};
+
+export type SourceRunManifest = {
+  source_key: string;
+  source_label: string;
+  source_lane: "harris_county_probate" | "hcad_estate_of" | "hctax_delinquency_overlay" | "harris_land_records";
+  window_start?: string | null;
+  window_end?: string | null;
+  artifacts?: SourceRunArtifact[];
+  record_count?: number | null;
+  warnings?: string[];
+  failed?: boolean;
+  error_message?: string | null;
+  metadata?: Record<string, unknown>;
+};
+
+export type NightlySourcePullPayload = {
+  business_id: string;
+  environment: string;
+  source_runs?: SourceRunManifest[];
+  live_source_calls?: boolean;
+  metadata?: Record<string, unknown>;
+} & LeadMachineRunContext;
+
+export type MorningBriefPayload = {
+  business_id: string;
+  environment: string;
+  source_run_ids?: string[];
+  metadata?: Record<string, unknown>;
+} & LeadMachineRunContext;
+
+export type SourceRunResponse = {
+  id: string;
+  business_id: string;
+  environment: string;
+  source_key: string;
+  source_label: string;
+  source_lane: string;
+  status: "pending" | "running" | "completed" | "failed";
+  record_count: number;
+  artifact_count: number;
+  warning_count: number;
+  error_message?: string | null;
+  artifacts: SourceRunArtifact[];
+  metadata: Record<string, unknown>;
+};
+
+export type MorningBriefResponse = {
+  id: string;
+  business_id: string;
+  environment: string;
+  generated_at: string;
+  source_runs: SourceRunResponse[];
+  new_record_count: number;
+  hot_lead_count: number;
+  warm_lead_count: number;
+  blocked_count: number;
+  approval_required_count: number;
+  sections: Record<string, unknown>;
+  warnings: string[];
+};
+
+export type NightlySourcePullResponse = {
+  status: "completed";
+  would_call_external_sources: boolean;
+  live_source_calls_enabled: boolean;
+  source_runs: SourceRunResponse[];
+  morning_brief: MorningBriefResponse;
+  warnings: string[];
 };

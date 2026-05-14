@@ -906,4 +906,51 @@ describe("Mission Control API client", () => {
       },
     ]);
   });
+
+  it("maps provider preview/read endpoints without live paths and forces Vapi dry-run", async () => {
+    const fetchMock = vi.fn(async (_input: RequestInfo | URL, _init?: RequestInit) => jsonResponse({ ok: true }));
+    const api = createMissionControlApi({ fetchImpl: fetchMock as typeof fetch });
+
+    await api.getLatestMorningBrief({ businessId: "limitless", environment: "dev" });
+    await api.getSourceRuns({ businessId: "limitless", environment: "dev", sourceLane: "harris_probate", limit: 5 });
+    await api.previewHubSpotCustomization({ dry_run: true });
+    await api.previewHubSpotRecordSync([{ id: "rec-1", display_name: "Jane Owner" }]);
+    await api.previewInstantlyEnrollment({ records: [{ id: "rec-1", email: "jane@example.com" }] });
+    await api.getVapiAssistantsPreview({ businessId: "limitless", environment: "dev" });
+    await api.getVapiPhoneNumbersPreview({ businessId: "limitless", environment: "dev" });
+    await api.previewVapiOutboundCall({ to_number: "+15555550123", dry_run: false });
+
+    const requests = fetchMock.mock.calls.map((call) => {
+      const input = call[0] as RequestInfo | URL;
+      const init = call[1] as RequestInit | undefined;
+      return { url: parseUrl(input), init };
+    });
+
+    expect(requests.map(({ url }) => `${url.pathname}?${url.searchParams.toString()}`)).toEqual([
+      "/mission-control/morning-brief/latest?business_id=limitless&environment=dev",
+      "/mission-control/source-runs?business_id=limitless&environment=dev&source_lane=harris_probate&limit=5",
+      "/mission-control/providers/hubspot/customization/preview?",
+      "/mission-control/providers/hubspot/records/preview-sync?",
+      "/mission-control/providers/instantly/enrollments/preview?",
+      "/voice/assistants?business_id=limitless&environment=dev",
+      "/voice/phone-numbers?business_id=limitless&environment=dev",
+      "/voice/calls/outbound?",
+    ]);
+    const hubSpotCustomizationBody = JSON.parse(String(requests[2].init?.body));
+    const hubSpotRecordSyncBody = JSON.parse(String(requests[3].init?.body));
+    const instantlyEnrollmentBody = JSON.parse(String(requests[4].init?.body));
+
+    expect(hubSpotCustomizationBody).toEqual({ dry_run: true });
+    expect(hubSpotRecordSyncBody).toEqual({ records: [{ id: "rec-1", display_name: "Jane Owner" }] });
+    expect(instantlyEnrollmentBody).toEqual({ records: [{ id: "rec-1", email: "jane@example.com" }] });
+    expect({ hubSpotCustomizationBody, hubSpotRecordSyncBody, instantlyEnrollmentBody }).not.toMatchObject({
+      business_id: expect.anything(),
+      environment: expect.anything(),
+    });
+    expect(JSON.stringify({ hubSpotCustomizationBody, hubSpotRecordSyncBody, instantlyEnrollmentBody })).not.toMatch(
+      /business_id|environment/,
+    );
+    expect(JSON.parse(String(requests[7].init?.body))).toMatchObject({ dry_run: true });
+    expect(requests.map(({ url }) => url.toString()).join("\n")).not.toMatch(/apply|apply-sync|enrollments\/apply|dry_run=false/);
+  });
 });

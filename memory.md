@@ -27,7 +27,9 @@
 
 ## Current Direction
 
-- `/opt/ares/Ares` on `feature/copywriting-brain-offer-engine` is the active VPS checkout for the current copywriting/offer/skiptrace branch.
+- `/opt/ares/Ares` on `feature/copywriting-brain-offer-engine` is the active VPS checkout; the operating-spine work is staged for commit with unrelated local files still unstaged.
+- HubSpot operating spine / agentic company Phases 1-9 are complete in the current working tree with final QC index/readiness artifacts and runbooks under `docs/qc/2026-05-14/` and `docs/runbooks/`.
+- HubSpot portal customization itself was live-applied after operator instruction; HubSpot now has Ares property groups/properties and all 12 Ares stages in the existing single `Sales Pipeline` (`docs/qc/2026-05-14/hubspot-live-buildout/`).
 - CRM control-plane work has been merged to `origin/main`.
 - CRM control-plane draft spec: `docs/superpowers/specs/2026-04-25-ares-crm-control-plane-design.md`.
 - CRM control-plane roadmap: `docs/superpowers/plans/2026-04-25-ares-crm-control-plane-roadmap.md`.
@@ -79,6 +81,7 @@
 
 ## Environment Notes
 
+- Revenue-critical freelance capability: VPS `root@100.74.177.6` has GitHub CLI authenticated as `martinp09`, `gh auth setup-git` configured, and HTTPS Git operations verified against `martinp09/Ares`. Hermes and Ares should assume GitHub CLI is available for paid/freelance repo work unless a future `gh auth status` check fails.
 - Fresh Supabase project created for Hermes Central Command
 - Local `.env` should be ported from the validated `Mailers AWF` environment as needed
 - GitHub owner: `martinp09`
@@ -190,7 +193,7 @@
 2. capture stronger primary Alen Sultanic source material and update `docs/copywriting-wiki/`; current YouTube transcript access is blocked from this environment
 3. add Mission Control read/approval endpoints for Ares offer/copy assets
 4. add dedicated Mission Control frontend campaign-launch review page for the Harris probate HOT/WARM/COLD API contract
-5. enrich Harris probate campaign exports with email/phone via Tracerfy before any Instantly/TextGrid enrollment; single-record CRM skiptrace endpoint is wired, batch export enrichment remains next
+5. enrich Harris probate campaign exports with email/phone via Tracerfy only after Martin explicitly approves skiptrace spend; single-record CRM skiptrace endpoint is wired, batch export enrichment remains unapproved
 6. consider an atomic backend bulk-record endpoint if large batch throughput/transaction semantics become necessary; current Records bulk UI fans out through real single-record command callbacks
 7. defer owner/property graph, research cockpit, and map UI until Records and stage model are stable
 8. preserve production evidence files as the handoff source of truth
@@ -206,6 +209,105 @@
 - `TasksRepository` now treats `lead_machine_backend=supabase` as a Supabase-backed task path so title-packet review tasks persist with lead-machine records.
 
 ## Change Log
+
+### 2026-05-14 HubSpot Live Portal Buildout
+
+- After operator instruction, live-applied HubSpot CRM customization from Ares using the gated `HubSpotMirrorService.apply_customization` path.
+- Read-only preflight passed for owners, contact/company/deal properties, and deal pipelines. Initial pipeline create failed with HubSpot `API_LIMIT` because the portal allows only one deal pipeline.
+- Hardened the HubSpot customization apply path to reuse the existing single deal pipeline and add missing Ares stages instead of trying to create a second pipeline.
+- Successful live apply result: 3 Ares property groups skipped/present, 36 Ares properties skipped/present, 11 missing Ares stages created, 1 existing `Closed Won` stage skipped, and the existing `Sales Pipeline`/`default` reused.
+- Post-apply read-only verification found contacts `12/12`, deals `20/20`, companies `4/4` Ares properties and `12/12` Ares stages present. QC: `docs/qc/2026-05-14/hubspot-live-buildout/`.
+- No HubSpot record sync, Instantly enrollment/send, Vapi call, source-provider/county pull, Slack send, deploy, audit/fix, or commit was executed in this live-buildout slice.
+
+### 2026-05-14 Operating Spine Final Readiness Phase 9
+
+- Added top-level QC index at `docs/qc/2026-05-14/README.md` mapping Phases 1-9, supporting HubSpot setup/smoke evidence, live-side-effect posture, and remaining gates.
+- Added final readiness artifacts at `docs/qc/2026-05-14/operating-spine-final-readiness/` and runbooks at `docs/runbooks/agentic-company-operating-cadence.md` and `docs/runbooks/provider-sync-and-recovery.md`.
+- Updated living docs (`CONTEXT.md`, `TODO.md`, `README.md`, and the 2026-05-14 master plan) to mark Phases 1-9 complete in the dirty working tree and to point to the QC index/runbooks.
+- Final local verification for Phase 9 captured backend pytest, Mission Control tests/typecheck/build, Trigger typecheck, and `git diff --check`; no live HubSpot/Instantly/Vapi/county/Slack/provider calls, no audit/fix, and no commits.
+
+### 2026-05-14 Mission Control Provider Ops Phase 8
+
+- Added no-live Mission Control provider ops surface: typed read/preview API client methods for HubSpot, Instantly, Vapi dry-run, morning brief, and source runs; Dashboard renders a fixture-backed provider ops panel with no live action buttons.
+- Expanded Hermes tool catalog/policy with safe preview/read provider tool names and approval-required live/apply/dispatch names; Vapi preview schema advertises `dry_run=true`.
+- Safety boundary: UI and Hermes catalog expose preview/read/status only; no provider apply/enroll/send/dispatch/call execution was wired. QC: `docs/qc/2026-05-14/mission-control-provider-ops/`.
+- Fix lane: aligned frontend preview request types/examples with backend `extra="forbid"` models by removing unsupported `business_id`/`environment` from HubSpot customization and Instantly enrollment preview calls; Vapi preview continues forcing `dry_run=true`; QC now includes frontend install note, `756 passed` full backend evidence, and empty `git diff --check` raw result.
+
+### 2026-05-14 Nightly Lead Machine Phase 7
+
+- Added no-live nightly source-pull ledger with typed source run/artifact/morning brief models, an in-memory tenant-scoped repository, and `NightlyLeadMachineService` for manifest/fixture-backed source-run orchestration.
+- Runtime endpoints now include `POST /lead-machine/internal/nightly-source-pull`, `POST /lead-machine/internal/morning-brief`, `GET /mission-control/morning-brief/latest`, and `GET /mission-control/source-runs`.
+- Trigger contracts now include `nightly-source-pull` and `morning-brief` wrappers through `invokeLeadMachineRuntimeApi` endpoint-map keys only; no schedules were deployed.
+- Fix lane: nightly source-pull and morning-brief request models accept optional Trigger lifecycle fields (`run_id`, `command_id`, `idempotency_key`, `trigger_run_id`) while preserving `extra="forbid"`; repeated `idempotency_key` calls replay per `business_id`/`environment` without appending duplicate source runs or changing stable morning-brief counts.
+- Fix lane: manifest warning counts are de-duplicated, and Mission Control latest-brief/source-runs endpoints return sanitized summary models that preserve source lane/count/status info but do not echo arbitrary run/artifact/request metadata.
+- Safety boundary: Phase 7 records supplied artifacts/default fixture manifests only, sets `would_call_external_sources=false`, keeps `live_source_calls_enabled=false`, rejects `live_source_calls=true` before work, and keeps Harris probate, HCAD estate-of, HCTax delinquency overlay, and Harris land-record lanes separate. No Harris/HCAD/HCTax/source/provider/Slack calls.
+- QC: `docs/qc/2026-05-14/nightly-lead-machine/`; focused Phase 7 suite passed (`29 passed`), full backend suite passed (`755 passed`), Trigger typecheck was blocked by missing local `tsc`, and `git diff --check` passed.
+
+### 2026-05-14 Vapi Call Layer Phase 6
+
+- Added Vapi voice-call integration scaffold with `app/providers/vapi.py`, typed call models, `VapiCallService`, and `/voice` API routes for config-only assistant/phone-number previews, outbound call dry-runs/dispatch, and Vapi webhooks.
+- Live Vapi outbound dispatch is fully gated before provider calls or provider-link writes: explicit operator approval, `PROVIDER_LIVE_SENDS_ENABLED`, `VAPI_PROVIDER_LIVE_SENDS_ENABLED`, API key/private key, assistant ID, phone number ID, and `to_number`.
+- Dispatch uses fake/injected clients in tests; on returned provider call IDs it writes provider links with `provider='vapi'` and `provider_object_type='call'`; missing call IDs return `submitted_unlinked` without link writes.
+- Webhook first pass supports `X-Vapi-Secret == VAPI_WEBHOOK_SECRET` when `PROVIDER_WEBHOOK_SIGNATURES_REQUIRED=true`; otherwise accepted responses are marked `unverified_accepted` rather than verified.
+- QC: `docs/qc/2026-05-14/vapi-call-layer/`; focused Vapi suite passed (`24 passed`), focused HubSpot/Instantly/provider-link regression suite passed (`46 passed`), full backend suite passed (`729 passed`), and `git diff --check` passed. No live Vapi calls or secrets.
+
+### 2026-05-14 Instantly Enrollment Phase 5
+
+- Added gated Instantly enrollment preview/apply endpoints at `POST /mission-control/providers/instantly/enrollments/preview` and `/apply`.
+- `InstantlyEnrollmentService` accepts explicit CRM record payloads, previews dry-run eligibility without provider calls/token/link writes, and applies only after ordered gates: operator approval, `PROVIDER_LIVE_SENDS_ENABLED`, `INSTANTLY_PROVIDER_LIVE_ENROLLMENT_ENABLED`, and `INSTANTLY_API_KEY`.
+- Eligibility requires email, excludes suppressed/archived records, requires verified/deliverable/valid email verification by default from `verification_status`, `facts.email_verification_status`, or `raw_payload.email_verification_status`, and supports explicit `allow_unverified` override.
+- Apply batches eligible records through fake/injected `bulk_add_leads`, requires exactly one explicit Instantly campaign/list provider ID, skips any existing Instantly lead provider link for the same Ares `crm_record` regardless of missing/changed `sync_hash`, writes provider links only when a per-lead provider ID is present, counts only linked records in `enrolled_count`, reports accepted-but-unlinked records as `submitted_unlinked`, and returns summary-only provider batch output.
+- QC: `docs/qc/2026-05-14/instantly-enrollment/`; focused Phase 5/provider-link/outbound suite passed (`38 passed`), full backend suite passed (`705 passed`), and `git diff --check` passed. No live provider calls or secrets.
+
+### 2026-05-14 HubSpot CRM Record Sync Phase 4
+
+- Added gated HubSpot record apply sync at `POST /mission-control/providers/hubspot/records/apply-sync`; request requires `operator_approval`, `business_id`, `environment`, and typed record sync items.
+- `HubSpotMirrorService.apply_record_sync` now gates in order before any provider call/link write: operator approval, global provider live sends, HubSpot live writes, token.
+- Record apply uses provider links for create/update decisions: contacts/companies link CRM records, deals link opportunities when `opportunity_id` is present, otherwise CRM records; new creates upsert links with provider object IDs and sync hash when supplied.
+- Fix lane: existing provider links with the same non-empty incoming `sync_hash` skip HubSpot update and provider-link mutation; live-capable record sync result errors are sanitized before return; no-email/phone warnings are contact-only; preflight wording now names HubSpot live writes/record sync.
+- Extended HubSpot client with `update_object` (`PATCH /crm/v3/objects/{objectType}/{recordId}`); Phase 4 tests use fake clients only. No live HubSpot calls/writes.
+- QC: `docs/qc/2026-05-14/hubspot-crm-sync/`; fix-lane required focused suite passed (`52 passed`), full backend suite passed (`684 passed`), and `git diff --check` passed.
+
+### 2026-05-14 HubSpot Customization Apply Phase 3
+
+- Added a gated Mission Control HubSpot customization apply command at `POST /mission-control/providers/hubspot/customization/apply` with explicit `operator_approval` plus global/provider/token preflight gates.
+- Added safe/idempotent HubSpot customization apply service logic: create missing property groups/properties, create the Ares Acquisitions pipeline when absent, and add only missing stages by label when the pipeline already exists; no deletes/replacements.
+- Extended the HubSpot client with property-group read/create and pipeline-stage create helpers; all Phase 3 write behavior is covered by fake-client tests only.
+- QC: `docs/qc/2026-05-14/hubspot-customization-apply/`; focused suites passed (29 HubSpot mirror/provider tests, 21 provider-link DB tests) and full backend suite passed (`670 passed`). Follow-up retry-delay polish passed provider (`8 passed`) and focused HubSpot (`30 passed`) suites; lowercase `retry-after` is now honored case-insensitively. No live HubSpot writes or real provider tokens used.
+
+### 2026-05-14 Provider Object Links / Sync State Phase 2
+
+- Added Phase 2 provider mirror state: Supabase migration `20260514090000_provider_object_links.sql`, Pydantic models, and `ProviderLinksRepository` for provider object links, sync cursors, and sync runs.
+- Provider links are a canonical Ares-to-provider ID index only: Ares object IDs stay canonical, provider IDs remain mirrors, and conflicting provider/Ares repoints raise deterministic `ValueError` instead of silently moving links.
+- Added in-memory store/reset support plus Supabase row mapping with external ID prefixes `plink_`, `pscur_`, and `psrun_`.
+- Focused Phase 2 tests passed (`13 passed`), HubSpot mirror regression tests passed (`19 passed`), and full backend suite passed (`652 passed`). No live provider calls or writes.
+- QC: `docs/qc/2026-05-14/provider-object-links/`.
+
+### 2026-05-14 HubSpot Mirror Preview
+
+- Added Phase 1 HubSpot dry-run mirror preview slice: `app/providers/hubspot.py`, `app/services/hubspot_mirror_service.py`, Mission Control preview routes, settings, schemas, and tests.
+- Preview endpoints build customization payloads and contact/deal/company sync payloads without provider calls; dry-run defaults to true and does not require a token.
+- Live mutation attempts fail before provider calls unless HubSpot live writes are enabled and a token is configured. No live HubSpot writes were performed.
+- Final Phase 1 security pass sanitizes HubSpot `ProviderTransportError` headers/messages before re-raise: raw `Authorization`/cookie/content headers are dropped, injected transport errors are re-wrapped, and only safe retry metadata (`Retry-After`, `X-RateLimit-*`) is preserved.
+- QC: `docs/qc/2026-05-14/hubspot-mirror-preview/`; final focused security suite passed: 19 tests.
+
+### 2026-05-14 HubSpot Service Key Smoke
+
+- Configured local ignored `.env` with HubSpot Service Key as `HUBSPOT_ACCESS_TOKEN`; backup `.env.before-hubspot-service-key-20260514T025025Z` created and `.env` kept `0600`.
+- HubSpot Service Key docs confirmed beta REST-only bearer-token behavior; it does not replace app features such as webhooks or UI extensions.
+- Sanitized read-only probes returned HTTP 200 for owners, contacts/companies/deals object reads, contact/company/deal properties, and deal pipelines on both `/crm/v3/pipelines/deals` and `/crm/pipelines/2026-03/deals`.
+- `HUBSPOT_PROVIDER_LIVE_WRITES_ENABLED=false`; no HubSpot creates/updates/deletes or provider sends occurred. QC: `docs/qc/2026-05-14/hubspot-service-key-smoke/`.
+
+### 2026-05-11 Revenue-Critical GitHub CLI Auth Signal
+
+- Marked VPS GitHub CLI auth as a revenue-critical freelance-work capability for Hermes/Ares.
+- Current verified state: `gh` authenticated as `martinp09`, `gh auth setup-git` configured, and HTTPS Git access to `martinp09/Ares` works.
+
+### 2026-05-06 Tracerfy Local Key Configuration
+
+- Configured local `.env` with the supplied `TRACERFY_API_KEY` and `TRACERFY_BASE_URL=https://tracerfy.com/v1/api`; backup created as `.env.before-tracerfy-api-key-20260506T015317Z`.
+- No Tracerfy API calls, skiptrace lookups, batch jobs, DNC checks, outreach enrollment, sends, or lead uploads were run.
+- Operator rule: ask Martin for explicit approval before any Tracerfy credit-spending action; current scope is basic phone/email skiptracing only.
 
 ### 2026-05-04 Tracerfy Skiptrace Provider Slice
 

@@ -13,6 +13,16 @@ from app.models.mission_control import (
     MissionControlDashboardResponse,
     MissionControlEmailTestRequest,
     MissionControlGovernanceResponse,
+    MissionControlHubSpotCustomizationApplyRequest,
+    MissionControlHubSpotCustomizationApplyResponse,
+    MissionControlHubSpotCustomizationPreviewRequest,
+    MissionControlHubSpotPreviewResponse,
+    MissionControlHubSpotRecordSyncApplyRequest,
+    MissionControlHubSpotRecordSyncApplyResponse,
+    MissionControlHubSpotRecordSyncPreviewRequest,
+    MissionControlInstantlyEnrollmentApplyRequest,
+    MissionControlInstantlyEnrollmentPreviewRequest,
+    MissionControlInstantlyEnrollmentResponse,
     MissionControlInboxResponse,
     MissionControlLeadMachineResponse,
     MissionControlLeadSuppressionRequest,
@@ -45,9 +55,13 @@ from app.models.mission_control import (
 from app.models.audit import AuditListResponse
 from app.models.provider_extras import InstantlyProviderExtrasSnapshot
 from app.models.secrets import SecretBindingListResponse, SecretListResponse
+from app.models.source_runs import LatestMorningBriefResponse, SourceLane, SourceRunsResponse
 from app.models.usage import UsageEventKind, UsageResponse
 from app.services.campaign_launch_service import CampaignLaunchService
+from app.services.hubspot_mirror_service import HubSpotMirrorService
+from app.services.instantly_enrollment_service import InstantlyEnrollmentService
 from app.services.mission_control_service import mission_control_service
+from app.services.nightly_lead_machine_service import nightly_lead_machine_service
 from app.services.title_packet_import_service import TitlePacketImportService
 
 router = APIRouter(prefix="/mission-control", tags=["mission-control"])
@@ -55,6 +69,131 @@ router = APIRouter(prefix="/mission-control", tags=["mission-control"])
 
 def _status_code_for_mission_control_error(message: str) -> int:
     return 404 if "not found" in message.lower() else 422
+
+
+@router.post(
+    "/providers/hubspot/customization/preview",
+    response_model=MissionControlHubSpotPreviewResponse,
+    response_model_exclude_none=True,
+)
+def preview_hubspot_customization(
+    payload: MissionControlHubSpotCustomizationPreviewRequest,
+    actor_context: ActorContext = Depends(actor_context_dependency),
+) -> MissionControlHubSpotPreviewResponse:
+    del actor_context
+    try:
+        return MissionControlHubSpotPreviewResponse(**HubSpotMirrorService().build_customization_preview(dry_run=payload.dry_run))
+    except RuntimeError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+
+@router.post(
+    "/providers/hubspot/customization/apply",
+    response_model=MissionControlHubSpotCustomizationApplyResponse,
+    response_model_exclude_none=True,
+)
+def apply_hubspot_customization(
+    payload: MissionControlHubSpotCustomizationApplyRequest,
+    actor_context: ActorContext = Depends(actor_context_dependency),
+) -> MissionControlHubSpotCustomizationApplyResponse:
+    del actor_context
+    try:
+        return MissionControlHubSpotCustomizationApplyResponse(
+            **HubSpotMirrorService().apply_customization(operator_approval=payload.operator_approval)
+        )
+    except RuntimeError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+
+@router.post(
+    "/providers/hubspot/records/preview-sync",
+    response_model=MissionControlHubSpotPreviewResponse,
+    response_model_exclude_none=True,
+)
+def preview_hubspot_record_sync(
+    payload: MissionControlHubSpotRecordSyncPreviewRequest,
+    actor_context: ActorContext = Depends(actor_context_dependency),
+) -> MissionControlHubSpotPreviewResponse:
+    del actor_context
+    try:
+        records = [record.model_dump(exclude_none=True) for record in payload.records]
+        return MissionControlHubSpotPreviewResponse(**HubSpotMirrorService().build_record_sync_preview(records, dry_run=payload.dry_run))
+    except RuntimeError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+
+@router.post(
+    "/providers/hubspot/records/apply-sync",
+    response_model=MissionControlHubSpotRecordSyncApplyResponse,
+    response_model_exclude_none=True,
+)
+def apply_hubspot_record_sync(
+    payload: MissionControlHubSpotRecordSyncApplyRequest,
+    actor_context: ActorContext = Depends(actor_context_dependency),
+) -> MissionControlHubSpotRecordSyncApplyResponse:
+    del actor_context
+    try:
+        records = [record.model_dump(exclude_none=True) for record in payload.records]
+        return MissionControlHubSpotRecordSyncApplyResponse(
+            **HubSpotMirrorService().apply_record_sync(
+                business_id=payload.business_id,
+                environment=payload.environment,
+                records=records,
+                operator_approval=payload.operator_approval,
+            )
+        )
+    except RuntimeError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+
+@router.post(
+    "/providers/instantly/enrollments/preview",
+    response_model=MissionControlInstantlyEnrollmentResponse,
+    response_model_exclude_none=True,
+)
+def preview_instantly_enrollment(
+    payload: MissionControlInstantlyEnrollmentPreviewRequest,
+    actor_context: ActorContext = Depends(actor_context_dependency),
+) -> MissionControlInstantlyEnrollmentResponse:
+    del actor_context
+    records = [record.model_dump(exclude_none=True) for record in payload.records]
+    return MissionControlInstantlyEnrollmentResponse(
+        **InstantlyEnrollmentService().preview_enrollment(
+            records=records,
+            instantly_campaign_id=payload.instantly_campaign_id,
+            instantly_list_id=payload.instantly_list_id,
+            campaign_id=payload.campaign_id,
+            allow_unverified=payload.allow_unverified,
+        )
+    )
+
+
+@router.post(
+    "/providers/instantly/enrollments/apply",
+    response_model=MissionControlInstantlyEnrollmentResponse,
+    response_model_exclude_none=True,
+)
+def apply_instantly_enrollment(
+    payload: MissionControlInstantlyEnrollmentApplyRequest,
+    actor_context: ActorContext = Depends(actor_context_dependency),
+) -> MissionControlInstantlyEnrollmentResponse:
+    del actor_context
+    try:
+        records = [record.model_dump(exclude_none=True) for record in payload.records]
+        return MissionControlInstantlyEnrollmentResponse(
+            **InstantlyEnrollmentService().apply_enrollment(
+                business_id=payload.business_id,
+                environment=payload.environment,
+                records=records,
+                operator_approval=payload.operator_approval,
+                instantly_campaign_id=payload.instantly_campaign_id,
+                instantly_list_id=payload.instantly_list_id,
+                campaign_id=payload.campaign_id,
+                allow_unverified=payload.allow_unverified,
+            )
+        )
+    except RuntimeError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
 
 
 @router.get(
@@ -71,6 +210,44 @@ def get_dashboard(
         org_id=actor_context.org_id,
         business_id=business_id,
         environment=environment,
+    )
+
+
+@router.get("/morning-brief/latest", response_model=LatestMorningBriefResponse, response_model_exclude_none=True)
+def get_latest_morning_brief(
+    business_id: str = Query(min_length=1),
+    environment: str = Query(min_length=1),
+    actor_context: ActorContext = Depends(actor_context_dependency),
+) -> LatestMorningBriefResponse:
+    del actor_context
+    return LatestMorningBriefResponse(
+        morning_brief=nightly_lead_machine_service.summarize_morning_brief(
+            nightly_lead_machine_service.get_latest_morning_brief(
+                business_id=business_id,
+                environment=environment,
+            )
+        )
+    )
+
+
+@router.get("/source-runs", response_model=SourceRunsResponse)
+def get_source_runs(
+    business_id: str = Query(min_length=1),
+    environment: str = Query(min_length=1),
+    source_lane: SourceLane | None = Query(default=None),
+    limit: int | None = Query(default=None, ge=1),
+    actor_context: ActorContext = Depends(actor_context_dependency),
+) -> SourceRunsResponse:
+    del actor_context
+    return SourceRunsResponse(
+        source_runs=nightly_lead_machine_service.summarize_source_runs(
+            nightly_lead_machine_service.list_source_runs(
+                business_id=business_id,
+                environment=environment,
+                source_lane=source_lane,
+                limit=limit,
+            )
+        )
     )
 
 

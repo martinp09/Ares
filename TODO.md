@@ -1,7 +1,7 @@
 ---
 title: "Ares TODO / Handoff"
 status: active
-updated_at: "2026-05-04T10:55:00Z"
+updated_at: "2026-05-14T00:00:00Z"
 repo: "martinp09/Ares"
 local_checkout: "/opt/ares/Ares"
 current_branch: "feature/copywriting-brain-offer-engine"
@@ -12,97 +12,55 @@ production_wiring_commit: "47be904"
 
 ## Current status
 
-Ares is production-ready for a controlled live operator rollout.
+HubSpot operating spine / agentic company Phases 1-9 are complete in the current prepared working tree. Phase 9 added final QC/readiness documentation, then the HubSpot portal customization itself was live-applied after operator instruction.
 
-Live production evidence:
+HubSpot live buildout result: Ares property groups/properties are present on contacts/deals/companies, and all 12 Ares stages are present in the existing HubSpot `Sales Pipeline` because the portal is limited to one deal pipeline.
 
-- Runtime: `https://production-readiness-afternoon.vercel.app`
-- Supabase project: `awmsrjeawcxndfnggoxw`
-- Trigger project: `proj_puouljyhwiraonjkpiki`
-- Trigger worker: `20260425.6`
-- Production evidence: `docs/rollout-evidence/production-2026-04-25.json`
-- Preview/current-main evidence: `docs/rollout-evidence/preview-2026-04-25.json`
+Primary handoff artifacts:
 
-Proven live wiring:
+- QC index: `docs/qc/2026-05-14/README.md`
+- Final readiness: `docs/qc/2026-05-14/operating-spine-final-readiness/`
+- Operating cadence runbook: `docs/runbooks/agentic-company-operating-cadence.md`
+- Provider sync/recovery runbook: `docs/runbooks/provider-sync-and-recovery.md`
+- HubSpot live buildout: `docs/qc/2026-05-14/hubspot-live-buildout/`
+- Master plan status: `docs/superpowers/plans/2026-05-14-hubspot-operating-spine-agentic-company-plan.md`
 
-- Runtime health/auth on production Vercel.
-- Supabase-backed runtime state.
-- Trigger lifecycle callbacks.
-- Instantly reply webhook.
-- TextGrid SMS send and signed form-encoded status callback.
-- Cal.com booking webhook.
-- Resend live email smoke.
-- Rollback bundle at `/Users/solomartin/Projects/Ares-backups/2026-04-25-awmsrjeawcxndfnggoxw`.
+Do not claim committed, merged, deployed, or promotable until the dirty/untracked working tree is staged/committed and reviewed intentionally.
 
-Known caveat:
+## Immediate next actions
 
-- Native `pg_dump` backup is not captured because the Supabase CLI container could not resolve the Supabase DB host from Colima. A REST table-export rollback bundle exists instead.
+1. Review final readiness and HubSpot live-buildout evidence, then commit/open PR or equivalent review intentionally.
+2. Keep deployment separate from commit/PR review; do not promote a commit different from the evidenced state.
+3. Keep remaining live provider actions behind explicit operator approvals and env gates: HubSpot record sync, Instantly enroll/send, Vapi dispatch, source-provider pulls, Slack/provider sends.
+4. If live provider rollout is approved later, start with preview/dry-run, narrow record scope, provider links/idempotency review, and evidence capture.
 
-## Next product slice
+## Open product follow-ups
 
-### 0. Probate title-packet Supabase wiring
-
-- [done] Rebuild `origin/feature/lead-machine-probate-intake` onto current `origin/main`.
-- [done] Add `title_packets` Supabase migration with tenant FK, lead FK, RLS, indexes, and idempotent identity key.
-- [done] Add `TitlePacketsRepository` with memory and `lead_machine_backend=supabase` paths.
-- [done] Add `POST /mission-control/lead-machine/title-packets/import`.
-- [done] Normalize title-packet imports into probate-intake leads and create idempotent manual-review tasks.
-- [ ] Run final full backend verification before merge.
-
-### 1. Dashboard UI polish
-
-- [ ] Build the approved ARES dashboard theme direction.
-- [ ] Use `docs/design/ares-dashboard-theme-2026-04-25.md` as the design source.
-- [ ] Keep it a real dense Mission Control dashboard, not a game menu.
-- [ ] Keep gothic/flame treatment concentrated around the `ARES` title and subtle dashboard accents.
-- [ ] Preserve readability, operator density, and existing Mission Control workflows.
-
-### 2. Harris probate outreach campaign
-
-- [done] Use `docs/marketing/2026-04-30-harris-probate-hot-warm-cold-campaign.md` as the operator-review campaign plan.
-- [done] Add/export HOT/WARM/COLD segment manifests from the current Harris probate lead data before any live sends.
-- [done] Add a backend operator approval gate for Instantly/TextGrid/direct-mail enrollment.
-- [ ] Add a dedicated Mission Control frontend campaign-launch review page; current API contract is live and approvals can be reviewed from the existing approvals surface.
-- [ ] Enrich Harris probate exports with email/phone via Tracerfy before Instantly/TextGrid enrollment; single-record CRM skiptrace endpoint is wired at `POST /mission-control/records/{record_id}/skiptrace`, batch export enrichment remains next. Current artifact has direct-mail-ready rows only.
-
-### 3. Ares copywriting brain / offer engine
-
-- [done] Initialize repo-local LLM Wiki at `docs/copywriting-wiki/` with Hormozi/Sultanic/probate source notes and examples.
-- [done] Add typed offer/copy asset models and services for the Harris probate `Inherited Property Exit Option`.
-- [done] Upgrade `AresCopyService` from generic drafts to offer-first, pain-first Harris probate drafts.
-- [done] Add Alen Sultanic Copy Hinge, high-response email formula, and offer-code/Rosetta Stone concepts to the wiki and generated offer/copy asset metadata.
-- [done] Draft stronger Hormozi/Sultanic probate grand-slam offer: `docs/marketing/copy/2026-05-02-probate-grand-slam-offer-v1.md`.
-- [done] Ingest REI multichannel marketing playbook into `docs/copywriting-wiki/` and add channel doctrine: email speed/testing, direct mail trust/persistence, SMS consent/inbound only.
-- [done] Create full cold-email campaign packets and local Instantly backups for probate and tax/title-friction campaigns: `docs/marketing/campaigns/` and `docs/marketing/exports/instantly-campaign-backups-2026-05-02/`.
-- [done] Patch Instantly API client request headers after Cloudflare 1010 on Python urllib fingerprint; live list-campaigns preflight now succeeds without provider mutation.
-- [done] Upload probate and tax/title-friction campaigns to Instantly as draft 4-step active sequences; no leads, sends, or activation.
-- [done] Create Instantly long-nurture subsequences for both draft campaigns; trigger on campaign completed without reply and preserve Day 45/75/105/150/210/300 cadence.
-- [ ] Activate/upgrade the newly keyed Instantly workspace to a paid plan, then rerun real-account sync from `docs/marketing/exports/instantly-campaign-backups-2026-05-02/`; current new-key preflight is blocked by `HTTP 402 Payment Required`. QC: `docs/qc/2026-05-03/instantly-real-account-sync/`.
-- [ ] Capture stronger primary Alen Sultanic source material beyond user-provided excerpts and update the wiki; automated transcript access is blocked from this environment.
-- [ ] Add Mission Control read/approval endpoints for offer/copy assets.
-- [ ] Add persistence for offer/copy assets after the generated v1 proves useful.
-
-### 4. Production hardening follow-up
-
-- [ ] Replace the REST rollback bundle with native `pg_dump` once Colima/Supabase DB DNS is fixed, if strict database restore fidelity is required.
-- [ ] Add production monitoring/alerts for provider callback failures.
-- [ ] Keep production evidence files updated after any provider or deployment changes.
+- Add Mission Control read/approval endpoints and frontend review page for Ares offer/copy assets and Harris probate campaign launch.
+- Enrich Harris probate exports with email/phone via Tracerfy only after Martin explicitly approves skiptrace spend.
+- Activate/upgrade the keyed Instantly workspace to a paid plan before real-account campaign sync/enrollment.
+- Capture stronger primary Alen Sultanic source material and update `docs/copywriting-wiki/`.
+- Consider an atomic backend bulk-record endpoint if large batch throughput/transaction semantics become necessary.
+- Defer owner/property graph, research cockpit, and map UI until Records and stage model are stable.
+- Optionally replace the REST rollback bundle with native `pg_dump` once Supabase CLI container DNS is fixed.
+- Add production monitoring/alerts for provider callback failures.
 
 ## Hard rules
 
 - Do not make Mission Control frontend call Supabase directly.
-- Do not run live SMS/email without explicit approved recipients.
+- Do not run live SMS/email/calls/provider mutations without explicit approved recipients and gates.
 - Do not use fixture-backed UI success as production proof.
 - Do not promote a commit different from the evidenced commit.
 - Do not rewrite already-applied baseline migrations in place.
+- Never print secrets into QC evidence, logs, reports, or chat.
 
 ## Minimum verification before merge/push
 
 ```bash
-git diff --check
-uv run pytest -q
-npm --prefix trigger run typecheck
+python -m pytest -q
+npm --prefix apps/mission-control test -- --run
 npm --prefix apps/mission-control run typecheck
-npm --prefix apps/mission-control run test -- --run
 npm --prefix apps/mission-control run build
+npm --prefix trigger run typecheck
+git diff --check
 ```

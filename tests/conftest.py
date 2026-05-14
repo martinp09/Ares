@@ -13,6 +13,17 @@ os.environ["SITE_EVENTS_BACKEND"] = "memory"
 os.environ["RUNTIME_API_KEY"] = "dev-runtime-key"
 os.environ["INSTANTLY_API_KEY"] = ""
 os.environ["INSTANTLY_WEBHOOK_SECRET"] = ""
+os.environ["INSTANTLY_PROVIDER_LIVE_ENROLLMENT_ENABLED"] = "false"
+os.environ["VAPI_API_KEY"] = ""
+os.environ["VAPI_PRIVATE_KEY"] = ""
+os.environ["VAPI_PROVIDER_LIVE_SENDS_ENABLED"] = "false"
+os.environ["VAPI_WEBHOOK_SECRET"] = ""
+os.environ["PROVIDER_WEBHOOK_SIGNATURES_REQUIRED"] = "false"
+os.environ["VAPI_DEFAULT_ASSISTANT_ID"] = ""
+os.environ["VAPI_DEFAULT_PHONE_NUMBER_ID"] = ""
+os.environ["HUBSPOT_ACCESS_TOKEN"] = ""
+os.environ["PROVIDER_LIVE_SENDS_ENABLED"] = "false"
+os.environ["HUBSPOT_PROVIDER_LIVE_WRITES_ENABLED"] = "false"
 
 from app.core.config import get_settings
 from app.main import app
@@ -27,6 +38,17 @@ def test_settings(monkeypatch: pytest.MonkeyPatch):
     monkeypatch.setenv("RUNTIME_API_KEY", "dev-runtime-key")
     monkeypatch.setenv("INSTANTLY_API_KEY", "")
     monkeypatch.setenv("INSTANTLY_WEBHOOK_SECRET", "")
+    monkeypatch.setenv("INSTANTLY_PROVIDER_LIVE_ENROLLMENT_ENABLED", "false")
+    monkeypatch.setenv("VAPI_API_KEY", "")
+    monkeypatch.setenv("VAPI_PRIVATE_KEY", "")
+    monkeypatch.setenv("VAPI_PROVIDER_LIVE_SENDS_ENABLED", "false")
+    monkeypatch.setenv("VAPI_WEBHOOK_SECRET", "")
+    monkeypatch.setenv("PROVIDER_WEBHOOK_SIGNATURES_REQUIRED", "false")
+    monkeypatch.setenv("VAPI_DEFAULT_ASSISTANT_ID", "")
+    monkeypatch.setenv("VAPI_DEFAULT_PHONE_NUMBER_ID", "")
+    monkeypatch.setenv("HUBSPOT_ACCESS_TOKEN", "")
+    monkeypatch.setenv("PROVIDER_LIVE_SENDS_ENABLED", "false")
+    monkeypatch.setenv("HUBSPOT_PROVIDER_LIVE_WRITES_ENABLED", "false")
     get_settings.cache_clear()
     yield
     get_settings.cache_clear()

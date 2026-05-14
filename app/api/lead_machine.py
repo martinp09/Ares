@@ -10,12 +10,14 @@ from app.core.config import get_settings
 from app.db.tasks import TasksRepository
 from app.models.commands import utc_now
 from app.models.lead_events import LeadEventRecord
+from app.models.source_runs import MorningBrief, MorningBriefRequest, NightlySourcePullRequest, NightlySourcePullResponse
 from app.models.tasks import TaskPriority, TaskRecord, TaskStatus, TaskType
 from app.services.inbound_sms_service import LeaseOptionSequenceStepRequest, inbound_sms_service
 from app.services.lead_intake_service import LeadIntakeRequest as ServiceLeadIntakeRequest
 from app.services.lead_intake_service import lead_intake_service
 from app.services.lead_sequence_runner import LeadSequenceRunner, lead_sequence_runner
 from app.services.lead_suppression_service import LeadSuppressionService, lead_suppression_service
+from app.services.nightly_lead_machine_service import nightly_lead_machine_service
 from app.services.probate_write_path_service import ProbateWritePathService, probate_write_path_service
 
 router = APIRouter(prefix="/lead-machine", tags=["lead-machine"])
@@ -323,6 +325,19 @@ async def ingest_instantly_webhook(
         trust_reason=str(trust_reason),
     )
     return InstantlyWebhookResponse(**result)
+
+
+@router.post("/internal/nightly-source-pull", response_model=NightlySourcePullResponse)
+def run_nightly_source_pull(request: NightlySourcePullRequest) -> NightlySourcePullResponse:
+    try:
+        return nightly_lead_machine_service.run_nightly_source_pull(request)
+    except RuntimeError as exc:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(exc)) from exc
+
+
+@router.post("/internal/morning-brief", response_model=MorningBrief)
+def build_morning_brief(request: MorningBriefRequest) -> MorningBrief:
+    return nightly_lead_machine_service.create_morning_brief(request)
 
 
 @router.post("/internal/followup-step-runner", response_model=FollowupStepRunnerResponse)
