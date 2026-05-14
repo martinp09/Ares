@@ -1,0 +1,118 @@
+# HubSpot Rich Probate Fields Output
+
+## HubSpot customization/apply + lead_341 update
+
+```text
+provider=hubspot
+operator_approved=true
+customization_live_applied=true
+customization_mutation_count=1
+customization_preview_property_counts contacts=27 deals=47 companies=7
+customization_properties_created contacts=0 deals=1 companies=0
+customization_properties_created_detail deals=ares_tax_overlay_query
+customization_properties_skipped_count contacts=27 deals=46 companies=7
+customization_warning=HubSpot portal already has its maximum deal-pipeline count; reused the existing deal pipeline and added missing Ares stages.
+
+lead_id=lead_341
+case_number=543678
+decedent_name=TANGIE RENEE WILLIAMS
+best_contact_name=Brittany C Edwards
+best_contact_role=Applicant
+best_contact_address_present=true
+mailing_address_present=true
+property_address_present=false
+hcad_account_present=false
+heir_candidate_count=5
+
+preview_contacts_payload_count=1
+preview_deals_payload_count=1
+preview_companies_payload_count=0
+preview_warning=Record lead_341 has no email or phone for HubSpot contact matching.
+
+live_applied=true
+created_count=0
+updated_count=2
+skipped_count=0
+failed_count=0
+error_count=0
+result record_id=lead_341 object_type=contact ares_object_type=crm_record ares_object_id=lead_341 action=update provider_object_id=485815102172 provider_link_id=plink_3 sync_hash=hubspot-real-lead-lead_341-rich-v3
+result record_id=lead_341 object_type=deal ares_object_type=opportunity ares_object_id=opp_lead_341 action=update provider_object_id=325123310274 provider_link_id=plink_4 sync_hash=hubspot-real-lead-lead_341-rich-v3
+provider_link_contact_id=plink_3
+provider_link_deal_id=plink_4
+provider_link_contact_sync_hash=hubspot-real-lead-lead_341-rich-v3
+provider_link_deal_sync_hash=hubspot-real-lead-lead_341-rich-v3
+instantly_touched=false
+reacher_touched=false
+vapi_touched=false
+source_pull_touched=false
+```
+
+## HubSpot readback highlights
+
+```text
+contact_id=485815102172
+contact_firstname=Brittany
+contact_lastname=C Edwards
+contact_ares_record_id=lead_341
+contact_ares_probate_case_number=543678
+contact_ares_decedent_name=TANGIE RENEE WILLIAMS
+contact_ares_estate_name=IN THE ESTATE OF: TANGIE RENEE WILLIAMS, DECEASED
+contact_ares_best_contact_name=Brittany C Edwards
+contact_ares_best_contact_role=Applicant
+contact_ares_best_contact_address=1614 Royal Grantham Ct, Houston TX 77073
+contact_ares_mailing_address=1614 Royal Grantham Ct, Houston TX 77073
+contact_ares_heir_candidate_count=5
+contact_ares_heir_status=candidate_identified_relationship_pending
+contact_ares_heir_confidence=medium_high_candidate_contact
+contact_ares_heir_next_gate=Pull/OCR application/will/heirship PDF to confirm relationship and authority.
+contact_ares_heir_candidates_summary=Brittany C Edwards (Applicant, pending_document_review, 1614 Royal Grantham Ct, Houston TX 77073); Frederick L Phillips (Respondent, pending_document_review, ); Christopher Dewanye Mcfadden (Respondent, pending_document_review, ); Jordan Anthony Brown (Respondent, pending_document_review, ); Laporchea Michelle Mcfadden (Respondent, pending_document_review, 2805 S. Park Ave, Apt 117, Tucson AZ 85713)
+contact_ares_property_address=null
+
+deal_id=325123310274
+dealname=Harris probate 543678 - TANGIE RENEE WILLIAMS
+deal_ares_primary_record_id=lead_341
+deal_ares_probate_case_number=543678
+deal_ares_probate_file_date=2026-04-20
+deal_ares_probate_status=Open
+deal_ares_probate_filing_type=APP FOR INDEPENDENT ADMINISTRATION WITH AN HEIRSHIP
+deal_ares_decedent_name=TANGIE RENEE WILLIAMS
+deal_ares_best_contact_name=Brittany C Edwards
+deal_ares_best_contact_role=Applicant
+deal_ares_best_contact_address=1614 Royal Grantham Ct, Houston TX 77073
+deal_ares_mailing_address=1614 Royal Grantham Ct, Houston TX 77073
+deal_ares_heir_candidate_count=5
+deal_ares_heir_candidates_summary=Brittany C Edwards (Applicant, pending_document_review, 1614 Royal Grantham Ct, Houston TX 77073); Frederick L Phillips (Respondent, pending_document_review, ); Christopher Dewanye Mcfadden (Respondent, pending_document_review, ); Jordan Anthony Brown (Respondent, pending_document_review, ); Laporchea Michelle Mcfadden (Respondent, pending_document_review, 2805 S. Park Ave, Apt 117, Tucson AZ 85713)
+deal_ares_party_count=7
+deal_ares_event_count=7
+deal_ares_tax_overlay_status=tax_overlay_soft_no_signal
+deal_ares_tax_overlay_query=TANGIE RENEE WILLIAMS
+deal_ares_tax_overlay_candidate_hit_count=0
+deal_ares_sync_hash=hubspot-real-lead-lead_341-rich-v3
+deal_ares_property_address=null
+```
+
+## Focused final tests
+
+```text
+python -m pytest tests/services/test_hubspot_mirror_service.py tests/api/test_hubspot_mirror.py -q
+.....................................                                    [100%]
+37 passed in 1.44s
+```
+
+## Final backend verification
+
+```text
+python -m pytest -q && git diff --check
+........................................................................ [  9%]
+........................................................................ [ 18%]
+........................................................................ [ 28%]
+........................................................................ [ 37%]
+........................................................................ [ 47%]
+........................................................................ [ 56%]
+........................................................................ [ 66%]
+........................................................................ [ 75%]
+........................................................................ [ 85%]
+........................................................................ [ 94%]
+......................................                                   [100%]
+758 passed in 26.46s
+```

@@ -258,10 +258,46 @@ class MissionControlHubSpotRecordSyncItem(BaseModel):
     status: str | None = None
     phone: str | None = None
     email: str | None = None
+    contact_id: str | None = None
+    contact_role: str | None = None
+    contact_address: str | None = None
     opportunity_id: str | None = None
     campaign_id: str | None = None
     county: str | None = None
     hcad_account: str | None = None
+    hctax_account: str | None = None
+    hcad_owner_names: str | None = None
+    probate_case_number: str | None = None
+    probate_court_number: str | None = None
+    probate_file_date: str | None = None
+    probate_status: str | None = None
+    probate_filing_type: str | None = None
+    probate_filing_subtype: str | None = None
+    court_number: str | None = None
+    file_date: str | None = None
+    filing_type: str | None = None
+    filing_subtype: str | None = None
+    estate_name: str | None = None
+    decedent_name: str | None = None
+    best_contact_name: str | None = None
+    best_contact_role: str | None = None
+    best_contact_address: str | None = None
+    applicant_name: str | None = None
+    applicant_role: str | None = None
+    applicant_address: str | None = None
+    heir_candidate_count: int | None = Field(default=None, ge=0)
+    heir_candidates_summary: str | None = None
+    heir_status: str | None = None
+    heir_confidence: str | None = None
+    heir_next_gate: str | None = None
+    party_count: int | None = Field(default=None, ge=0)
+    event_count: int | None = Field(default=None, ge=0)
+    priority_tier: str | None = None
+    priority_flags: str | list[str] | None = None
+    source_run_id: str | None = None
+    tax_overlay_status: str | None = None
+    tax_overlay_candidate_hit_count: int | None = Field(default=None, ge=0)
+    tax_overlay_query: str | None = None
     lead_temperature: str | None = None
     lead_score: int | None = Field(default=None, ge=0, le=100)
     data_quality_score: int | None = Field(default=None, ge=0, le=100)

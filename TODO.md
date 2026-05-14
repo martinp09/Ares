@@ -1,7 +1,7 @@
 ---
 title: "Ares TODO / Handoff"
 status: active
-updated_at: "2026-05-14T12:07:13Z"
+updated_at: "2026-05-14T13:04:49Z"
 repo: "martinp09/Ares"
 local_checkout: "/opt/ares/Ares"
 current_branch: "feature/copywriting-brain-offer-engine"
@@ -18,7 +18,7 @@ HubSpot live buildout result: Ares property groups/properties are present on con
 
 HubSpot record-sync canary result: remote provider-links migration `20260514090000_provider_object_links.sql` is applied; local default HubSpot pipeline/stage env is set with gates off; one synthetic canary created HubSpot contact `486079925950` and deal `325110558439` with provider links.
 
-HubSpot real-lead sync result: one hand-selected `limitless/prod` Harris probate lead (`lead_341`, case `543678`) was synced HubSpot-only after preview; HubSpot contact `485815102172` and deal `325123310274` were created with provider links `plink_3`/`plink_4`. No real batch sync, Instantly enrollment/send, Reacher call, Vapi call, source-provider pull, Slack send, or deploy side effect.
+HubSpot real-lead sync result: one hand-selected `limitless/prod` Harris probate lead (`lead_341`, case `543678`) was synced HubSpot-only after preview; HubSpot contact `485815102172` and deal `325123310274` were created with provider links `plink_3`/`plink_4`. A follow-up rich-field correction added probate/heir/contact/mailing/property/tax-overlay fields and updated the same contact/deal with applicant/heir metadata. Current sync hash: `hubspot-real-lead-lead_341-rich-v3`. No real batch sync, Instantly enrollment/send, Reacher call, Vapi call, source-provider pull, Slack send, or deploy side effect.
 
 Primary handoff artifacts:
 
@@ -29,6 +29,7 @@ Primary handoff artifacts:
 - HubSpot live buildout: `docs/qc/2026-05-14/hubspot-live-buildout/`
 - HubSpot record-sync canary: `docs/qc/2026-05-14/hubspot-record-sync-canary/`
 - HubSpot real-lead sync: `docs/qc/2026-05-14/hubspot-real-lead-sync/`
+- HubSpot rich probate/heir fields: `docs/qc/2026-05-14/hubspot-rich-probate-fields/`
 - Reacher/SMTP egress check: `docs/qc/2026-05-14/reacher-smtp-egress/`
 - Master plan status: `docs/superpowers/plans/2026-05-14-hubspot-operating-spine-agentic-company-plan.md`
 

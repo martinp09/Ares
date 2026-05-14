@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import re
+from collections.abc import Sequence
 from typing import Any, Mapping
 
 from app.core.config import Settings, get_settings
@@ -22,10 +23,25 @@ CONTACT_PROPERTY_NAMES = [
     "ares_record_id",
     "ares_source_lane",
     "ares_contact_role",
+    "ares_contact_address",
+    "ares_property_address",
     "ares_contact_status",
     "ares_skiptrace_status",
     "ares_email_verification_status",
     "ares_phone_verification_status",
+    "ares_mailing_address",
+    "ares_probate_case_number",
+    "ares_decedent_name",
+    "ares_estate_name",
+    "ares_best_contact_name",
+    "ares_best_contact_role",
+    "ares_best_contact_address",
+    "ares_heir_candidate_count",
+    "ares_heir_candidates_summary",
+    "ares_heir_status",
+    "ares_heir_confidence",
+    "ares_heir_next_gate",
+    "ares_priority_tier",
     "ares_last_outreach_channel",
     "ares_last_outreach_at",
     "ares_next_best_action",
@@ -36,15 +52,42 @@ DEAL_PROPERTY_NAMES = [
     "ares_opportunity_id",
     "ares_primary_record_id",
     "ares_property_address",
+    "ares_mailing_address",
     "ares_county",
     "ares_hcad_account",
+    "ares_hctax_account",
+    "ares_hcad_owner_names",
     "ares_source_lane",
+    "ares_source_run_id",
     "ares_lead_temperature",
     "ares_lead_score",
     "ares_tax_delinquency_status",
+    "ares_tax_overlay_status",
+    "ares_tax_overlay_query",
+    "ares_tax_overlay_candidate_hit_count",
     "ares_title_complexity",
     "ares_occupancy_hint",
     "ares_equity_hint",
+    "ares_probate_case_number",
+    "ares_probate_court_number",
+    "ares_probate_file_date",
+    "ares_probate_status",
+    "ares_probate_filing_type",
+    "ares_probate_filing_subtype",
+    "ares_estate_name",
+    "ares_decedent_name",
+    "ares_best_contact_name",
+    "ares_best_contact_role",
+    "ares_best_contact_address",
+    "ares_heir_candidate_count",
+    "ares_heir_candidates_summary",
+    "ares_heir_status",
+    "ares_heir_confidence",
+    "ares_heir_next_gate",
+    "ares_party_count",
+    "ares_event_count",
+    "ares_priority_tier",
+    "ares_priority_flags",
     "ares_skiptrace_status",
     "ares_outreach_status",
     "ares_instantly_campaign_id",
@@ -59,8 +102,33 @@ COMPANY_PROPERTY_NAMES = [
     "ares_entity_id",
     "ares_entity_role",
     "ares_source_lane",
+    "ares_mailing_address",
+    "ares_probate_case_number",
+    "ares_decedent_name",
     "ares_last_agent_summary",
 ]
+
+NUMBER_PROPERTY_NAMES = {
+    "ares_lead_score",
+    "ares_heir_candidate_count",
+    "ares_tax_overlay_candidate_hit_count",
+    "ares_party_count",
+    "ares_event_count",
+}
+
+TEXTAREA_PROPERTY_NAMES = {
+    "ares_contact_address",
+    "ares_mailing_address",
+    "ares_property_address",
+    "ares_hcad_owner_names",
+    "ares_tax_overlay_query",
+    "ares_best_contact_address",
+    "ares_heir_candidates_summary",
+    "ares_heir_next_gate",
+    "ares_priority_flags",
+    "ares_next_best_action",
+    "ares_last_agent_summary",
+}
 
 PIPELINE_STAGE_LABELS = [
     "New Lead",
@@ -90,6 +158,14 @@ def _property_payload(name: str, *, field_type: str = "text", property_type: str
         "fieldType": field_type,
         "groupName": PROPERTY_GROUP_PAYLOAD["name"],
     }
+
+
+def _typed_property_payload(name: str) -> dict[str, Any]:
+    if name in NUMBER_PROPERTY_NAMES:
+        return _property_payload(name, field_type="number", property_type="number")
+    if name in TEXTAREA_PROPERTY_NAMES:
+        return _property_payload(name, field_type="textarea", property_type="string")
+    return _property_payload(name)
 
 
 def _deal_stage_id(label: str) -> str:
@@ -405,14 +481,9 @@ class HubSpotMirrorService:
                 "companies": [dict(PROPERTY_GROUP_PAYLOAD)],
             },
             "properties": {
-                "contacts": [_property_payload(name) for name in CONTACT_PROPERTY_NAMES],
-                "deals": [
-                    _property_payload(name, field_type="number", property_type="number")
-                    if name == "ares_lead_score"
-                    else _property_payload(name)
-                    for name in DEAL_PROPERTY_NAMES
-                ],
-                "companies": [_property_payload(name) for name in COMPANY_PROPERTY_NAMES],
+                "contacts": [_typed_property_payload(name) for name in CONTACT_PROPERTY_NAMES],
+                "deals": [_typed_property_payload(name) for name in DEAL_PROPERTY_NAMES],
+                "companies": [_typed_property_payload(name) for name in COMPANY_PROPERTY_NAMES],
             },
             "pipelines": {
                 "deals": [_pipeline_payload()],
@@ -475,11 +546,29 @@ class HubSpotMirrorService:
             "lastname": last_name,
             "email": record.get("email"),
             "phone": record.get("phone"),
+            "ares_contact_id": record.get("contact_id"),
             "ares_record_id": record.get("id") or record.get("record_id"),
             "ares_source_lane": record.get("source_lane") or record.get("source"),
+            "ares_contact_role": record.get("contact_role") or record.get("best_contact_role") or record.get("applicant_role"),
+            "ares_contact_address": record.get("contact_address") or record.get("best_contact_address") or record.get("applicant_address"),
+            "ares_property_address": record.get("property_address"),
             "ares_contact_status": record.get("record_status") or record.get("status"),
             "ares_skiptrace_status": record.get("skiptrace_status"),
+            "ares_mailing_address": record.get("mailing_address") or record.get("best_contact_address") or record.get("applicant_address"),
+            "ares_probate_case_number": record.get("probate_case_number"),
+            "ares_decedent_name": record.get("decedent_name") or record.get("owner_name"),
+            "ares_estate_name": record.get("estate_name"),
+            "ares_best_contact_name": record.get("best_contact_name") or record.get("applicant_name") or record.get("display_name"),
+            "ares_best_contact_role": record.get("best_contact_role") or record.get("applicant_role"),
+            "ares_best_contact_address": record.get("best_contact_address") or record.get("applicant_address"),
+            "ares_heir_candidate_count": record.get("heir_candidate_count"),
+            "ares_heir_candidates_summary": record.get("heir_candidates_summary"),
+            "ares_heir_status": record.get("heir_status"),
+            "ares_heir_confidence": record.get("heir_confidence"),
+            "ares_heir_next_gate": record.get("heir_next_gate"),
+            "ares_priority_tier": record.get("priority_tier"),
             "ares_next_best_action": record.get("next_best_action"),
+            "ares_last_agent_summary": record.get("last_agent_summary"),
             "hubspot_owner_id": self.settings.hubspot_owner_id,
         }
         return {"properties": self._compact(properties)}
@@ -496,15 +585,42 @@ class HubSpotMirrorService:
             "ares_opportunity_id": record.get("opportunity_id"),
             "ares_primary_record_id": record.get("id") or record.get("record_id"),
             "ares_property_address": record.get("property_address"),
+            "ares_mailing_address": record.get("mailing_address") or record.get("best_contact_address") or record.get("applicant_address"),
             "ares_county": record.get("county"),
             "ares_hcad_account": record.get("hcad_account"),
+            "ares_hctax_account": record.get("hctax_account"),
+            "ares_hcad_owner_names": record.get("hcad_owner_names"),
             "ares_source_lane": record.get("source_lane") or record.get("source"),
+            "ares_source_run_id": record.get("source_run_id"),
             "ares_lead_temperature": record.get("lead_temperature"),
             "ares_lead_score": lead_score,
             "ares_tax_delinquency_status": record.get("tax_delinquency_status"),
+            "ares_tax_overlay_status": record.get("tax_overlay_status"),
+            "ares_tax_overlay_query": record.get("tax_overlay_query"),
+            "ares_tax_overlay_candidate_hit_count": record.get("tax_overlay_candidate_hit_count"),
             "ares_title_complexity": record.get("title_complexity"),
             "ares_occupancy_hint": record.get("occupancy_hint"),
             "ares_equity_hint": record.get("equity_hint"),
+            "ares_probate_case_number": record.get("probate_case_number"),
+            "ares_probate_court_number": record.get("probate_court_number") or record.get("court_number"),
+            "ares_probate_file_date": record.get("probate_file_date") or record.get("file_date"),
+            "ares_probate_status": record.get("probate_status"),
+            "ares_probate_filing_type": record.get("probate_filing_type") or record.get("filing_type"),
+            "ares_probate_filing_subtype": record.get("probate_filing_subtype") or record.get("filing_subtype"),
+            "ares_estate_name": record.get("estate_name"),
+            "ares_decedent_name": record.get("decedent_name") or record.get("owner_name"),
+            "ares_best_contact_name": record.get("best_contact_name") or record.get("applicant_name"),
+            "ares_best_contact_role": record.get("best_contact_role") or record.get("applicant_role"),
+            "ares_best_contact_address": record.get("best_contact_address") or record.get("applicant_address"),
+            "ares_heir_candidate_count": record.get("heir_candidate_count"),
+            "ares_heir_candidates_summary": record.get("heir_candidates_summary"),
+            "ares_heir_status": record.get("heir_status"),
+            "ares_heir_confidence": record.get("heir_confidence"),
+            "ares_heir_next_gate": record.get("heir_next_gate"),
+            "ares_party_count": record.get("party_count"),
+            "ares_event_count": record.get("event_count"),
+            "ares_priority_tier": record.get("priority_tier"),
+            "ares_priority_flags": record.get("priority_flags"),
             "ares_skiptrace_status": record.get("skiptrace_status"),
             "ares_outreach_status": record.get("outreach_status"),
             "ares_instantly_campaign_id": record.get("campaign_id"),
@@ -520,6 +636,9 @@ class HubSpotMirrorService:
             "ares_entity_id": record.get("entity_id") or record.get("id") or record.get("record_id"),
             "ares_entity_role": record.get("entity_role") or record.get("record_type"),
             "ares_source_lane": record.get("source_lane") or record.get("source"),
+            "ares_mailing_address": record.get("mailing_address"),
+            "ares_probate_case_number": record.get("probate_case_number"),
+            "ares_decedent_name": record.get("decedent_name"),
             "ares_last_agent_summary": record.get("last_agent_summary"),
             "hubspot_owner_id": self.settings.hubspot_owner_id,
         }
@@ -550,9 +669,21 @@ class HubSpotMirrorService:
             return parts[0], ""
         return parts[0], " ".join(parts[1:])
 
+    @classmethod
+    def _compact(cls, properties: Mapping[str, Any]) -> dict[str, Any]:
+        compacted: dict[str, Any] = {}
+        for key, value in properties.items():
+            normalized = cls._hubspot_property_value(value)
+            if normalized in (None, ""):
+                continue
+            compacted[key] = normalized
+        return compacted
+
     @staticmethod
-    def _compact(properties: Mapping[str, Any]) -> dict[str, Any]:
-        return {key: value for key, value in properties.items() if value not in (None, "")}
+    def _hubspot_property_value(value: Any) -> Any:
+        if isinstance(value, Sequence) and not isinstance(value, (str, bytes, bytearray)):
+            return "; ".join(str(item) for item in value if item not in (None, ""))
+        return value
 
     @staticmethod
     def _results(response: Mapping[str, Any]) -> list[Mapping[str, Any]]:

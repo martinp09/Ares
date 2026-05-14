@@ -128,11 +128,19 @@ def test_customization_preview_returns_property_group_properties_pipeline_and_no
         {"name": "ares_information", "label": "Ares Information", "displayOrder": 50}
     ]
     contact_property_names = [item["name"] for item in preview["payloads"]["properties"]["contacts"]]
+    contact_properties = {item["name"]: item for item in preview["payloads"]["properties"]["contacts"]}
     assert "ares_record_id" in contact_property_names
     assert "ares_next_best_action" in contact_property_names
+    assert "ares_probate_case_number" in contact_property_names
+    assert contact_properties["ares_mailing_address"]["fieldType"] == "textarea"
+    assert contact_properties["ares_heir_candidate_count"]["type"] == "number"
     deal_property_names = [item["name"] for item in preview["payloads"]["properties"]["deals"]]
+    deal_properties = {item["name"]: item for item in preview["payloads"]["properties"]["deals"]}
     assert "ares_opportunity_id" in deal_property_names
     assert "ares_sync_hash" in deal_property_names
+    assert "ares_heir_candidates_summary" in deal_property_names
+    assert deal_properties["ares_heir_candidates_summary"]["fieldType"] == "textarea"
+    assert deal_properties["ares_party_count"]["type"] == "number"
     pipeline = preview["payloads"]["pipelines"]["deals"][0]
     assert pipeline["label"] == "Ares Acquisitions"
     assert [stage["label"] for stage in pipeline["stages"]][:3] == ["New Lead", "Data QC", "Needs Skiptrace"]
@@ -150,12 +158,41 @@ def test_record_sync_preview_builds_contact_deal_company_payloads_without_provid
                 "record_type": "contact_record",
                 "display_name": "Jane Seller",
                 "property_address": "123 Main St, Houston, TX",
+                "mailing_address": "PO Box 123, Houston, TX",
                 "source": "harris_probate",
+                "source_run_id": "harris_probate_2026_04_28",
                 "record_status": "active",
                 "phone": "7135550100",
                 "email": "jane@example.com",
+                "contact_role": "Applicant",
+                "contact_address": "PO Box 123, Houston, TX",
                 "opportunity_id": "opp_1",
                 "county": "Harris",
+                "hcad_account": "0012340000001",
+                "hctax_account": "0012340000001",
+                "hcad_owner_names": "Estate of Jane Seller",
+                "probate_case_number": "543678",
+                "probate_court_number": "1",
+                "probate_file_date": "2026-04-20",
+                "probate_status": "Open",
+                "probate_filing_type": "APP FOR INDEPENDENT ADMINISTRATION WITH AN HEIRSHIP",
+                "estate_name": "IN THE ESTATE OF: JANE SELLER, DECEASED",
+                "decedent_name": "Jane Seller",
+                "best_contact_name": "Jane Applicant",
+                "best_contact_role": "Applicant",
+                "best_contact_address": "PO Box 123, Houston, TX",
+                "heir_candidate_count": 5,
+                "heir_candidates_summary": "Jane Applicant (Applicant); John Heir (Respondent)",
+                "heir_status": "candidate_identified_relationship_pending",
+                "heir_confidence": "medium_high_candidate_contact",
+                "heir_next_gate": "Pull/OCR application to confirm relationship and authority.",
+                "party_count": 7,
+                "event_count": 7,
+                "priority_tier": "HOT",
+                "priority_flags": ["heirship", "applicant_address"],
+                "tax_overlay_status": "tax_overlay_soft_no_signal",
+                "tax_overlay_query": "Jane Seller",
+                "tax_overlay_candidate_hit_count": 0,
                 "lead_score": 83,
                 "campaign_id": "camp_1",
                 "next_best_action": "Review title packet",
@@ -181,7 +218,23 @@ def test_record_sync_preview_builds_contact_deal_company_payloads_without_provid
                 "phone": "7135550100",
                 "ares_record_id": "crm_1",
                 "ares_source_lane": "harris_probate",
+                "ares_contact_role": "Applicant",
+                "ares_contact_address": "PO Box 123, Houston, TX",
+                "ares_property_address": "123 Main St, Houston, TX",
                 "ares_contact_status": "active",
+                "ares_mailing_address": "PO Box 123, Houston, TX",
+                "ares_probate_case_number": "543678",
+                "ares_decedent_name": "Jane Seller",
+                "ares_estate_name": "IN THE ESTATE OF: JANE SELLER, DECEASED",
+                "ares_best_contact_name": "Jane Applicant",
+                "ares_best_contact_role": "Applicant",
+                "ares_best_contact_address": "PO Box 123, Houston, TX",
+                "ares_heir_candidate_count": 5,
+                "ares_heir_candidates_summary": "Jane Applicant (Applicant); John Heir (Respondent)",
+                "ares_heir_status": "candidate_identified_relationship_pending",
+                "ares_heir_confidence": "medium_high_candidate_contact",
+                "ares_heir_next_gate": "Pull/OCR application to confirm relationship and authority.",
+                "ares_priority_tier": "HOT",
                 "ares_next_best_action": "Review title packet",
                 "hubspot_owner_id": "owner_123",
             }
@@ -201,6 +254,19 @@ def test_record_sync_preview_builds_contact_deal_company_payloads_without_provid
     assert first_deal["ares_primary_record_id"] == "crm_1"
     assert first_deal["ares_opportunity_id"] == "opp_1"
     assert first_deal["ares_lead_score"] == 83
+    assert first_deal["ares_mailing_address"] == "PO Box 123, Houston, TX"
+    assert first_deal["ares_probate_case_number"] == "543678"
+    assert first_deal["ares_probate_filing_type"] == "APP FOR INDEPENDENT ADMINISTRATION WITH AN HEIRSHIP"
+    assert first_deal["ares_best_contact_name"] == "Jane Applicant"
+    assert first_deal["ares_best_contact_role"] == "Applicant"
+    assert first_deal["ares_heir_candidate_count"] == 5
+    assert first_deal["ares_heir_candidates_summary"] == "Jane Applicant (Applicant); John Heir (Respondent)"
+    assert first_deal["ares_party_count"] == 7
+    assert first_deal["ares_event_count"] == 7
+    assert first_deal["ares_priority_flags"] == "heirship; applicant_address"
+    assert first_deal["ares_tax_overlay_status"] == "tax_overlay_soft_no_signal"
+    assert first_deal["ares_tax_overlay_query"] == "Jane Seller"
+    assert first_deal["ares_tax_overlay_candidate_hit_count"] == 0
 
 
 def test_record_sync_preview_preserves_zero_lead_score_without_falling_back() -> None:
@@ -218,6 +284,22 @@ def test_record_sync_preview_preserves_zero_lead_score_without_falling_back() ->
     )
 
     assert preview["payloads"]["deals"][0]["properties"]["ares_lead_score"] == 0
+
+
+def test_record_sync_preview_omits_empty_sequence_values_instead_of_clearing_hubspot() -> None:
+    service = HubSpotMirrorService(settings=_settings(), client=ExplodingClient())
+
+    preview = service.build_record_sync_preview(
+        [
+            {
+                "id": "crm_empty_sequence",
+                "display_name": "Empty Sequence",
+                "priority_flags": [],
+            }
+        ]
+    )
+
+    assert "ares_priority_flags" not in preview["payloads"]["deals"][0]["properties"]
 
 
 def test_missing_live_write_gate_fails_before_provider_call() -> None:
@@ -304,7 +386,8 @@ def test_customization_apply_creates_missing_groups_properties_and_pipeline_with
     assert any(item["name"] == "ares_record_id" for item in result["properties_created"]["contacts"])
     assert result["pipeline_created"] == {"label": "Ares Acquisitions", "id": "pipeline_ares"}
     assert result["stages_created"][0]["label"] == "New Lead"
-    assert result["mutation_count"] == 3 + 36 + 1
+    expected_property_count = sum(len(items) for items in service._customization_payloads()["properties"].values())
+    assert result["mutation_count"] == 3 + expected_property_count + 1
     assert ("create_pipeline", "deals") in fake_client.calls
 
 

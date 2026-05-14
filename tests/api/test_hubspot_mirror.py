@@ -30,12 +30,18 @@ def test_hubspot_record_preview_endpoint_builds_payloads_without_provider_token(
                     "record_type": "contact_record",
                     "display_name": "Jane Seller",
                     "property_address": "123 Main St",
+                    "mailing_address": "PO Box 123",
                     "source": "harris_probate",
                     "record_status": "active",
                     "email": "jane@example.com",
                     "phone": "7135550100",
                     "opportunity_id": "opp_1",
                     "lead_score": 91,
+                    "probate_case_number": "543678",
+                    "best_contact_name": "Jane Applicant",
+                    "best_contact_role": "Applicant",
+                    "heir_candidate_count": 5,
+                    "heir_candidates_summary": "Jane Applicant (Applicant); John Heir (Respondent)",
                 }
             ]
         },
@@ -48,7 +54,10 @@ def test_hubspot_record_preview_endpoint_builds_payloads_without_provider_token(
     assert body["dry_run"] is True
     assert body["would_call_provider"] is False
     assert body["payloads"]["contacts"][0]["properties"]["email"] == "jane@example.com"
+    assert body["payloads"]["contacts"][0]["properties"]["ares_mailing_address"] == "PO Box 123"
     assert body["payloads"]["deals"][0]["properties"]["ares_opportunity_id"] == "opp_1"
+    assert body["payloads"]["deals"][0]["properties"]["ares_probate_case_number"] == "543678"
+    assert body["payloads"]["deals"][0]["properties"]["ares_heir_candidates_summary"] == "Jane Applicant (Applicant); John Heir (Respondent)"
     assert body["payloads"]["companies"] == []
 
 
