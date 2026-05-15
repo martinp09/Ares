@@ -3,7 +3,7 @@
 - Date UTC: 2026-05-15
 - Repo: `martinp09/Ares`
 - Worktree: `/opt/ares/worktrees/ares-main`
-- Branch: `fix/probate-autopilot-enrichment-wiring`
+- Branch at execution: `fix/probate-autopilot-enrichment-wiring`; merged to `origin/main` at `9c256bf`
 - Obsidian PRD: `/root/obsidian-vault/03-Experiments/Harris Montgomery Probate Autopilot PRD.md`
 
 ## Scope
@@ -83,6 +83,7 @@ Passed checks:
 - Full backend suite: `901 passed`
 - Trigger typecheck: passed
 - `git diff --check`: passed
+- Post-merge `main` verification: `uv run pytest -q` => `901 passed`; `npm --prefix trigger run typecheck` => passed
 
 ## Side-effect audit
 
