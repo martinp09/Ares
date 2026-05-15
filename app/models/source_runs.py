@@ -227,3 +227,28 @@ class LatestMorningBriefResponse(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     morning_brief: MorningBriefSummary | None = None
+
+
+class ProbateAutopilotHealthResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    business_id: str
+    environment: str
+    status: str
+    latest_brief_id: str | None = None
+    generated_at: datetime | None = None
+    brief_age_hours: float | None = None
+    freshness_sla_hours: float | None = None
+    freshness_ok: bool = True
+    stale_brief: bool = False
+    no_send_ok: bool = False
+    outbound_allowed: bool = False
+    source_run_count: int = Field(default=0, ge=0)
+    warning_count: int = Field(default=0, ge=0)
+    new_record_count: int = Field(default=0, ge=0)
+    sla_health: dict[str, Any] = Field(default_factory=dict)
+    source_quality: dict[str, Any] = Field(default_factory=dict)
+    enrichment_backlog: dict[str, Any] = Field(default_factory=dict)
+    anomaly_count: int = Field(default=0, ge=0)
+    anomalies: list[dict[str, Any]] = Field(default_factory=list)
+    operator_next_actions: list[dict[str, Any]] = Field(default_factory=list)

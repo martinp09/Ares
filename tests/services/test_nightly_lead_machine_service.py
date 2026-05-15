@@ -464,6 +464,42 @@ def test_probate_autopilot_source_rows_detect_source_report_mismatch(service: Ni
     assert result.morning_brief.sections["source_anomalies"][0]["type"] == "source_count_mismatch"
 
 
+def test_probate_autopilot_source_rows_detect_duplicate_case_numbers(tmp_path):
+    service = NightlyLeadMachineService(
+        repository=SourceRunsRepository(),
+        settings=Settings(_env_file=None, lead_machine_artifact_root=str(tmp_path)),
+    )
+    result = service.run_nightly_source_pull(
+        NightlySourcePullRequest(
+            business_id="biz",
+            environment="prod",
+            metadata={
+                "autopilot": "harris_montgomery_probate",
+                "county_scope": ["harris"],
+                "source_rows": {
+                    "harris": [
+                        {"case_number": "543678", "filing_type": "Independent Administration"},
+                        {"case_number": "543678", "filing_type": "Independent Administration"},
+                    ]
+                },
+            },
+        )
+    )
+
+    run = result.source_runs[0]
+    assert run.metadata["duplicate_case_count"] == 1
+    assert run.metadata["duplicate_case_numbers"] == {"543678": 2}
+    assert "duplicate_case_numbers" in {artifact.artifact_type for artifact in run.artifacts}
+    assert result.morning_brief.sections["source_quality"]["duplicate_case_count"] == 1
+    assert result.morning_brief.sections["source_quality"]["duplicate_case_count_by_county"] == {"harris": 1}
+    assert result.morning_brief.sections["source_anomalies"][0]["type"] == "duplicate_case_numbers"
+    assert result.morning_brief.sections["source_anomalies"][0]["duplicate_case_count_by_county"] == {"harris": 1}
+    assert "543678" not in str(result.morning_brief.sections)
+    assert "dedupe_duplicate_case_rows" in [
+        action["action"] for action in result.morning_brief.sections["operator_next_actions"]
+    ]
+
+
 def test_probate_autopilot_sla_flags_missing_expected_county(service: NightlyLeadMachineService):
     result = service.run_nightly_source_pull(
         NightlySourcePullRequest(

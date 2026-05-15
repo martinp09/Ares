@@ -640,6 +640,10 @@ export interface SourceRunsRequest extends ProviderScopeRequest {
   limit?: number;
 }
 
+export interface ProbateAutopilotHealthRequest extends ProviderScopeRequest {
+  maxBriefAgeHours?: number;
+}
+
 export type HubSpotCustomizationPreviewResponse = JsonRecord;
 export type HubSpotRecordSyncPreviewResponse = JsonRecord;
 export type InstantlyEnrollmentPreviewResponse = JsonRecord;
@@ -648,6 +652,7 @@ export type VapiPhoneNumbersPreviewResponse = JsonRecord;
 export type VapiOutboundCallPreviewResponse = JsonRecord;
 export type LatestMorningBriefResponse = JsonRecord;
 export type SourceRunsResponse = JsonRecord;
+export type ProbateAutopilotHealthResponse = JsonRecord;
 
 export interface HubSpotCustomizationPreviewRequest {
   dry_run?: boolean;
@@ -749,6 +754,7 @@ export interface MissionControlApi {
   getGovernance(): Promise<GovernanceData>;
   getLatestMorningBrief(request?: ProviderScopeRequest): Promise<LatestMorningBriefResponse>;
   getSourceRuns(request?: SourceRunsRequest): Promise<SourceRunsResponse>;
+  getProbateAutopilotHealth(request?: ProbateAutopilotHealthRequest): Promise<ProbateAutopilotHealthResponse>;
   previewHubSpotCustomization(request?: HubSpotCustomizationPreviewRequest): Promise<HubSpotCustomizationPreviewResponse>;
   previewHubSpotRecordSync(records: HubSpotRecordSyncPreviewRecord[]): Promise<HubSpotRecordSyncPreviewResponse>;
   previewInstantlyEnrollment(request: InstantlyEnrollmentPreviewRequest): Promise<InstantlyEnrollmentPreviewResponse>;
@@ -2455,6 +2461,14 @@ function buildSourceRunsPath(request?: SourceRunsRequest): string {
   });
 }
 
+function buildProbateAutopilotHealthPath(request?: ProbateAutopilotHealthRequest): string {
+  return withQueryParams("/mission-control/probate-autopilot/health", {
+    business_id: request?.businessId,
+    environment: request?.environment,
+    max_brief_age_hours: request?.maxBriefAgeHours !== undefined ? String(request.maxBriefAgeHours) : undefined,
+  });
+}
+
 type RequestScope = "none" | "mission-control" | "governance";
 
 function buildRequestPath(
@@ -2709,6 +2723,8 @@ export function createMissionControlApi(
         resolvedOptions,
       ),
     getSourceRuns: async (request) => requestJson<SourceRunsResponse>(buildSourceRunsPath(request), resolvedOptions),
+    getProbateAutopilotHealth: async (request) =>
+      requestJson<ProbateAutopilotHealthResponse>(buildProbateAutopilotHealthPath(request), resolvedOptions),
     previewHubSpotCustomization: async (request = {}) =>
       requestJson<HubSpotCustomizationPreviewResponse>(
         "/mission-control/providers/hubspot/customization/preview",

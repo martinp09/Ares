@@ -3,11 +3,13 @@ from __future__ import annotations
 import json
 import subprocess
 import sys
+from datetime import datetime, timezone
 from pathlib import Path
 
 from app.db.source_runs import SourceRunsRepository
 from app.models.source_runs import NightlySourcePullRequest
 from app.services.nightly_lead_machine_service import NightlyLeadMachineService
+from scripts.probate_autopilot_doctor import apply_freshness_gate
 
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -115,3 +117,19 @@ def test_probate_autopilot_doctor_reports_no_data(tmp_path):
     report = json.loads(result.stdout)
     assert report["status"] == "no_data"
     assert report["outbound_allowed"] is False
+
+
+def test_probate_autopilot_doctor_freshness_gate_blocks_stale_brief():
+    report = {"status": "healthy", "operator_next_actions": []}
+
+    result = apply_freshness_gate(
+        report,
+        generated_at=datetime(2026, 5, 15, 7, 0, tzinfo=timezone.utc),
+        max_age_hours=2,
+        now=datetime(2026, 5, 15, 10, 30, tzinfo=timezone.utc),
+    )
+
+    assert result["status"] == "blocked"
+    assert result["freshness_ok"] is False
+    assert result["stale_brief"] is True
+    assert result["operator_next_actions"][0]["action"] == "run_or_repair_probate_autopilot_source_pull"

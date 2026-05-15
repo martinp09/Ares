@@ -159,6 +159,8 @@ def _build_row_manifest(
     lane = _COUNTY_PROBATE_LANES[county]
     normalized_rows, invalid_rows = _normalize_source_rows(rows, county=county)
     keep_now_rows = [row for row in normalized_rows if row["keep_now"]]
+    duplicate_case_numbers = _duplicate_case_numbers(normalized_rows)
+    duplicate_case_count = sum(count - 1 for count in duplicate_case_numbers.values())
     county_record_counts = _county_counts(metadata.get("record_counts"), county)
     raw_count = len(rows)
     parsed_count = len(normalized_rows)
@@ -170,6 +172,10 @@ def _build_row_manifest(
     if source_reported_count != parsed_count:
         warnings.append(
             f"{county} probate source reported {source_reported_count} rows but Ares parsed {parsed_count}; review source_count_mismatches"
+        )
+    if duplicate_case_count:
+        warnings.append(
+            f"{county} probate source packet contains {duplicate_case_count} duplicate case row(s); review duplicate_case_numbers before enrichment"
         )
 
     window_key = _window_key(window_start, window_end)
@@ -211,6 +217,20 @@ def _build_row_manifest(
                 artifact_root=artifact_root,
             )
         )
+    if duplicate_case_numbers:
+        artifacts.append(
+            _artifact_for_records(
+                county=county,
+                run_kind=run_kind,
+                window_key=window_key,
+                artifact_type="duplicate_case_numbers",
+                records=[
+                    {"case_number": case_number, "duplicate_row_count": count}
+                    for case_number, count in sorted(duplicate_case_numbers.items())
+                ],
+                artifact_root=artifact_root,
+            )
+        )
 
     return SourceRunManifest(
         source_key=f"{lane}:{run_kind}:{window_key}",
@@ -237,6 +257,8 @@ def _build_row_manifest(
             "live_source_adapter_status": "file_drop_or_external_adapter",
             "source_uri": _source_uri(metadata, county),
             "invalid_row_count": len(invalid_rows),
+            "duplicate_case_count": duplicate_case_count,
+            "duplicate_case_numbers": duplicate_case_numbers,
             "window_start": window_start.isoformat() if window_start else None,
             "window_end": window_end.isoformat() if window_end else None,
         },
@@ -309,6 +331,17 @@ def _artifact_for_records(
 
 def _jsonl(records: list[Mapping[str, Any]]) -> str:
     return "".join(json.dumps(record, sort_keys=True, default=str) + "\n" for record in records)
+
+
+def _duplicate_case_numbers(records: list[Mapping[str, Any]]) -> dict[str, int]:
+    counts: dict[str, int] = {}
+    for record in records:
+        case_number = _first_text(record, "case_number")
+        if not case_number:
+            continue
+        normalized = case_number.strip().upper()
+        counts[normalized] = counts.get(normalized, 0) + 1
+    return {case_number: count for case_number, count in counts.items() if count > 1}
 
 
 def _first_text(payload: Mapping[str, Any], *keys: str) -> str | None:

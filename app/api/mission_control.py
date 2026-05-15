@@ -55,7 +55,7 @@ from app.models.mission_control import (
 from app.models.audit import AuditListResponse
 from app.models.provider_extras import InstantlyProviderExtrasSnapshot
 from app.models.secrets import SecretBindingListResponse, SecretListResponse
-from app.models.source_runs import LatestMorningBriefResponse, SourceLane, SourceRunsResponse
+from app.models.source_runs import LatestMorningBriefResponse, ProbateAutopilotHealthResponse, SourceLane, SourceRunsResponse
 from app.models.usage import UsageEventKind, UsageResponse
 from app.services.campaign_launch_service import CampaignLaunchService
 from app.services.hubspot_mirror_service import HubSpotMirrorService
@@ -248,6 +248,21 @@ def get_source_runs(
                 limit=limit,
             )
         )
+    )
+
+
+@router.get("/probate-autopilot/health", response_model=ProbateAutopilotHealthResponse, response_model_exclude_none=True)
+def get_probate_autopilot_health(
+    business_id: str = Query(min_length=1),
+    environment: str = Query(min_length=1),
+    max_brief_age_hours: float | None = Query(default=None, gt=0),
+    actor_context: ActorContext = Depends(actor_context_dependency),
+) -> ProbateAutopilotHealthResponse:
+    del actor_context
+    return nightly_lead_machine_service.get_probate_autopilot_health(
+        business_id=business_id,
+        environment=environment,
+        max_brief_age_hours=max_brief_age_hours,
     )
 
 

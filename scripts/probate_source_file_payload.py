@@ -16,7 +16,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Build a no-send probate autopilot nightly-source-pull payload from a local CSV/JSON/JSONL file.")
     parser.add_argument("--business-id", required=True)
     parser.add_argument("--environment", required=True)
-    parser.add_argument("--source-file", required=True)
+    parser.add_argument("--source-file", action="append", required=True, help="Local CSV/JSON/JSONL export path. Repeat for a Harris+Montgomery source packet.")
     parser.add_argument("--county", choices=["harris", "montgomery"], default=None)
     parser.add_argument("--expected-county", action="append", choices=["harris", "montgomery"], default=None)
     parser.add_argument(
@@ -34,10 +34,10 @@ def build_parser() -> argparse.ArgumentParser:
 def main() -> int:
     args = build_parser().parse_args()
     expected_counties = args.expected_county or ["harris", "montgomery"]
-    payload = ProbateSourceFileService().build_nightly_payload(
+    payload = ProbateSourceFileService().build_nightly_payload_from_files(
         business_id=args.business_id,
         environment=args.environment,
-        source_file=args.source_file,
+        source_files=args.source_file,
         county=args.county,  # type: ignore[arg-type]
         expected_counties=expected_counties,  # type: ignore[arg-type]
         run_kind=args.run_kind,  # type: ignore[arg-type]

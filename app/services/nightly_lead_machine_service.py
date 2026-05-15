@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import datetime, timezone
 from typing import Any
 
 from app.core.config import Settings, get_settings
@@ -10,6 +11,7 @@ from app.models.source_runs import (
     MorningBriefSummary,
     NightlySourcePullRequest,
     NightlySourcePullResponse,
+    ProbateAutopilotHealthResponse,
     SourceLane,
     SourceRun,
     SourceRunArtifact,
@@ -159,6 +161,8 @@ class NightlyLeadMachineService:
         source_count_mismatches: list[dict[str, Any]] = []
         blocked_lanes: list[dict[str, Any]] = []
         invalid_row_count = 0
+        duplicate_case_count = 0
+        duplicate_case_count_by_county: dict[str, int] = {}
         artifact_warning_count = 0
 
         for run in source_runs:
@@ -218,6 +222,13 @@ class NightlyLeadMachineService:
                 warnings.append(f"{run.source_key} failed: {run.error_message or 'unknown error'}")
             warnings.extend(str(item) for item in run.metadata.get("warnings", []) if item)
             invalid_row_count += self._int_from_metadata(run.metadata, "invalid_row_count")
+            run_duplicate_case_count = self._int_from_metadata(run.metadata, "duplicate_case_count")
+            duplicate_case_count += run_duplicate_case_count
+            if run_duplicate_case_count:
+                county_key = run.county or run.source_lane
+                duplicate_case_count_by_county[county_key] = (
+                    duplicate_case_count_by_county.get(county_key, 0) + run_duplicate_case_count
+                )
 
             for artifact in run.artifacts:
                 hot_lead_count += self._int_from_metadata(artifact.metadata, "hot_lead_count")
@@ -242,12 +253,15 @@ class NightlyLeadMachineService:
             expected_counties=expected_counties,
             missing_counties=missing_counties,
             invalid_row_count=invalid_row_count,
+            duplicate_case_count=duplicate_case_count,
+            duplicate_case_count_by_county=duplicate_case_count_by_county,
         )
         unique_warnings = list(dict.fromkeys(warnings))
         operator_next_actions = self._operator_next_actions(
             failed_lane_count=len(blocked_lanes),
             mismatch_count=len(source_count_mismatches),
             invalid_row_count=invalid_row_count,
+            duplicate_case_count=duplicate_case_count,
             keep_now_count=keep_now_total,
         )
         sections = {
@@ -274,6 +288,8 @@ class NightlyLeadMachineService:
             "source_quality": {
                 "source_count_mismatch_count": len(source_count_mismatches),
                 "invalid_row_count": invalid_row_count,
+                "duplicate_case_count": duplicate_case_count,
+                "duplicate_case_count_by_county": duplicate_case_count_by_county,
                 "artifact_warning_count": artifact_warning_count,
             },
             "sla_health": self._sla_health(
@@ -306,7 +322,7 @@ class NightlyLeadMachineService:
                 "instantly_enrollment_enabled": False,
                 "message": "Probate autopilot source pulls do not enroll, activate, or send outreach.",
             },
-            "metadata": metadata or {},
+            "source_request": self._safe_request_metadata(metadata or {}),
         }
         return MorningBrief(
             business_id=business_id,
@@ -344,6 +360,78 @@ class NightlyLeadMachineService:
 
     def get_latest_morning_brief(self, *, business_id: str, environment: str) -> MorningBrief | None:
         return self.repository.latest_brief(business_id=business_id, environment=environment)
+
+    def get_probate_autopilot_health(
+        self,
+        *,
+        business_id: str,
+        environment: str,
+        max_brief_age_hours: float | None = None,
+        now: datetime | None = None,
+    ) -> ProbateAutopilotHealthResponse:
+        brief = self.get_latest_morning_brief(business_id=business_id, environment=environment)
+        if brief is None:
+            return ProbateAutopilotHealthResponse(
+                business_id=business_id,
+                environment=environment,
+                status="no_data",
+                freshness_ok=False,
+                no_send_ok=False,
+                outbound_allowed=False,
+                operator_next_actions=[
+                    {
+                        "priority": "urgent",
+                        "action": "run_probate_autopilot_source_pull",
+                        "reason": "No probate autopilot morning brief is present for this scope",
+                    }
+                ],
+            )
+
+        sections = brief.sections
+        sla_health = self._dict_from_section(sections, "sla_health")
+        source_quality = self._dict_from_section(sections, "source_quality")
+        enrichment_backlog = self._dict_from_section(sections, "enrichment_backlog")
+        no_send = self._dict_from_section(sections, "no_send_confirmation")
+        anomalies = self._list_from_section(sections, "source_anomalies")
+        operator_next_actions = self._list_from_section(sections, "operator_next_actions")
+        status = str(sla_health.get("status") or "unknown")
+        generated_at = brief.generated_at if brief.generated_at.tzinfo else brief.generated_at.replace(tzinfo=timezone.utc)
+        now_aware = now or datetime.now(timezone.utc)
+        brief_age_hours = max(0.0, (now_aware - generated_at).total_seconds() / 3600)
+        freshness_ok = max_brief_age_hours is None or brief_age_hours <= max_brief_age_hours
+        stale_brief = not freshness_ok
+        if stale_brief:
+            status = "blocked"
+            operator_next_actions = [
+                {
+                    "priority": "urgent",
+                    "action": "run_or_repair_probate_autopilot_source_pull",
+                    "reason": f"Latest probate autopilot brief is {brief_age_hours:.2f} hours old; SLA is {max_brief_age_hours:.2f} hours.",
+                },
+                *operator_next_actions,
+            ]
+        return ProbateAutopilotHealthResponse(
+            business_id=brief.business_id,
+            environment=brief.environment,
+            status=status,
+            latest_brief_id=brief.id,
+            generated_at=brief.generated_at,
+            brief_age_hours=round(brief_age_hours, 3),
+            freshness_sla_hours=max_brief_age_hours,
+            freshness_ok=freshness_ok,
+            stale_brief=stale_brief,
+            no_send_ok=no_send.get("no_send") is True and no_send.get("provider_sends_enabled") is False,
+            outbound_allowed=bool(sla_health.get("outbound_allowed")) and bool(no_send.get("provider_sends_enabled")),
+            source_run_count=len(brief.source_runs),
+            warning_count=len(brief.warnings),
+            new_record_count=brief.new_record_count,
+            sla_health=sla_health,
+            source_quality=source_quality,
+            enrichment_backlog=enrichment_backlog,
+            anomaly_count=len(anomalies),
+            anomalies=anomalies[:10],
+            operator_next_actions=operator_next_actions[:10],
+        )
 
     def list_source_runs(
         self,
@@ -435,6 +523,35 @@ class NightlyLeadMachineService:
         return {key: value for key, value in sections.items() if key != "metadata"}
 
     @staticmethod
+    def _safe_request_metadata(metadata: dict[str, Any]) -> dict[str, Any]:
+        safe_keys = {
+            "autopilot",
+            "probate_autopilot",
+            "run_kind",
+            "slot",
+            "schedule_slot",
+            "county_scope",
+            "expected_counties",
+            "counties",
+            "window_start",
+            "window_end",
+            "no_send",
+            "provider_sends_enabled",
+            "source_adapter_contract",
+        }
+        return {key: value for key, value in metadata.items() if key in safe_keys}
+
+    @staticmethod
+    def _dict_from_section(sections: dict[str, Any], key: str) -> dict[str, Any]:
+        value = sections.get(key)
+        return value if isinstance(value, dict) else {}
+
+    @staticmethod
+    def _list_from_section(sections: dict[str, Any], key: str) -> list[dict[str, Any]]:
+        value = sections.get(key)
+        return [item for item in value if isinstance(item, dict)] if isinstance(value, list) else []
+
+    @staticmethod
     def _expected_counties(*, metadata: dict[str, Any], source_runs: list[SourceRun]) -> list[str]:
         for key in ("expected_counties", "county_scope", "counties"):
             value = metadata.get(key)
@@ -469,6 +586,8 @@ class NightlyLeadMachineService:
         expected_counties: list[str],
         missing_counties: list[str],
         invalid_row_count: int,
+        duplicate_case_count: int,
+        duplicate_case_count_by_county: dict[str, int],
     ) -> list[dict[str, Any]]:
         anomalies: list[dict[str, Any]] = []
         for county in missing_counties:
@@ -509,6 +628,16 @@ class NightlyLeadMachineService:
                     "invalid_row_count": invalid_row_count,
                     "raw_count": raw_total,
                     "invalid_row_rate": round(invalid_rate, 4),
+                }
+            )
+        if duplicate_case_count:
+            anomalies.append(
+                {
+                    "severity": "warning",
+                    "type": "duplicate_case_numbers",
+                    "duplicate_case_count": duplicate_case_count,
+                    "duplicate_case_count_by_county": duplicate_case_count_by_county,
+                    "message": "One or more source files repeated the same probate case; dedupe before enrichment and CRM mirror.",
                 }
             )
         for county in expected_counties:
@@ -559,6 +688,7 @@ class NightlyLeadMachineService:
         failed_lane_count: int,
         mismatch_count: int,
         invalid_row_count: int,
+        duplicate_case_count: int,
         keep_now_count: int,
     ) -> list[dict[str, Any]]:
         actions: list[dict[str, Any]] = []
@@ -584,6 +714,14 @@ class NightlyLeadMachineService:
                     "priority": "normal",
                     "action": "inspect_invalid_source_rows",
                     "reason": f"{invalid_row_count} source row(s) could not be normalized",
+                }
+            )
+        if duplicate_case_count:
+            actions.append(
+                {
+                    "priority": "normal",
+                    "action": "dedupe_duplicate_case_rows",
+                    "reason": f"{duplicate_case_count} duplicate probate case row(s) were detected across the source packet",
                 }
             )
         if keep_now_count:
@@ -615,7 +753,7 @@ class NightlyLeadMachineService:
     def _int_from_metadata(metadata: dict[str, Any], key: str) -> int:
         value = metadata.get(key)
         if isinstance(value, bool):
-            return int(value)
+            return 0
         if isinstance(value, int) and value >= 0:
             return value
         return 0

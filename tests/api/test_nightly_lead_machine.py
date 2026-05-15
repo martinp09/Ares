@@ -252,3 +252,48 @@ def test_mission_control_source_run_and_brief_responses_do_not_echo_raw_metadata
     assert "TOP-SECRET-ARTIFACT" not in response_text
     assert latest.json()["morning_brief"]["new_record_count"] == 2
     assert runs.json()["source_runs"][0]["source_lane"] == "harris_county_probate"
+
+
+def test_mission_control_probate_autopilot_health_endpoint_surfaces_operator_state(client):
+    payload = {
+        "business_id": "biz-api",
+        "environment": "prod",
+        "metadata": {
+            "autopilot": "harris_montgomery_probate",
+            "expected_counties": ["harris", "montgomery"],
+            "county_scope": ["harris"],
+            "source_rows": {
+                "harris": [
+                    {"case_number": "543678", "filing_type": "Independent Administration"},
+                    {"case_number": "543678", "filing_type": "Independent Administration"},
+                ]
+            },
+        },
+    }
+    created = client.post("/lead-machine/internal/nightly-source-pull", json=payload, headers=AUTH_HEADERS)
+    assert created.status_code == 200
+
+    health = client.get(
+        "/mission-control/probate-autopilot/health?business_id=biz-api&environment=prod&max_brief_age_hours=24",
+        headers=AUTH_HEADERS,
+    )
+
+    assert health.status_code == 200
+    body = health.json()
+    assert body["status"] == "blocked"
+    assert body["no_send_ok"] is True
+    assert body["outbound_allowed"] is False
+    assert body["source_quality"]["duplicate_case_count"] == 1
+    assert "543678" not in health.text
+    assert {item["type"] for item in body["anomalies"]} == {"missing_expected_county", "duplicate_case_numbers"}
+
+
+def test_mission_control_probate_autopilot_health_endpoint_reports_no_data(client):
+    health = client.get(
+        "/mission-control/probate-autopilot/health?business_id=empty&environment=prod",
+        headers=AUTH_HEADERS,
+    )
+
+    assert health.status_code == 200
+    assert health.json()["status"] == "no_data"
+    assert health.json()["operator_next_actions"][0]["action"] == "run_probate_autopilot_source_pull"

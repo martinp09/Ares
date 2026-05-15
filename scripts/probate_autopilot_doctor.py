@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import json
 import sys
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
@@ -20,6 +21,12 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--business-id", required=True)
     parser.add_argument("--environment", required=True)
     parser.add_argument("--fail-on-blocked", action="store_true", help="Exit 2 when latest SLA health is blocked.")
+    parser.add_argument(
+        "--max-brief-age-hours",
+        type=float,
+        default=None,
+        help="Optional freshness SLA. Marks the report blocked when the latest brief is older than this many hours.",
+    )
     return parser
 
 
@@ -54,6 +61,7 @@ def main() -> int:
             "source_run_count": len(brief.source_runs),
         }
     )
+    apply_freshness_gate(report, generated_at=brief.generated_at, max_age_hours=args.max_brief_age_hours)
     print(json.dumps(report, indent=2, sort_keys=True))
     if args.fail_on_blocked and report["status"] == "blocked":
         return 2
@@ -81,6 +89,37 @@ def build_report(sections: dict[str, Any], *, source_run_count: int, warning_cou
         "anomalies": anomalies[:10],
         "operator_next_actions": operator_next_actions[:10],
     }
+
+
+def apply_freshness_gate(
+    report: dict[str, Any],
+    *,
+    generated_at: datetime,
+    max_age_hours: float | None,
+    now: datetime | None = None,
+) -> dict[str, Any]:
+    generated_at_aware = generated_at if generated_at.tzinfo else generated_at.replace(tzinfo=timezone.utc)
+    now_aware = now or datetime.now(timezone.utc)
+    age_hours = max(0.0, (now_aware - generated_at_aware).total_seconds() / 3600)
+    report["brief_age_hours"] = round(age_hours, 3)
+    report["freshness_sla_hours"] = max_age_hours
+    report["freshness_ok"] = max_age_hours is None or age_hours <= max_age_hours
+    if max_age_hours is not None and age_hours > max_age_hours:
+        report["status"] = "blocked"
+        report["stale_brief"] = True
+        report["stale_reason"] = f"Latest probate autopilot brief is {age_hours:.2f} hours old; SLA is {max_age_hours:.2f} hours."
+        actions = _list(report.get("operator_next_actions"))
+        report["operator_next_actions"] = [
+            {
+                "priority": "urgent",
+                "action": "run_or_repair_probate_autopilot_source_pull",
+                "reason": report["stale_reason"],
+            },
+            *actions,
+        ][:10]
+    else:
+        report["stale_brief"] = False
+    return report
 
 
 def _dict(value: Any) -> dict[str, Any]:

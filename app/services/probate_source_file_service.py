@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import Any, Iterable, Mapping
 
 from app.models.source_runs import NightlySourcePullRequest, SourceCounty, SourceRunKind
+from app.services.probate_source_adapter_service import probate_source_adapter_service
 
 
 class ProbateSourceFileService:
@@ -33,8 +34,53 @@ class ProbateSourceFileService:
         window_start: str | None = None,
         window_end: str | None = None,
     ) -> dict[str, Any]:
-        rows = self.load_rows(source_file)
-        grouped_rows = self._group_rows(rows, default_county=county)
+        return self.build_nightly_payload_from_files(
+            business_id=business_id,
+            environment=environment,
+            source_files=[source_file],
+            county=county,
+            expected_counties=expected_counties,
+            run_kind=run_kind,
+            idempotency_key=idempotency_key,
+            window_start=window_start,
+            window_end=window_end,
+        )
+
+    def build_nightly_payload_from_files(
+        self,
+        *,
+        business_id: str,
+        environment: str,
+        source_files: Iterable[str | Path],
+        county: SourceCounty | None = None,
+        expected_counties: Iterable[SourceCounty] | None = None,
+        run_kind: SourceRunKind = "manual",
+        idempotency_key: str | None = None,
+        window_start: str | None = None,
+        window_end: str | None = None,
+    ) -> dict[str, Any]:
+        grouped_rows: dict[SourceCounty, list[dict[str, Any]]] = {}
+        source_file_summaries: list[dict[str, Any]] = []
+        source_uris: dict[SourceCounty, str] = {}
+        for source_file in source_files:
+            source_path = Path(source_file)
+            rows = self.load_rows(source_path)
+            file_grouped_rows = self._group_rows(rows, default_county=county)
+            for row_county, county_rows in file_grouped_rows.items():
+                normalized_rows = probate_source_adapter_service.normalize_rows(
+                    county_rows,
+                    county=row_county,
+                    source_uri=source_path,
+                )
+                grouped_rows.setdefault(row_county, []).extend(normalized_rows)
+                source_uris.setdefault(row_county, str(source_path))
+            source_file_summaries.append(
+                {
+                    "path": str(source_path),
+                    "row_count": len(rows),
+                    "county_scope": list(file_grouped_rows),
+                }
+            )
         expected_county_scope = list(expected_counties or ("harris", "montgomery"))
         if not grouped_rows:
             raise ValueError("No Harris or Montgomery probate source rows were found")
@@ -49,7 +95,10 @@ class ProbateSourceFileService:
                 "county_scope": list(grouped_rows),
                 "expected_counties": expected_county_scope,
                 "source_rows": grouped_rows,
-                "source_uri": str(Path(source_file)),
+                "source_uri": source_file_summaries[0]["path"] if len(source_file_summaries) == 1 else None,
+                "source_uris": source_uris,
+                "source_files": source_file_summaries,
+                "source_adapter_contract": "probate_export_adapter_v1",
                 "window_start": window_start,
                 "window_end": window_end,
                 "no_send": True,

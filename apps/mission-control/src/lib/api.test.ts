@@ -913,6 +913,7 @@ describe("Mission Control API client", () => {
 
     await api.getLatestMorningBrief({ businessId: "limitless", environment: "dev" });
     await api.getSourceRuns({ businessId: "limitless", environment: "dev", sourceLane: "harris_probate", limit: 5 });
+    await api.getProbateAutopilotHealth({ businessId: "limitless", environment: "dev", maxBriefAgeHours: 8 });
     await api.previewHubSpotCustomization({ dry_run: true });
     await api.previewHubSpotRecordSync([{ id: "rec-1", display_name: "Jane Owner" }]);
     await api.previewInstantlyEnrollment({ records: [{ id: "rec-1", email: "jane@example.com" }] });
@@ -929,6 +930,7 @@ describe("Mission Control API client", () => {
     expect(requests.map(({ url }) => `${url.pathname}?${url.searchParams.toString()}`)).toEqual([
       "/mission-control/morning-brief/latest?business_id=limitless&environment=dev",
       "/mission-control/source-runs?business_id=limitless&environment=dev&source_lane=harris_probate&limit=5",
+      "/mission-control/probate-autopilot/health?business_id=limitless&environment=dev&max_brief_age_hours=8",
       "/mission-control/providers/hubspot/customization/preview?",
       "/mission-control/providers/hubspot/records/preview-sync?",
       "/mission-control/providers/instantly/enrollments/preview?",
@@ -936,9 +938,9 @@ describe("Mission Control API client", () => {
       "/voice/phone-numbers?business_id=limitless&environment=dev",
       "/voice/calls/outbound?",
     ]);
-    const hubSpotCustomizationBody = JSON.parse(String(requests[2].init?.body));
-    const hubSpotRecordSyncBody = JSON.parse(String(requests[3].init?.body));
-    const instantlyEnrollmentBody = JSON.parse(String(requests[4].init?.body));
+    const hubSpotCustomizationBody = JSON.parse(String(requests[3].init?.body));
+    const hubSpotRecordSyncBody = JSON.parse(String(requests[4].init?.body));
+    const instantlyEnrollmentBody = JSON.parse(String(requests[5].init?.body));
 
     expect(hubSpotCustomizationBody).toEqual({ dry_run: true });
     expect(hubSpotRecordSyncBody).toEqual({ records: [{ id: "rec-1", display_name: "Jane Owner" }] });
@@ -950,7 +952,7 @@ describe("Mission Control API client", () => {
     expect(JSON.stringify({ hubSpotCustomizationBody, hubSpotRecordSyncBody, instantlyEnrollmentBody })).not.toMatch(
       /business_id|environment/,
     );
-    expect(JSON.parse(String(requests[7].init?.body))).toMatchObject({ dry_run: true });
+    expect(JSON.parse(String(requests[8].init?.body))).toMatchObject({ dry_run: true });
     expect(requests.map(({ url }) => url.toString()).join("\n")).not.toMatch(/apply|apply-sync|enrollments\/apply|dry_run=false/);
   });
 });

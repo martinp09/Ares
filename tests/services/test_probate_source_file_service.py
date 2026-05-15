@@ -38,7 +38,10 @@ def test_csv_source_file_builds_no_send_payload_grouped_by_county(tmp_path):
     assert payload["metadata"]["no_send"] is True
     assert payload["metadata"]["provider_sends_enabled"] is False
     assert payload["metadata"]["source_rows"]["harris"][0]["case_number"] == "543678"
+    assert payload["metadata"]["source_rows"]["harris"][0]["source_adapter"] == "harris_probate_export_v1"
     assert payload["metadata"]["source_rows"]["montgomery"][0]["case_number"] == "24-CP-001"
+    assert payload["metadata"]["source_rows"]["montgomery"][0]["source_adapter"] == "montgomery_probate_export_v1"
+    assert payload["metadata"]["source_adapter_contract"] == "probate_export_adapter_v1"
 
 
 def test_json_source_file_supports_county_keyed_payloads(tmp_path):
@@ -86,6 +89,42 @@ def test_json_source_file_supports_nested_source_rows_payload(tmp_path):
     assert payload["metadata"]["county_scope"] == ["harris"]
     assert payload["metadata"]["expected_counties"] == ["harris", "montgomery"]
     assert payload["metadata"]["source_rows"]["harris"][0]["case_number"] == "543678"
+
+
+def test_source_file_adapter_normalizes_county_export_column_aliases(tmp_path):
+    harris_file = tmp_path / "harris.csv"
+    harris_file.write_text(
+        "county,Case Number,Case Type,Style of Case,Date Filed,Court\n"
+        "Harris,543678,Independent Administration,Estate of Harris Seller,05/01/2026,Probate Court 4\n",
+        encoding="utf-8",
+    )
+    montgomery_file = tmp_path / "montgomery.csv"
+    montgomery_file.write_text(
+        "county,Cause No.,Case Style,Type Description,Filing Date,Court Number\n"
+        "Montgomery,24-CP-001,Estate of Montgomery Seller,App To Determine Heirship,2026-05-02,County Court 2\n",
+        encoding="utf-8",
+    )
+
+    payload = ProbateSourceFileService().build_nightly_payload_from_files(
+        business_id="biz",
+        environment="prod",
+        source_files=[harris_file, montgomery_file],
+        run_kind="daily_reconciliation",
+    )
+
+    harris = payload["metadata"]["source_rows"]["harris"][0]
+    montgomery = payload["metadata"]["source_rows"]["montgomery"][0]
+    assert harris["case_number"] == "543678"
+    assert harris["filing_type"] == "Independent Administration"
+    assert harris["style"] == "Estate of Harris Seller"
+    assert harris["source_row_id"].startswith("harris:543678:")
+    assert montgomery["case_number"] == "24-CP-001"
+    assert montgomery["filing_type"] == "App To Determine Heirship"
+    assert montgomery["source_row_id"].startswith("montgomery:24-cp-001:")
+    assert payload["metadata"]["source_files"] == [
+        {"path": str(harris_file), "row_count": 1, "county_scope": ["harris"]},
+        {"path": str(montgomery_file), "row_count": 1, "county_scope": ["montgomery"]},
+    ]
 
 
 def test_json_source_file_rejects_non_object_rows(tmp_path):

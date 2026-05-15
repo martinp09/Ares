@@ -28,7 +28,7 @@
 ## Current Direction
 
 - `/opt/ares/worktrees/probate-autopilot-source-foundation` on `feature/probate-autopilot-source-foundation` is the active implementation checkout for the Harris+Montgomery probate autopilot PRD Phase 1 source-run foundation; based on `origin/feature/copywriting-brain-offer-engine`.
-- Probate autopilot source-run foundation is implemented locally/pushed: source-run lanes/fields support Harris+Montgomery probate; no-send autopilot manifests; morning brief county/keep-now/mismatch/source-quality/enrichment-backlog/operator-action/SLA/anomaly sections; Trigger.dev CT schedule wrappers; optional file-backed source-run/idempotency state (`LEAD_MACHINE_SOURCE_RUNS_STATE_PATH`); optional source-row JSONL artifact root (`LEAD_MACHINE_ARTIFACT_ROOT`); safe local source-file payload adapter/CLI (`scripts/probate_source_file_payload.py`); read-only doctor CLI (`scripts/probate_autopilot_doctor.py`). Evidence: `docs/qc/2026-05-15/probate-autopilot-source-foundation/`, `docs/qc/2026-05-15/probate-autopilot-durable-source-rows/`, `docs/qc/2026-05-15/probate-source-file-adapter-operator-health/`, and `docs/qc/2026-05-15/probate-autopilot-doctor/`. No live scraping or provider side effects.
+- Probate autopilot source-run foundation is implemented locally/pushed: source-run lanes/fields support Harris+Montgomery probate; no-send autopilot manifests; morning brief county/keep-now/mismatch/source-quality/enrichment-backlog/operator-action/SLA/anomaly sections; Trigger.dev CT schedule wrappers; optional file-backed source-run/idempotency state (`LEAD_MACHINE_SOURCE_RUNS_STATE_PATH`); optional source-row JSONL artifact root (`LEAD_MACHINE_ARTIFACT_ROOT`); safe local source-file payload adapter/CLI (`scripts/probate_source_file_payload.py`); read-only Harris+Montgomery export adapter contract; repeatable source-packet CLI inputs; duplicate-case aggregate anomalies; read-only doctor CLI (`scripts/probate_autopilot_doctor.py`) with freshness SLA; and Mission Control health API/client (`GET /mission-control/probate-autopilot/health`). Evidence: `docs/qc/2026-05-15/probate-autopilot-source-foundation/`, `docs/qc/2026-05-15/probate-autopilot-durable-source-rows/`, `docs/qc/2026-05-15/probate-source-file-adapter-operator-health/`, `docs/qc/2026-05-15/probate-autopilot-doctor/`, and `docs/qc/2026-05-15/probate-source-adapters-health-surface/`. No live scraping or provider side effects.
 - HubSpot operating spine / agentic company Phases 1-9 are complete with final QC index/readiness artifacts and runbooks under `docs/qc/2026-05-14/` and `docs/runbooks/`.
 - HubSpot portal customization itself was live-applied after operator instruction; HubSpot now has Ares property groups/properties and all 12 Ares stages in the existing single `Sales Pipeline` (`docs/qc/2026-05-14/hubspot-live-buildout/`).
 - First synthetic HubSpot record-sync canary is complete after remote provider-links migration: contact `486079925950`, deal `325110558439`, provider links verified (`docs/qc/2026-05-14/hubspot-record-sync-canary/`).
@@ -194,18 +194,19 @@
 ## Open Work
 
 1. review the pushed probate-autopilot source-foundation branch; merge/rebase path depends on the active copywriting/operating-spine branch state
-2. probate autopilot next phase: implement real Harris source adapter/browser bridge and Montgomery source discovery/adapter behind no-send source-provider gates; until then feed exported rows through `scripts/probate_source_file_payload.py` + `LEAD_MACHINE_ARTIFACT_ROOT`; preserve expected-counties SLA, source-count mismatch warnings, and no-send gates
-3. activate/upgrade the newly keyed Instantly workspace to a paid plan, then rerun real-account sync from `docs/marketing/exports/instantly-campaign-backups-2026-05-02/`; current preflight is blocked by HTTP 402 / workspace has no active paid plan
-4. capture stronger primary Alen Sultanic source material and update `docs/copywriting-wiki/`; current YouTube transcript access is blocked from this environment
-5. add Mission Control read/approval endpoints for Ares offer/copy assets
-6. add dedicated Mission Control frontend campaign-launch review page for the Harris probate HOT/WARM/COLD API contract
-7. enrich Harris probate campaign exports with email/phone via Tracerfy only after Martin explicitly approves skiptrace spend; single-record CRM skiptrace endpoint is wired, batch export enrichment remains unapproved
-8. consider an atomic backend bulk-record endpoint if large batch throughput/transaction semantics become necessary; current Records bulk UI fans out through real single-record command callbacks
-9. defer owner/property graph, research cockpit, and map UI until Records and stage model are stable
-10. preserve production evidence files as the handoff source of truth
-11. optionally replace the REST rollback bundle with native pg_dump once Supabase CLI container DNS is fixed
-12. add production monitoring/alerts for provider callback failures
-13. keep browser acquisition and ambiguous research in Hermes or other driver agents, not inside Ares
+2. probate autopilot next no-send UI phase: render `/mission-control/probate-autopilot/health` on a Mission Control page/panel with SLA status, source anomalies, duplicate counts, freshness, and enrichment backlog
+3. probate autopilot next source-provider phase: implement real Harris source adapter/browser bridge and Montgomery source discovery/adapter behind explicit live-source approval gates; until then feed exported rows through repeated `--source-file` inputs in `scripts/probate_source_file_payload.py` + `LEAD_MACHINE_ARTIFACT_ROOT`; preserve expected-counties SLA, source-count mismatch warnings, duplicate-case aggregate redaction, and no-send gates
+4. activate/upgrade the newly keyed Instantly workspace to a paid plan, then rerun real-account sync from `docs/marketing/exports/instantly-campaign-backups-2026-05-02/`; current preflight is blocked by HTTP 402 / workspace has no active paid plan
+5. capture stronger primary Alen Sultanic source material and update `docs/copywriting-wiki/`; current YouTube transcript access is blocked from this environment
+6. add Mission Control read/approval endpoints for Ares offer/copy assets
+7. add dedicated Mission Control frontend campaign-launch review page for the Harris probate HOT/WARM/COLD API contract
+8. enrich Harris probate campaign exports with email/phone via Tracerfy only after Martin explicitly approves skiptrace spend; single-record CRM skiptrace endpoint is wired, batch export enrichment remains unapproved
+9. consider an atomic backend bulk-record endpoint if large batch throughput/transaction semantics become necessary; current Records bulk UI fans out through real single-record command callbacks
+10. defer owner/property graph, research cockpit, and map UI until Records and stage model are stable
+11. preserve production evidence files as the handoff source of truth
+12. optionally replace the REST rollback bundle with native pg_dump once Supabase CLI container DNS is fixed
+13. add production monitoring/alerts for provider callback failures
+14. keep browser acquisition and ambiguous research in Hermes or other driver agents, not inside Ares
 
 ## Completed Branch Work
 
@@ -215,6 +216,12 @@
 - `TasksRepository` now treats `lead_machine_backend=supabase` as a Supabase-backed task path so title-packet review tasks persist with lead-machine records.
 
 ## Change Log
+
+### 2026-05-15 Probate Autopilot Source Adapters + Health Surface
+
+- Added no-send Harris+Montgomery probate export adapter contract, repeatable source-packet CLI inputs, duplicate-case aggregate anomaly detection, doctor freshness SLA, and read-only Mission Control health API/client (`GET /mission-control/probate-autopilot/health`).
+- Redaction rule: raw duplicate case details remain in internal source-run metadata/artifacts only; Mission Control brief/health surfaces expose aggregate duplicate counts by county and safe source-request metadata only.
+- QC captured full backend tests (`790 passed`), Mission Control tests (`76 passed`), Mission Control typecheck/build, Trigger typecheck, `git diff --check`, and two delegated review passes. Evidence: `docs/qc/2026-05-15/probate-source-adapters-health-surface/`. No live county scraping or provider side effects.
 
 ### 2026-05-14 HubSpot Contact Visibility Correction
 
