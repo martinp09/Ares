@@ -24,6 +24,10 @@ from app.services.probate_autopilot_manifest_service import (
     build_probate_autopilot_manifests,
     is_probate_autopilot_request,
 )
+from app.services.probate_source_provider_service import (
+    ProbateSourceProviderBridgeService,
+    probate_source_provider_bridge_service,
+)
 
 
 DEFAULT_SOURCE_DEFINITIONS: tuple[dict[str, str], ...] = (
@@ -51,13 +55,19 @@ DEFAULT_SOURCE_DEFINITIONS: tuple[dict[str, str], ...] = (
 
 
 class NightlyLeadMachineService:
-    def __init__(self, repository: SourceRunsRepository | None = None, settings: Settings | None = None) -> None:
+    def __init__(
+        self,
+        repository: SourceRunsRepository | None = None,
+        settings: Settings | None = None,
+        source_provider_bridge: ProbateSourceProviderBridgeService | None = None,
+    ) -> None:
         self.repository = repository or source_runs_repository
         self.settings = settings or get_settings()
+        self.source_provider_bridge = source_provider_bridge or probate_source_provider_bridge_service
 
     def run_nightly_source_pull(self, request: NightlySourcePullRequest) -> NightlySourcePullResponse:
         if request.live_source_calls:
-            raise RuntimeError("live source calls are disabled for probate autopilot Phase 1 no-send source pulls")
+            self.source_provider_bridge.reject_live_source_calls(request)
 
         if request.idempotency_key:
             existing = self.repository.get_nightly_response_by_idempotency_key(
@@ -67,6 +77,9 @@ class NightlyLeadMachineService:
             )
             if existing is not None:
                 return existing.model_copy(update={"duplicate": True, "replayed": True})
+
+        if not request.source_runs:
+            request = self.source_provider_bridge.hydrate_request(request)
 
         if request.source_runs:
             manifests = request.source_runs

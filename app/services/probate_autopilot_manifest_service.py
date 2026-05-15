@@ -138,6 +138,7 @@ def _build_placeholder_manifest(
             "county": county,
             "run_kind": run_kind,
             **_NO_SEND_METADATA,
+            **_source_provider_bridge_metadata(metadata),
             "live_source_adapter_status": "deferred",
             "window_start": window_start.isoformat() if window_start else None,
             "window_end": window_end.isoformat() if window_end else None,
@@ -254,6 +255,7 @@ def _build_row_manifest(
             "county": county,
             "run_kind": run_kind,
             **_NO_SEND_METADATA,
+            **_source_provider_bridge_metadata(metadata),
             "live_source_adapter_status": "file_drop_or_external_adapter",
             "source_uri": _source_uri(metadata, county),
             "invalid_row_count": len(invalid_rows),
@@ -331,6 +333,25 @@ def _artifact_for_records(
 
 def _jsonl(records: list[Mapping[str, Any]]) -> str:
     return "".join(json.dumps(record, sort_keys=True, default=str) + "\n" for record in records)
+
+
+def _source_provider_bridge_metadata(metadata: Mapping[str, Any]) -> dict[str, Any]:
+    bridge = metadata.get("source_provider_bridge")
+    if not isinstance(bridge, Mapping):
+        return {}
+    safe_keys = {
+        "version",
+        "mode",
+        "export_count",
+        "county_scope",
+        "expected_counties",
+        "would_call_live_sources",
+        "live_source_calls_requested",
+        "provider_adapters",
+        "no_send",
+        "provider_sends_enabled",
+    }
+    return {"source_provider_bridge": {key: bridge[key] for key in safe_keys if key in bridge}}
 
 
 def _duplicate_case_numbers(records: list[Mapping[str, Any]]) -> dict[str, int]:
