@@ -27,7 +27,7 @@
 - Master plan status banner: `docs/superpowers/plans/2026-05-14-hubspot-operating-spine-agentic-company-plan.md`
 
 ## Current TODO
-1. Review/push the probate-autopilot source-foundation branch, then decide whether to merge it into the active copywriting/operating-spine branch or rebase it later after that branch merges.
+1. Review the pushed probate-autopilot source-foundation branch, then decide whether to merge it into the active copywriting/operating-spine branch or rebase it later after that branch merges.
 2. For Instantly later: let inboxes keep warming, draft/review copy first, then only test with an approved recipient/lead through gated enrollment/send.
 3. Keep remaining live provider actions behind separate operator approvals and gates: HubSpot record batches, Instantly enroll/send, Vapi dispatch, source-provider pulls, Slack/provider sends.
 4. Reacher SMTP egress is blocked on outbound port 25 from this Hetzner VPS; use DNS/MX-only, request Hetzner unblock, or run SMTP verifier sidecar elsewhere before relying on SMTP mailbox probes.
