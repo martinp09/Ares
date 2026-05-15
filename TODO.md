@@ -1,7 +1,7 @@
 ---
 title: "Ares TODO / Handoff"
 status: active
-updated_at: "2026-05-15T06:33:07Z"
+updated_at: "2026-05-15T06:41:14Z"
 repo: "martinp09/Ares"
 local_checkout: "/opt/ares/worktrees/probate-autopilot-source-foundation"
 current_branch: "feature/probate-autopilot-source-foundation"
@@ -20,7 +20,7 @@ HubSpot record-sync canary result: remote provider-links migration `202605140900
 
 HubSpot real-lead sync result: one hand-selected `limitless/prod` Harris probate lead (`lead_341`, case `543678`) was synced HubSpot-only after preview; HubSpot contact `485815102172` and deal `325123310274` were created with provider links `plink_3`/`plink_4`. Follow-up corrections added probate/heir/contact/mailing/property/tax-overlay fields, then mapped the applicant/mailing address into standard HubSpot contact `address/city/state/zip/country` fields for normal contact visibility. Current sync hash: `hubspot-real-lead-lead_341-visible-v4`. Email/phone/mobile and property/HCAD remain true data gaps. No real batch sync, Instantly enrollment/send, Reacher call, Vapi call, source-provider pull, Slack send, or deploy side effect.
 
-Probate autopilot source-run foundation is implemented on this branch. It adds Harris+Montgomery no-send source-run manifests, PRD source-run fields, Trigger.dev CT schedule wrappers, optional file-backed source-run/idempotency state, metadata `source_rows` ingestion, artifact writing, safe source-file adapter/CLI, SLA/anomaly brief sections, and operator next-action brief sections. QC: `docs/qc/2026-05-15/probate-autopilot-source-foundation/`, `docs/qc/2026-05-15/probate-autopilot-durable-source-rows/`, and `docs/qc/2026-05-15/probate-source-file-adapter-operator-health/`. No live scraping, HubSpot writes, skiptrace spend, Instantly enrollment/send, SMS, Vapi, Slack, or direct-mail side effects.
+Probate autopilot source-run foundation is implemented on this branch. It adds Harris+Montgomery no-send source-run manifests, PRD source-run fields, Trigger.dev CT schedule wrappers, optional file-backed source-run/idempotency state, metadata `source_rows` ingestion, artifact writing, safe source-file adapter/CLI, read-only doctor CLI, SLA/anomaly brief sections, and operator next-action brief sections. QC: `docs/qc/2026-05-15/probate-autopilot-source-foundation/`, `docs/qc/2026-05-15/probate-autopilot-durable-source-rows/`, `docs/qc/2026-05-15/probate-source-file-adapter-operator-health/`, and `docs/qc/2026-05-15/probate-autopilot-doctor/`. No live scraping, HubSpot writes, skiptrace spend, Instantly enrollment/send, SMS, Vapi, Slack, or direct-mail side effects.
 
 Primary handoff artifacts:
 
@@ -36,6 +36,7 @@ Primary handoff artifacts:
 - Probate autopilot source foundation: `docs/qc/2026-05-15/probate-autopilot-source-foundation/`
 - Probate autopilot durable source rows: `docs/qc/2026-05-15/probate-autopilot-durable-source-rows/`
 - Probate source-file adapter + operator health: `docs/qc/2026-05-15/probate-source-file-adapter-operator-health/`
+- Probate autopilot doctor: `docs/qc/2026-05-15/probate-autopilot-doctor/`
 - Reacher/SMTP egress check: `docs/qc/2026-05-14/reacher-smtp-egress/`
 - Master plan status: `docs/superpowers/plans/2026-05-14-hubspot-operating-spine-agentic-company-plan.md`
 
