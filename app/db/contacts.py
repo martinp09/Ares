@@ -35,9 +35,9 @@ _LANDING_CONTEXT_FIELDS = (
 
 class ContactsRepository:
     def __init__(self, client: ControlPlaneClient | None = None, settings: Settings | None = None):
-        self.client = client or get_control_plane_client()
-        self._force_memory = False
         self.settings = settings or get_settings()
+        self.client = client or get_control_plane_client(self.settings)
+        self._force_memory = client is not None and getattr(client, "backend", "memory") != "supabase"
 
     def upsert_lead(self, request: LeadUpsertRequest) -> MarketingLeadRecord:
         if marketing_backend_enabled(self.settings) and not self._force_memory:

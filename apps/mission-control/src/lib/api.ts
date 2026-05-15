@@ -9,7 +9,8 @@ export type MissionControlView =
   | "tasks"
   | "records"
   | "pipeline"
-  | "suppression";
+  | "suppression"
+  | "probate-autopilot";
 export type MissionControlDataSource = "api" | "fixture";
 export type SystemStatus = "healthy" | "watch" | "degraded";
 export type ApprovalRisk = "low" | "medium" | "high";
@@ -589,6 +590,201 @@ export interface CatalogInstallResult {
   agent: CatalogInstalledAgent;
 }
 
+export interface ProviderOperationsData {
+  hubspot: {
+    liveGateStatus: string;
+    wouldCallProvider: boolean;
+    customizationPayloadCount: number;
+    recordPayloadCount: number;
+    warningCount: number;
+  };
+  instantly: {
+    wouldCallProvider: boolean;
+    counts: {
+      eligible: number;
+      submitted: number;
+      enrolled: number;
+      skipped: number;
+      excluded: number;
+      errors: number;
+    };
+  };
+  vapi: {
+    assistantCount: number;
+    phoneNumberCount: number;
+    defaultAssistantConfigured: boolean;
+    defaultPhoneNumberConfigured: boolean;
+    liveGateStatus: string;
+    outboundDryRunStatus: string;
+  };
+  nightly: {
+    latestBriefStatus: string;
+    latestBriefRecordCount: number;
+    latestBriefWarningCount: number;
+    liveSourceCallsEnabled: boolean;
+    sourceRuns: Array<{
+      sourceLane: string;
+      status: string;
+      recordCount: number;
+      warningCount: number;
+    }>;
+  };
+}
+
+export interface ProbateAutopilotHealthAction {
+  priority: string;
+  action: string;
+  reason: string;
+}
+
+export interface ProbateAutopilotHealthAnomaly {
+  severity: string;
+  type: string;
+  message: string;
+  county?: string;
+  duplicateCaseCount?: number;
+  duplicateCaseCountByCounty?: Record<string, number>;
+}
+
+export interface ProbateAutopilotSourceQuality {
+  sourceCountMismatchCount: number;
+  invalidRowCount: number;
+  duplicateCaseCount: number;
+  duplicateCaseCountByCounty: Record<string, number>;
+  artifactWarningCount: number;
+}
+
+export interface ProbateAutopilotEnrichmentBacklog {
+  propertyMatchPendingCount: number;
+  taxOverlayPendingCount: number;
+  hubSpotMirrorBlockedUntilApprovalCount: number;
+  outboundBlockedUntilExplicitApprovalCount: number;
+}
+
+export interface ProbateAutopilotSlaHealth {
+  status: string;
+  expectedCounties: string[];
+  missingCounties: string[];
+  completedCountyCount: number;
+  failedLaneCount: number;
+  sourceCountMismatchCount: number;
+  anomalyCount: number;
+  outboundAllowed: boolean;
+  operatorMessage: string;
+}
+
+export interface ProbateAutopilotHealthData {
+  businessId: string;
+  environment: string;
+  status: string;
+  latestBriefId: string | null;
+  generatedAt: string | null;
+  briefAgeHours: number | null;
+  freshnessSlaHours: number | null;
+  freshnessOk: boolean;
+  staleBrief: boolean;
+  noSendOk: boolean;
+  outboundAllowed: boolean;
+  sourceRunCount: number;
+  warningCount: number;
+  newRecordCount: number;
+  slaHealth: ProbateAutopilotSlaHealth;
+  sourceQuality: ProbateAutopilotSourceQuality;
+  enrichmentBacklog: ProbateAutopilotEnrichmentBacklog;
+  anomalyCount: number;
+  anomalies: ProbateAutopilotHealthAnomaly[];
+  operatorNextActions: ProbateAutopilotHealthAction[];
+}
+
+export interface ProviderScopeRequest {
+  businessId?: string;
+  environment?: string;
+}
+
+export interface SourceRunsRequest extends ProviderScopeRequest {
+  sourceLane?: string;
+  limit?: number;
+}
+
+export interface ProbateAutopilotHealthRequest extends ProviderScopeRequest {
+  maxBriefAgeHours?: number;
+}
+
+export type HubSpotCustomizationPreviewResponse = JsonRecord;
+export type HubSpotRecordSyncPreviewResponse = JsonRecord;
+export type InstantlyEnrollmentPreviewResponse = JsonRecord;
+export type VapiAssistantsPreviewResponse = JsonRecord;
+export type VapiPhoneNumbersPreviewResponse = JsonRecord;
+export type VapiOutboundCallPreviewResponse = JsonRecord;
+export type LatestMorningBriefResponse = JsonRecord;
+export type SourceRunsResponse = JsonRecord;
+export type ProbateAutopilotHealthResponse = ProbateAutopilotHealthData;
+
+export interface HubSpotCustomizationPreviewRequest {
+  dry_run?: boolean;
+}
+
+export interface HubSpotRecordSyncPreviewRecord {
+  id: string;
+  record_type?: string;
+  display_name: string;
+  owner_name?: string | null;
+  property_address?: string | null;
+  mailing_address?: string | null;
+  source?: string | null;
+  source_lane?: string | null;
+  record_status?: string | null;
+  status?: string | null;
+  phone?: string | null;
+  email?: string | null;
+  opportunity_id?: string | null;
+  campaign_id?: string | null;
+  county?: string | null;
+  hcad_account?: string | null;
+  lead_temperature?: string | null;
+  lead_score?: number | null;
+  data_quality_score?: number | null;
+  skiptrace_status?: string | null;
+  outreach_status?: string | null;
+  next_best_action?: string | null;
+  last_agent_summary?: string | null;
+  sync_hash?: string | null;
+  entity_name?: string | null;
+  entity_id?: string | null;
+  entity_role?: string | null;
+  deal_name?: string | null;
+  hubspot_pipeline_id?: string | null;
+  hubspot_deal_stage_id?: string | null;
+  tax_delinquency_status?: string | null;
+  title_complexity?: string | null;
+  occupancy_hint?: string | null;
+  equity_hint?: string | null;
+}
+
+export interface InstantlyEnrollmentPreviewRecord {
+  id: string;
+  email?: string | null;
+  phone?: string | null;
+  first_name?: string | null;
+  last_name?: string | null;
+  display_name?: string | null;
+  status?: string | null;
+  facts?: JsonRecord;
+  raw_payload?: JsonRecord;
+  verification_status?: string | null;
+  sync_hash?: string | null;
+  custom_variables?: JsonRecord;
+  campaign_id?: string | null;
+}
+
+export interface InstantlyEnrollmentPreviewRequest {
+  records?: InstantlyEnrollmentPreviewRecord[];
+  instantly_campaign_id?: string | null;
+  instantly_list_id?: string | null;
+  campaign_id?: string | null;
+  allow_unverified?: boolean;
+}
+
 export interface MissionControlSnapshot {
   dashboard: DashboardSummaryData;
   records: RecordsData;
@@ -622,6 +818,15 @@ export interface MissionControlApi {
   installCatalogEntry(request: CatalogInstallRequest): Promise<CatalogInstallResult>;
   getAssets(): Promise<AssetSummary[]>;
   getGovernance(): Promise<GovernanceData>;
+  getLatestMorningBrief(request?: ProviderScopeRequest): Promise<LatestMorningBriefResponse>;
+  getSourceRuns(request?: SourceRunsRequest): Promise<SourceRunsResponse>;
+  getProbateAutopilotHealth(request?: ProbateAutopilotHealthRequest): Promise<ProbateAutopilotHealthResponse>;
+  previewHubSpotCustomization(request?: HubSpotCustomizationPreviewRequest): Promise<HubSpotCustomizationPreviewResponse>;
+  previewHubSpotRecordSync(records: HubSpotRecordSyncPreviewRecord[]): Promise<HubSpotRecordSyncPreviewResponse>;
+  previewInstantlyEnrollment(request: InstantlyEnrollmentPreviewRequest): Promise<InstantlyEnrollmentPreviewResponse>;
+  getVapiAssistantsPreview(request?: ProviderScopeRequest): Promise<VapiAssistantsPreviewResponse>;
+  getVapiPhoneNumbersPreview(request?: ProviderScopeRequest): Promise<VapiPhoneNumbersPreviewResponse>;
+  previewVapiOutboundCall(request: JsonRecord): Promise<VapiOutboundCallPreviewResponse>;
 }
 
 export interface MissionControlApiOptions {
@@ -1298,6 +1503,16 @@ function asBoolean(value: unknown, fallback = false): boolean {
 
 function asArray<T>(value: unknown): T[] {
   return Array.isArray(value) ? (value as T[]) : [];
+}
+
+function asNumberRecord(value: unknown): Record<string, number> {
+  if (!isRecord(value)) {
+    return {};
+  }
+  return Object.fromEntries(
+    Object.entries(value)
+      .filter((entry): entry is [string, number] => typeof entry[1] === "number" && Number.isFinite(entry[1])),
+  );
 }
 
 function titleCase(value: string): string {
@@ -2305,6 +2520,98 @@ function mapCatalogInstallResult(payload: AgentInstallResponsePayload): CatalogI
   };
 }
 
+function mapProbateAutopilotHealth(payload: JsonRecord): ProbateAutopilotHealthData {
+  const slaHealth = isRecord(payload.sla_health) ? payload.sla_health : {};
+  const sourceQuality = isRecord(payload.source_quality) ? payload.source_quality : {};
+  const enrichmentBacklog = isRecord(payload.enrichment_backlog) ? payload.enrichment_backlog : {};
+  const mapAction = (value: unknown): ProbateAutopilotHealthAction => {
+    const item = isRecord(value) ? value : {};
+    return {
+      priority: asString(item.priority, "normal"),
+      action: asString(item.action, "review_probate_autopilot_health"),
+      reason: asString(item.reason, "Review the probate autopilot health panel."),
+    };
+  };
+  const mapAnomaly = (value: unknown): ProbateAutopilotHealthAnomaly => {
+    const item = isRecord(value) ? value : {};
+    return {
+      severity: asString(item.severity, "warning"),
+      type: asString(item.type, "unknown"),
+      message: asString(item.message, "Probate autopilot anomaly needs review."),
+      county: asNullableString(item.county) ?? undefined,
+      duplicateCaseCount: asNumber(item.duplicate_case_count, 0),
+      duplicateCaseCountByCounty: asNumberRecord(item.duplicate_case_count_by_county),
+    };
+  };
+  return {
+    businessId: asString(payload.business_id, "unknown"),
+    environment: asString(payload.environment, "unknown"),
+    status: asString(payload.status, "unknown"),
+    latestBriefId: asNullableString(payload.latest_brief_id),
+    generatedAt: asNullableString(payload.generated_at),
+    briefAgeHours: typeof payload.brief_age_hours === "number" ? payload.brief_age_hours : null,
+    freshnessSlaHours: typeof payload.freshness_sla_hours === "number" ? payload.freshness_sla_hours : null,
+    freshnessOk: asBoolean(payload.freshness_ok, false),
+    staleBrief: asBoolean(payload.stale_brief, false),
+    noSendOk: asBoolean(payload.no_send_ok, false),
+    outboundAllowed: asBoolean(payload.outbound_allowed, false),
+    sourceRunCount: asNumber(payload.source_run_count, 0),
+    warningCount: asNumber(payload.warning_count, 0),
+    newRecordCount: asNumber(payload.new_record_count, 0),
+    slaHealth: {
+      status: asString(slaHealth.status, "unknown"),
+      expectedCounties: asArray<unknown>(slaHealth.expected_counties).map((value) => asString(value)).filter(Boolean),
+      missingCounties: asArray<unknown>(slaHealth.missing_counties).map((value) => asString(value)).filter(Boolean),
+      completedCountyCount: asNumber(slaHealth.completed_county_count, 0),
+      failedLaneCount: asNumber(slaHealth.failed_lane_count, 0),
+      sourceCountMismatchCount: asNumber(slaHealth.source_count_mismatch_count, 0),
+      anomalyCount: asNumber(slaHealth.anomaly_count, 0),
+      outboundAllowed: asBoolean(slaHealth.outbound_allowed, false),
+      operatorMessage: asString(slaHealth.operator_message, "Autopilot health is read-only."),
+    },
+    sourceQuality: {
+      sourceCountMismatchCount: asNumber(sourceQuality.source_count_mismatch_count, 0),
+      invalidRowCount: asNumber(sourceQuality.invalid_row_count, 0),
+      duplicateCaseCount: asNumber(sourceQuality.duplicate_case_count, 0),
+      duplicateCaseCountByCounty: asNumberRecord(sourceQuality.duplicate_case_count_by_county),
+      artifactWarningCount: asNumber(sourceQuality.artifact_warning_count, 0),
+    },
+    enrichmentBacklog: {
+      propertyMatchPendingCount: asNumber(enrichmentBacklog.property_match_pending_count, 0),
+      taxOverlayPendingCount: asNumber(enrichmentBacklog.tax_overlay_pending_count, 0),
+      hubSpotMirrorBlockedUntilApprovalCount: asNumber(enrichmentBacklog.hubspot_mirror_blocked_until_approval_count, 0),
+      outboundBlockedUntilExplicitApprovalCount: asNumber(enrichmentBacklog.outbound_blocked_until_explicit_approval_count, 0),
+    },
+    anomalyCount: asNumber(payload.anomaly_count, 0),
+    anomalies: asArray<unknown>(payload.anomalies).map(mapAnomaly),
+    operatorNextActions: asArray<unknown>(payload.operator_next_actions).map(mapAction),
+  };
+}
+
+function buildProviderScopePath(path: string, request?: ProviderScopeRequest): string {
+  return withQueryParams(path, {
+    business_id: request?.businessId,
+    environment: request?.environment,
+  });
+}
+
+function buildSourceRunsPath(request?: SourceRunsRequest): string {
+  return withQueryParams("/mission-control/source-runs", {
+    business_id: request?.businessId,
+    environment: request?.environment,
+    source_lane: request?.sourceLane,
+    limit: request?.limit !== undefined ? String(request.limit) : undefined,
+  });
+}
+
+function buildProbateAutopilotHealthPath(request?: ProbateAutopilotHealthRequest): string {
+  return withQueryParams("/mission-control/probate-autopilot/health", {
+    business_id: request?.businessId,
+    environment: request?.environment,
+    max_brief_age_hours: request?.maxBriefAgeHours !== undefined ? String(request.maxBriefAgeHours) : undefined,
+  });
+}
+
 type RequestScope = "none" | "mission-control" | "governance";
 
 function buildRequestPath(
@@ -2547,6 +2854,64 @@ export function createMissionControlApi(
           resolvedOptions,
           "governance",
         ),
+      ),
+    getLatestMorningBrief: async (request) =>
+      requestJson<LatestMorningBriefResponse>(
+        buildProviderScopePath("/mission-control/morning-brief/latest", request),
+        resolvedOptions,
+      ),
+    getSourceRuns: async (request) => requestJson<SourceRunsResponse>(buildSourceRunsPath(request), resolvedOptions),
+    getProbateAutopilotHealth: async (request) =>
+      mapProbateAutopilotHealth(
+        await requestJson<JsonRecord>(buildProbateAutopilotHealthPath(request), resolvedOptions),
+      ),
+    previewHubSpotCustomization: async (request = {}) =>
+      requestJson<HubSpotCustomizationPreviewResponse>(
+        "/mission-control/providers/hubspot/customization/preview",
+        resolvedOptions,
+        "none",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(request),
+        },
+      ),
+    previewHubSpotRecordSync: async (records) =>
+      requestJson<HubSpotRecordSyncPreviewResponse>(
+        "/mission-control/providers/hubspot/records/preview-sync",
+        resolvedOptions,
+        "none",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ records }),
+        },
+      ),
+    previewInstantlyEnrollment: async (request) =>
+      requestJson<InstantlyEnrollmentPreviewResponse>(
+        "/mission-control/providers/instantly/enrollments/preview",
+        resolvedOptions,
+        "none",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(request),
+        },
+      ),
+    getVapiAssistantsPreview: async (request) =>
+      requestJson<VapiAssistantsPreviewResponse>(buildProviderScopePath("/voice/assistants", request), resolvedOptions),
+    getVapiPhoneNumbersPreview: async (request) =>
+      requestJson<VapiPhoneNumbersPreviewResponse>(buildProviderScopePath("/voice/phone-numbers", request), resolvedOptions),
+    previewVapiOutboundCall: async (request) =>
+      requestJson<VapiOutboundCallPreviewResponse>(
+        "/voice/calls/outbound",
+        resolvedOptions,
+        "none",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ ...request, dry_run: true }),
+        },
       ),
   };
 }

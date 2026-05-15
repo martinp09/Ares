@@ -1,0 +1,60 @@
+$ python3 -m json.tool docs/marketing/exports/instantly-campaign-backups-2026-05-02/cold-email-campaigns.json >/tmp/instantly-campaigns.validated.json
+
+$ python3 - <<'PY'
+import csv, json, pathlib
+p=pathlib.Path('docs/marketing/exports/instantly-campaign-backups-2026-05-02/cold-email-campaigns.json')
+data=json.loads(p.read_text())
+print('json_valid', True)
+print('campaign_count', len(data['campaigns']))
+for c in data['campaigns']:
+    steps=c.get('active_sequence_email_only') or c.get('active_sequence') or []
+    print(c['name'], 'steps', len(steps), 'status', c.get('status'))
+
+csv_path=pathlib.Path('docs/marketing/exports/instantly-campaign-backups-2026-05-02/sequence-import-backup.csv')
+with csv_path.open(newline='') as f:
+    rows=list(csv.DictReader(f))
+print('csv_rows', len(rows))
+print('csv_campaigns', sorted({r['campaign_name'] for r in rows}))
+PY
+json_valid True
+campaign_count 2
+Email | Probate | Inherited Property Relief Plan | Texas | 2026-05 steps 4 status draft
+Email | Tax + Title Friction | Property Situation Review | Texas | 2026-05 steps 4 status draft
+csv_rows 8
+csv_campaigns ['Email | Probate | Inherited Property Relief Plan | Texas | 2026-05', 'Email | Tax + Title Friction | Property Situation Review | Texas | 2026-05']
+
+$ python3 Instantly safe preflight
+preflight_ok True existing_count 0
+existing_names []
+
+$ python3 Instantly create draft campaigns
+created campaign: Email | Probate | Inherited Property Relief Plan | Texas | 2026-05 id=9b306264-b8d6-4ca3-8628-8d0e10f84d9c status=0
+created campaign: Email | Tax + Title Friction | Property Situation Review | Texas | 2026-05 id=70c5b447-2a72-431c-a63d-1fe8fb67c1fe status=0
+
+$ python3 Instantly readback verification
+{
+  "campaigns": [
+    {
+      "id": "9b306264-b8d6-4ca3-8628-8d0e10f84d9c",
+      "name": "Email | Probate | Inherited Property Relief Plan | Texas | 2026-05",
+      "status": 0,
+      "steps": 4,
+      "open_tracking": false,
+      "link_tracking": null,
+      "stop_on_reply": true,
+      "timestamp_created": "2026-05-02T03:31:13.046Z"
+    },
+    {
+      "id": "70c5b447-2a72-431c-a63d-1fe8fb67c1fe",
+      "name": "Email | Tax + Title Friction | Property Situation Review | Texas | 2026-05",
+      "status": 0,
+      "steps": 4,
+      "open_tracking": false,
+      "link_tracking": null,
+      "stop_on_reply": true,
+      "timestamp_created": "2026-05-02T03:31:13.200Z"
+    }
+  ]
+}
+
+Safety: no leads uploaded, no activation, no sends triggered.

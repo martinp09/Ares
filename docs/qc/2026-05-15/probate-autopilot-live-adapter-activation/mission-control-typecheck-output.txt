@@ -1,0 +1,7 @@
+$ npm --prefix apps/mission-control run typecheck
+
+> @hermes/mission-control@0.1.0 typecheck
+> tsc --noEmit
+
+
+[exit_code=0]

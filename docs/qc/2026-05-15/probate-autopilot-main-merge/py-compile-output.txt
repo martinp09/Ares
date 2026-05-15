@@ -1,0 +1,3 @@
+$ python -m py_compile app/api/lead_machine.py app/core/config.py app/main.py app/services/probate_write_path_service.py tests/api/test_trigger_contract_files.py tests/conftest.py tests/providers/test_hubspot.py tests/providers/test_vapi.py
+
+[exit_code=0]

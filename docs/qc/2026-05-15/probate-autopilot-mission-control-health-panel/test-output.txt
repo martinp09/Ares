@@ -1,0 +1,87 @@
+# Verification output
+timestamp_utc: 2026-05-15T11:13:40Z
+
+## python -m pytest -q
+........................................................................ [  9%]
+........................................................................ [ 18%]
+........................................................................ [ 27%]
+........................................................................ [ 36%]
+........................................................................ [ 45%]
+........................................................................ [ 54%]
+........................................................................ [ 63%]
+........................................................................ [ 72%]
+........................................................................ [ 82%]
+........................................................................ [ 91%]
+......................................................................   [100%]
+790 passed in 15.60s
+
+## npm --prefix apps/mission-control run typecheck
+
+> @hermes/mission-control@0.1.0 typecheck
+> tsc --noEmit
+
+
+## npm --prefix apps/mission-control test -- --run
+
+> @hermes/mission-control@0.1.0 test
+> vitest --run
+
+
+ RUN  v2.1.9 /opt/ares/worktrees/probate-autopilot-source-foundation/apps/mission-control
+
+ ✓ src/lib/api.test.ts (12 tests) 45ms
+ ✓ src/pages/RecordsPage.test.tsx (5 tests) 554ms
+ ✓ src/pages/AgentDetailPage.test.tsx (4 tests) 378ms
+ ✓ src/pages/AgentsPage.test.tsx (2 tests) 203ms
+ ✓ src/pages/CatalogPage.test.tsx (3 tests) 186ms
+ ✓ src/pages/PipelinePage.test.tsx (3 tests) 277ms
+ ✓ src/components/SecretHealthPanel.test.tsx (3 tests) 58ms
+ ✓ src/components/MissionControlShell.test.tsx (2 tests) 175ms
+ ✓ src/App.test.tsx (23 tests) 3394ms
+   ✓ App > refetches inbox detail when the operator selects a different conversation 302ms
+   ✓ App > opens the read-only agent lifecycle page from the agents-first workspace 331ms
+ ✓ src/pages/DashboardPage.test.tsx (3 tests) 159ms
+ ✓ src/pages/SuppressionPage.test.tsx (1 test) 102ms
+ ✓ src/pages/TasksPage.test.tsx (2 tests) 46ms
+ ✓ src/components/UsagePanel.test.tsx (2 tests) 105ms
+ ✓ src/components/OrgSwitcher.test.tsx (1 test) 122ms
+ ✓ src/pages/ProbateAutopilotPage.test.tsx (2 tests) 83ms
+ ✓ src/components/AuditTimeline.test.tsx (2 tests) 83ms
+ ✓ src/components/ProviderOperationsPanel.test.tsx (2 tests) 84ms
+ ✓ src/pages/UsagePage.test.tsx (1 test) 88ms
+ ✓ src/pages/IntakePage.test.tsx (1 test) 131ms
+ ✓ src/pages/InboxPage.test.tsx (1 test) 34ms
+ ✓ src/pages/SettingsPage.test.tsx (1 test) 52ms
+ ✓ src/pages/TurnsPage.test.tsx (1 test) 94ms
+ ✓ src/pages/SecretsPage.test.tsx (1 test) 77ms
+ ✓ src/pages/AuditPage.test.tsx (1 test) 74ms
+
+ Test Files  24 passed (24)
+      Tests  79 passed (79)
+   Start at  11:14:13
+   Duration  8.89s (transform 927ms, setup 1.34s, collect 3.15s, tests 6.61s, environment 9.84s, prepare 1.53s)
+
+
+## npm --prefix apps/mission-control run build
+
+> @hermes/mission-control@0.1.0 build
+> vite build
+
+vite v5.4.21 building for production...
+transforming...
+✓ 68 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/index.html                   0.41 kB │ gzip:  0.27 kB
+dist/assets/index-D5ZdtnD7.css   24.83 kB │ gzip:  5.55 kB
+dist/assets/index-oApqPoFs.js   312.90 kB │ gzip: 83.75 kB
+✓ built in 1.05s
+
+## npm --prefix trigger run typecheck
+
+> typecheck
+> tsc --noEmit -p tsconfig.json
+
+
+## git diff --check
+git diff --check: clean

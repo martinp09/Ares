@@ -1,144 +1,77 @@
 ---
 title: "Ares TODO / Handoff"
 status: active
-updated_at: "2026-05-10T21:15:00Z"
+updated_at: "2026-05-15T20:20:00Z"
 repo: "martinp09/Ares"
-local_checkout: "/opt/ares/worktrees/sms-email-vapi-agent-scaffold"
-current_branch: "feature/sms-email-vapi-agent-scaffold"
-production_wiring_commit: "47be904"
-activation_readiness_code_commit: "9addc1de72ec2f80a86fb51f608d44eb24c4627e"
+local_checkout: "/opt/ares/worktrees/ares-main"
+current_branch: "main"
 ---
 
 # Ares TODO / Handoff
 
 ## Current status
 
-Ares production wiring remains live for the controlled operator rollout. The Harris daily probate + HCAD `Estate Of` lead-machine foundation is merged to `main`; hosted preview smoke passed without Slack or provider sends. Security-audit hardening is merged to `main` with QC evidence at `docs/qc/2026-05-09/ares-security-audit-patches/`. The lease-options landing-page -> Ares intake/provider/reminder backend is merged to `main` via PR #7 at `cda9c828`; activation readiness handoff is merged via PR #8 at `39eb2391`; env-file activation readiness is merged to `main` at `9addc1d`.
+The Harris + Montgomery probate autopilot source-foundation/live-adapter activation slice is landed on `main` as a disabled-by-default, no-send runtime capability. The slice adds public probate source adapters, source-run/idempotency foundations, Mission Control health surfaces, Trigger.dev schedule wrappers, file/local-export provider seams, live-source gates, live CAD/tax/land-record enrichment seams, activation runbook, and QC evidence.
 
-Live production evidence:
+No live county pulls, HubSpot batch writes, Instantly enrollment/sends, SMS/Vapi calls, paid skiptrace, Slack/provider sends, or deploys were executed by this slice.
 
-- Runtime: `https://production-readiness-afternoon.vercel.app`
-- Supabase project: `awmsrjeawcxndfnggoxw`
-- Trigger project: `proj_puouljyhwiraonjkpiki`
-- Trigger worker: `20260425.6`
-- Production evidence: `docs/rollout-evidence/production-2026-04-25.json`
-- Preview/current-main evidence: `docs/rollout-evidence/preview-2026-04-25.json`
+HubSpot operating-spine work remains dry-run/gated except for the previously approved single-record canaries documented in QC. HubSpot live apply is still credential/scope-gated.
 
-Known caveats:
+## Primary handoff artifacts
 
-- Native `pg_dump` backup is not captured because the Supabase CLI container could not resolve the Supabase DB host from Colima. A REST table-export rollback bundle exists instead.
-- Slack digest delivery for the Harris daily import is intentionally last and blocked until `SLACK_BOT_TOKEN` plus target channels are available.
-- Slack intake notification delivery for lease-option leads is scaffolded but blocked until `SLACK_BOT_TOKEN` plus `SLACK_CHANNEL_INTAKE` or `SLACK_CHANNEL_LEADS` are available and `PROVIDER_LIVE_SENDS_ENABLED=true`.
-- Local approved live TextGrid smoke to Martin `+1***5914` reached Ares Mission Control and TextGrid after funding was added; the first body was blocked by TextGrid Content Filter, then a minimal retry delivered.
-- Resend CLI is installed and working (`resend-cli v2.2.1`); test email `1d4172f1-765a-42cf-9a4a-029a5d2f5e5d` to `delivered@resend.dev` delivered from verified domain `send.limitleshome.com`.
-- Vapi voice-agent scaffold is not live-provisioned yet; live callbacks require Ares bearer auth plus `X-Vapi-Secret` when provider signatures are required, and live outbound calls require both global and Vapi-specific live gates.
-- Production promotion for the Harris daily import should be a dedicated handoff that preserves the production runtime/provider env contract; preview smoke passed at `https://production-readiness-afternoon-9adxg1gvb.vercel.app`.
-- Deployed provider callback configurations should be checked/updated externally if any still use old `runtime_api_key` query-string URLs; runtime auth is now bearer-only plus provider signatures.
+- Probate no-send activation runbook: `docs/runbooks/harris-montgomery-probate-autopilot-no-send-activation.md`
+- Probate live adapter activation QC: `docs/qc/2026-05-15/probate-autopilot-live-adapter-activation/`
+- Probate source foundation QC: `docs/qc/2026-05-15/probate-autopilot-source-foundation/`
+- Probate durable source rows QC: `docs/qc/2026-05-15/probate-autopilot-durable-source-rows/`
+- Probate source-file adapter + operator health QC: `docs/qc/2026-05-15/probate-source-file-adapter-operator-health/`
+- Probate autopilot doctor QC: `docs/qc/2026-05-15/probate-autopilot-doctor/`
+- Probate source adapters + health surface QC: `docs/qc/2026-05-15/probate-source-adapters-health-surface/`
+- Probate Mission Control health panel QC: `docs/qc/2026-05-15/probate-autopilot-mission-control-health-panel/`
+- Probate source-provider bridge gate QC: `docs/qc/2026-05-15/probate-source-provider-bridge-gate/`
+- Probate bigger gates QC: `docs/qc/2026-05-15/probate-autopilot-bigger-gates/`
+- HubSpot operating-spine QC index: `docs/qc/2026-05-14/README.md`
+- Provider sync/recovery runbook: `docs/runbooks/provider-sync-and-recovery.md`
+- Operating cadence runbook: `docs/runbooks/agentic-company-operating-cadence.md`
 
-## Current product slice
+## Immediate next actions
 
-### 0.6. Communication agent scaffold
+1. Before live county pulls, configure durable source-run/artifact paths, set source env gates deliberately, and run one manual no-send source pull per the activation runbook.
+2. Keep `LEAD_MACHINE_SCHEDULED_LIVE_SOURCE_CALLS_ENABLED=false` until the manual live-source pilot is reviewed.
+3. Keep HubSpot batch mirror writes, Instantly enrollment/send, SMS/Vapi dispatch, paid skiptrace, and deploy as separate explicit approval gates.
+4. For Instantly later, let inboxes continue warming, write/review exact copy first, then use only approved recipient/lead lists with verified contact info and existing gated enrollment/send paths.
 
-- [done] Add generic TextGrid SMS agent endpoint at `POST /sms-agent/messages`, separate from lease-options intake.
-- [done] Keep SMS agent live sends dry-run by default behind `PROVIDER_LIVE_SENDS_ENABLED=false`.
-- [done] Require `contact_id` plus `sms_consent_confirmed=true` before any live generic SMS send.
-- [done] Add generic TextGrid webhook alias at `POST /sms-agent/webhooks/textgrid` reusing the existing inbound/status processor.
-- [done] Install Resend CLI and capture delivered CLI smoke evidence for verified `send.limitleshome.com`.
-- [done] Add Vapi provider client and voice routes for assistants, phone numbers, outbound calls, and Server URL webhooks.
-- [done] Keep Vapi provider mutations/calls dry-run unless both `PROVIDER_LIVE_SENDS_ENABLED=true` and `VAPI_PROVIDER_LIVE_SENDS_ENABLED=true` are set.
-- [done] Require Ares runtime bearer auth for Vapi webhook route and `X-Vapi-Secret` when provider signatures are required.
-- [done] Save QC evidence at `docs/qc/2026-05-10/sms-email-vapi-agent-scaffold/` with focused `18 passed`, full backend `672 passed`, Resend smoke evidence, and clean diff check.
-- [ ] Before live Vapi launch, configure Vapi Server URL credentials to send bearer auth and `X-Vapi-Secret`, then run an approved live smoke.
-- [ ] Add Mission Control UI controls for generic SMS/voice actions only after the backend contract is merged.
+## Open product follow-ups
 
-### 0.5. Lease-options landing -> Ares intake bridge
-
-- [done] Expand `POST /marketing/leads` to accept the full seller-form payload instead of a skinny contact record.
-- [done] Preserve seller-fit fields, consent metadata, and attribution in Ares contact records/metadata.
-- [done] Return `side_effects` so the landing page can show/log whether confirmation SMS/email/Trigger work was queued, skipped, or failed.
-- [done] Add TextGrid confirmation SMS with E.164 normalization, confirmation-only copy, and STOP language; no booking link is sent over SMS.
-- [done] Add Resend confirmation email with the booking link copy as the safer channel for Cal.com fallback.
-- [done] Add server-side Slack `chat.postMessage` intake notifier scaffold with safe no-op when live sends are disabled or token/channel are missing.
-- [done] Add Cal.com `starts_at` preservation plus Trigger-backed 24h/1h appointment reminder scheduling and `/marketing/internal/appointment-reminder` dispatch, including reschedule reminder refresh.
-- [done] Gate confirmation SMS/email, Slack intake alerts, appointment reminders, and non-booker Trigger scheduling behind `PROVIDER_LIVE_SENDS_ENABLED`; first deploy remains no-live-send by default.
-- [done] Replace the landing page active submit path with a server-side Ares bearer-auth handoff and remove Supabase+n8n active code.
-- [done] Add `scripts/activation_readiness.py` plus `docs/activation-readiness-handoff.md` for non-secret launch gate checks and smoke sequencing; QC evidence at `docs/qc/2026-05-10/activation-readiness-handoff/`.
-- [done] Add `--env-file`, `--runtime-url`, and `--derive-local-defaults` readiness options so `/opt/ares/Ares/.env` can be checked safely without copying secrets; latest sanitized run reduced the empty-checkout blocker list to 5 remaining external gates.
-- [done] Run local dark Ares intake smoke with available local env and `PROVIDER_LIVE_SENDS_ENABLED=false`: provider status route returned 200, `POST /marketing/leads` returned 201, and SMS/email/Slack/Trigger side effects were skipped.
-- [done] Approved local live TextGrid smoke to Martin `+1***5914` after funding: first body was later `failed - Blocked by Textgrid Content Filter`, then minimal retry `Ares test 2.` delivered; QC evidence at `docs/qc/2026-05-10/textgrid-live-smoke-after-funding/`.
-- [blocked] Approved local Ares route smoke to Martin's email reached Ares, but hosted/local route delivery still depends on the quoted sender env being loaded in that runtime path.
-- [done] Resend CLI smoke delivered to `delivered@resend.dev` from verified `send.limitleshome.com`; this proves the CLI/API key/domain path works, separate from the hosted Ares route smoke.
-- [blocked] Hosted protected Mission Control routes and direct hosted Ares `/marketing/leads` returned `401 Unauthorized` with the local runtime key; the deployed landing form reproduced a complete-field `500`, so Vercel/production env access is required to verify or update deployed `RUNTIME_API_KEY` and landing `BUSINESS_RUNTIME_API_KEY` alignment.
-- [ ] Set landing runtime envs in the deployment target: `BUSINESS_RUNTIME_MARKETING_LEADS_URL`, `BUSINESS_RUNTIME_API_KEY`, `BUSINESS_RUNTIME_BUSINESS_ID`, `BUSINESS_RUNTIME_ENVIRONMENT`.
-- [ ] Set Ares runtime envs for live launch: valid `CAL_WEBHOOK_SECRET`, quoted verified `RESEND_FROM_EMAIL`/reply-to, chosen Slack behavior (`SLACK_BOT_TOKEN`/channel if Slack is used, or keep Slack optional/disabled), and TextGrid content-filter validation for the actual confirmation/reminder copy with status polling/callback evidence.
-
-### 0. Security audit hardening
-
-- [done] Add secret hygiene/build-context guardrails (`.gitignore`, `.dockerignore`, safer `.env.example`).
-- [done] Make runtime auth bearer-only, constant-time, and fail-closed when `RUNTIME_API_KEY` is missing.
-- [done] Protect docs/OpenAPI, add runtime/deploy security headers, and redact validation-error inputs.
-- [done] Fail closed for provider webhook signatures by default and derive Instantly trust server-side.
-- [done] Add global `PROVIDER_LIVE_SENDS_ENABLED=false` default and gate outbound enrollments, sequence dispatch, booking confirmations, and Mission Control test sends.
-- [done] Remove browser runtime-token use from Mission Control and keep local dev proxy auth server-side.
-- [done] Clear Node/Python dependency audits and Bandit findings.
-- [done] Save QC evidence at `docs/qc/2026-05-09/ares-security-audit-patches/`.
-- [done] Merge the security hardening patch set to `main`.
-- [ ] Update production/provider callback configuration in a dedicated env-preserving handoff if any deployed callback still uses old query-string runtime-key URLs.
-
-### 1. Harris daily lead-machine foundation
-
-- [done] Add `POST /lead-machine/harris/daily-import` for daily Harris probate + HCAD `Estate Of` source payloads.
-- [done] Default daily import to `dry_run=true` and require at least one source payload.
-- [done] Process probate rows through deterministic keep-now/HCAD/scoring preview, with existing write path used when `dry_run=false`.
-- [done] Process HCAD `Estate Of` rows into CRM source records/records/memberships when `dry_run=false`.
-- [done] Preserve no-send behavior: `provider_send_count=0`, no Instantly/TextGrid/Resend sends, no Slack posts.
-- [done] Add Slack readiness config fields without requiring credentials for dry-run/import.
-- [done] Add Trigger runtime endpoint/types and `harris-daily-import` task wrapper.
-- [done] Save QC evidence at `docs/qc/2026-05-09/harris-daily-lead-machine-foundation/`.
-- [done] Commit and push `feat/harris-daily-lead-machine-foundation` to origin.
-- [done] Open and merge PR #5 to `main`.
-- [done] Deploy and smoke a hosted Vercel preview using authenticated `vercel curl`.
-- [ ] Wire real Slack digest delivery only after Slack token/channels are available.
-- [ ] Run dedicated production promotion only when intentionally preserving/updating production runtime/provider env wiring.
-
-### 2. Harris probate outreach campaign
-
-- [done] Use `docs/marketing/2026-04-30-harris-probate-hot-warm-cold-campaign.md` as the operator-review campaign plan.
-- [done] Add/export HOT/WARM/COLD segment manifests from the current Harris probate lead data before any live sends.
-- [done] Add a backend operator approval gate for Instantly/TextGrid/direct-mail enrollment.
-- [ ] Add a dedicated Mission Control frontend campaign-launch review page; current API contract is live and approvals can be reviewed from the existing approvals surface.
-- [ ] Add email/phone enrichment before Instantly/TextGrid enrollment; current artifact has direct-mail-ready rows only.
-
-### 3. Dashboard UI polish
-
-- [ ] Build the approved ARES dashboard theme direction from `docs/design/ares-dashboard-theme-2026-04-25.md`.
-- [ ] Keep it a real dense Mission Control dashboard, not a game menu.
-- [ ] Keep gothic/flame treatment concentrated around the `ARES` title and subtle dashboard accents.
-- [ ] Preserve readability, operator density, and existing Mission Control workflows.
-
-### 4. Production hardening follow-up
-
-- [ ] Replace the REST rollback bundle with native `pg_dump` once Colima/Supabase DB DNS is fixed, if strict database restore fidelity is required.
-- [ ] Add production monitoring/alerts for provider callback failures.
-- [ ] Keep production evidence files updated after any provider or deployment changes.
+- Add Mission Control read/approval endpoints and frontend review page for Ares offer/copy assets and Harris probate campaign launch.
+- Run a controlled no-send live-source pilot for Harris/Montgomery after durable state/artifacts are configured; preserve raw-first artifacts, idempotency, expected-counties SLA, source-count mismatch warnings, Mission Control Autopilot health visibility, and aggregate duplicate-case redaction.
+- Reacher/SMTP-capable email verification cannot run recipient-MX mailbox probes from the current Hetzner VPS while outbound port 25 is blocked; request unblock, move verifier sidecar, or use DNS/MX/disposable-only checks until egress is available.
+- Enrich Harris probate exports with email/phone via Tracerfy only after Martin explicitly approves skiptrace spend.
+- Activate/upgrade the keyed Instantly workspace to a paid plan before real-account campaign sync/enrollment.
+- Capture stronger primary Alen Sultanic source material and update `docs/copywriting-wiki/`.
+- Consider an atomic backend bulk-record endpoint if large batch throughput/transaction semantics become necessary.
+- Defer owner/property graph, research cockpit, and map UI until Records and stage model are stable.
+- Optionally replace the REST rollback bundle with native `pg_dump` once Supabase CLI container DNS is fixed.
+- Add production monitoring/alerts for provider callback failures.
+- Before live Vapi launch, configure Vapi Server URL credentials to send bearer auth and `X-Vapi-Secret`, then run an approved live smoke.
+- Wire real Slack digest delivery only after Slack token/channels are available.
 
 ## Hard rules
 
 - Do not make Mission Control frontend call Supabase directly.
-- Do not run live SMS/email without explicit approved recipients.
+- Do not run live SMS/email/calls/provider mutations without explicit approved recipients and gates.
 - Do not use fixture-backed UI success as production proof.
 - Do not promote a commit different from the evidenced commit.
 - Do not rewrite already-applied baseline migrations in place.
+- Never print secrets into QC evidence, logs, reports, or chat.
 
 ## Minimum verification before merge/push
 
 ```bash
-git diff --check
 uv run pytest -q
-npm --prefix trigger run typecheck
+npm --prefix apps/mission-control test -- --run
 npm --prefix apps/mission-control run typecheck
-npm --prefix apps/mission-control run test -- --run
 npm --prefix apps/mission-control run build
+npm --prefix trigger run typecheck
+git diff --check
+git diff --cached --check
 ```
-
-For the Harris daily backend/Trigger slice, completed verification is recorded in `docs/qc/2026-05-09/harris-daily-lead-machine-foundation/`.

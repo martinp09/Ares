@@ -1,11 +1,14 @@
 import { DashboardSummary } from "../components/DashboardSummary";
-import type { DashboardSummaryData } from "../lib/api";
+import { ProviderOperationsPanel } from "../components/ProviderOperationsPanel";
+import type { DashboardSummaryData, ProviderOperationsData } from "../lib/api";
+import { providerOperationsFixture } from "../lib/fixtures";
 
 interface DashboardPageProps {
   data: DashboardSummaryData;
+  providerOperations?: ProviderOperationsData;
 }
 
-export function DashboardPage({ data }: DashboardPageProps) {
+export function DashboardPage({ data, providerOperations = providerOperationsFixture }: DashboardPageProps) {
   return (
     <div className="page-stack">
       <DashboardSummary data={data} />
@@ -54,6 +57,8 @@ export function DashboardPage({ data }: DashboardPageProps) {
           </article>
         </div>
       </section>
+
+      <ProviderOperationsPanel data={providerOperations} />
     </div>
   );
 }

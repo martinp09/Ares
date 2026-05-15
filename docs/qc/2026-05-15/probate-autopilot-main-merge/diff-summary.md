@@ -1,0 +1,615 @@
+# Diff Summary — Probate Autopilot Main Merge
+
+## Changed files
+
+```text
+M	.dockerignore
+M	.env.example
+A	.hermes/plans/2026-05-01_212514-ares-copywriting-brain-hormozi-sultanic-plan.md
+M	CONTEXT.md
+M	README.md
+M	TODO.md
+M	app/api/lead_machine.py
+M	app/api/mission_control.py
+A	app/api/voice.py
+D	app/api/voice_agents.py
+M	app/core/config.py
+M	app/db/automation_runs.py
+M	app/db/campaign_memberships.py
+M	app/db/campaigns.py
+M	app/db/client.py
+M	app/db/contacts.py
+M	app/db/crm_records.py
+M	app/db/lead_events.py
+M	app/db/leads.py
+M	app/db/opportunities.py
+A	app/db/provider_links.py
+A	app/db/source_runs.py
+M	app/db/suppression.py
+M	app/main.py
+A	app/models/calls.py
+A	app/models/copy_assets.py
+A	app/models/copy_offers.py
+M	app/models/mission_control.py
+A	app/models/provider_links.py
+A	app/models/source_runs.py
+A	app/providers/hubspot.py
+M	app/providers/instantly.py
+A	app/providers/tracerfy.py
+A	app/providers/vapi.py
+M	app/services/_control_plane_runtime.py
+M	app/services/agent_registry_service.py
+M	app/services/ares_copy_service.py
+M	app/services/command_service.py
+A	app/services/copy_asset_service.py
+A	app/services/copy_offer_service.py
+M	app/services/hermes_tools_service.py
+A	app/services/hubspot_mirror_service.py
+A	app/services/instantly_enrollment_service.py
+M	app/services/lead_outbound_service.py
+M	app/services/mission_control_service.py
+A	app/services/nightly_lead_machine_service.py
+A	app/services/probate_autopilot_manifest_service.py
+A	app/services/probate_live_source_adapter_service.py
+A	app/services/probate_property_tax_title_enrichment_service.py
+A	app/services/probate_source_adapter_service.py
+A	app/services/probate_source_file_service.py
+A	app/services/probate_source_provider_service.py
+M	app/services/probate_write_path_service.py
+A	app/services/skiptrace_service.py
+A	app/services/vapi_call_service.py
+M	apps/mission-control/src/App.test.tsx
+M	apps/mission-control/src/App.tsx
+A	apps/mission-control/src/components/ProbateAutopilotHealthPanel.tsx
+A	apps/mission-control/src/components/ProviderOperationsPanel.test.tsx
+A	apps/mission-control/src/components/ProviderOperationsPanel.tsx
+M	apps/mission-control/src/lib/api.test.ts
+M	apps/mission-control/src/lib/api.ts
+M	apps/mission-control/src/lib/fixtures.ts
+M	apps/mission-control/src/pages/DashboardPage.test.tsx
+M	apps/mission-control/src/pages/DashboardPage.tsx
+A	apps/mission-control/src/pages/ProbateAutopilotPage.test.tsx
+A	apps/mission-control/src/pages/ProbateAutopilotPage.tsx
+A	docs/copywriting-wiki/SCHEMA.md
+A	docs/copywriting-wiki/concepts/copy-hinge.md
+A	docs/copywriting-wiki/concepts/grand-slam-offer.md
+A	docs/copywriting-wiki/concepts/high-response-email-formula.md
+A	docs/copywriting-wiki/concepts/inherited-property-offer-architecture.md
+A	docs/copywriting-wiki/concepts/mechanism-based-offer.md
+A	docs/copywriting-wiki/concepts/offer-code-rosetta-stone.md
+A	docs/copywriting-wiki/concepts/pain-first-copy.md
+A	docs/copywriting-wiki/concepts/rei-multichannel-campaign-system.md
+A	docs/copywriting-wiki/concepts/texas-probate-seller-psychology.md
+A	docs/copywriting-wiki/concepts/value-equation.md
+A	docs/copywriting-wiki/entities/alen-sultanic.md
+A	docs/copywriting-wiki/entities/alex-hormozi.md
+A	docs/copywriting-wiki/examples/probate-direct-mail-examples.md
+A	docs/copywriting-wiki/examples/probate-email-examples.md
+A	docs/copywriting-wiki/examples/probate-hot-offer-examples.md
+A	docs/copywriting-wiki/examples/sms-permission-openers.md
+A	docs/copywriting-wiki/index.md
+A	docs/copywriting-wiki/log.md
+A	docs/copywriting-wiki/raw/articles/acquisition-value-equation-2026-05-01.md
+A	docs/copywriting-wiki/raw/articles/nothing-held-back-2026-05-01.md
+A	docs/copywriting-wiki/raw/articles/strategic-profits-alen-sultanic-2026-05-01.md
+A	docs/copywriting-wiki/raw/articles/youtube-transcript-access-note-alen-masterclass-2026-05-01.md
+A	docs/copywriting-wiki/raw/playbooks/rei-multichannel-marketing-playbook-2026-05-02.md
+A	docs/copywriting-wiki/raw/swipe-examples/ares-harris-probate-campaign-2026-04-30.md
+A	docs/copywriting-wiki/raw/transcripts/alen-sultanic-copy-hinge-nhb-2026-05-02.md
+A	docs/copywriting-wiki/raw/transcripts/alen-sultanic-high-response-email-formula-2026-05-02.md
+A	docs/copywriting-wiki/raw/transcripts/alen-sultanic-offer-code-rosetta-stone-2026-05-02.md
+A	docs/curative-title-wiki/bankruptcy-records-deal-source.md
+M	docs/curative-title-wiki/index.md
+M	docs/hermes-ares-integration-runbook.md
+M	docs/hermes-ares-runtime-adapter-contract.md
+M	docs/hermes-ares-trigger-supabase-runbook.md
+A	docs/integrations/tracerfy-skiptrace.md
+A	docs/lead-scoring/buy-box-filters.md
+A	docs/marketing/campaigns/2026-05-02-probate-cold-email-professional-service-campaign.md
+A	docs/marketing/campaigns/2026-05-02-tax-curative-title-cold-email-professional-service-campaign.md
+A	docs/marketing/copy/2026-05-02-core-seller-offer-proposal.md
+A	docs/marketing/copy/2026-05-02-probate-grand-slam-offer-v1.md
+A	docs/marketing/exports/instantly-campaign-backups-2026-05-02/cold-email-campaigns.json
+A	docs/marketing/exports/instantly-campaign-backups-2026-05-02/instantly-create-payloads-2026-05-02.json
+A	docs/marketing/exports/instantly-campaign-backups-2026-05-02/instantly-nurture-subsequence-create-payloads-2026-05-02.json
+A	docs/marketing/exports/instantly-campaign-backups-2026-05-02/instantly-nurture-subsequence-readback-2026-05-02.json
+A	docs/marketing/exports/instantly-campaign-backups-2026-05-02/instantly-nurture-subsequence-upload-results-2026-05-02.json
+A	docs/marketing/exports/instantly-campaign-backups-2026-05-02/instantly-readback-2026-05-02.json
+A	docs/marketing/exports/instantly-campaign-backups-2026-05-02/instantly-upload-results-2026-05-02.json
+A	docs/marketing/exports/instantly-campaign-backups-2026-05-02/sequence-import-backup.csv
+A	docs/qc/2026-05-01/copywriting-brain-offer-engine/REPORT.md
+A	docs/qc/2026-05-01/copywriting-brain-offer-engine/diff-summary.md
+A	docs/qc/2026-05-01/copywriting-brain-offer-engine/test-output.txt
+A	docs/qc/2026-05-02/cold-email-campaign-packets/REPORT.md
+A	docs/qc/2026-05-02/cold-email-campaign-packets/diff-summary.md
+A	docs/qc/2026-05-02/cold-email-campaign-packets/instantly-attempt.md
+A	docs/qc/2026-05-02/cold-email-campaign-packets/test-output.txt
+A	docs/qc/2026-05-02/instantly-campaign-draft-upload/REPORT.md
+A	docs/qc/2026-05-02/instantly-campaign-draft-upload/diff-summary.md
+A	docs/qc/2026-05-02/instantly-campaign-draft-upload/test-output.txt
+A	docs/qc/2026-05-02/instantly-campaign-nurture-upload/REPORT.md
+A	docs/qc/2026-05-02/instantly-campaign-nurture-upload/diff-summary.md
+A	docs/qc/2026-05-02/instantly-campaign-nurture-upload/test-output.txt
+A	docs/qc/2026-05-02/instantly-client-fingerprint-patch/REPORT.md
+A	docs/qc/2026-05-02/instantly-client-fingerprint-patch/diff-summary.md
+A	docs/qc/2026-05-02/instantly-client-fingerprint-patch/test-output.txt
+A	docs/qc/2026-05-03/instantly-real-account-sync/REPORT.md
+A	docs/qc/2026-05-03/instantly-real-account-sync/diff-summary.md
+A	docs/qc/2026-05-03/instantly-real-account-sync/plan-research.md
+A	docs/qc/2026-05-03/instantly-real-account-sync/test-output.txt
+A	docs/qc/2026-05-04/secret-hygiene-scan/REPORT.md
+A	docs/qc/2026-05-04/tracerfy-skiptrace-provider/REPORT.md
+A	docs/qc/2026-05-04/tracerfy-skiptrace-provider/diff-summary.md
+A	docs/qc/2026-05-04/tracerfy-skiptrace-provider/full-test-output.txt
+A	docs/qc/2026-05-04/tracerfy-skiptrace-provider/static-check-output.txt
+A	docs/qc/2026-05-04/tracerfy-skiptrace-provider/test-output.txt
+A	docs/qc/2026-05-14/README.md
+A	docs/qc/2026-05-14/hubspot-cli-mcp-setup/REPORT.md
+A	docs/qc/2026-05-14/hubspot-cli-mcp-setup/diff-summary.md
+A	docs/qc/2026-05-14/hubspot-cli-mcp-setup/test-output.txt
+A	docs/qc/2026-05-14/hubspot-contact-visibility-correction/REPORT.md
+A	docs/qc/2026-05-14/hubspot-contact-visibility-correction/diff-summary.md
+A	docs/qc/2026-05-14/hubspot-contact-visibility-correction/test-output.txt
+A	docs/qc/2026-05-14/hubspot-crm-sync/REPORT.md
+A	docs/qc/2026-05-14/hubspot-crm-sync/diff-summary.md
+A	docs/qc/2026-05-14/hubspot-crm-sync/test-output.txt
+A	docs/qc/2026-05-14/hubspot-customization-apply/REPORT.md
+A	docs/qc/2026-05-14/hubspot-customization-apply/diff-summary.md
+A	docs/qc/2026-05-14/hubspot-customization-apply/test-output.txt
+A	docs/qc/2026-05-14/hubspot-live-buildout/REPORT.md
+A	docs/qc/2026-05-14/hubspot-live-buildout/diff-summary.md
+A	docs/qc/2026-05-14/hubspot-live-buildout/test-output.txt
+A	docs/qc/2026-05-14/hubspot-mirror-preview/REPORT.md
+A	docs/qc/2026-05-14/hubspot-mirror-preview/diff-summary.md
+A	docs/qc/2026-05-14/hubspot-mirror-preview/test-output.txt
+A	docs/qc/2026-05-14/hubspot-personal-key-setup/REPORT.md
+A	docs/qc/2026-05-14/hubspot-personal-key-setup/diff-summary.md
+A	docs/qc/2026-05-14/hubspot-personal-key-setup/test-output.txt
+A	docs/qc/2026-05-14/hubspot-real-lead-sync/REPORT.md
+A	docs/qc/2026-05-14/hubspot-real-lead-sync/diff-summary.md
+A	docs/qc/2026-05-14/hubspot-real-lead-sync/test-output.txt
+A	docs/qc/2026-05-14/hubspot-record-sync-canary/REPORT.md
+A	docs/qc/2026-05-14/hubspot-record-sync-canary/diff-summary.md
+A	docs/qc/2026-05-14/hubspot-record-sync-canary/test-output.txt
+A	docs/qc/2026-05-14/hubspot-rich-probate-fields/REPORT.md
+A	docs/qc/2026-05-14/hubspot-rich-probate-fields/diff-summary.md
+A	docs/qc/2026-05-14/hubspot-rich-probate-fields/test-output.txt
+A	docs/qc/2026-05-14/hubspot-service-key-smoke/REPORT.md
+A	docs/qc/2026-05-14/hubspot-service-key-smoke/diff-summary.md
+A	docs/qc/2026-05-14/hubspot-service-key-smoke/probe-output.txt
+A	docs/qc/2026-05-14/hubspot-service-key-smoke/test-output.txt
+A	docs/qc/2026-05-14/instantly-enrollment/REPORT.md
+A	docs/qc/2026-05-14/instantly-enrollment/diff-summary.md
+A	docs/qc/2026-05-14/instantly-enrollment/test-output.txt
+A	docs/qc/2026-05-14/mission-control-provider-ops/REPORT.md
+A	docs/qc/2026-05-14/mission-control-provider-ops/diff-summary.md
+A	docs/qc/2026-05-14/mission-control-provider-ops/test-output.txt
+A	docs/qc/2026-05-14/nightly-lead-machine/REPORT.md
+A	docs/qc/2026-05-14/nightly-lead-machine/diff-summary.md
+A	docs/qc/2026-05-14/nightly-lead-machine/test-output.txt
+A	docs/qc/2026-05-14/operating-spine-final-readiness/REPORT.md
+A	docs/qc/2026-05-14/operating-spine-final-readiness/diff-summary.md
+A	docs/qc/2026-05-14/operating-spine-final-readiness/test-output.txt
+A	docs/qc/2026-05-14/provider-object-links/REPORT.md
+A	docs/qc/2026-05-14/provider-object-links/diff-summary.md
+A	docs/qc/2026-05-14/provider-object-links/test-output.txt
+A	docs/qc/2026-05-14/reacher-smtp-egress/REPORT.md
+A	docs/qc/2026-05-14/reacher-smtp-egress/diff-summary.md
+A	docs/qc/2026-05-14/reacher-smtp-egress/test-output.txt
+A	docs/qc/2026-05-14/vapi-call-layer/REPORT.md
+A	docs/qc/2026-05-14/vapi-call-layer/diff-summary.md
+A	docs/qc/2026-05-14/vapi-call-layer/test-output.txt
+A	docs/qc/2026-05-15/probate-autopilot-bigger-gates/REPORT.md
+A	docs/qc/2026-05-15/probate-autopilot-bigger-gates/delegated-qc.md
+A	docs/qc/2026-05-15/probate-autopilot-bigger-gates/diff-summary.md
+A	docs/qc/2026-05-15/probate-autopilot-bigger-gates/test-output.txt
+A	docs/qc/2026-05-15/probate-autopilot-doctor/REPORT.md
+A	docs/qc/2026-05-15/probate-autopilot-doctor/diff-summary.md
+A	docs/qc/2026-05-15/probate-autopilot-doctor/test-output.txt
+A	docs/qc/2026-05-15/probate-autopilot-durable-source-rows/REPORT.md
+A	docs/qc/2026-05-15/probate-autopilot-durable-source-rows/diff-summary.md
+A	docs/qc/2026-05-15/probate-autopilot-durable-source-rows/test-output.txt
+A	docs/qc/2026-05-15/probate-autopilot-live-adapter-activation/REPORT.md
+A	docs/qc/2026-05-15/probate-autopilot-live-adapter-activation/changed-files.txt
+A	docs/qc/2026-05-15/probate-autopilot-live-adapter-activation/delegated-qc-summary.md
+A	docs/qc/2026-05-15/probate-autopilot-live-adapter-activation/diff-stat.txt
+A	docs/qc/2026-05-15/probate-autopilot-live-adapter-activation/diff-summary.md
+A	docs/qc/2026-05-15/probate-autopilot-live-adapter-activation/full-backend-test-output.txt
+A	docs/qc/2026-05-15/probate-autopilot-live-adapter-activation/git-diff-check-output.txt
+A	docs/qc/2026-05-15/probate-autopilot-live-adapter-activation/git-status-before-commit.txt
+A	docs/qc/2026-05-15/probate-autopilot-live-adapter-activation/mission-control-build-output.txt
+A	docs/qc/2026-05-15/probate-autopilot-live-adapter-activation/mission-control-test-output.txt
+A	docs/qc/2026-05-15/probate-autopilot-live-adapter-activation/mission-control-typecheck-output.txt
+A	docs/qc/2026-05-15/probate-autopilot-live-adapter-activation/trigger-typecheck-output.txt
+A	docs/qc/2026-05-15/probate-autopilot-main-merge/REPORT.md
+A	docs/qc/2026-05-15/probate-autopilot-main-merge/changed-files.txt
+A	docs/qc/2026-05-15/probate-autopilot-main-merge/diff-stat.txt
+A	docs/qc/2026-05-15/probate-autopilot-main-merge/diff-summary.md
+A	docs/qc/2026-05-15/probate-autopilot-main-merge/full-backend-test-output.txt
+A	docs/qc/2026-05-15/probate-autopilot-main-merge/git-cached-diff-check-output.txt
+A	docs/qc/2026-05-15/probate-autopilot-main-merge/git-diff-check-output.txt
+A	docs/qc/2026-05-15/probate-autopilot-main-merge/git-status-before-merge-commit.txt
+A	docs/qc/2026-05-15/probate-autopilot-main-merge/mission-control-build-output.txt
+A	docs/qc/2026-05-15/probate-autopilot-main-merge/mission-control-test-output.txt
+A	docs/qc/2026-05-15/probate-autopilot-main-merge/mission-control-typecheck-output.txt
+A	docs/qc/2026-05-15/probate-autopilot-main-merge/py-compile-output.txt
+A	docs/qc/2026-05-15/probate-autopilot-main-merge/trigger-typecheck-output.txt
+A	docs/qc/2026-05-15/probate-autopilot-mission-control-health-panel/REPORT.md
+A	docs/qc/2026-05-15/probate-autopilot-mission-control-health-panel/diff-summary.md
+A	docs/qc/2026-05-15/probate-autopilot-mission-control-health-panel/test-output.txt
+A	docs/qc/2026-05-15/probate-autopilot-source-foundation/REPORT.md
+A	docs/qc/2026-05-15/probate-autopilot-source-foundation/diff-summary.md
+A	docs/qc/2026-05-15/probate-autopilot-source-foundation/test-output.txt
+A	docs/qc/2026-05-15/probate-source-adapters-health-surface/REPORT.md
+A	docs/qc/2026-05-15/probate-source-adapters-health-surface/diff-summary.md
+A	docs/qc/2026-05-15/probate-source-adapters-health-surface/test-output.txt
+A	docs/qc/2026-05-15/probate-source-file-adapter-operator-health/REPORT.md
+A	docs/qc/2026-05-15/probate-source-file-adapter-operator-health/diff-summary.md
+A	docs/qc/2026-05-15/probate-source-file-adapter-operator-health/test-output.txt
+A	docs/qc/2026-05-15/probate-source-provider-bridge-gate/REPORT.md
+A	docs/qc/2026-05-15/probate-source-provider-bridge-gate/diff-summary.md
+A	docs/qc/2026-05-15/probate-source-provider-bridge-gate/test-output.txt
+A	docs/runbooks/agentic-company-operating-cadence.md
+A	docs/runbooks/harris-montgomery-probate-autopilot-no-send-activation.md
+A	docs/runbooks/provider-sync-and-recovery.md
+M	docs/superpowers/plans/2026-04-13-hermes-mission-control-orchestration-plan.md
+M	docs/superpowers/plans/2026-04-24-ares-full-stack-cohesion-mega-plan.md
+A	docs/superpowers/plans/2026-05-14-hubspot-operating-spine-agentic-company-plan.md
+M	memory.md
+M	scripts/dev/boot-local.sh
+A	scripts/probate_autopilot_doctor.py
+A	scripts/probate_source_file_payload.py
+A	supabase/migrations/20260514090000_provider_object_links.sql
+M	tests/api/test_hermes_tools.py
+A	tests/api/test_hubspot_mirror.py
+M	tests/api/test_lead_machine.py
+M	tests/api/test_lead_machine_trigger_contract.py
+M	tests/api/test_marketing_webhooks.py
+M	tests/api/test_mission_control.py
+A	tests/api/test_mission_control_instantly_enrollment.py
+A	tests/api/test_nightly_lead_machine.py
+M	tests/api/test_trigger_contract_files.py
+A	tests/api/test_voice.py
+D	tests/api/test_voice_agents.py
+M	tests/conftest.py
+A	tests/db/test_provider_links_repository.py
+A	tests/db/test_provider_links_schema.py
+A	tests/db/test_provider_links_supabase_adapter.py
+M	tests/providers/test_hubspot.py
+M	tests/providers/test_instantly.py
+A	tests/providers/test_tracerfy.py
+M	tests/providers/test_vapi.py
+A	tests/scripts/test_probate_autopilot_doctor.py
+A	tests/scripts/test_probate_source_file_payload.py
+M	tests/services/test_ares_copy_service.py
+M	tests/services/test_booking_service.py
+A	tests/services/test_copy_asset_service.py
+A	tests/services/test_copy_offer_service.py
+A	tests/services/test_hubspot_mirror_service.py
+A	tests/services/test_instantly_enrollment_service.py
+M	tests/services/test_lead_outbound_service.py
+A	tests/services/test_nightly_lead_machine_service.py
+A	tests/services/test_probate_live_source_adapter_service.py
+A	tests/services/test_probate_property_tax_title_enrichment_service.py
+A	tests/services/test_probate_source_file_service.py
+A	tests/services/test_probate_source_provider_service.py
+M	tests/services/test_probate_write_path_service.py
+A	tests/services/test_skiptrace_service.py
+A	tests/services/test_vapi_call_service.py
+A	trigger/src/lead-machine/morningBrief.ts
+A	trigger/src/lead-machine/nightlySourcePull.ts
+A	trigger/src/lead-machine/probateAutopilotSchedules.ts
+A	trigger/src/lead-machine/probatePropertyTaxTitleEnrichment.ts
+M	trigger/src/lead-machine/runtime.ts
+```
+
+## Diff stat
+
+```text
+ .dockerignore                                      |    7 +-
+ .env.example                                       |   30 +-
+ ...ares-copywriting-brain-hormozi-sultanic-plan.md |  582 ++++++++++
+ CONTEXT.md                                         |   23 +-
+ README.md                                          |   27 +-
+ TODO.md                                            |  171 +--
+ app/api/lead_machine.py                            |   88 ++
+ app/api/mission_control.py                         |  215 ++++
+ app/api/voice.py                                   |   47 +
+ app/api/voice_agents.py                            |   82 --
+ app/core/config.py                                 |   66 ++
+ app/db/automation_runs.py                          |    4 +-
+ app/db/campaign_memberships.py                     |    4 +-
+ app/db/campaigns.py                                |    4 +-
+ app/db/client.py                                   |   14 +
+ app/db/contacts.py                                 |    4 +-
+ app/db/crm_records.py                              |   10 +-
+ app/db/lead_events.py                              |    4 +-
+ app/db/leads.py                                    |    4 +-
+ app/db/opportunities.py                            |    4 +-
+ app/db/provider_links.py                           |  538 +++++++++
+ app/db/source_runs.py                              |  260 +++++
+ app/db/suppression.py                              |    4 +-
+ app/main.py                                        |    4 +-
+ app/models/calls.py                                |   64 ++
+ app/models/copy_assets.py                          |   74 ++
+ app/models/copy_offers.py                          |   62 +
+ app/models/mission_control.py                      |  273 ++++-
+ app/models/provider_links.py                       |  124 ++
+ app/models/source_runs.py                          |  254 ++++
+ app/providers/hubspot.py                           |  223 ++++
+ app/providers/instantly.py                         |   18 +
+ app/providers/tracerfy.py                          |  197 ++++
+ app/providers/vapi.py                              |  294 +++++
+ app/services/_control_plane_runtime.py             |    5 +-
+ app/services/agent_registry_service.py             |    8 +-
+ app/services/ares_copy_service.py                  |   46 +-
+ app/services/command_service.py                    |   12 +
+ app/services/copy_asset_service.py                 |  142 +++
+ app/services/copy_offer_service.py                 |  111 ++
+ app/services/hermes_tools_service.py               |   39 +-
+ app/services/hubspot_mirror_service.py             |  760 ++++++++++++
+ app/services/instantly_enrollment_service.py       |  388 +++++++
+ app/services/lead_outbound_service.py              |   13 +
+ app/services/mission_control_service.py            |   55 +
+ app/services/nightly_lead_machine_service.py       |  782 +++++++++++++
+ app/services/probate_autopilot_manifest_service.py |  507 ++++++++
+ .../probate_live_source_adapter_service.py         |  494 ++++++++
+ ...robate_property_tax_title_enrichment_service.py |  360 ++++++
+ app/services/probate_source_adapter_service.py     |  218 ++++
+ app/services/probate_source_file_service.py        |  186 +++
+ app/services/probate_source_provider_service.py    |  366 ++++++
+ app/services/probate_write_path_service.py         |   16 +-
+ app/services/skiptrace_service.py                  |  231 ++++
+ app/services/vapi_call_service.py                  |  310 +++++
+ apps/mission-control/src/App.test.tsx              |   22 +-
+ apps/mission-control/src/App.tsx                   |   50 +-
+ .../src/components/ProbateAutopilotHealthPanel.tsx |  142 +++
+ .../components/ProviderOperationsPanel.test.tsx    |   29 +
+ .../src/components/ProviderOperationsPanel.tsx     |  101 ++
+ apps/mission-control/src/lib/api.test.ts           |  125 ++
+ apps/mission-control/src/lib/api.ts                |  367 +++++-
+ apps/mission-control/src/lib/fixtures.ts           |  111 +-
+ .../src/pages/DashboardPage.test.tsx               |   33 +-
+ apps/mission-control/src/pages/DashboardPage.tsx   |    9 +-
+ .../src/pages/ProbateAutopilotPage.test.tsx        |   54 +
+ .../src/pages/ProbateAutopilotPage.tsx             |   15 +
+ docs/copywriting-wiki/SCHEMA.md                    |   35 +
+ docs/copywriting-wiki/concepts/copy-hinge.md       |   73 ++
+ docs/copywriting-wiki/concepts/grand-slam-offer.md |   33 +
+ .../concepts/high-response-email-formula.md        |   86 ++
+ .../inherited-property-offer-architecture.md       |   37 +
+ .../concepts/mechanism-based-offer.md              |   32 +
+ .../concepts/offer-code-rosetta-stone.md           |   71 ++
+ docs/copywriting-wiki/concepts/pain-first-copy.md  |   32 +
+ .../concepts/rei-multichannel-campaign-system.md   |  158 +++
+ .../concepts/texas-probate-seller-psychology.md    |   43 +
+ docs/copywriting-wiki/concepts/value-equation.md   |   35 +
+ docs/copywriting-wiki/entities/alen-sultanic.md    |   28 +
+ docs/copywriting-wiki/entities/alex-hormozi.md     |   28 +
+ .../examples/probate-direct-mail-examples.md       |   26 +
+ .../examples/probate-email-examples.md             |   36 +
+ .../examples/probate-hot-offer-examples.md         |   30 +
+ .../examples/sms-permission-openers.md             |   35 +
+ docs/copywriting-wiki/index.md                     |   36 +
+ docs/copywriting-wiki/log.md                       |   31 +
+ .../acquisition-value-equation-2026-05-01.md       |   33 +
+ .../raw/articles/nothing-held-back-2026-05-01.md   |   21 +
+ .../strategic-profits-alen-sultanic-2026-05-01.md  |   27 +
+ ...ript-access-note-alen-masterclass-2026-05-01.md |   17 +
+ ...i-multichannel-marketing-playbook-2026-05-02.md | 1216 ++++++++++++++++++++
+ .../ares-harris-probate-campaign-2026-04-30.md     |   21 +
+ .../alen-sultanic-copy-hinge-nhb-2026-05-02.md     |   50 +
+ ...tanic-high-response-email-formula-2026-05-02.md |   52 +
+ ...sultanic-offer-code-rosetta-stone-2026-05-02.md |   67 ++
+ .../bankruptcy-records-deal-source.md              |   84 ++
+ docs/curative-title-wiki/index.md                  |  102 +-
+ docs/hermes-ares-integration-runbook.md            |   12 +-
+ docs/hermes-ares-runtime-adapter-contract.md       |    4 +-
+ docs/hermes-ares-trigger-supabase-runbook.md       |   10 +-
+ docs/integrations/tracerfy-skiptrace.md            |   86 ++
+ docs/lead-scoring/buy-box-filters.md               |   90 ++
+ ...ate-cold-email-professional-service-campaign.md |  447 +++++++
+ ...tle-cold-email-professional-service-campaign.md |  410 +++++++
+ .../copy/2026-05-02-core-seller-offer-proposal.md  |  185 +++
+ .../copy/2026-05-02-probate-grand-slam-offer-v1.md |  448 ++++++++
+ .../cold-email-campaigns.json                      |   95 ++
+ .../instantly-create-payloads-2026-05-02.json      |  238 ++++
+ ...ure-subsequence-create-payloads-2026-05-02.json |  254 ++++
+ ...ly-nurture-subsequence-readback-2026-05-02.json |   44 +
+ ...ture-subsequence-upload-results-2026-05-02.json |  259 +++++
+ .../instantly-readback-2026-05-02.json             |   26 +
+ .../instantly-upload-results-2026-05-02.json       |  219 ++++
+ .../sequence-import-backup.csv                     |    9 +
+ .../copywriting-brain-offer-engine/REPORT.md       |   99 ++
+ .../copywriting-brain-offer-engine/diff-summary.md |   39 +
+ .../copywriting-brain-offer-engine/test-output.txt |    3 +
+ .../cold-email-campaign-packets/REPORT.md          |   58 +
+ .../cold-email-campaign-packets/diff-summary.md    |   28 +
+ .../instantly-attempt.md                           |   38 +
+ .../cold-email-campaign-packets/test-output.txt    |    7 +
+ .../instantly-campaign-draft-upload/REPORT.md      |   41 +
+ .../diff-summary.md                                |   22 +
+ .../test-output.txt                                |   60 +
+ .../instantly-campaign-nurture-upload/REPORT.md    |   47 +
+ .../diff-summary.md                                |   24 +
+ .../test-output.txt                                |   56 +
+ .../instantly-client-fingerprint-patch/REPORT.md   |   21 +
+ .../diff-summary.md                                |   12 +
+ .../test-output.txt                                |   17 +
+ .../instantly-real-account-sync/REPORT.md          |   47 +
+ .../instantly-real-account-sync/diff-summary.md    |    7 +
+ .../instantly-real-account-sync/plan-research.md   |   41 +
+ .../instantly-real-account-sync/test-output.txt    |   29 +
+ docs/qc/2026-05-04/secret-hygiene-scan/REPORT.md   |   80 ++
+ .../tracerfy-skiptrace-provider/REPORT.md          |   45 +
+ .../tracerfy-skiptrace-provider/diff-summary.md    |   79 ++
+ .../full-test-output.txt                           |   11 +
+ .../static-check-output.txt                        |    1 +
+ .../tracerfy-skiptrace-provider/test-output.txt    |    4 +
+ docs/qc/2026-05-14/README.md                       |  123 ++
+ docs/qc/2026-05-14/hubspot-cli-mcp-setup/REPORT.md |   51 +
+ .../hubspot-cli-mcp-setup/diff-summary.md          |   22 +
+ .../hubspot-cli-mcp-setup/test-output.txt          |   56 +
+ .../REPORT.md                                      |  157 +++
+ .../diff-summary.md                                |   30 +
+ .../test-output.txt                                |  139 +++
+ docs/qc/2026-05-14/hubspot-crm-sync/REPORT.md      |   52 +
+ .../qc/2026-05-14/hubspot-crm-sync/diff-summary.md |   52 +
+ .../qc/2026-05-14/hubspot-crm-sync/test-output.txt |   54 +
+ .../hubspot-customization-apply/REPORT.md          |   49 +
+ .../hubspot-customization-apply/diff-summary.md    |   52 +
+ .../hubspot-customization-apply/test-output.txt    |   99 ++
+ docs/qc/2026-05-14/hubspot-live-buildout/REPORT.md |   63 +
+ .../hubspot-live-buildout/diff-summary.md          |   23 +
+ .../hubspot-live-buildout/test-output.txt          |  182 +++
+ .../qc/2026-05-14/hubspot-mirror-preview/REPORT.md |   44 +
+ .../hubspot-mirror-preview/diff-summary.md         |   39 +
+ .../hubspot-mirror-preview/test-output.txt         |   19 +
+ .../hubspot-personal-key-setup/REPORT.md           |   37 +
+ .../hubspot-personal-key-setup/diff-summary.md     |   18 +
+ .../hubspot-personal-key-setup/test-output.txt     |   90 ++
+ .../qc/2026-05-14/hubspot-real-lead-sync/REPORT.md |  129 +++
+ .../hubspot-real-lead-sync/diff-summary.md         |   33 +
+ .../hubspot-real-lead-sync/test-output.txt         |   79 ++
+ .../hubspot-record-sync-canary/REPORT.md           |  108 ++
+ .../hubspot-record-sync-canary/diff-summary.md     |   32 +
+ .../hubspot-record-sync-canary/test-output.txt     |  124 ++
+ .../hubspot-rich-probate-fields/REPORT.md          |  150 +++
+ .../hubspot-rich-probate-fields/diff-summary.md    |   41 +
+ .../hubspot-rich-probate-fields/test-output.txt    |  118 ++
+ .../2026-05-14/hubspot-service-key-smoke/REPORT.md |   53 +
+ .../hubspot-service-key-smoke/diff-summary.md      |   22 +
+ .../hubspot-service-key-smoke/probe-output.txt     |   15 +
+ .../hubspot-service-key-smoke/test-output.txt      |   15 +
+ docs/qc/2026-05-14/instantly-enrollment/REPORT.md  |   52 +
+ .../instantly-enrollment/diff-summary.md           |   44 +
+ .../instantly-enrollment/test-output.txt           |   19 +
+ .../mission-control-provider-ops/REPORT.md         |   41 +
+ .../mission-control-provider-ops/diff-summary.md   |   40 +
+ .../mission-control-provider-ops/test-output.txt   |   56 +
+ docs/qc/2026-05-14/nightly-lead-machine/REPORT.md  |   24 +
+ .../nightly-lead-machine/diff-summary.md           |   20 +
+ .../nightly-lead-machine/test-output.txt           |   90 ++
+ .../operating-spine-final-readiness/REPORT.md      |   41 +
+ .../diff-summary.md                                |   42 +
+ .../test-output.txt                                |  148 +++
+ docs/qc/2026-05-14/provider-object-links/REPORT.md |   43 +
+ .../provider-object-links/diff-summary.md          |   47 +
+ .../provider-object-links/test-output.txt          |   63 +
+ docs/qc/2026-05-14/reacher-smtp-egress/REPORT.md   |   36 +
+ .../2026-05-14/reacher-smtp-egress/diff-summary.md |   24 +
+ .../2026-05-14/reacher-smtp-egress/test-output.txt |   56 +
+ docs/qc/2026-05-14/vapi-call-layer/REPORT.md       |   70 ++
+ docs/qc/2026-05-14/vapi-call-layer/diff-summary.md |   30 +
+ docs/qc/2026-05-14/vapi-call-layer/test-output.txt |   24 +
+ .../probate-autopilot-bigger-gates/REPORT.md       |   82 ++
+ .../probate-autopilot-bigger-gates/delegated-qc.md |   30 +
+ .../probate-autopilot-bigger-gates/diff-summary.md |   41 +
+ .../probate-autopilot-bigger-gates/test-output.txt |  197 ++++
+ .../2026-05-15/probate-autopilot-doctor/REPORT.md  |   56 +
+ .../probate-autopilot-doctor/diff-summary.md       |   24 +
+ .../probate-autopilot-doctor/test-output.txt       |   11 +
+ .../REPORT.md                                      |   53 +
+ .../diff-summary.md                                |   43 +
+ .../test-output.txt                                |   11 +
+ .../REPORT.md                                      |  175 +++
+ .../changed-files.txt                              |   14 +
+ .../delegated-qc-summary.md                        |   19 +
+ .../diff-stat.txt                                  |   15 +
+ .../diff-summary.md                                |   49 +
+ .../full-backend-test-output.txt                   |   17 +
+ .../git-diff-check-output.txt                      |    3 +
+ .../git-status-before-commit.txt                   |   19 +
+ .../mission-control-build-output.txt               |   16 +
+ .../mission-control-test-output.txt                |   41 +
+ .../mission-control-typecheck-output.txt           |    7 +
+ .../trigger-typecheck-output.txt                   |    7 +
+ .../probate-autopilot-main-merge/REPORT.md         |  109 ++
+ .../probate-autopilot-main-merge/changed-files.txt |  294 +++++
+ .../probate-autopilot-main-merge/diff-stat.txt     |  295 +++++
+ .../probate-autopilot-main-merge/diff-summary.md   |  607 ++++++++++
+ .../full-backend-test-output.txt                   |   18 +
+ .../git-cached-diff-check-output.txt               |    3 +
+ .../git-diff-check-output.txt                      |    3 +
+ .../git-status-before-merge-commit.txt             |  296 +++++
+ .../mission-control-build-output.txt               |   16 +
+ .../mission-control-test-output.txt                |   46 +
+ .../mission-control-typecheck-output.txt           |    7 +
+ .../py-compile-output.txt                          |    3 +
+ .../trigger-typecheck-output.txt                   |    7 +
+ .../REPORT.md                                      |   83 ++
+ .../diff-summary.md                                |   46 +
+ .../test-output.txt                                |   87 ++
+ .../probate-autopilot-source-foundation/REPORT.md  |   68 ++
+ .../diff-summary.md                                |   72 ++
+ .../test-output.txt                                |   11 +
+ .../REPORT.md                                      |   66 ++
+ .../diff-summary.md                                |   58 +
+ .../test-output.txt                                |   85 ++
+ .../REPORT.md                                      |   74 ++
+ .../diff-summary.md                                |   44 +
+ .../test-output.txt                                |   11 +
+ .../probate-source-provider-bridge-gate/REPORT.md  |   78 ++
+ .../diff-summary.md                                |   39 +
+ .../test-output.txt                                |   87 ++
+ docs/runbooks/agentic-company-operating-cadence.md |   58 +
+ ...tgomery-probate-autopilot-no-send-activation.md |  160 +++
+ docs/runbooks/provider-sync-and-recovery.md        |   62 +
+ ...13-hermes-mission-control-orchestration-plan.md |    2 +-
+ ...026-04-24-ares-full-stack-cohesion-mega-plan.md |   18 +-
+ ...hubspot-operating-spine-agentic-company-plan.md | 1025 +++++++++++++++++
+ memory.md                                          |  298 ++++-
+ scripts/dev/boot-local.sh                          |    2 +-
+ scripts/probate_autopilot_doctor.py                |  134 +++
+ scripts/probate_source_file_payload.py             |   59 +
+ .../20260514090000_provider_object_links.sql       |  173 +++
+ tests/api/test_hermes_tools.py                     |   46 +
+ tests/api/test_hubspot_mirror.py                   |  223 ++++
+ tests/api/test_lead_machine.py                     |   97 ++
+ tests/api/test_lead_machine_trigger_contract.py    |   44 +
+ tests/api/test_marketing_webhooks.py               |    6 +-
+ tests/api/test_mission_control.py                  |    7 +
+ .../test_mission_control_instantly_enrollment.py   |  220 ++++
+ tests/api/test_nightly_lead_machine.py             |  299 +++++
+ tests/api/test_trigger_contract_files.py           |   21 +
+ tests/api/test_voice.py                            |  164 +++
+ tests/api/test_voice_agents.py                     |  118 --
+ tests/conftest.py                                  |   40 +-
+ tests/db/test_provider_links_repository.py         |  263 +++++
+ tests/db/test_provider_links_schema.py             |   56 +
+ tests/db/test_provider_links_supabase_adapter.py   |  273 +++++
+ tests/providers/test_hubspot.py                    |  236 ++++
+ tests/providers/test_instantly.py                  |   26 +
+ tests/providers/test_tracerfy.py                   |   81 ++
+ tests/providers/test_vapi.py                       |   95 ++
+ tests/scripts/test_probate_autopilot_doctor.py     |  135 +++
+ tests/scripts/test_probate_source_file_payload.py  |  156 +++
+ tests/services/test_ares_copy_service.py           |    4 +
+ tests/services/test_booking_service.py             |    3 +-
+ tests/services/test_copy_asset_service.py          |   45 +
+ tests/services/test_copy_offer_service.py          |   46 +
+ tests/services/test_hubspot_mirror_service.py      |  714 ++++++++++++
+ .../services/test_instantly_enrollment_service.py  |  344 ++++++
+ tests/services/test_lead_outbound_service.py       |   96 ++
+ .../services/test_nightly_lead_machine_service.py  |  594 ++++++++++
+ .../test_probate_live_source_adapter_service.py    |  115 ++
+ ...robate_property_tax_title_enrichment_service.py |  248 ++++
+ tests/services/test_probate_source_file_service.py |  214 ++++
+ .../test_probate_source_provider_service.py        |  364 ++++++
+ tests/services/test_probate_write_path_service.py  |   30 +-
+ tests/services/test_skiptrace_service.py           |  129 +++
+ tests/services/test_vapi_call_service.py           |  330 ++++++
+ trigger/src/lead-machine/morningBrief.ts           |   14 +
+ trigger/src/lead-machine/nightlySourcePull.ts      |   17 +
+ .../src/lead-machine/probateAutopilotSchedules.ts  |  146 +++
+ .../probatePropertyTaxTitleEnrichment.ts           |   20 +
+ trigger/src/lead-machine/runtime.ts                |  161 +++
+ 298 files changed, 30813 insertions(+), 554 deletions(-)
+```
+
+## Merge notes
+
+- Merged probate-autopilot source foundation and live-adapter activation into current main.
+- Resolved duplicate voice API routing in favor of the newer VapiCallService `/voice/*` contract.
+- Preserved disabled-by-default source/provider/enrichment/outbound gates.
+- Refreshed backend, Mission Control, Trigger, syntax, and diff-check evidence.

@@ -1,0 +1,56 @@
+# HubSpot CLI + MCP Setup Test Output
+
+## Commands / evidence summary
+
+### HubSpot CLI wrapper
+- Command: `/root/.hermes/scripts/hubspot-cli-env.sh api --use-env '/crm/v3/owners/?limit=1'`
+- Result: success; owners response contained `results`.
+- Secret values printed: false.
+
+### HubSpot global CLI config
+- Path: `/root/.hermes/home/.hscli/config.yml`
+- Mode: `0600`.
+- Account list result: default account configured as `ares-limitless`, account ID present, auth type `personalaccesskey`.
+- Secret values printed: false.
+
+### HubSpot CLI direct read-only API
+- Command: `hs api '/crm/v3/owners/?limit=1'`
+- Result: success; response contained `results`.
+- Secret values printed: false.
+
+### HubSpot Developer MCP discovery
+- Command: `mcporter list --stdio /root/.hermes/scripts/hubspot-mcp-start.sh --name hubspot --schema --json`
+- Result: success.
+- Tool count: `21`.
+- Tools:
+  - `upload-project`
+  - `create-project`
+  - `guided-walkthrough-cli`
+  - `create-test-account`
+  - `deploy-project`
+  - `add-feature-to-project`
+  - `validate-project`
+  - `get-feature-config-schema`
+  - `search-docs`
+  - `fetch-doc`
+  - `get-api-usage-patterns-by-app-id`
+  - `get-apps-info`
+  - `get-build-logs`
+  - `get-build-status`
+  - `find-projects`
+  - `list-cms-remote-contents`
+  - `create-cms-module`
+  - `create-cms-template`
+  - `create-cms-function`
+  - `list-cms-serverless-functions`
+  - `get-cms-serverless-function-logs`
+
+### HubSpot MCP docs fetch
+- Command: MCP `fetch-doc` for `https://developers.hubspot.com/docs/developer-tooling/local-development/mcp-server`
+- Result: success; fetched official docs showing `hs mcp setup`, standalone mode, and restart requirement.
+- Command: MCP `fetch-doc` for `https://developers.hubspot.com/docs/developer-tooling/local-development/hubspot-cli/personal-access-key`
+- Result: success; fetched official docs showing PAKs are for HubSpot CLI/local development, stored in `~/.hscli/config.yml`, and can be rotated/deactivated.
+
+## Provider side effects
+- Live HubSpot mutations: `0`.
+- No HubSpot writes were performed.

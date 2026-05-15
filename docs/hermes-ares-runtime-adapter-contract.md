@@ -10,14 +10,14 @@ Hermes is the operator shell. Ares is the runtime. Hermes calls Ares over HTTP a
 
 ```bash
 HERMES_RUNTIME_API_BASE_URL=http://127.0.0.1:8000
-HERMES_RUNTIME_API_KEY=dev-runtime-key
+HERMES_RUNTIME_API_KEY=<local-runtime-api-key>
 ```
 
 Fallback names are also supported by Trigger and smoke tooling:
 
 ```bash
 RUNTIME_API_BASE_URL=http://127.0.0.1:8000
-RUNTIME_API_KEY=dev-runtime-key
+RUNTIME_API_KEY=<local-runtime-api-key>
 ```
 
 ## Headers

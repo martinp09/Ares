@@ -31,7 +31,7 @@ from app.api.audit import router as audit_router
 from app.api.sms_agent import router as sms_agent_router
 from app.api.usage import router as usage_router
 from app.api.trigger_callbacks import router as trigger_callbacks_router
-from app.api.voice_agents import router as voice_agents_router
+from app.api.voice import router as voice_router
 from app.core.config import Settings, get_settings
 from app.core.dependencies import runtime_api_key_dependency, settings_dependency
 from app.services.ares_autonomous_operator_service import autonomous_operator_service
@@ -111,8 +111,8 @@ def create_app() -> FastAPI:
     app.include_router(trigger_callbacks_router, dependencies=protected_dependencies)
     app.include_router(marketing_router, dependencies=protected_dependencies)
     app.include_router(sms_agent_router, dependencies=protected_dependencies)
-    app.include_router(voice_agents_router, dependencies=protected_dependencies)
     app.include_router(lead_machine_router, dependencies=protected_dependencies)
+    app.include_router(voice_router, dependencies=protected_dependencies)
     app.include_router(ares_router, dependencies=protected_dependencies)
 
     @app.get("/health")

@@ -69,6 +69,8 @@ from app.models.mission_control import (
     MissionControlRecordActionResponse,
     MissionControlRecordImportRequest,
     MissionControlRecordPromotionRequest,
+    MissionControlRecordSkipTraceRequest,
+    MissionControlRecordSkipTraceResponse,
     MissionControlRecordStatusRequest,
     MissionControlRecordSuppressionRequest,
     MissionControlRecordSavedView,
@@ -121,6 +123,7 @@ from app.services.provider_extras_service import provider_extras_service
 from app.services.providers.resend import get_resend_status, send_test_email
 from app.services.providers.textgrid import get_textgrid_status, send_test_sms
 from app.services.secrets_service import secret_service
+from app.services.skiptrace_service import SkipTraceLookupInput, TracerfySkipTraceService
 from app.services.usage_service import usage_service
 
 ACTIVE_RUN_STATUSES = {RunStatus.QUEUED, RunStatus.IN_PROGRESS}
@@ -145,6 +148,7 @@ class MissionControlService:
         automation_runs_repository: AutomationRunsRepository | None = None,
         tasks_repository: TasksRepository | None = None,
         crm_records_repository: CrmRecordsRepository | None = None,
+        skiptrace_service_dependency: TracerfySkipTraceService | None = None,
         host_adapter_registry_dependency: HostAdapterRegistry | None = None,
     ) -> None:
         self.client = client or get_control_plane_client()
@@ -162,6 +166,7 @@ class MissionControlService:
         self.automation_runs_repository = automation_runs_repository or AutomationRunsRepository(client=self.client)
         self.tasks_repository = tasks_repository or TasksRepository(client=self.client)
         self.crm_records_repository = crm_records_repository or CrmRecordsRepository(client=self.client)
+        self.skiptrace_service = skiptrace_service_dependency
         self.host_adapter_registry = host_adapter_registry_dependency or host_adapter_registry
 
     def upsert_thread_projection(self, thread: MissionControlThreadRecord) -> MissionControlThreadRecord:
@@ -542,6 +547,56 @@ class MissionControlService:
             reason=payload.reason,
         )
         return MissionControlRecordActionResponse(record=self._build_crm_record_summary(record))
+
+    def skiptrace_record(
+        self,
+        record_id: str,
+        payload: MissionControlRecordSkipTraceRequest,
+        *,
+        actor_id: str | None = None,
+        actor_type: str | None = None,
+    ) -> MissionControlRecordSkipTraceResponse:
+        skiptrace_service = self.skiptrace_service or TracerfySkipTraceService(crm_records_repository=self.crm_records_repository)
+        lookup = None
+        if any(
+            value is not None
+            for value in (
+                payload.address,
+                payload.city,
+                payload.state,
+                payload.zip_code,
+                payload.parcel_id,
+                payload.county,
+                payload.first_name,
+                payload.last_name,
+            )
+        ):
+            lookup = SkipTraceLookupInput(
+                address=payload.address,
+                city=payload.city,
+                state=payload.state,
+                zip_code=payload.zip_code,
+                parcel_id=payload.parcel_id,
+                county=payload.county,
+                find_owner=payload.find_owner,
+                first_name=payload.first_name,
+                last_name=payload.last_name,
+            )
+        record, result = skiptrace_service.enrich_crm_record(
+            record_id,
+            lookup=lookup,
+            actor_id=actor_id,
+            actor_type=actor_type,
+        )
+        return MissionControlRecordSkipTraceResponse(
+            record=self._build_crm_record_summary(record),
+            lookup_method=result.lookup_method,  # type: ignore[arg-type]
+            hit=result.hit,
+            persons_count=result.persons_count,
+            credits_deducted=result.credits_deducted,
+            phone=result.phone,
+            email=result.email,
+        )
 
     def suppress_record(
         self,

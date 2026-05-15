@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any, Literal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from app.domains.ares import AresPlannerPlan
 from app.models.agent_assets import AgentAssetStatus, AgentAssetType
@@ -202,6 +202,277 @@ class MissionControlRecordStatusRequest(BaseModel):
 
     status: CrmRecordStatus
     reason: str | None = None
+
+
+class MissionControlRecordSkipTraceRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    address: str | None = None
+    city: str | None = None
+    state: str | None = None
+    zip_code: str | None = None
+    parcel_id: str | None = None
+    county: str | None = None
+    find_owner: bool = True
+    first_name: str | None = None
+    last_name: str | None = None
+
+
+class MissionControlRecordSkipTraceResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    record: MissionControlRecordSummary
+    provider: Literal["tracerfy"] = "tracerfy"
+    lookup_method: Literal["address", "apn"]
+    hit: bool
+    persons_count: int = Field(ge=0)
+    credits_deducted: int = Field(ge=0)
+    phone: str | None = None
+    email: str | None = None
+
+
+class MissionControlHubSpotCustomizationPreviewRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    dry_run: bool = True
+
+
+class MissionControlHubSpotCustomizationApplyRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    operator_approval: bool = False
+
+
+class MissionControlHubSpotRecordSyncItem(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    id: str = Field(min_length=1)
+    record_type: str = Field(default="contact_record", min_length=1)
+    display_name: str = Field(min_length=1)
+    owner_name: str | None = None
+    property_address: str | None = None
+    mailing_address: str | None = None
+    source: str | None = None
+    source_lane: str | None = None
+    record_status: str | None = None
+    status: str | None = None
+    phone: str | None = None
+    email: str | None = None
+    contact_id: str | None = None
+    contact_role: str | None = None
+    contact_address: str | None = None
+    opportunity_id: str | None = None
+    campaign_id: str | None = None
+    county: str | None = None
+    hcad_account: str | None = None
+    hctax_account: str | None = None
+    hcad_owner_names: str | None = None
+    probate_case_number: str | None = None
+    probate_court_number: str | None = None
+    probate_file_date: str | None = None
+    probate_status: str | None = None
+    probate_filing_type: str | None = None
+    probate_filing_subtype: str | None = None
+    court_number: str | None = None
+    file_date: str | None = None
+    filing_type: str | None = None
+    filing_subtype: str | None = None
+    estate_name: str | None = None
+    decedent_name: str | None = None
+    best_contact_name: str | None = None
+    best_contact_role: str | None = None
+    best_contact_address: str | None = None
+    applicant_name: str | None = None
+    applicant_role: str | None = None
+    applicant_address: str | None = None
+    heir_candidate_count: int | None = Field(default=None, ge=0)
+    heir_candidates_summary: str | None = None
+    heir_status: str | None = None
+    heir_confidence: str | None = None
+    heir_next_gate: str | None = None
+    party_count: int | None = Field(default=None, ge=0)
+    event_count: int | None = Field(default=None, ge=0)
+    priority_tier: str | None = None
+    priority_flags: str | list[str] | None = None
+    source_run_id: str | None = None
+    tax_overlay_status: str | None = None
+    tax_overlay_candidate_hit_count: int | None = Field(default=None, ge=0)
+    tax_overlay_query: str | None = None
+    lead_temperature: str | None = None
+    lead_score: int | None = Field(default=None, ge=0, le=100)
+    data_quality_score: int | None = Field(default=None, ge=0, le=100)
+    skiptrace_status: str | None = None
+    outreach_status: str | None = None
+    next_best_action: str | None = None
+    last_agent_summary: str | None = None
+    sync_hash: str | None = None
+    entity_name: str | None = None
+    entity_id: str | None = None
+    entity_role: str | None = None
+    deal_name: str | None = None
+    hubspot_pipeline_id: str | None = None
+    hubspot_deal_stage_id: str | None = None
+    tax_delinquency_status: str | None = None
+    title_complexity: str | None = None
+    occupancy_hint: str | None = None
+    equity_hint: str | None = None
+
+
+class MissionControlHubSpotRecordSyncPreviewRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    dry_run: bool = True
+    records: list[MissionControlHubSpotRecordSyncItem] = Field(default_factory=list)
+
+
+class MissionControlHubSpotRecordSyncApplyRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    operator_approval: bool = False
+    business_id: str = Field(min_length=1)
+    environment: str = Field(min_length=1)
+    records: list[MissionControlHubSpotRecordSyncItem] = Field(default_factory=list)
+
+
+class MissionControlHubSpotPreviewResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    provider: Literal["hubspot"] = "hubspot"
+    dry_run: bool
+    would_call_provider: bool = False
+    live_write_enabled: bool
+    payloads: dict[str, Any] = Field(default_factory=dict)
+    warnings: list[str] = Field(default_factory=list)
+
+
+class MissionControlHubSpotCustomizationApplyResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    provider: Literal["hubspot"] = "hubspot"
+    live_applied: bool
+    property_groups_created: dict[str, list[dict[str, Any]]] = Field(default_factory=dict)
+    property_groups_skipped: dict[str, list[dict[str, Any]]] = Field(default_factory=dict)
+    properties_created: dict[str, list[dict[str, Any]]] = Field(default_factory=dict)
+    properties_skipped: dict[str, list[dict[str, Any]]] = Field(default_factory=dict)
+    pipeline_created: dict[str, Any] | None = None
+    pipeline_existing: dict[str, Any] | None = None
+    stages_created: list[dict[str, Any]] = Field(default_factory=list)
+    stages_skipped: list[dict[str, Any]] = Field(default_factory=list)
+    mutation_count: int = Field(ge=0)
+    warnings: list[str] = Field(default_factory=list)
+
+
+class MissionControlHubSpotRecordSyncApplyResult(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    record_id: str
+    object_type: str
+    ares_object_type: str
+    ares_object_id: str
+    action: Literal["create", "update", "skip"]
+    provider_object_id: str | None = None
+    provider_link_id: str | None = None
+    sync_hash: str | None = None
+    error: str | None = None
+
+
+class MissionControlHubSpotRecordSyncApplyResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    provider: Literal["hubspot"] = "hubspot"
+    live_applied: bool
+    created_count: int = Field(ge=0)
+    updated_count: int = Field(ge=0)
+    skipped_count: int = Field(ge=0)
+    failed_count: int = Field(ge=0)
+    error_count: int = Field(ge=0)
+    results: list[MissionControlHubSpotRecordSyncApplyResult] = Field(default_factory=list)
+    warnings: list[str] = Field(default_factory=list)
+
+
+class MissionControlInstantlyEnrollmentRecordItem(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    id: str = Field(min_length=1)
+    email: str | None = None
+    phone: str | None = None
+    first_name: str | None = None
+    last_name: str | None = None
+    display_name: str | None = None
+    status: str | None = None
+    facts: dict[str, Any] = Field(default_factory=dict)
+    raw_payload: dict[str, Any] = Field(default_factory=dict)
+    verification_status: str | None = None
+    sync_hash: str | None = None
+    custom_variables: dict[str, Any] = Field(default_factory=dict)
+    campaign_id: str | None = None
+
+
+class MissionControlInstantlyEnrollmentPreviewRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    records: list[MissionControlInstantlyEnrollmentRecordItem] = Field(default_factory=list, max_length=500)
+    instantly_campaign_id: str | None = None
+    instantly_list_id: str | None = None
+    campaign_id: str | None = None
+    allow_unverified: bool = False
+
+    @model_validator(mode="after")
+    def validate_provider_target(self) -> "MissionControlInstantlyEnrollmentPreviewRequest":
+        if self.instantly_campaign_id and self.instantly_list_id:
+            raise ValueError("Provide instantly_campaign_id or instantly_list_id, not both.")
+        return self
+
+
+class MissionControlInstantlyEnrollmentApplyRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    operator_approval: bool = False
+    business_id: str = Field(min_length=1)
+    environment: str = Field(min_length=1)
+    records: list[MissionControlInstantlyEnrollmentRecordItem] = Field(default_factory=list, max_length=500)
+    instantly_campaign_id: str | None = None
+    instantly_list_id: str | None = None
+    campaign_id: str | None = None
+    allow_unverified: bool = False
+
+    @model_validator(mode="after")
+    def validate_provider_target(self) -> "MissionControlInstantlyEnrollmentApplyRequest":
+        if bool(self.instantly_campaign_id) == bool(self.instantly_list_id):
+            raise ValueError("Provide exactly one of instantly_campaign_id or instantly_list_id.")
+        return self
+
+
+class MissionControlInstantlyEnrollmentResult(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    record_id: str
+    email: str | None = None
+    action: Literal["enroll", "skip", "exclude", "error", "submitted_unlinked"]
+    reason: str | None = None
+    provider_object_id: str | None = None
+    provider_link_id: str | None = None
+    sync_hash: str | None = None
+
+
+class MissionControlInstantlyEnrollmentResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    provider: Literal["instantly"] = "instantly"
+    dry_run: bool
+    live_applied: bool
+    would_call_provider: bool = False
+    live_enrollment_enabled: bool
+    eligible_count: int = Field(ge=0)
+    submitted_count: int = Field(default=0, ge=0)
+    enrolled_count: int = Field(ge=0)
+    skipped_count: int = Field(ge=0)
+    excluded_count: int = Field(ge=0)
+    error_count: int = Field(ge=0)
+    target: dict[str, Any] = Field(default_factory=dict)
+    results: list[MissionControlInstantlyEnrollmentResult] = Field(default_factory=list)
+    warnings: list[str] = Field(default_factory=list)
+    provider_batch_result: Any | None = None
 
 
 class MissionControlRecordSuppressionRequest(BaseModel):

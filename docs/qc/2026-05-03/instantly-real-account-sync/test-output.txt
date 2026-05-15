@@ -1,0 +1,29 @@
+# Test Output
+
+Command run from `/opt/ares/Ares`:
+
+```bash
+INSTANTLY_API_KEY_NEW='[redacted]' python3 /tmp/ares_instantly_real_account_sync.py
+```
+
+Result:
+
+```text
+ProviderTransportError: {"statusCode":402,"error":"Payment Required","message":"Workspace does not have an active paid plan"}
+```
+
+Interpretation:
+
+- Auth reached Instantly API.
+- The workspace/account behind the new key is not on an active paid plan.
+- Provider writes were not attempted because safe preflight failed.
+
+Artifact validation:
+
+```text
+cold-email-campaigns.json: valid JSON
+instantly-create-payloads-2026-05-02.json: valid JSON
+instantly-nurture-subsequence-create-payloads-2026-05-02.json: valid JSON
+sequence-import-backup.csv: csv_rows=8 across 2 campaign names
+git diff --check: passed
+```

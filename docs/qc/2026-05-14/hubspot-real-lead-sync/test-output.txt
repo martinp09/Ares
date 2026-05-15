@@ -1,0 +1,79 @@
+# HubSpot Real Lead Sync Output
+
+## Candidate selection + dry-run preview
+
+```text
+selected_lead_id=lead_341
+selected_case=543678
+selected_name=TANGIE RENEE WILLIAMS
+selected_score=95.0
+selected_filing=APP FOR INDEPENDENT ADMINISTRATION WITH AN HEIRSHIP
+existing_contact_link=False
+existing_deal_link=False
+preview_provider=hubspot
+preview_dry_run=true
+preview_would_call_provider=false
+preview_live_write_enabled=false
+preview_contacts_payload_count=1
+preview_deals_payload_count=1
+preview_companies_payload_count=0
+preview_warnings_count=1
+preview_warning=Record lead_341 has no email or phone for HubSpot contact matching.
+```
+
+## Gated live apply + readback
+
+```text
+live_gate_provider_live_sends_enabled=true
+live_gate_hubspot_writes_enabled=true
+sync_target=hubspot_only
+instantly_touched=false
+reacher_touched=false
+live_applied=true
+created_count=2
+updated_count=0
+skipped_count=0
+failed_count=0
+error_count=0
+warnings_count=1
+warning=Record lead_341 has no email or phone for HubSpot contact matching.
+result record_id=lead_341 object_type=contact ares_object_type=crm_record ares_object_id=lead_341 action=create provider_object_id=485815102172 provider_link_id=plink_3 sync_hash=hubspot-real-lead-lead_341-v1 error=None
+result record_id=lead_341 object_type=deal ares_object_type=opportunity ares_object_id=opp_lead_341 action=create provider_object_id=325123310274 provider_link_id=plink_4 sync_hash=hubspot-real-lead-lead_341-v1 error=None
+provider_link_contact_present=true
+provider_link_deal_present=true
+provider_link_contact_id=plink_3
+provider_link_deal_id=plink_4
+provider_link_contact_object_id=485815102172
+provider_link_deal_object_id=325123310274
+provider_link_contact_sync_hash=hubspot-real-lead-lead_341-v1
+provider_link_deal_sync_hash=hubspot-real-lead-lead_341-v1
+hubspot_contact_readback_archived=false
+hubspot_contact_ares_record_id=lead_341
+hubspot_contact_ares_source_lane=harris_county_probate
+hubspot_contact_ares_contact_status=ready
+hubspot_contact_ares_skiptrace_status=needed
+hubspot_contact_ares_next_best_action=Manual review and skiptrace before Instantly enrollment; copy approval required before any send.
+hubspot_deal_readback_archived=false
+hubspot_deal_dealname=Harris probate 543678 - TANGIE RENEE WILLIAMS
+hubspot_deal_pipeline=default
+hubspot_deal_dealstage=3668226794
+hubspot_deal_ares_primary_record_id=lead_341
+hubspot_deal_ares_opportunity_id=opp_lead_341
+hubspot_deal_ares_source_lane=harris_county_probate
+hubspot_deal_ares_lead_temperature=hot
+hubspot_deal_ares_lead_score=95
+hubspot_deal_ares_tax_delinquency_status=not_delinquent_in_current_overlay
+hubspot_deal_ares_title_complexity=heirship
+hubspot_deal_ares_skiptrace_status=needed
+hubspot_deal_ares_outreach_status=not_ready
+hubspot_deal_ares_next_best_action=Manual review and skiptrace before Instantly enrollment; copy approval required before any send.
+hubspot_deal_ares_sync_hash=hubspot-real-lead-lead_341-v1
+```
+
+## Focused verification
+
+```text
+python -m pytest tests/services/test_hubspot_mirror_service.py tests/api/test_hubspot_mirror.py tests/db/test_provider_links_repository.py -q && git diff --check
+.............................................                            [100%]
+45 passed in 1.57s
+```

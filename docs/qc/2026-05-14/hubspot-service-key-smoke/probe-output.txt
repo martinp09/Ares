@@ -1,0 +1,15 @@
+token_present=true
+token_prefix=pat-na2
+token_len=44
+live_writes_enabled=false
+mutation_calls=0
+---
+name=owners | method=GET | status=200 | ok=true | results_count=1 | elapsed_ms=173
+name=contacts_object_read | method=GET | status=200 | ok=true | results_count=0 | elapsed_ms=187
+name=companies_object_read | method=GET | status=200 | ok=true | results_count=1 | elapsed_ms=175
+name=deals_object_read | method=GET | status=200 | ok=true | results_count=0 | elapsed_ms=160
+name=contacts_properties | method=GET | status=200 | ok=true | results_count=386 | elapsed_ms=169
+name=companies_properties | method=GET | status=200 | ok=true | results_count=257 | elapsed_ms=292
+name=deals_properties | method=GET | status=200 | ok=true | results_count=212 | elapsed_ms=146
+name=pipelines_deals_v3 | method=GET | status=200 | ok=true | results_count=1 | elapsed_ms=159
+name=pipelines_deals_2026_03 | method=GET | status=200 | ok=true | results_count=1 | elapsed_ms=142

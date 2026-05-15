@@ -906,4 +906,129 @@ describe("Mission Control API client", () => {
       },
     ]);
   });
+
+  it("maps provider preview/read endpoints without live paths and forces Vapi dry-run", async () => {
+    const fetchMock = vi.fn(async (_input: RequestInfo | URL, _init?: RequestInit) => jsonResponse({ ok: true }));
+    const api = createMissionControlApi({ fetchImpl: fetchMock as typeof fetch });
+
+    await api.getLatestMorningBrief({ businessId: "limitless", environment: "dev" });
+    await api.getSourceRuns({ businessId: "limitless", environment: "dev", sourceLane: "harris_probate", limit: 5 });
+    await api.getProbateAutopilotHealth({ businessId: "limitless", environment: "dev", maxBriefAgeHours: 8 });
+    await api.previewHubSpotCustomization({ dry_run: true });
+    await api.previewHubSpotRecordSync([{ id: "rec-1", display_name: "Jane Owner" }]);
+    await api.previewInstantlyEnrollment({ records: [{ id: "rec-1", email: "jane@example.com" }] });
+    await api.getVapiAssistantsPreview({ businessId: "limitless", environment: "dev" });
+    await api.getVapiPhoneNumbersPreview({ businessId: "limitless", environment: "dev" });
+    await api.previewVapiOutboundCall({ to_number: "+155****0123", dry_run: false });
+
+    const requests = fetchMock.mock.calls.map((call) => {
+      const input = call[0] as RequestInfo | URL;
+      const init = call[1] as RequestInit | undefined;
+      return { url: parseUrl(input), init };
+    });
+
+    expect(requests.map(({ url }) => `${url.pathname}?${url.searchParams.toString()}`)).toEqual([
+      "/mission-control/morning-brief/latest?business_id=limitless&environment=dev",
+      "/mission-control/source-runs?business_id=limitless&environment=dev&source_lane=harris_probate&limit=5",
+      "/mission-control/probate-autopilot/health?business_id=limitless&environment=dev&max_brief_age_hours=8",
+      "/mission-control/providers/hubspot/customization/preview?",
+      "/mission-control/providers/hubspot/records/preview-sync?",
+      "/mission-control/providers/instantly/enrollments/preview?",
+      "/voice/assistants?business_id=limitless&environment=dev",
+      "/voice/phone-numbers?business_id=limitless&environment=dev",
+      "/voice/calls/outbound?",
+    ]);
+    const hubSpotCustomizationBody = JSON.parse(String(requests[3].init?.body));
+    const hubSpotRecordSyncBody = JSON.parse(String(requests[4].init?.body));
+    const instantlyEnrollmentBody = JSON.parse(String(requests[5].init?.body));
+
+    expect(hubSpotCustomizationBody).toEqual({ dry_run: true });
+    expect(hubSpotRecordSyncBody).toEqual({ records: [{ id: "rec-1", display_name: "Jane Owner" }] });
+    expect(instantlyEnrollmentBody).toEqual({ records: [{ id: "rec-1", email: "jane@example.com" }] });
+    expect({ hubSpotCustomizationBody, hubSpotRecordSyncBody, instantlyEnrollmentBody }).not.toMatchObject({
+      business_id: expect.anything(),
+      environment: expect.anything(),
+    });
+    expect(JSON.stringify({ hubSpotCustomizationBody, hubSpotRecordSyncBody, instantlyEnrollmentBody })).not.toMatch(
+      /business_id|environment/,
+    );
+    expect(JSON.parse(String(requests[8].init?.body))).toMatchObject({ dry_run: true });
+    expect(requests.map(({ url }) => url.toString()).join("\n")).not.toMatch(/apply|apply-sync|enrollments\/apply|dry_run=false/);
+  });
+
+  it("maps probate autopilot health into a redacted typed operator surface", async () => {
+    const fetchMock = vi.fn(async () => jsonResponse({
+      business_id: "limitless",
+      environment: "prod",
+      status: "warning",
+      latest_brief_id: "brief-1",
+      generated_at: "2026-05-15T10:22:53Z",
+      brief_age_hours: 1.5,
+      freshness_sla_hours: 8,
+      freshness_ok: true,
+      stale_brief: false,
+      no_send_ok: true,
+      outbound_allowed: false,
+      source_run_count: 2,
+      warning_count: 1,
+      new_record_count: 9,
+      sla_health: {
+        status: "warning",
+        expected_counties: ["harris", "montgomery"],
+        missing_counties: [],
+        completed_county_count: 2,
+        failed_lane_count: 0,
+        source_count_mismatch_count: 1,
+        anomaly_count: 1,
+        outbound_allowed: false,
+        operator_message: "No-send source SLA only.",
+      },
+      source_quality: {
+        source_count_mismatch_count: 1,
+        invalid_row_count: 0,
+        duplicate_case_count: 1,
+        duplicate_case_count_by_county: { harris: 1 },
+        duplicate_case_numbers: { "543678": 2 },
+      },
+      enrichment_backlog: {
+        property_match_pending_count: 9,
+        tax_overlay_pending_count: 9,
+        hubspot_mirror_blocked_until_approval_count: 9,
+        outbound_blocked_until_explicit_approval_count: 9,
+      },
+      anomaly_count: 1,
+      anomalies: [
+        {
+          severity: "warning",
+          type: "duplicate_case_numbers",
+          message: "Duplicate rows detected.",
+          duplicate_case_count: 1,
+          duplicate_case_count_by_county: { harris: 1 },
+          duplicate_case_numbers: { "543678": 2 },
+        },
+      ],
+      operator_next_actions: [{ priority: "high", action: "run_property_tax_title_enrichment", reason: "9 keep-now rows." }],
+      raw_source_rows: [{ case_number: "543678", owner_name: "TANGIE RENEE WILLIAMS" }],
+    }));
+    const api = createMissionControlApi({ fetchImpl: fetchMock as typeof fetch });
+
+    const health = await api.getProbateAutopilotHealth({ businessId: "limitless", environment: "prod", maxBriefAgeHours: 8 });
+
+    expect(health).toMatchObject({
+      businessId: "limitless",
+      environment: "prod",
+      status: "warning",
+      noSendOk: true,
+      outboundAllowed: false,
+      sourceQuality: {
+        duplicateCaseCount: 1,
+        duplicateCaseCountByCounty: { harris: 1 },
+      },
+      enrichmentBacklog: {
+        propertyMatchPendingCount: 9,
+        taxOverlayPendingCount: 9,
+      },
+    });
+    expect(JSON.stringify(health)).not.toMatch(/543678|TANGIE RENEE WILLIAMS|raw_source_rows|duplicate_case_numbers":/);
+  });
 });

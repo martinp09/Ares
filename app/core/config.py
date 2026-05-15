@@ -47,6 +47,49 @@ class Settings(BaseSettings):
     control_plane_backend: Literal["memory", "supabase"] = "memory"
     marketing_backend: Literal["memory", "supabase"] = "memory"
     lead_machine_backend: Literal["memory", "supabase"] = "memory"
+    lead_machine_source_runs_state_path: str | None = Field(
+        default=None,
+        validation_alias=AliasChoices("lead_machine_source_runs_state_path", "LEAD_MACHINE_SOURCE_RUNS_STATE_PATH"),
+    )
+    lead_machine_artifact_root: str | None = Field(
+        default=None,
+        validation_alias=AliasChoices("lead_machine_artifact_root", "LEAD_MACHINE_ARTIFACT_ROOT"),
+    )
+    lead_machine_live_source_calls_enabled: bool = Field(
+        default=False,
+        validation_alias=AliasChoices(
+            "lead_machine_live_source_calls_enabled",
+            "LEAD_MACHINE_LIVE_SOURCE_CALLS_ENABLED",
+        ),
+    )
+    lead_machine_source_adapter_preview_enabled: bool = Field(
+        default=False,
+        validation_alias=AliasChoices(
+            "lead_machine_source_adapter_preview_enabled",
+            "LEAD_MACHINE_SOURCE_ADAPTER_PREVIEW_ENABLED",
+        ),
+    )
+    lead_machine_live_cad_calls_enabled: bool = Field(
+        default=False,
+        validation_alias=AliasChoices(
+            "lead_machine_live_cad_calls_enabled",
+            "LEAD_MACHINE_LIVE_CAD_CALLS_ENABLED",
+        ),
+    )
+    lead_machine_live_tax_calls_enabled: bool = Field(
+        default=False,
+        validation_alias=AliasChoices(
+            "lead_machine_live_tax_calls_enabled",
+            "LEAD_MACHINE_LIVE_TAX_CALLS_ENABLED",
+        ),
+    )
+    lead_machine_live_land_record_calls_enabled: bool = Field(
+        default=False,
+        validation_alias=AliasChoices(
+            "lead_machine_live_land_record_calls_enabled",
+            "LEAD_MACHINE_LIVE_LAND_RECORD_CALLS_ENABLED",
+        ),
+    )
     database_url: str | None = None
     site_events_backend: Literal["memory", "supabase"] = "memory"
     runtime_provider_default: Literal["anthropic", "openai_compat", "local"] = "anthropic"
@@ -93,6 +136,21 @@ class Settings(BaseSettings):
     instantly_batch_wait_seconds: float = Field(
         default=0.25,
         validation_alias=AliasChoices("instantly_batch_wait_seconds", "INSTANTLY_BATCH_WAIT_SECONDS"),
+    )
+    instantly_provider_live_enrollment_enabled: bool = Field(
+        default=False,
+        validation_alias=AliasChoices(
+            "instantly_provider_live_enrollment_enabled",
+            "INSTANTLY_PROVIDER_LIVE_ENROLLMENT_ENABLED",
+        ),
+    )
+    tracerfy_api_key: str | None = Field(
+        default=None,
+        validation_alias=AliasChoices("tracerfy_api_key", "TRACERFY_API_KEY"),
+    )
+    tracerfy_base_url: str = Field(
+        default="https://tracerfy.com/v1/api",
+        validation_alias=AliasChoices("tracerfy_base_url", "TRACERFY_BASE_URL"),
     )
     hubspot_access_token: str | None = Field(
         default=None,
@@ -301,6 +359,14 @@ class Settings(BaseSettings):
     vapi_api_key: str | None = Field(
         default=None,
         validation_alias=AliasChoices("vapi_api_key", "VAPI_API_KEY", "VAPI_PRIVATE_KEY"),
+    )
+    vapi_private_key: str | None = Field(
+        default=None,
+        validation_alias=AliasChoices("vapi_private_key", "VAPI_PRIVATE_KEY"),
+    )
+    vapi_public_key: str | None = Field(
+        default=None,
+        validation_alias=AliasChoices("vapi_public_key", "VAPI_PUBLIC_KEY"),
     )
     vapi_base_url: str = Field(
         default="https://api.vapi.ai",

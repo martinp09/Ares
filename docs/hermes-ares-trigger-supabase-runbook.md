@@ -16,13 +16,13 @@ Use `.env.example` as the contract. For local development without Supabase, keep
 
 ```bash
 RUNTIME_API_BASE_URL=http://127.0.0.1:8000
-RUNTIME_API_KEY=dev-runtime-key
+RUNTIME_API_KEY=<local-runtime-api-key>
 CONTROL_PLANE_BACKEND=memory
 MARKETING_BACKEND=memory
 LEAD_MACHINE_BACKEND=memory
 SITE_EVENTS_BACKEND=memory
 HERMES_RUNTIME_API_BASE_URL=http://127.0.0.1:8000
-HERMES_RUNTIME_API_KEY=dev-runtime-key
+HERMES_RUNTIME_API_KEY=<local-runtime-api-key>
 VITE_RUNTIME_API_BASE_URL=
 ```
 
@@ -40,7 +40,7 @@ Terminal 2:
 
 ```bash
 RUNTIME_API_BASE_URL=http://127.0.0.1:8000 \
-RUNTIME_API_KEY=dev-runtime-key \
+RUNTIME_API_KEY=<local-runtime-api-key> \
 npm --prefix apps/mission-control run dev -- --host 127.0.0.1 --port 5173
 ```
 
@@ -48,7 +48,7 @@ Terminal 3:
 
 ```bash
 HERMES_RUNTIME_API_BASE_URL=http://127.0.0.1:8000 \
-HERMES_RUNTIME_API_KEY=dev-runtime-key \
+HERMES_RUNTIME_API_KEY=<local-runtime-api-key> \
 npm --prefix trigger run dev
 ```
 
@@ -56,7 +56,7 @@ npm --prefix trigger run dev
 
 ```bash
 curl -sS http://127.0.0.1:8000/health
-curl -sS -H 'Authorization: Bearer dev-runtime-key' \
+curl -sS -H 'Authorization: Bearer <local-runtime-api-key>' \
   http://127.0.0.1:8000/hermes/tools
 ```
 

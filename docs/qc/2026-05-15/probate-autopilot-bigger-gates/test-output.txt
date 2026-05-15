@@ -1,0 +1,197 @@
+## Focused backend verification
+................................................                         [100%]
+48 passed in 0.61s
+
+## Full backend pytest
+........................................................................ [  8%]
+........................................................................ [ 17%]
+........................................................................ [ 26%]
+........................................................................ [ 35%]
+........................................................................ [ 44%]
+........................................................................ [ 53%]
+........................................................................ [ 62%]
+........................................................................ [ 71%]
+........................................................................ [ 80%]
+........................................................................ [ 89%]
+........................................................................ [ 98%]
+...............                                                          [100%]
+807 passed in 15.28s
+
+## Mission Control tests
+
+> @hermes/mission-control@0.1.0 test
+> vitest --run
+
+
+ RUN  v2.1.9 /opt/ares/worktrees/probate-autopilot-source-foundation/apps/mission-control
+
+ ✓ src/lib/api.test.ts (12 tests) 61ms
+ ✓ src/pages/RecordsPage.test.tsx (5 tests) 584ms
+ ✓ src/pages/AgentDetailPage.test.tsx (4 tests) 323ms
+ ✓ src/pages/AgentsPage.test.tsx (2 tests) 223ms
+ ✓ src/pages/CatalogPage.test.tsx (3 tests) 172ms
+ ✓ src/pages/PipelinePage.test.tsx (3 tests) 303ms
+ ✓ src/components/SecretHealthPanel.test.tsx (3 tests) 49ms
+ ✓ src/App.test.tsx (23 tests) 3144ms
+ ✓ src/components/MissionControlShell.test.tsx (2 tests) 177ms
+ ✓ src/pages/DashboardPage.test.tsx (3 tests) 156ms
+ ✓ src/pages/SuppressionPage.test.tsx (1 test) 140ms
+ ✓ src/pages/TasksPage.test.tsx (2 tests) 44ms
+ ✓ src/components/UsagePanel.test.tsx (2 tests) 101ms
+ ✓ src/pages/ProbateAutopilotPage.test.tsx (2 tests) 87ms
+ ✓ src/components/OrgSwitcher.test.tsx (1 test) 139ms
+ ✓ src/components/AuditTimeline.test.tsx (2 tests) 81ms
+ ✓ src/components/ProviderOperationsPanel.test.tsx (2 tests) 98ms
+ ✓ src/pages/UsagePage.test.tsx (1 test) 93ms
+ ✓ src/pages/IntakePage.test.tsx (1 test) 124ms
+ ✓ src/pages/InboxPage.test.tsx (1 test) 33ms
+ ✓ src/pages/SettingsPage.test.tsx (1 test) 51ms
+ ✓ src/pages/TurnsPage.test.tsx (1 test) 91ms
+ ✓ src/pages/SecretsPage.test.tsx (1 test) 81ms
+ ✓ src/pages/AuditPage.test.tsx (1 test) 75ms
+
+ Test Files  24 passed (24)
+      Tests  79 passed (79)
+   Start at  15:54:39
+   Duration  8.91s (transform 966ms, setup 1.36s, collect 3.19s, tests 6.43s, environment 10.01s, prepare 1.65s)
+
+
+## Mission Control typecheck
+
+> @hermes/mission-control@0.1.0 typecheck
+> tsc --noEmit
+
+
+## Mission Control build
+
+> @hermes/mission-control@0.1.0 build
+> vite build
+
+vite v5.4.21 building for production...
+transforming...
+✓ 68 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/index.html                   0.41 kB │ gzip:  0.27 kB
+dist/assets/index-D5ZdtnD7.css   24.83 kB │ gzip:  5.55 kB
+dist/assets/index-oApqPoFs.js   312.90 kB │ gzip: 83.75 kB
+✓ built in 938ms
+
+## Trigger typecheck
+
+> typecheck
+> tsc --noEmit -p tsconfig.json
+
+
+## git diff --check
+
+## Post-QC-fix focused backend verification
+.................................................                        [100%]
+49 passed in 0.60s
+
+## Post-QC-fix full backend pytest
+........................................................................ [  8%]
+........................................................................ [ 17%]
+........................................................................ [ 26%]
+........................................................................ [ 35%]
+........................................................................ [ 44%]
+........................................................................ [ 53%]
+........................................................................ [ 62%]
+........................................................................ [ 71%]
+........................................................................ [ 80%]
+........................................................................ [ 89%]
+........................................................................ [ 98%]
+................                                                         [100%]
+808 passed in 14.90s
+
+## Post-QC-fix Trigger typecheck
+
+> typecheck
+> tsc --noEmit -p tsconfig.json
+
+
+## Post-QC-fix git diff --check
+
+## Final pre-push verification
+### Full backend pytest
+........................................................................ [  8%]
+........................................................................ [ 17%]
+........................................................................ [ 26%]
+........................................................................ [ 35%]
+........................................................................ [ 44%]
+........................................................................ [ 53%]
+........................................................................ [ 62%]
+........................................................................ [ 71%]
+........................................................................ [ 80%]
+........................................................................ [ 89%]
+........................................................................ [ 98%]
+................                                                         [100%]
+808 passed in 15.44s
+
+### Mission Control tests
+
+> @hermes/mission-control@0.1.0 test
+> vitest --run
+
+
+ RUN  v2.1.9 /opt/ares/worktrees/probate-autopilot-source-foundation/apps/mission-control
+
+ ✓ src/lib/api.test.ts (12 tests) 52ms
+ ✓ src/pages/RecordsPage.test.tsx (5 tests) 553ms
+ ✓ src/pages/AgentDetailPage.test.tsx (4 tests) 290ms
+ ✓ src/pages/AgentsPage.test.tsx (2 tests) 206ms
+ ✓ src/pages/CatalogPage.test.tsx (3 tests) 165ms
+ ✓ src/pages/PipelinePage.test.tsx (3 tests) 275ms
+ ✓ src/components/SecretHealthPanel.test.tsx (3 tests) 50ms
+ ✓ src/App.test.tsx (23 tests) 3146ms
+ ✓ src/components/MissionControlShell.test.tsx (2 tests) 197ms
+ ✓ src/pages/DashboardPage.test.tsx (3 tests) 174ms
+ ✓ src/pages/SuppressionPage.test.tsx (1 test) 133ms
+ ✓ src/pages/TasksPage.test.tsx (2 tests) 54ms
+ ✓ src/components/UsagePanel.test.tsx (2 tests) 109ms
+ ✓ src/components/OrgSwitcher.test.tsx (1 test) 128ms
+ ✓ src/pages/ProbateAutopilotPage.test.tsx (2 tests) 106ms
+ ✓ src/components/AuditTimeline.test.tsx (2 tests) 85ms
+ ✓ src/components/ProviderOperationsPanel.test.tsx (2 tests) 100ms
+ ✓ src/pages/UsagePage.test.tsx (1 test) 95ms
+ ✓ src/pages/IntakePage.test.tsx (1 test) 136ms
+ ✓ src/pages/InboxPage.test.tsx (1 test) 36ms
+ ✓ src/pages/SettingsPage.test.tsx (1 test) 50ms
+ ✓ src/pages/TurnsPage.test.tsx (1 test) 119ms
+ ✓ src/pages/SecretsPage.test.tsx (1 test) 79ms
+ ✓ src/pages/AuditPage.test.tsx (1 test) 75ms
+
+ Test Files  24 passed (24)
+      Tests  79 passed (79)
+   Start at  16:05:02
+   Duration  9.06s (transform 957ms, setup 1.37s, collect 3.25s, tests 6.41s, environment 10.41s, prepare 1.65s)
+
+
+### Mission Control typecheck
+
+> @hermes/mission-control@0.1.0 typecheck
+> tsc --noEmit
+
+
+### Mission Control build
+
+> @hermes/mission-control@0.1.0 build
+> vite build
+
+vite v5.4.21 building for production...
+transforming...
+✓ 68 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/index.html                   0.41 kB │ gzip:  0.27 kB
+dist/assets/index-D5ZdtnD7.css   24.83 kB │ gzip:  5.55 kB
+dist/assets/index-oApqPoFs.js   312.90 kB │ gzip: 83.75 kB
+✓ built in 923ms
+
+### Trigger typecheck
+
+> typecheck
+> tsc --noEmit -p tsconfig.json
+
+
+### git diff --check

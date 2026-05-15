@@ -1,0 +1,7 @@
+json_check=PASS: python3 -m json.tool docs/marketing/exports/instantly-campaign-backups-2026-05-02/cold-email-campaigns.json
+csv_check=PASS: sequence-import-backup.csv parsed with 8 active rows across 2 campaigns
+git_diff_check=PASS
+instantly_preflight=BLOCKED: HTTP 403 / error code: 1010
+live_sends=NONE
+lead_uploads=NONE
+campaign_activation=NONE

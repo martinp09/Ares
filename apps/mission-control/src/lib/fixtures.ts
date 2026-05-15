@@ -1,4 +1,113 @@
-import type { CatalogEntrySummary, AgentDetailData, MissionControlSnapshot, TasksData } from "./api";
+import type {
+  CatalogEntrySummary,
+  AgentDetailData,
+  MissionControlSnapshot,
+  ProbateAutopilotHealthData,
+  ProviderOperationsData,
+  TasksData,
+} from "./api";
+
+export const providerOperationsFixture: ProviderOperationsData = {
+  hubspot: {
+    wouldCallProvider: false,
+    liveGateStatus: "preview-only / writes gated",
+    customizationPayloadCount: 4,
+    recordPayloadCount: 12,
+    warningCount: 2,
+  },
+  instantly: {
+    wouldCallProvider: false,
+    counts: {
+      eligible: 8,
+      submitted: 0,
+      enrolled: 0,
+      skipped: 3,
+      excluded: 2,
+      errors: 0,
+    },
+  },
+  vapi: {
+    assistantCount: 2,
+    phoneNumberCount: 1,
+    defaultAssistantConfigured: true,
+    defaultPhoneNumberConfigured: true,
+    liveGateStatus: "dry-run enforced",
+    outboundDryRunStatus: "ready for payload validation only",
+  },
+  nightly: {
+    latestBriefStatus: "completed",
+    latestBriefRecordCount: 42,
+    latestBriefWarningCount: 3,
+    liveSourceCallsEnabled: false,
+    sourceRuns: [
+      { sourceLane: "harris_probate", status: "completed", recordCount: 18, warningCount: 1 },
+      { sourceLane: "hcad_estate_of", status: "completed", recordCount: 14, warningCount: 1 },
+      { sourceLane: "hctax_delinquency", status: "completed", recordCount: 10, warningCount: 1 },
+    ],
+  },
+};
+
+export const probateAutopilotHealthFixture: ProbateAutopilotHealthData = {
+  businessId: "limitless",
+  environment: "prod",
+  status: "warning",
+  latestBriefId: "brief-fixture-probate-autopilot",
+  generatedAt: "2026-05-15T10:22:53Z",
+  briefAgeHours: 1.25,
+  freshnessSlaHours: 8,
+  freshnessOk: true,
+  staleBrief: false,
+  noSendOk: true,
+  outboundAllowed: false,
+  sourceRunCount: 2,
+  warningCount: 2,
+  newRecordCount: 14,
+  slaHealth: {
+    status: "warning",
+    expectedCounties: ["harris", "montgomery"],
+    missingCounties: [],
+    completedCountyCount: 2,
+    failedLaneCount: 0,
+    sourceCountMismatchCount: 1,
+    anomalyCount: 1,
+    outboundAllowed: false,
+    operatorMessage: "Autopilot source SLA is for scrape/enrich/brief readiness only; outbound remains separately approval-gated.",
+  },
+  sourceQuality: {
+    sourceCountMismatchCount: 1,
+    invalidRowCount: 0,
+    duplicateCaseCount: 2,
+    duplicateCaseCountByCounty: { harris: 2 },
+    artifactWarningCount: 0,
+  },
+  enrichmentBacklog: {
+    propertyMatchPendingCount: 9,
+    taxOverlayPendingCount: 9,
+    hubSpotMirrorBlockedUntilApprovalCount: 9,
+    outboundBlockedUntilExplicitApprovalCount: 9,
+  },
+  anomalyCount: 1,
+  anomalies: [
+    {
+      severity: "warning",
+      type: "source_count_mismatch",
+      message: "One source lane reported a different count than Ares parsed.",
+      county: "harris",
+    },
+  ],
+  operatorNextActions: [
+    {
+      priority: "high",
+      action: "run_property_tax_title_enrichment",
+      reason: "9 keep-now probate row(s) are ready for property match, tax overlay, and title-friction enrichment",
+    },
+    {
+      priority: "normal",
+      action: "keep_outbound_blocked",
+      reason: "No sends/enrollment are allowed until enrichment, suppression, and exact copy approval are complete",
+    },
+  ],
+};
 
 export const missionControlCatalogFixtures: CatalogEntrySummary[] = [
   {

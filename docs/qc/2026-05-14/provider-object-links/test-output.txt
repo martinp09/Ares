@@ -1,0 +1,63 @@
+# Test Output
+
+## Phase 2 focused repository/schema/adapter tests
+
+Command:
+
+```bash
+python -m pytest tests/db/test_provider_links_repository.py tests/db/test_provider_links_schema.py tests/db/test_provider_links_supabase_adapter.py -q
+```
+
+Result:
+
+```text
+.....................                                                    [100%]
+21 passed in 0.30s
+```
+
+## Full backend test suite
+
+Command:
+
+```bash
+python -m pytest -q
+```
+
+Result:
+
+```text
+........................................................................ [ 10%]
+........................................................................ [ 21%]
+........................................................................ [ 32%]
+........................................................................ [ 43%]
+........................................................................ [ 54%]
+........................................................................ [ 65%]
+........................................................................ [ 76%]
+........................................................................ [ 87%]
+........................................................................ [ 98%]
+............                                                             [100%]
+660 passed in 20.01s
+```
+
+## Diff whitespace check
+
+Command:
+
+```bash
+git diff --check
+```
+
+Result:
+
+```text
+```
+
+Passed with no output.
+
+## Provider-call safety
+
+No live provider calls were made for this final fix pass. The executed commands were local pytest and git checks only.
+
+## Artifact tracking note
+
+`git status --short` shows this provider-object-links QC directory is currently under untracked `docs/qc/2026-05-14/` along with other pre-existing untracked Phase 2 artifacts/files. Several unrelated tracked files were already modified in the working tree; this pass did not attempt to stage, revert, or commit any changes.

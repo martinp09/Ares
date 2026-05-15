@@ -1,10 +1,14 @@
 # Keep Docker/build contexts from accidentally carrying local secrets or heavy artifacts.
 .git/
+.worktrees/
+.vercel/
 .env
 .env.*
 *.env
 !.env.example
-.vercel/
+*.pem
+*.key
+*.crt
 
 # Python/local caches
 .venv/
@@ -27,5 +31,4 @@ coverage/
 
 # Local/editor artifacts
 .DS_Store
-.worktrees/
 scripts/ralph/last-message.txt

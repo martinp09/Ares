@@ -1,0 +1,7 @@
+$ npm --prefix trigger run typecheck
+
+> typecheck
+> tsc --noEmit -p tsconfig.json
+
+
+[exit_code=0]

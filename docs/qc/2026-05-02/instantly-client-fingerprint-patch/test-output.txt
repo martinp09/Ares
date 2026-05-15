@@ -1,0 +1,17 @@
+$ uv run pytest tests/providers/test_instantly.py tests/services/test_instantly_client_rate_limit.py -q
+warning: `VIRTUAL_ENV=/usr/local/lib/hermes-agent/venv` does not match the project environment path `.venv` and will be ignored; use `--active` to target the active environment instead
+......                                                                   [100%]
+6 passed in 0.10s
+
+$ python3 - <<'PY'
+import os, pathlib
+for line in pathlib.Path('.env').read_text(errors='ignore').splitlines():
+    if line.startswith('INSTANTLY_API_KEY='):
+        os.environ['INSTANTLY_API_KEY']=line.split('=',1)[1].strip().strip(chr(34)).strip(chr(39))
+        break
+from app.providers.instantly import InstantlyClient
+client = InstantlyClient(api_key=os.environ['INSTANTLY_API_KEY'])
+resp = client.list_campaigns(limit=1)
+print({'ok': True, 'item_count': len(resp.get('items', [])), 'keys': sorted(resp.keys())})
+PY
+{'ok': True, 'item_count': 0, 'keys': ['items']}

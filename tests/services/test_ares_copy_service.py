@@ -31,6 +31,7 @@ def test_generate_lead_briefs_returns_concise_brief_per_ranked_opportunity() -> 
     assert brief.rationale == "Probate lead with verified tax delinquency overlay."
     assert "123 Main St" in brief.brief
     assert "Rank #1" in brief.brief
+    assert "Inherited Property Exit Option" in brief.brief
 
 
 def test_generate_outreach_drafts_keeps_human_review_gate_and_context() -> None:
@@ -48,3 +49,6 @@ def test_generate_outreach_drafts_keeps_human_review_gate_and_context() -> None:
     assert draft.auto_send is False
     assert "123 Main St" in draft.subject
     assert "Rank #1" in draft.body
+    assert "Inherited Property Exit Option" in draft.body
+    assert "Inherited property decisions can get messy" in draft.body
+    assert "Approval: required before any provider enrollment." in draft.body

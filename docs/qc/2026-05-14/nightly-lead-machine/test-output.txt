@@ -1,0 +1,90 @@
+# Test Output
+
+## Focused Phase 7 suite
+
+Command:
+
+```bash
+python -m pytest tests/services/test_nightly_lead_machine_service.py tests/api/test_nightly_lead_machine.py tests/api/test_lead_machine_trigger_contract.py -q
+```
+
+Output:
+
+```text
+.............................                                            [100%]
+29 passed in 0.56s
+```
+
+## Provider foundation regression subset
+
+Command:
+
+```bash
+python -m pytest tests/services/test_hubspot_mirror_service.py tests/services/test_instantly_enrollment_service.py tests/services/test_vapi_call_service.py -q
+```
+
+Output:
+
+```text
+......................................................                   [100%]
+54 passed in 2.10s
+```
+
+## Full backend suite
+
+Command:
+
+```bash
+python -m pytest -q
+```
+
+Output:
+
+```text
+........................................................................ [  9%]
+........................................................................ [ 19%]
+........................................................................ [ 28%]
+........................................................................ [ 38%]
+........................................................................ [ 47%]
+........................................................................ [ 57%]
+........................................................................ [ 66%]
+........................................................................ [ 76%]
+........................................................................ [ 85%]
+........................................................................ [ 95%]
+...................................                                      [100%]
+755 passed in 25.60s
+```
+
+## Trigger typecheck
+
+Command:
+
+```bash
+npm --prefix trigger run typecheck
+```
+
+Output:
+
+```text
+> typecheck
+> tsc --noEmit -p tsconfig.json
+
+sh: 1: tsc: not found
+```
+
+Result: blocked by missing local TypeScript compiler dependency.
+
+## Whitespace check
+
+Command:
+
+```bash
+git diff --check
+```
+
+Output:
+
+```text
+```
+
+Result: passed.

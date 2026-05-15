@@ -10,6 +10,7 @@ from app.core.config import get_settings
 from app.db.tasks import TasksRepository
 from app.models.commands import utc_now
 from app.models.lead_events import LeadEventRecord
+from app.models.source_runs import MorningBrief, MorningBriefRequest, NightlySourcePullRequest, NightlySourcePullResponse
 from app.models.tasks import TaskPriority, TaskRecord, TaskStatus, TaskType
 from app.providers.instantly import verify_webhook_signature
 from app.services.harris_daily_lead_machine_service import (
@@ -21,6 +22,8 @@ from app.services.lead_intake_service import LeadIntakeRequest as ServiceLeadInt
 from app.services.lead_intake_service import lead_intake_service
 from app.services.lead_sequence_runner import LeadSequenceRunner, lead_sequence_runner
 from app.services.lead_suppression_service import LeadSuppressionService, lead_suppression_service
+from app.services.nightly_lead_machine_service import nightly_lead_machine_service
+from app.services.probate_property_tax_title_enrichment_service import ProbatePropertyTaxTitleEnrichmentService
 from app.services.probate_write_path_service import ProbateWritePathService, probate_write_path_service
 
 router = APIRouter(prefix="/lead-machine", tags=["lead-machine"])
@@ -121,6 +124,44 @@ class HarrisDailyImportRequest(BaseModel):
         return self
 
 
+class ProbatePropertyTaxTitleEnrichmentRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    business_id: str = Field(min_length=1)
+    environment: str = Field(min_length=1)
+    keep_now_rows: list[dict[str, Any]] = Field(default_factory=list)
+    hcad_candidates_by_case: dict[str, list[dict[str, Any]]] = Field(default_factory=dict)
+    tax_overlays_by_case: dict[str, dict[str, Any]] = Field(default_factory=dict)
+    tax_overlays_by_account: dict[str, dict[str, Any]] = Field(default_factory=dict)
+    land_record_rows_by_case: dict[str, list[dict[str, Any]]] = Field(default_factory=dict)
+    live_cad_calls: bool = False
+    live_tax_calls: bool = False
+    live_land_record_calls: bool = False
+    enrichment_approval: dict[str, Any] = Field(default_factory=dict)
+
+
+class ProbatePropertyTaxTitleEnrichmentResponse(BaseModel):
+    business_id: str
+    environment: str
+    received_count: int
+    enriched_count: int
+    property_match_completed_count: int
+    property_match_unmatched_count: int
+    tax_overlay_completed_count: int
+    tax_overlay_ambiguous_count: int
+    title_friction_completed_count: int
+    title_friction_review_count: int
+    hubspot_mirror_blocked_until_approval_count: int
+    outbound_blocked_until_explicit_approval_count: int
+    no_send: bool
+    provider_sends_enabled: bool
+    outbound_allowed: bool
+    live_cad_calls_attempted: bool
+    live_tax_calls_attempted: bool
+    live_land_record_calls_attempted: bool
+    records: list[dict[str, Any]]
+
+
 class OutboundEnqueueRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -137,6 +178,7 @@ class OutboundEnqueueRequest(BaseModel):
     verify_leads_on_import: bool = False
     chunk_size: int | None = Field(default=None, ge=1, le=1000)
     wait_seconds: float | None = Field(default=None, ge=0)
+    operator_approval: bool = False
 
 
 class OutboundEnqueueResponse(BaseModel):
@@ -239,6 +281,10 @@ def _build_daily_lead_machine_service() -> HarrisDailyLeadMachineService:
     return harris_daily_lead_machine_service
 
 
+def _build_property_tax_title_enrichment_service() -> ProbatePropertyTaxTitleEnrichmentService:
+    return ProbatePropertyTaxTitleEnrichmentService()
+
+
 @router.post("/intake", response_model=LeadMachineIntakeResponse, status_code=status.HTTP_201_CREATED)
 def intake_lead(request: LeadMachineIntakeRequest) -> LeadMachineIntakeResponse:
     try:
@@ -303,6 +349,34 @@ def import_harris_daily_leads(request: HarrisDailyImportRequest) -> dict[str, An
         raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(exc)) from exc
 
 
+@router.post(
+    "/internal/probate-property-tax-title-enrichment",
+    response_model=ProbatePropertyTaxTitleEnrichmentResponse,
+)
+def run_probate_property_tax_title_enrichment(
+    request: ProbatePropertyTaxTitleEnrichmentRequest,
+) -> ProbatePropertyTaxTitleEnrichmentResponse:
+    try:
+        result = _build_property_tax_title_enrichment_service().run_enrichment(
+            business_id=request.business_id,
+            environment=request.environment,
+            keep_now_rows=request.keep_now_rows,
+            hcad_candidates_by_case=request.hcad_candidates_by_case,
+            tax_overlays_by_case=request.tax_overlays_by_case,
+            tax_overlays_by_account=request.tax_overlays_by_account,
+            land_record_rows_by_case=request.land_record_rows_by_case,
+            live_cad_calls=request.live_cad_calls,
+            live_tax_calls=request.live_tax_calls,
+            live_land_record_calls=request.live_land_record_calls,
+            enrichment_approval=request.enrichment_approval,
+        )
+    except RuntimeError as exc:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(exc)) from exc
+    return ProbatePropertyTaxTitleEnrichmentResponse(**result)
+
+
 @router.post("/outbound/enqueue", response_model=OutboundEnqueueResponse)
 def enqueue_outbound_leads(request: OutboundEnqueueRequest) -> OutboundEnqueueResponse:
     try:
@@ -321,6 +395,7 @@ def enqueue_outbound_leads(request: OutboundEnqueueRequest) -> OutboundEnqueueRe
             verify_leads_on_import=request.verify_leads_on_import,
             chunk_size=request.chunk_size,
             wait_seconds=request.wait_seconds,
+            operator_approval=request.operator_approval,
         )
     except RuntimeError as exc:
         raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=str(exc)) from exc
@@ -389,6 +464,19 @@ async def ingest_instantly_webhook(
         trust_reason=str(trust_reason),
     )
     return InstantlyWebhookResponse(**result)
+
+
+@router.post("/internal/nightly-source-pull", response_model=NightlySourcePullResponse)
+def run_nightly_source_pull(request: NightlySourcePullRequest) -> NightlySourcePullResponse:
+    try:
+        return nightly_lead_machine_service.run_nightly_source_pull(request)
+    except RuntimeError as exc:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(exc)) from exc
+
+
+@router.post("/internal/morning-brief", response_model=MorningBrief)
+def build_morning_brief(request: MorningBriefRequest) -> MorningBrief:
+    return nightly_lead_machine_service.create_morning_brief(request)
 
 
 @router.post("/internal/followup-step-runner", response_model=FollowupStepRunnerResponse)

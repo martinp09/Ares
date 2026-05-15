@@ -2447,6 +2447,7 @@ def test_provider_status_endpoint_reflects_configured_sms_and_email(client, monk
     monkeypatch.setenv("TEXTGRID_FROM_NUMBER", "+13475550123")
     monkeypatch.setenv("RESEND_API_KEY", "re_test_key")
     monkeypatch.setenv("RESEND_FROM_EMAIL", "Relay <relay@send.limitleshome.com>")
+    monkeypatch.setenv("PROVIDER_LIVE_SENDS_ENABLED", "true")
     get_settings.cache_clear()
 
     response = client.get("/mission-control/providers/status", headers=AUTH_HEADERS)
@@ -2543,6 +2544,8 @@ def test_sms_test_endpoint_returns_provider_acceptance(client, monkeypatch) -> N
         }
 
     monkeypatch.setattr("app.services.mission_control_service.send_test_sms", fake_send)
+    monkeypatch.setenv("PROVIDER_LIVE_SENDS_ENABLED", "true")
+    get_settings.cache_clear()
 
     response = client.post(
         "/mission-control/outbound/sms/test",
@@ -2582,6 +2585,8 @@ def test_email_test_endpoint_returns_provider_acceptance(client, monkeypatch) ->
         }
 
     monkeypatch.setattr("app.services.mission_control_service.send_test_email", fake_send)
+    monkeypatch.setenv("PROVIDER_LIVE_SENDS_ENABLED", "true")
+    get_settings.cache_clear()
 
     response = client.post(
         "/mission-control/outbound/email/test",
@@ -2607,6 +2612,8 @@ def test_sms_test_endpoint_maps_provider_errors_to_502(client, monkeypatch) -> N
         raise RuntimeError("SMS Sending Limit reached. Please contact support")
 
     monkeypatch.setattr("app.services.mission_control_service.send_test_sms", fake_send)
+    monkeypatch.setenv("PROVIDER_LIVE_SENDS_ENABLED", "true")
+    get_settings.cache_clear()
 
     response = client.post(
         "/mission-control/outbound/sms/test",

@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import Any
 
 from app.core.config import Settings, get_settings
-from app.db.client import ControlPlaneClient, get_control_plane_client, utc_now
+from app.db.client import ControlPlaneClient, InMemoryControlPlaneClient, get_control_plane_client, utc_now
 from app.db.lead_machine_supabase import (
     external_id,
     fetch_rows,
@@ -33,8 +33,12 @@ class CrmRecordsRepository:
         force_memory: bool | None = None,
     ) -> None:
         self.settings = settings or get_settings()
-        self.client = client or get_control_plane_client(self.settings)
-        self._force_memory = bool(force_memory) if force_memory is not None else False
+        self._force_memory = (
+            bool(force_memory)
+            if force_memory is not None
+            else client is not None and getattr(client, "backend", "memory") != "supabase"
+        )
+        self.client = client or (InMemoryControlPlaneClient() if self._force_memory else get_control_plane_client(self.settings))
 
     def upsert_record(self, record: CrmRecord, *, dedupe_key: str | None = None) -> CrmRecord:
         if lead_machine_backend_enabled(self.settings) and not self._force_memory:

@@ -1,0 +1,56 @@
+$ uv run pytest tests/providers/test_instantly.py tests/services/test_instantly_client_rate_limit.py -q
+warning: `VIRTUAL_ENV=/usr/local/lib/hermes-agent/venv` does not match the project environment path `.venv` and will be ignored; use `--active` to target the active environment instead
+.......                                                                  [100%]
+7 passed in 0.12s
+
+$ python3 generate nurture subsequence payloads
+created payload backup: docs/marketing/exports/instantly-campaign-backups-2026-05-02/instantly-nurture-subsequence-create-payloads-2026-05-02.json
+Long Nurture | Probate | 2026-05 9b306264-b8d6-4ca3-8628-8d0e10f84d9c steps 6
+Long Nurture | Tax + Title Friction | 2026-05 70c5b447-2a72-431c-a63d-1fe8fb67c1fe steps 6
+
+$ python3 create Instantly subsequences
+created: Long Nurture | Probate | 2026-05 id=7db2176c-2ce5-4633-a2e9-346fdc8fff43 parent=9b306264-b8d6-4ca3-8628-8d0e10f84d9c
+created: Long Nurture | Tax + Title Friction | 2026-05 id=494fd6b6-6456-46ea-a79d-0547a172ca95 parent=70c5b447-2a72-431c-a63d-1fe8fb67c1fe
+
+$ python3 readback Instantly subsequences
+{
+  "subsequences": [
+    {
+      "id": "7db2176c-2ce5-4633-a2e9-346fdc8fff43",
+      "name": "Long Nurture | Probate | 2026-05",
+      "parent_campaign": "9b306264-b8d6-4ca3-8628-8d0e10f84d9c",
+      "status": 0,
+      "conditions": {
+        "crm_status": [],
+        "lead_activity": [91],
+        "reply_contains": ""
+      },
+      "steps": 6,
+      "first_step_pre_delay": 31,
+      "first_step_pre_delay_unit": "days",
+      "daily_limit_mode": "inherit",
+      "ignore_account_daily_limit": false
+    },
+    {
+      "id": "494fd6b6-6456-46ea-a79d-0547a172ca95",
+      "name": "Long Nurture | Tax + Title Friction | 2026-05",
+      "parent_campaign": "70c5b447-2a72-431c-a63d-1fe8fb67c1fe",
+      "status": 0,
+      "conditions": {
+        "crm_status": [],
+        "lead_activity": [91],
+        "reply_contains": ""
+      },
+      "steps": 6,
+      "first_step_pre_delay": 31,
+      "first_step_pre_delay_unit": "days",
+      "daily_limit_mode": "inherit",
+      "ignore_account_daily_limit": false
+    }
+  ]
+}
+
+$ python3 -m json.tool provider artifacts
+provider nurture backup json valid
+
+Safety: no leads uploaded, no activation, no sends triggered.

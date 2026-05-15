@@ -242,13 +242,13 @@ Prove every system has explicit configuration and every crossing has a named con
 
 ```bash
 HERMES_RUNTIME_API_BASE_URL=http://127.0.0.1:8000
-HERMES_RUNTIME_API_KEY=dev-runtime-key
+HERMES_RUNTIME_API_KEY=<local-runtime-api-key>
 ```
 
 ### Ares runtime
 
 ```bash
-RUNTIME_API_KEY=dev-runtime-key
+RUNTIME_API_KEY=<local-runtime-api-key>
 CONTROL_PLANE_BACKEND=memory
 MARKETING_BACKEND=memory
 SITE_EVENTS_BACKEND=memory
@@ -275,7 +275,7 @@ RESEND_REPLY_TO_EMAIL=
 
 ```bash
 HERMES_RUNTIME_API_BASE_URL=http://127.0.0.1:8000
-HERMES_RUNTIME_API_KEY=dev-runtime-key
+HERMES_RUNTIME_API_KEY=<local-runtime-api-key>
 TRIGGER_SECRET_KEY=
 ```
 
@@ -284,7 +284,7 @@ TRIGGER_SECRET_KEY=
 ```bash
 VITE_RUNTIME_API_BASE_URL=
 RUNTIME_API_BASE_URL=http://127.0.0.1:8000
-RUNTIME_API_KEY=dev-runtime-key
+RUNTIME_API_KEY=<local-runtime-api-key>
 ```
 
 Local Vite dev uses a server-side proxy that injects `Authorization` from `RUNTIME_API_KEY` or `HERMES_RUNTIME_API_KEY`. Do not expose runtime auth with `VITE_RUNTIME_API_KEY`.
@@ -315,15 +315,15 @@ Test expected defaults:
 
 ```bash
 uv run --with uvicorn uvicorn app.main:app --host 127.0.0.1 --port 8000
-RUNTIME_API_BASE_URL=http://127.0.0.1:8000 RUNTIME_API_KEY=dev-runtime-key npm --prefix apps/mission-control run dev -- --host 127.0.0.1 --port 5173
-HERMES_RUNTIME_API_BASE_URL=http://127.0.0.1:8000 HERMES_RUNTIME_API_KEY=dev-runtime-key npm --prefix trigger run dev
+RUNTIME_API_BASE_URL=http://127.0.0.1:8000 RUNTIME_API_KEY=<local-runtime-api-key> npm --prefix apps/mission-control run dev -- --host 127.0.0.1 --port 5173
+HERMES_RUNTIME_API_BASE_URL=http://127.0.0.1:8000 HERMES_RUNTIME_API_KEY=<local-runtime-api-key> npm --prefix trigger run dev
 ```
 
 - [ ] Document first smoke.
 
 ```bash
 curl -sS http://127.0.0.1:8000/health
-curl -sS -H 'Authorization: Bearer dev-runtime-key' http://127.0.0.1:8000/hermes/tools
+curl -sS -H 'Authorization: Bearer <local-runtime-api-key>' http://127.0.0.1:8000/hermes/tools
 ```
 
 ## Verification
@@ -463,7 +463,7 @@ Hermes calls Ares through:
 
 ```bash
 HERMES_RUNTIME_API_BASE_URL=http://127.0.0.1:8000
-HERMES_RUNTIME_API_KEY=dev-runtime-key
+HERMES_RUNTIME_API_KEY=<local-runtime-api-key>
 ```
 
 Required calls:
@@ -513,7 +513,7 @@ Test:
 
 ```bash
 uv run pytest tests/api/test_hermes_tools.py -q
-HERMES_RUNTIME_API_BASE_URL=http://127.0.0.1:8000 HERMES_RUNTIME_API_KEY=dev-runtime-key uv run python scripts/smoke_hermes_runtime_adapter.py
+HERMES_RUNTIME_API_BASE_URL=http://127.0.0.1:8000 HERMES_RUNTIME_API_KEY=<local-runtime-api-key> uv run python scripts/smoke_hermes_runtime_adapter.py
 ```
 
 ## Exit Gate

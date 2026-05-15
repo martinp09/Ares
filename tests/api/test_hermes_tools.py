@@ -126,6 +126,40 @@ def test_list_hermes_tools_payload_stays_runtime_adapter_compatible(client) -> N
     assert tool["idempotency_scope"] == "business_id + environment + command_type + idempotency_key"
 
 
+def test_list_hermes_tools_exposes_provider_read_preview_tools_without_auto_executable_live_tools(client) -> None:
+    reset_control_plane_state()
+
+    response = client.get("/hermes/tools", headers=AUTH_HEADERS)
+
+    assert response.status_code == 200
+    tools = {tool["name"]: tool for tool in response.json()["tools"]}
+    safe_preview_tools = {
+        "preview_hubspot_customization",
+        "preview_hubspot_record_sync",
+        "preview_instantly_enrollment",
+        "preview_voice_outbound_call",
+        "list_voice_assistants",
+        "list_voice_phone_numbers",
+        "get_latest_morning_brief",
+        "list_source_runs",
+    }
+    live_tools = {
+        "apply_hubspot_customization",
+        "apply_hubspot_record_sync",
+        "apply_instantly_enrollment",
+        "dispatch_voice_outbound_call",
+    }
+
+    assert safe_preview_tools <= set(tools)
+    assert all(tools[name]["approval_mode"] == "safe_autonomous" for name in safe_preview_tools)
+    assert tools["preview_voice_outbound_call"]["payload_schema"]["properties"]["dry_run"] == {
+        "type": "boolean",
+        "const": True,
+    }
+    assert live_tools <= set(tools)
+    assert all(tools[name]["approval_mode"] == "approval_required" for name in live_tools)
+
+
 def test_list_hermes_tools_with_command_backed_bound_skills_only_exposes_supported_intersection(client) -> None:
     reset_control_plane_state()
     research_skill_id = create_skill(
@@ -170,8 +204,20 @@ def test_list_hermes_tools_with_non_command_skill_requirements_falls_back_to_ful
 
     assert response.status_code == 200
     assert {tool["name"] for tool in response.json()["tools"]} == {
+        "apply_hubspot_customization",
+        "apply_hubspot_record_sync",
+        "apply_instantly_enrollment",
         "create_campaign_brief",
+        "dispatch_voice_outbound_call",
         "draft_campaign_assets",
+        "get_latest_morning_brief",
+        "list_source_runs",
+        "list_voice_assistants",
+        "list_voice_phone_numbers",
+        "preview_hubspot_customization",
+        "preview_hubspot_record_sync",
+        "preview_instantly_enrollment",
+        "preview_voice_outbound_call",
         "propose_launch",
         "publish_campaign",
         "run_market_research",

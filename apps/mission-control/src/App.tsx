@@ -19,11 +19,13 @@ import {
   type OpportunityStageMoveRequest,
   type OrganizationSummary,
   type OutboundSendResponse,
+  type ProbateAutopilotHealthData,
 } from "./lib/api";
 import {
   missionControlAgentDetailFixtures,
   missionControlCatalogFixtures,
   missionControlFixtures,
+  probateAutopilotHealthFixture,
 } from "./lib/fixtures";
 import { queryClient } from "./lib/queryClient";
 import { AgentDetailPage } from "./pages/AgentDetailPage";
@@ -33,6 +35,7 @@ import { CatalogPage } from "./pages/CatalogPage";
 import { DashboardPage } from "./pages/DashboardPage";
 import { InboxPage } from "./pages/InboxPage";
 import { PipelinePage } from "./pages/PipelinePage";
+import { ProbateAutopilotPage } from "./pages/ProbateAutopilotPage";
 import { RecordsPage } from "./pages/RecordsPage";
 import { RunsPage } from "./pages/RunsPage";
 import { SettingsPage } from "./pages/SettingsPage";
@@ -338,7 +341,7 @@ function includesSearch(haystack: Array<string | number | null | undefined>, sea
 }
 
 function deriveShellDataSource(fallbackViews: MissionControlView[]): MissionControlDataSource {
-  return fallbackViews.length > 0 ? "fixture" : "api";
+  return fallbackViews.some((view) => view !== "probate-autopilot") ? "fixture" : "api";
 }
 
 function fallbackAgentDetailForSnapshot(
@@ -382,6 +385,8 @@ export default function App() {
   const [searchValue, setSearchValue] = useState("");
   const [snapshot, setSnapshot] = useState<MissionControlSnapshot>(missionControlFixtures);
   const [catalogEntries, setCatalogEntries] = useState<CatalogEntrySummary[]>([]);
+  const [probateAutopilotHealth, setProbateAutopilotHealth] = useState<ProbateAutopilotHealthData>(probateAutopilotHealthFixture);
+  const [probateAutopilotHealthSource, setProbateAutopilotHealthSource] = useState<MissionControlDataSource>("fixture");
   const [catalogInstallStates, setCatalogInstallStates] = useState<Record<string, CatalogInstallUiState | undefined>>({});
   const [scopeOptionValues, setScopeOptionValues] = useState(() => collectScopeOptionValues(missionControlFixtures));
   const [organizations, setOrganizations] = useState<OrganizationSummary[]>([]);
@@ -478,6 +483,8 @@ export default function App() {
   useEffect(() => {
     setSnapshot(buildPendingScopeSnapshot(scope));
     setCatalogEntries([]);
+    setProbateAutopilotHealth(probateAutopilotHealthFixture);
+    setProbateAutopilotHealthSource("fixture");
     setSelectedConversationId("");
     setSelectedAgentId(null);
     setRecordActionState(null);
@@ -511,7 +518,12 @@ export default function App() {
     async function load() {
       setIsLoading(true);
 
-      const [dashboard, records, opportunities, inbox, tasks, approvals, runs, catalog, assets, governance] = await Promise.all([
+      const healthScope = {
+        businessId: selectedBusinessId ?? probateAutopilotHealthFixture.businessId,
+        environment: selectedEnvironment ?? probateAutopilotHealthFixture.environment,
+        maxBriefAgeHours: 8,
+      };
+      const [dashboard, records, opportunities, inbox, tasks, approvals, runs, catalog, assets, governance, probateHealth] = await Promise.all([
         queryClient.fetch(
           `dashboard:${selectedOrgId ?? "default"}:${selectedBusinessId ?? "all"}:${selectedEnvironment ?? "all"}`,
           api.getDashboard,
@@ -562,6 +574,11 @@ export default function App() {
           api.getGovernance,
           missionControlFixtures.governance,
         ),
+        queryClient.fetch(
+          `probate-autopilot-health:${selectedOrgId ?? "default"}:${healthScope.businessId}:${healthScope.environment}`,
+          () => api.getProbateAutopilotHealth(healthScope),
+          probateAutopilotHealthFixture,
+        ),
       ]);
       let agents: { data: MissionControlSnapshot["agents"]; source: MissionControlDataSource };
       try {
@@ -586,6 +603,7 @@ export default function App() {
           ["pipeline", opportunities.source],
           ["settings", governance.source === "fixture" || assets.source === "fixture" ? "fixture" : "api"],
           ["suppression", dashboard.source],
+          ["probate-autopilot", probateHealth.source],
         ] as const
       )
         .filter(([, source]) => source === "fixture")
@@ -612,6 +630,8 @@ export default function App() {
       const nextCatalogEntries = normalizeCatalogEntriesForScope(catalog.data, scope);
       setSnapshot(nextSnapshot);
       setCatalogEntries(nextCatalogEntries);
+      setProbateAutopilotHealth(probateHealth.data);
+      setProbateAutopilotHealthSource(probateHealth.source);
       setScopeOptionValues(collectScopeOptionValues(loadedSnapshot));
       setDataSource(deriveShellDataSource(nextFallbackViews));
       setAgentsDataSource(agents.source);
@@ -1258,6 +1278,7 @@ export default function App() {
               label: "Queue",
               badge: snapshot.dashboard.outboundProbateSummary?.readyLeadCount ?? snapshot.dashboard.pendingLeadCount ?? 0,
             },
+            { id: "probate-autopilot", label: "Autopilot", badge: probateAutopilotHealth.anomalyCount },
             { id: "inbox", label: "Replies", badge: snapshot.dashboard.unreadConversationCount },
             { id: "approvals", label: "Approvals", badge: filteredApprovals.length },
             { id: "runs", label: "Campaign State", badge: filteredRuns.length },
@@ -1339,6 +1360,25 @@ export default function App() {
                 `${snapshot.dashboard.outboundProbateSummary?.readyLeadCount ?? snapshot.dashboard.pendingLeadCount ?? 0} probate leads ready for operator review`,
                 `${snapshot.dashboard.outboundProbateSummary?.activeCampaignCount ?? snapshot.dashboard.activeRunCount} active campaign flows`,
                 `${snapshot.dashboard.outboundProbateSummary?.openTaskCount ?? snapshot.dashboard.dueManualCallCount ?? 0} follow-ups waiting on a human`,
+              ]}
+            />
+          ),
+        },
+        "probate-autopilot": {
+          title: "Lead Machine / Probate Autopilot",
+          subtitle: "Read-only Harris + Montgomery source-run SLA, anomaly, freshness, and enrichment backlog control panel.",
+          mainContent: <ProbateAutopilotPage data={probateAutopilotHealth} dataSource={probateAutopilotHealthSource} />,
+          contextContent: (
+            <ContextPanel
+              eyebrow="Autopilot safety"
+              title="No-send intelligence gate"
+              items={[
+                `Health source: ${probateAutopilotHealthSource}`,
+                `Status: ${probateAutopilotHealth.status}; anomalies: ${probateAutopilotHealth.anomalyCount}`,
+                probateAutopilotHealth.noSendOk
+                  ? "No-send confirmation is intact"
+                  : "No-send confirmation is missing or stale",
+                `${probateAutopilotHealth.enrichmentBacklog.propertyMatchPendingCount} rows are waiting on property match before CRM/outbound gates`,
               ]}
             />
           ),
@@ -1702,9 +1742,11 @@ export default function App() {
     throw new Error(`Missing page definition for ${activeWorkspace}:${activeView}`);
   }
 
-  const visibleFallbackViews = fallbackViews.filter((viewId) => viewId !== "pipeline" || activeWorkspace === "pipeline");
+  const visibleFallbackViews = fallbackViews.filter(
+    (viewId) => (viewId !== "pipeline" || activeWorkspace === "pipeline") && viewId !== "probate-autopilot",
+  );
   const fallbackLabel = visibleFallbackViews.length > 0 ? ` (${visibleFallbackViews.join(", ")})` : "";
-  const isFullFixtureMode = visibleFallbackViews.length === 9;
+  const isFullFixtureMode = visibleFallbackViews.length >= 9;
   const statusBadge = isLoading
     ? "Loading shell"
     : visibleFallbackViews.length === 0

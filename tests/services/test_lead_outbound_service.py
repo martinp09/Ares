@@ -1,5 +1,6 @@
 import pytest
 
+from app.core.config import Settings
 from app.db.automation_runs import AutomationRunsRepository
 from app.db.campaign_memberships import CampaignMembershipsRepository
 from app.db.campaigns import CampaignsRepository
@@ -13,6 +14,15 @@ from app.providers.instantly import InstantlyClient
 from app.services.campaign_lifecycle_service import CampaignLifecycleService, InactiveCampaignEnrollmentError
 from app.services.lead_outbound_service import LeadOutboundService, OutboundEnrollmentRequest
 from app.services.lead_suppression_service import LeadSuppressionService
+
+
+def live_enrollment_settings() -> Settings:
+    return Settings(
+        _env_file=None,
+        provider_live_sends_enabled=True,
+        instantly_provider_live_enrollment_enabled=True,
+        instantly_api_key="inst_123",
+    )
 
 
 def test_enqueue_leads_skips_suppressed_and_records_membership() -> None:
@@ -70,6 +80,7 @@ def test_enqueue_leads_skips_suppressed_and_records_membership() -> None:
         automation_runs_repository=automation_runs_repository,
         suppression_service=suppression_service,
         campaign_lifecycle_service=campaign_lifecycle_service,
+        settings=live_enrollment_settings(),
     )
 
     result = service.enqueue_leads(
@@ -79,6 +90,7 @@ def test_enqueue_leads_skips_suppressed_and_records_membership() -> None:
             lead_ids=[live_lead.id or "", suppressed_lead.id or ""],
             campaign_id=campaign.id,
             assigned_to="owner_1",
+            operator_approval=True,
         )
     )
 
@@ -131,6 +143,7 @@ def test_enqueue_leads_rejects_inactive_campaigns() -> None:
         memberships_repository=memberships_repository,
         automation_runs_repository=automation_runs_repository,
         campaign_lifecycle_service=campaign_lifecycle_service,
+        settings=live_enrollment_settings(),
     )
 
     with pytest.raises(InactiveCampaignEnrollmentError, match="must be active before enrollment"):
@@ -140,12 +153,95 @@ def test_enqueue_leads_rejects_inactive_campaigns() -> None:
                 environment="dev",
                 lead_ids=[lead.id or ""],
                 campaign_id=campaign.id,
+                operator_approval=True,
             )
         )
 
     assert sent_batches == []
     assert memberships_repository.list_for_campaign(campaign.id or "") == []
     assert automation_runs_repository.list(business_id="limitless", environment="dev") == []
+
+
+def test_enqueue_leads_requires_operator_approval_before_any_side_effects() -> None:
+    store = InMemoryControlPlaneStore()
+    client = InMemoryControlPlaneClient(store)
+    leads_repository = LeadsRepository(client)
+    campaigns_repository = CampaignsRepository(client)
+    memberships_repository = CampaignMembershipsRepository(client)
+    automation_runs_repository = AutomationRunsRepository(client)
+    campaign_lifecycle_service = CampaignLifecycleService(campaigns_repository)
+    sent_batches: list[dict] = []
+    service = LeadOutboundService(
+        instantly_client=InstantlyClient(
+            api_key="inst_123",
+            request_sender=lambda payload: sent_batches.append(payload) or {"ok": True},
+            sleep_fn=lambda _: None,
+        ),
+        leads_repository=leads_repository,
+        campaigns_repository=campaigns_repository,
+        memberships_repository=memberships_repository,
+        automation_runs_repository=automation_runs_repository,
+        campaign_lifecycle_service=campaign_lifecycle_service,
+        settings=live_enrollment_settings(),
+    )
+
+    lead = leads_repository.upsert(LeadRecord(business_id="limitless", environment="dev", email="lead@example.com"))
+
+    with pytest.raises(RuntimeError, match="Explicit operator approval"):
+        service.enqueue_leads(
+            OutboundEnrollmentRequest(
+                business_id="limitless",
+                environment="dev",
+                lead_ids=[lead.id or ""],
+            )
+        )
+
+    assert sent_batches == []
+    assert automation_runs_repository.list(business_id="limitless", environment="dev") == []
+    assert memberships_repository.list_for_campaign("camp_missing") == []
+
+
+def test_enqueue_leads_requires_global_and_instantly_live_gates_before_provider_call() -> None:
+    sent_batches: list[dict] = []
+    service = LeadOutboundService(
+        instantly_client=InstantlyClient(
+            api_key="inst_123",
+            request_sender=lambda payload: sent_batches.append(payload) or {"ok": True},
+            sleep_fn=lambda _: None,
+        ),
+        settings=Settings(_env_file=None, provider_live_sends_enabled=False, instantly_provider_live_enrollment_enabled=True),
+    )
+
+    with pytest.raises(RuntimeError, match="PROVIDER_LIVE_SENDS_ENABLED"):
+        service.enqueue_leads(
+            OutboundEnrollmentRequest(
+                business_id="limitless",
+                environment="dev",
+                lead_ids=["lead_1"],
+                operator_approval=True,
+            )
+        )
+
+    service = LeadOutboundService(
+        instantly_client=InstantlyClient(
+            api_key="inst_123",
+            request_sender=lambda payload: sent_batches.append(payload) or {"ok": True},
+            sleep_fn=lambda _: None,
+        ),
+        settings=Settings(_env_file=None, provider_live_sends_enabled=True, instantly_provider_live_enrollment_enabled=False),
+    )
+
+    with pytest.raises(RuntimeError, match="INSTANTLY_PROVIDER_LIVE_ENROLLMENT_ENABLED"):
+        service.enqueue_leads(
+            OutboundEnrollmentRequest(
+                business_id="limitless",
+                environment="dev",
+                lead_ids=["lead_1"],
+                operator_approval=True,
+            )
+        )
+
+    assert sent_batches == []
 
 
 def test_require_active_campaign_accepts_slug_request_for_numeric_supabase_campaign(monkeypatch) -> None:

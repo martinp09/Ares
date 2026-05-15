@@ -1,0 +1,56 @@
+$ npm --prefix apps/mission-control install --ignore-scripts
+# Dependencies installed for Mission Control with lifecycle scripts disabled; frontend checks below run against installed deps.
+
+$ npm --prefix apps/mission-control test -- --run src/lib/api.test.ts src/components/ProviderOperationsPanel.test.tsx src/pages/DashboardPage.test.tsx src/App.test.tsx
+> @hermes/mission-control@0.1.0 test
+> vitest --run src/lib/api.test.ts src/components/ProviderOperationsPanel.test.tsx src/pages/DashboardPage.test.tsx src/App.test.tsx
+
+ RUN  v2.1.9 /opt/ares/Ares/apps/mission-control
+
+ ✓ src/lib/api.test.ts (11 tests) 53ms
+ ✓ src/pages/DashboardPage.test.tsx (3 tests) 141ms
+ ✓ src/components/ProviderOperationsPanel.test.tsx (2 tests) 88ms
+ ✓ src/App.test.tsx (23 tests) 2778ms
+   ✓ App > refetches inbox detail when the operator selects a different conversation 326ms
+
+ Test Files  4 passed (4)
+      Tests  39 passed (39)
+
+$ npm --prefix apps/mission-control run typecheck
+> @hermes/mission-control@0.1.0 typecheck
+> tsc --noEmit
+
+$ npm --prefix apps/mission-control run build
+> @hermes/mission-control@0.1.0 build
+> vite build
+
+vite v5.4.21 building for production...
+transforming...
+✓ 66 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/index.html                   0.41 kB │ gzip:  0.28 kB
+dist/assets/index-D5ZdtnD7.css   24.83 kB │ gzip:  5.55 kB
+dist/assets/index-CSKaHzQA.js   301.50 kB │ gzip: 80.99 kB
+✓ built in 1.01s
+
+$ python -m pytest tests/api/test_hermes_tools.py tests/api/test_nightly_lead_machine.py tests/api/test_voice.py -q
+..............................                                           [100%]
+30 passed in 1.31s
+
+$ python -m pytest -q
+........................................................................ [  9%]
+........................................................................ [ 19%]
+........................................................................ [ 28%]
+........................................................................ [ 38%]
+........................................................................ [ 47%]
+........................................................................ [ 57%]
+........................................................................ [ 66%]
+........................................................................ [ 76%]
+........................................................................ [ 85%]
+........................................................................ [ 95%]
+....................................                                     [100%]
+756 passed in 26.25s
+
+$ git diff --check
+# exit 0; raw stdout was empty

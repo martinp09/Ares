@@ -13,8 +13,20 @@ POLICY_BY_COMMAND: dict[str, CommandPolicy] = {
     "run_market_research": CommandPolicy.SAFE_AUTONOMOUS,
     "create_campaign_brief": CommandPolicy.SAFE_AUTONOMOUS,
     "draft_campaign_assets": CommandPolicy.SAFE_AUTONOMOUS,
+    "preview_hubspot_customization": CommandPolicy.SAFE_AUTONOMOUS,
+    "preview_hubspot_record_sync": CommandPolicy.SAFE_AUTONOMOUS,
+    "preview_instantly_enrollment": CommandPolicy.SAFE_AUTONOMOUS,
+    "preview_voice_outbound_call": CommandPolicy.SAFE_AUTONOMOUS,
+    "list_voice_assistants": CommandPolicy.SAFE_AUTONOMOUS,
+    "list_voice_phone_numbers": CommandPolicy.SAFE_AUTONOMOUS,
+    "get_latest_morning_brief": CommandPolicy.SAFE_AUTONOMOUS,
+    "list_source_runs": CommandPolicy.SAFE_AUTONOMOUS,
     "propose_launch": CommandPolicy.APPROVAL_REQUIRED,
     "publish_campaign": CommandPolicy.APPROVAL_REQUIRED,
+    "apply_hubspot_customization": CommandPolicy.APPROVAL_REQUIRED,
+    "apply_hubspot_record_sync": CommandPolicy.APPROVAL_REQUIRED,
+    "apply_instantly_enrollment": CommandPolicy.APPROVAL_REQUIRED,
+    "dispatch_voice_outbound_call": CommandPolicy.APPROVAL_REQUIRED,
 }
 
 

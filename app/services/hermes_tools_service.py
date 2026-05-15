@@ -45,6 +45,43 @@ PERMISSION_TO_POLICY: dict[ToolPermissionMode, CommandPolicy] = {
     ToolPermissionMode.FORBIDDEN: CommandPolicy.FORBIDDEN,
 }
 
+PAYLOAD_SCHEMA_BY_TOOL: dict[str, dict] = {
+    "preview_hubspot_customization": {
+        "type": "object",
+        "properties": {"business_id": {"type": "string"}, "environment": {"type": "string"}},
+        "additionalProperties": True,
+    },
+    "preview_hubspot_record_sync": {
+        "type": "object",
+        "required": ["records"],
+        "properties": {"records": {"type": "array", "items": {"type": "object"}}},
+        "additionalProperties": True,
+    },
+    "preview_instantly_enrollment": {
+        "type": "object",
+        "properties": {"records": {"type": "array", "items": {"type": "object"}}},
+        "additionalProperties": True,
+    },
+    "preview_voice_outbound_call": {
+        "type": "object",
+        "properties": {
+            "dry_run": {"type": "boolean", "const": True},
+            "to_number": {"type": "string"},
+            "assistant_id": {"type": "string"},
+            "phone_number_id": {"type": "string"},
+        },
+        "additionalProperties": True,
+    },
+    "list_voice_assistants": {"type": "object", "additionalProperties": True},
+    "list_voice_phone_numbers": {"type": "object", "additionalProperties": True},
+    "get_latest_morning_brief": {"type": "object", "additionalProperties": True},
+    "list_source_runs": {
+        "type": "object",
+        "properties": {"source_lane": {"type": "string"}, "limit": {"type": "integer", "minimum": 1}},
+        "additionalProperties": True,
+    },
+}
+
 
 class HermesToolsService:
     def __init__(
@@ -71,7 +108,7 @@ class HermesToolsService:
                 approval_mode=self._resolve_policy(command_type, agent_revision_id).value,
                 permission_mode=self._resolve_permission_mode(command_type, agent_revision_id),
                 capability_allowed=capability_allowed,
-                payload_schema={"type": "object"},
+                payload_schema=PAYLOAD_SCHEMA_BY_TOOL.get(command_type, {"type": "object"}),
                 idempotency_scope="business_id + environment + command_type + idempotency_key",
             )
             for command_type in (allowed_command_surface or POLICY_BY_COMMAND)

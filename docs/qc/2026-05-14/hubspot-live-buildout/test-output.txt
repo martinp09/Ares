@@ -1,0 +1,182 @@
+# Test / Smoke Output
+
+## Preview inventory before live apply
+
+Command:
+
+```bash
+python - <<'PY'
+from app.core.config import Settings
+from app.services.hubspot_mirror_service import HubSpotMirrorService
+settings = Settings()
+service = HubSpotMirrorService(settings=settings)
+preview = service.build_customization_preview()
+print('hubspot_token_present=' + str(bool(settings.hubspot_access_token)).lower())
+print('global_live_gate=' + str(settings.provider_live_sends_enabled).lower())
+print('hubspot_live_gate=' + str(settings.hubspot_provider_live_writes_enabled).lower())
+print('property_groups=' + str(sum(len(v) for v in preview['payloads']['property_groups'].values())))
+print('contact_properties=' + str(len(preview['payloads']['properties']['contacts'])))
+print('deal_properties=' + str(len(preview['payloads']['properties']['deals'])))
+print('company_properties=' + str(len(preview['payloads']['properties']['companies'])))
+print('deal_pipelines=' + str(len(preview['payloads']['pipelines']['deals'])))
+print('deal_pipeline_stages=' + str(len(preview['payloads']['pipelines']['deals'][0]['stages'])))
+PY
+```
+
+Output:
+
+```text
+hubspot_token_present=true
+global_live_gate=false
+hubspot_live_gate=false
+property_groups=3
+contact_properties=12
+deal_properties=20
+company_properties=4
+deal_pipelines=1
+deal_pipeline_stages=12
+```
+
+## Read-only HubSpot probe before live apply
+
+Command:
+
+```bash
+python <sanitized HubSpot read-only probe>
+```
+
+Output:
+
+```text
+token_present=true
+token_fingerprint=e42458734c62
+mutation_calls=0
+name=owners ok=true results_count=1 elapsed_ms=179
+name=contacts_properties ok=true results_count=386 elapsed_ms=230
+name=companies_properties ok=true results_count=257 elapsed_ms=201
+name=deals_properties ok=true results_count=212 elapsed_ms=168
+name=deals_pipelines ok=true results_count=1 elapsed_ms=168
+```
+
+## First live apply attempt
+
+Command:
+
+```bash
+PROVIDER_LIVE_SENDS_ENABLED=true HUBSPOT_PROVIDER_LIVE_WRITES_ENABLED=true python <apply_customization script>
+```
+
+Output:
+
+```text
+token_present=true
+token_fingerprint=e42458734c62
+global_live_gate=true
+hubspot_live_gate=true
+HubSpot transport failed for POST /crm/v3/pipelines/deals; status=400 Bad Request
+```
+
+Follow-up debug body from HubSpot:
+
+```text
+status=400
+{"status":"error","message":"You have reached your limit of 1 deal pipelines.","context":{"maximum pipelines":["1"]},"category":"API_LIMIT"}
+```
+
+## Focused tests after pipeline-limit fallback fix
+
+Command:
+
+```bash
+python -m pytest tests/services/test_hubspot_mirror_service.py tests/providers/test_hubspot.py tests/api/test_hubspot_mirror.py -q
+```
+
+Output:
+
+```text
+............................................                             [100%]
+44 passed in 2.47s
+```
+
+## Successful live apply
+
+Command:
+
+```bash
+PROVIDER_LIVE_SENDS_ENABLED=true HUBSPOT_PROVIDER_LIVE_WRITES_ENABLED=true python <apply_customization script>
+```
+
+Output:
+
+```text
+token_present=true
+token_fingerprint=e42458734c62
+global_live_gate=true
+hubspot_live_gate=true
+{
+  "live_applied": true,
+  "mutation_count": 11,
+  "pipeline_created": null,
+  "pipeline_existing": {
+    "id": "default",
+    "label": "Sales Pipeline"
+  },
+  "properties_created_count": 0,
+  "properties_skipped_count": 36,
+  "property_groups_created_count": 0,
+  "property_groups_skipped_count": 3,
+  "provider": "hubspot",
+  "stages_created_count": 11,
+  "stages_skipped_count": 1,
+  "warnings": [
+    "HubSpot portal already has its maximum deal-pipeline count; reused the existing deal pipeline and added missing Ares stages."
+  ]
+}
+```
+
+## Post-apply read-only verification
+
+Command:
+
+```bash
+python <post-apply HubSpot read-only verification>
+```
+
+Output:
+
+```text
+contacts_ares_properties_present=12/12 missing=0
+deals_ares_properties_present=20/20 missing=0
+companies_ares_properties_present=4/4 missing=0
+deal_pipeline_count=1
+pipeline_id=default
+pipeline_label=Sales Pipeline
+stage_count=18
+ares_stages_present=12/12 missing=0
+```
+
+## Captured Ares stage IDs after live buildout
+
+Command:
+
+```bash
+python <read-only HubSpot stage-id capture>
+```
+
+Output:
+
+```text
+pipeline_id=default
+New Lead=3668226794
+Data QC=3668219617
+Needs Skiptrace=3668219618
+Contact Ready=3668219619
+Outreach Queued=3668122304
+Outreach Active=3668122305
+Engaged=3668122306
+Appointment Set=3668122307
+Offer / Title Review=3668219620
+Contracting=3668219621
+Closed Lost / Dead=3668122308
+Closed Won=closedwon
+```

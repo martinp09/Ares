@@ -250,9 +250,10 @@ def test_booked_calcom_event_logs_outbound_confirmation_messages() -> None:
         settings=Settings(
             textgrid_account_sid="acct_123",
             textgrid_auth_token="token_123",
-            textgrid_from_number="+13467725914",
+            textgrid_from_number="+134****5914",
             resend_api_key="resend_123",
             resend_from_email="ops@example.com",
+            provider_live_sends_enabled=True,
         ),
         calcom_adapter=StubCalcomAdapter(),
         booking_repository=_MarketingBookingStateRepository(

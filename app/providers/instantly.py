@@ -13,6 +13,7 @@ from app.models.providers import ProviderTransportError
 from app.services.provider_retry_service import ProviderRetryService
 
 _DEFAULT_BASE_URL = "https://api.instantly.ai"
+_DEFAULT_USER_AGENT = "Mozilla/5.0 Ares/1.0 InstantlyClient"
 _DEFAULT_BATCH_SIZE = 100
 _DEFAULT_BATCH_WAIT_SECONDS = 0.25
 _MAX_BULK_ADD_SIZE = 1000
@@ -72,7 +73,9 @@ def build_instantly_request(
         "endpoint": endpoint,
         "headers": {
             **build_authorization_header(api_key),
+            "Accept": "application/json",
             "Content-Type": "application/json",
+            "User-Agent": _DEFAULT_USER_AGENT,
         },
         "payload": dict(payload or {}),
     }
@@ -236,6 +239,21 @@ class InstantlyClient:
 
     def duplicate_campaign(self, campaign_id: str, payload: Mapping[str, Any] | None = None) -> dict[str, Any]:
         return self._send("POST", f"/api/v2/campaigns/{campaign_id}/duplicate", payload=payload)
+
+    def create_subsequence(self, payload: Mapping[str, Any]) -> dict[str, Any]:
+        return self._send("POST", "/api/v2/subsequences", payload=payload)
+
+    def list_subsequences(self, *, parent_campaign: str, **query: Any) -> dict[str, Any]:
+        return self._send("GET", "/api/v2/subsequences", query={"parent_campaign": parent_campaign, **query})
+
+    def get_subsequence(self, subsequence_id: str) -> dict[str, Any]:
+        return self._send("GET", f"/api/v2/subsequences/{subsequence_id}")
+
+    def pause_subsequence(self, subsequence_id: str) -> dict[str, Any]:
+        return self._send("POST", f"/api/v2/subsequences/{subsequence_id}/pause")
+
+    def resume_subsequence(self, subsequence_id: str) -> dict[str, Any]:
+        return self._send("POST", f"/api/v2/subsequences/{subsequence_id}/resume")
 
     def get_launched_campaigns_count(self) -> dict[str, Any]:
         return self._send("GET", "/api/v2/campaigns/launched/count")
