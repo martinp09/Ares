@@ -1,0 +1,35 @@
+warning: `VIRTUAL_ENV=/usr/local/lib/hermes-agent/venv` does not match the project environment path `.venv` and will be ignored; use `--active` to target the active environment instead
+{
+  "artifact_root": "/opt/ares/worktrees/ares-main/docs/qc/2026-05-15/probate-autopilot-live-operational-prd-execution/live-smoke-artifacts",
+  "business_id": "limitless",
+  "counties": [
+    "harris",
+    "montgomery"
+  ],
+  "enriched_count": 8,
+  "enrichment_status": "partial",
+  "environment": "live-smoke",
+  "idempotency_key": "live-operational-prd-execution-2026-05-15-final",
+  "keep_now_count": 8,
+  "live_cad_calls_attempted": true,
+  "live_land_record_calls_attempted": true,
+  "live_source_calls_enabled": true,
+  "live_tax_calls_attempted": true,
+  "no_send": true,
+  "operator_actions": [
+    "complete_property_tax_title_enrichment",
+    "keep_outbound_blocked"
+  ],
+  "property_match_unmatched_count": 8,
+  "provider_sends_enabled": false,
+  "sla_status": "healthy",
+  "source_health_completed_runs": 5,
+  "source_health_failed_runs": 0,
+  "source_record_count": 47,
+  "source_run_count": 5,
+  "status": "completed",
+  "tax_overlay_ambiguous_count": 2,
+  "title_friction_review_count": 8,
+  "warnings_count": 0,
+  "would_call_external_sources": true
+}

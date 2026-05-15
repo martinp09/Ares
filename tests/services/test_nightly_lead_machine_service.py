@@ -103,7 +103,11 @@ def test_missing_manifests_records_fixture_warnings_without_external_calls(servi
     assert "no source artifacts supplied" in result.morning_brief.warnings
 
 
-def test_live_source_calls_request_rejected_before_work(service: NightlyLeadMachineService):
+def test_live_source_calls_request_rejected_when_disabled_before_work():
+    service = NightlyLeadMachineService(
+        repository=SourceRunsRepository(),
+        settings=Settings(_env_file=None, lead_machine_live_source_calls_enabled=False),
+    )
     with pytest.raises(RuntimeError, match="live source calls are disabled"):
         service.run_nightly_source_pull(
             NightlySourcePullRequest(business_id="biz", environment="test", live_source_calls=True)

@@ -7,14 +7,20 @@ from app.core.config import Settings, get_settings
 from app.models.probate_leads import ProbateLeadRecord
 from app.services.probate_hcad_match_service import ProbateHCADMatchService
 from app.services.probate_lead_score_service import ProbateLeadScoreService
+from app.services.probate_live_enrichment_clients import (
+    public_probate_live_cad_client,
+    public_probate_live_land_record_client,
+    public_probate_live_tax_client,
+)
 from app.services.tax_overlay_service import TaxOverlayResult, TaxOverlayStatus
 
 
 class ProbatePropertyTaxTitleEnrichmentService:
-    """No-send property/tax/title enrichment gate for probate-autopilot rows.
+    """No-send property/tax/title enrichment for probate-autopilot rows.
 
-    This service intentionally consumes only supplied local candidates/snapshots.
-    Live CAD, tax, and land-record calls are separate future provider gates.
+    Live public CAD, tax, and land-record clients are registered by default, but
+    they only execute when the request sets the live flags and supplies explicit
+    no-send approval. Email/provider sends remain blocked separately.
     """
 
     def __init__(
@@ -30,9 +36,9 @@ class ProbatePropertyTaxTitleEnrichmentService:
         self.hcad_match_service = hcad_match_service or ProbateHCADMatchService()
         self.score_service = score_service or ProbateLeadScoreService()
         self.settings = settings or get_settings()
-        self.cad_client = cad_client
-        self.tax_client = tax_client
-        self.land_record_client = land_record_client
+        self.cad_client = cad_client or public_probate_live_cad_client
+        self.tax_client = tax_client or public_probate_live_tax_client
+        self.land_record_client = land_record_client or public_probate_live_land_record_client
 
     def run_enrichment(
         self,
@@ -285,6 +291,13 @@ def _title_friction_payload(rows: list[Mapping[str, Any]], *, live_calls_attempt
             "next_action": "needs_land_record_review",
             "live_calls_attempted": live_calls_attempted,
         }
+    blocked_rows = [row for row in rows if str(row.get("status") or "").lower() == "blocked"]
+    parser_warnings = [
+        str(warning)
+        for row in rows
+        for warning in (row.get("parser_warnings") or [])
+        if isinstance(row.get("parser_warnings"), list)
+    ]
     instrument_types = [_instrument_type(row) for row in rows]
     flags = {
         "affidavit_of_heirship": any("AFFIDAVIT" in item and "HEIR" in item for item in instrument_types),
@@ -300,15 +313,26 @@ def _title_friction_payload(rows: list[Mapping[str, Any]], *, live_calls_attempt
     party_names = {_text_or_none(row.get(key)) for row in rows for key in ("grantor", "grantee", "party", "person_name")}
     party_names.discard(None)
     review_needed = any(flags.values())
+    blocked = bool(blocked_rows) and len(blocked_rows) == len(rows)
+    if blocked:
+        status = "blocked"
+        confidence = "none"
+        next_action = "needs_land_record_review"
+    else:
+        status = "needs_document_image_review" if review_needed else "soft_signal"
+        confidence = "medium" if review_needed else "low"
+        next_action = "needs_document_image_review" if review_needed else "needs_land_record_review"
     return {
-        "status": "needs_document_image_review" if review_needed else "soft_signal",
+        "status": status,
         "instrument_count": len(rows),
         "high_value_instrument_types": high_value,
         "party_count": len(party_names),
         "friction_flags": flags,
-        "confidence": "medium" if review_needed else "low",
+        "confidence": confidence,
         "source_refs": source_refs[:10],
-        "next_action": "needs_document_image_review" if review_needed else "needs_land_record_review",
+        "next_action": next_action,
+        "parser_warnings": parser_warnings,
+        "blocked": blocked,
         "live_calls_attempted": live_calls_attempted,
     }
 

@@ -1,6 +1,7 @@
 import pytest
 
 from app.services.probate_live_source_adapter_service import (
+    MONTGOMERY_ODYSSEY_DEFAULT_URL,
     MONTGOMERY_ODYSSEY_LOGIN_URL,
     MONTGOMERY_ODYSSEY_SEARCH_URL,
     MontgomeryCountyProbateLiveAdapter,
@@ -191,6 +192,8 @@ def test_montgomery_live_adapter_launches_case_search_with_node_post(monkeypatch
         calls.append({"url": url, "data": dict(data or {}), "headers": dict(headers or {})})
         if url == MONTGOMERY_ODYSSEY_LOGIN_URL:
             return '<a href="javascript:LaunchSearch(\'Search.aspx?ID=200\', false, true, sbxControlID2)">Civil &amp; Probate Case Records</a>'
+        if url == MONTGOMERY_ODYSSEY_DEFAULT_URL:
+            return '<a href="javascript:LaunchSearch(\'Search.aspx?ID=200\', false, true, sbxControlID2)">Civil &amp; Probate Case Records</a>'
         if url == MONTGOMERY_ODYSSEY_SEARCH_URL and data == {
             "NodeID": "100,105,110,120,130,140,150,160,180",
             "NodeDesc": "All County Courts",
@@ -208,7 +211,8 @@ def test_montgomery_live_adapter_launches_case_search_with_node_post(monkeypatch
     assert fetched.raw_count == 1
     assert fetched.rows[0]["source_adapter"] == "montgomery_county_probate_live_v1"
     assert calls[0]["url"] == MONTGOMERY_ODYSSEY_LOGIN_URL
-    assert calls[1]["url"] == MONTGOMERY_ODYSSEY_SEARCH_URL
-    assert calls[1]["data"] == {"NodeID": "100,105,110,120,130,140,150,160,180", "NodeDesc": "All County Courts"}
-    assert calls[2]["data"]["SearchBy"] == "6"
-    assert calls[2]["data"]["CaseCategories"] == "PR"
+    assert calls[1]["url"] == MONTGOMERY_ODYSSEY_DEFAULT_URL
+    assert calls[2]["url"] == MONTGOMERY_ODYSSEY_SEARCH_URL
+    assert calls[2]["data"] == {"NodeID": "100,105,110,120,130,140,150,160,180", "NodeDesc": "All County Courts"}
+    assert calls[3]["data"]["SearchBy"] == "6"
+    assert calls[3]["data"]["CaseCategories"] == "PR"

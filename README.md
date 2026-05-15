@@ -34,7 +34,7 @@ This repo is the deterministic runtime, policy layer, orchestration surface, and
 - HubSpot contact visibility correction evidence: `docs/qc/2026-05-14/hubspot-contact-visibility-correction/`
 - Operating cadence runbook: `docs/runbooks/agentic-company-operating-cadence.md`
 - Provider sync/recovery runbook: `docs/runbooks/provider-sync-and-recovery.md`
-- Current follow-up branch `fix/probate-autopilot-enrichment-wiring` is pushed and clean; review/merge intentionally before any promotable/deployed claim.
+- Harris + Montgomery probate autopilot is now operational as a no-send system: Trigger schedules default to live public source + public CAD/tax/land-record enrichment, Ares keeps no-send approval/suppression gates, and Instantly/SMS/Vapi/paid skiptrace remain blocked. Latest QC: `docs/qc/2026-05-15/probate-autopilot-live-operational-prd-execution/`.
 
 ## Initial Direction
 
@@ -228,6 +228,7 @@ curl -sS -H 'Authorization: Bearer <local-runtime-api-key>' http://127.0.0.1:800
 - Provider request shape: `python scripts/smoke_provider_readiness.py`
 - Python: `uv run pytest -q`
 - Lead machine smoke: `uv run python scripts/smoke/lead_machine_smoke.py`
+- Probate autopilot live no-send smoke: `uv run python scripts/smoke/probate_autopilot_live_no_send_smoke.py --day YYYY-MM-DD`
 - Trigger.dev: `npm --prefix trigger run typecheck`
 - Mission Control: `npm --prefix apps/mission-control run test -- --run`, `npm --prefix apps/mission-control run typecheck`, `npm --prefix apps/mission-control run build`
 

@@ -56,7 +56,7 @@ class Settings(BaseSettings):
         validation_alias=AliasChoices("lead_machine_artifact_root", "LEAD_MACHINE_ARTIFACT_ROOT"),
     )
     lead_machine_live_source_calls_enabled: bool = Field(
-        default=False,
+        default=True,
         validation_alias=AliasChoices(
             "lead_machine_live_source_calls_enabled",
             "LEAD_MACHINE_LIVE_SOURCE_CALLS_ENABLED",
@@ -70,21 +70,21 @@ class Settings(BaseSettings):
         ),
     )
     lead_machine_live_cad_calls_enabled: bool = Field(
-        default=False,
+        default=True,
         validation_alias=AliasChoices(
             "lead_machine_live_cad_calls_enabled",
             "LEAD_MACHINE_LIVE_CAD_CALLS_ENABLED",
         ),
     )
     lead_machine_live_tax_calls_enabled: bool = Field(
-        default=False,
+        default=True,
         validation_alias=AliasChoices(
             "lead_machine_live_tax_calls_enabled",
             "LEAD_MACHINE_LIVE_TAX_CALLS_ENABLED",
         ),
     )
     lead_machine_live_land_record_calls_enabled: bool = Field(
-        default=False,
+        default=True,
         validation_alias=AliasChoices(
             "lead_machine_live_land_record_calls_enabled",
             "LEAD_MACHINE_LIVE_LAND_RECORD_CALLS_ENABLED",

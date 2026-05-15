@@ -28,19 +28,18 @@ _LIVE_PROVIDER_LABELS: dict[SourceCounty, str] = {
     "montgomery": "montgomery_county_probate_live_v1",
 }
 _ADAPTER_DISCOVERY_STATUS: dict[SourceCounty, str] = {
-    "harris": "adapter_contract_ready_no_network_implementation",
-    "montgomery": "adapter_contract_ready_no_network_implementation",
+    "harris": "public_network_adapter_registered",
+    "montgomery": "public_network_adapter_registered",
 }
 
 
 class ProbateSourceProviderBridgeService:
     """Bridge source-provider intent into no-send source-row metadata.
 
-    This is intentionally *not* a live county scraper. The bridge gives the
-    scheduled source-pull path a stable provider contract while accepting local
-    export files and a dry-run adapter-preview mode. Live source calls remain
-    behind a separate env gate and explicit operator approval before any
-    network/browser adapter can be wired.
+    The live mode uses registered read-only Harris/Montgomery public county
+    adapters. Local export and adapter-preview modes remain available for tests
+    and operator backfills. All modes are no-send: no CRM write, provider
+    enrollment, skiptrace spend, SMS, Vapi, or email send is performed here.
     """
 
     def __init__(
@@ -68,7 +67,7 @@ class ProbateSourceProviderBridgeService:
         approved = isinstance(approval, Mapping) and approval.get("approved") is True
         if not self.settings.lead_machine_live_source_calls_enabled:
             raise RuntimeError(
-                "live source calls are disabled; probate source-provider bridge currently supports local_export_files and dry-run adapter_preview only"
+                "live source calls are disabled; set LEAD_MACHINE_LIVE_SOURCE_CALLS_ENABLED=true or remove live_source_calls"
             )
         if not approved:
             raise RuntimeError("live source calls require explicit source_provider_approval.approved=true")

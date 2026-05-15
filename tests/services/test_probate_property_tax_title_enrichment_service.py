@@ -1,5 +1,6 @@
 from app.core.config import Settings
 from app.domains.ares.models import AresCounty
+from app.services import probate_live_enrichment_clients
 from app.services.probate_property_tax_title_enrichment_service import ProbatePropertyTaxTitleEnrichmentService
 from app.services.tax_overlay_service import TaxOverlayResult, TaxOverlayStatus
 
@@ -246,3 +247,84 @@ def test_property_tax_title_enrichment_uses_registered_live_clients_with_explici
     assert record["pain_stack"]["tax_overlay"]["live_calls_attempted"] is True
     assert record["pain_stack"]["title_friction"]["live_calls_attempted"] is True
     assert record["pain_stack"]["title_friction"]["friction_flags"]["affidavit_of_heirship"] is True
+
+
+def test_property_tax_title_enrichment_uses_default_registered_public_clients(monkeypatch) -> None:
+    calls = []
+
+    def fake_cad(*, record, source_row):
+        calls.append(("cad", record.case_number, source_row["case_number"]))
+        return [
+            {
+                "acct": "000777000001",
+                "owner_name": record.decedent_name,
+                "property_address": "777 PUBLIC PROPERTY ST, HOUSTON, TX",
+            }
+        ]
+
+    def fake_tax(*, record, source_row):
+        calls.append(("tax", record.case_number, record.hcad_acct, source_row["case_number"]))
+        return {
+            "status": TaxOverlayStatus.VERIFIED_DELINQUENT,
+            "is_delinquent": True,
+            "amount_owed": 777.0,
+            "account": record.hcad_acct,
+            "confidence": "high",
+            "search_method": "patched_default_public_tax_client",
+        }
+
+    def fake_land(*, record, source_row):
+        calls.append(("land", record.case_number, source_row["case_number"]))
+        return [
+            {
+                "instrument_number": "RP-PUBLIC-1",
+                "instrument_type": "Certified Copy of Probate",
+                "grantor": record.decedent_name,
+            }
+        ]
+
+    monkeypatch.setattr(probate_live_enrichment_clients.public_probate_live_cad_client, "fetch_candidates", fake_cad)
+    monkeypatch.setattr(probate_live_enrichment_clients.public_probate_live_tax_client, "fetch_tax_overlay", fake_tax)
+    monkeypatch.setattr(
+        probate_live_enrichment_clients.public_probate_live_land_record_client,
+        "fetch_land_records",
+        fake_land,
+    )
+
+    service = ProbatePropertyTaxTitleEnrichmentService(
+        settings=Settings(
+            _env_file=None,
+            lead_machine_live_cad_calls_enabled=True,
+            lead_machine_live_tax_calls_enabled=True,
+            lead_machine_live_land_record_calls_enabled=True,
+        )
+    )
+
+    result = service.run_enrichment(
+        business_id="limitless",
+        environment="test",
+        keep_now_rows=[
+            {
+                "county": "harris",
+                "case_number": "2026-PUBLIC-1",
+                "filing_type": "APP TO DETERMINE HEIRSHIP",
+                "estate_name": "Estate of Public Client",
+                "decedent_name": "Public Client",
+                "keep_now": True,
+            }
+        ],
+        live_cad_calls=True,
+        live_tax_calls=True,
+        live_land_record_calls=True,
+        enrichment_approval={"approved": True, "approved_by": "operator", "no_send": True, "provider_sends_enabled": False},
+    )
+
+    assert calls == [
+        ("cad", "2026-PUBLIC-1", "2026-PUBLIC-1"),
+        ("tax", "2026-PUBLIC-1", "777000001", "2026-PUBLIC-1"),
+        ("land", "2026-PUBLIC-1", "2026-PUBLIC-1"),
+    ]
+    assert result["live_cad_calls_attempted"] is True
+    assert result["live_tax_calls_attempted"] is True
+    assert result["live_land_record_calls_attempted"] is True
+    assert result["records"][0]["tax_delinquent"] is True

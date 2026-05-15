@@ -33,8 +33,12 @@ function ctDateKey(date: Date): string {
   return date.toLocaleDateString("en-CA", { timeZone: timezone });
 }
 
-function envFlag(name: string): boolean {
-  return ["1", "true", "yes", "on"].includes((process.env[name] ?? "").toLowerCase());
+function envFlag(name: string, defaultValue = false): boolean {
+  const raw = process.env[name];
+  if (raw === undefined) {
+    return defaultValue;
+  }
+  return ["1", "true", "yes", "on"].includes(raw.toLowerCase());
 }
 
 export function buildProbateAutopilotScheduledPayload(
@@ -45,7 +49,8 @@ export function buildProbateAutopilotScheduledPayload(
   const scheduledAt = scheduledDate(schedule);
   const scheduleTimezone = schedule.timezone ?? timezone;
   const scheduleId = schedule.scheduleId ?? schedule.id ?? slot;
-  const liveSourceCalls = envFlag("LEAD_MACHINE_SCHEDULED_LIVE_SOURCE_CALLS_ENABLED");
+  const liveSourceCalls = envFlag("LEAD_MACHINE_SCHEDULED_LIVE_SOURCE_CALLS_ENABLED", true);
+  const liveEnrichmentCalls = envFlag("LEAD_MACHINE_SCHEDULED_LIVE_ENRICHMENT_CALLS_ENABLED", true);
   const sourceProviderBridge = liveSourceCalls
     ? {
         mode: "live_source_adapters",
@@ -57,6 +62,15 @@ export function buildProbateAutopilotScheduledPayload(
         approved: true,
         approved_by: "trigger-schedule-env-gate",
         scope: "harris_montgomery_probate_public_sources",
+        no_send: true,
+        provider_sends_enabled: false,
+      }
+    : undefined;
+  const enrichmentApproval = liveEnrichmentCalls
+    ? {
+        approved: true,
+        approved_by: "trigger-schedule-env-gate",
+        scope: "harris_montgomery_probate_public_cad_tax_land_records",
         no_send: true,
         provider_sends_enabled: false,
       }
@@ -83,6 +97,16 @@ export function buildProbateAutopilotScheduledPayload(
       schedule_type: schedule.type ?? "cron",
       ...(sourceProviderBridge ? { source_provider_bridge: sourceProviderBridge } : {}),
       ...(sourceProviderApproval ? { source_provider_approval: sourceProviderApproval } : {}),
+      ...(enrichmentApproval
+        ? {
+            property_tax_title_enrichment: {
+              live_cad_calls: true,
+              live_tax_calls: true,
+              live_land_record_calls: true,
+              enrichment_approval: enrichmentApproval,
+            },
+          }
+        : {}),
     },
   };
 }

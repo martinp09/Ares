@@ -12,6 +12,6 @@ export const nightlySourcePull = task({
         "nightlySourcePull",
         payload
       );
-    }, { artifactType: "lead_machine_nightly_source_pull" });
+    });
   },
 });

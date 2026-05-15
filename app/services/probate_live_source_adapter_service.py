@@ -1,8 +1,10 @@
 from __future__ import annotations
 
 import html
+import http.client
 import http.cookiejar
 import re
+import time
 import urllib.parse
 import urllib.request
 from dataclasses import dataclass, field
@@ -22,7 +24,7 @@ PROBATE_LIVE_SOURCE_ADAPTER_VERSION = "probate_live_source_adapter_v1"
 _HARRIS_USER_AGENT = "Mozilla/5.0 (compatible; AresProbateAutopilot/1.0; +https://github.com/martinp09/Ares)"
 _MONTGOMERY_ALL_COUNTY_COURTS_NODE_ID = "100,105,110,120,130,140,150,160,180"
 _MONTGOMERY_ALL_COUNTY_COURTS_NODE_DESC = "All County Courts"
-_MONTGOMERY_SESSION_ATTEMPTS = 3
+_MONTGOMERY_SESSION_ATTEMPTS = 6
 
 
 @dataclass(frozen=True)
@@ -136,6 +138,8 @@ class MontgomeryCountyProbateLiveAdapter:
                 return _montgomery_fetch_from_results(response_html=response_html, source_url=self.source_url, start=start, end=end)
             except Exception as exc:  # noqa: BLE001 - Odyssey public access can bounce sessions; retry cleanly.
                 errors.append(f"attempt {attempt}: {type(exc).__name__}: {exc}")
+                if attempt < _MONTGOMERY_SESSION_ATTEMPTS:
+                    time.sleep(min(2.0, 0.35 * attempt))
         raise RuntimeError("Montgomery Odyssey live source failed after session retries; " + "; ".join(errors[-2:]))
 
 
@@ -144,6 +148,7 @@ probate_live_source_adapter_service = ProbateLiveSourceAdapterService()
 
 def _open_montgomery_search_form(opener: urllib.request.OpenerDirector) -> str:
     _request_text(opener, MONTGOMERY_ODYSSEY_LOGIN_URL)
+    _request_text(opener, MONTGOMERY_ODYSSEY_DEFAULT_URL)
     search_html = _request_text(
         opener,
         MONTGOMERY_ODYSSEY_SEARCH_URL,
@@ -267,7 +272,10 @@ def _request_text(
         request_headers["Content-Type"] = "application/x-www-form-urlencoded"
     request = urllib.request.Request(url, data=body, headers=request_headers)
     with opener.open(request, timeout=45) as response:  # noqa: S310 - public county portals
-        return response.read().decode("utf-8", errors="replace")
+        try:
+            return response.read().decode("utf-8", errors="replace")
+        except http.client.IncompleteRead as exc:
+            return exc.partial.decode("utf-8", errors="replace")
 
 
 class _FormParser(HTMLParser):

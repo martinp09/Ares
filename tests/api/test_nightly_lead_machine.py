@@ -103,12 +103,12 @@ def test_unknown_fields_are_rejected(client):
     assert response.status_code == 422
 
 
-def test_live_source_calls_endpoint_rejected(client):
+def test_live_source_calls_endpoint_requires_approval(client):
     payload = _payload()
     payload["live_source_calls"] = True
     response = client.post("/lead-machine/internal/nightly-source-pull", json=payload, headers=AUTH_HEADERS)
     assert response.status_code == 422
-    assert "live source calls are disabled" in response.json()["detail"]
+    assert "live source calls require explicit source_provider_approval.approved=true" in response.json()["detail"]
 
 
 

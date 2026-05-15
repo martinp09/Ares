@@ -55,8 +55,8 @@ def test_source_provider_bridge_hydrates_local_export_files(tmp_path):
     assert request.metadata["record_counts"]["montgomery"]["source_reported_count"] == 1
 
 
-def test_source_provider_bridge_rejects_live_calls_before_work():
-    bridge = ProbateSourceProviderBridgeService()
+def test_source_provider_bridge_rejects_live_calls_when_disabled_before_work():
+    bridge = ProbateSourceProviderBridgeService(settings=Settings(_env_file=None, lead_machine_live_source_calls_enabled=False))
     with pytest.raises(RuntimeError, match="live source calls are disabled"):
         bridge.reject_live_source_calls(
             NightlySourcePullRequest(business_id="biz", environment="test", live_source_calls=True)
@@ -355,8 +355,8 @@ def test_nightly_service_runs_live_source_adapters_as_no_send_source_runs():
         )
     )
 
-    assert result.would_call_external_sources is False
-    assert result.live_source_calls_enabled is False
+    assert result.would_call_external_sources is True
+    assert result.live_source_calls_enabled is True
     assert {run.county for run in result.source_runs} == {"harris", "montgomery"}
     assert all(run.record_count == 1 for run in result.source_runs)
     assert all(run.metadata["source_provider_bridge"]["mode"] == "live_source_adapters" for run in result.source_runs)

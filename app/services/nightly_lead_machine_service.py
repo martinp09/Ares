@@ -30,10 +30,7 @@ from app.services.probate_autopilot_manifest_service import (
     is_probate_autopilot_request,
 )
 from app.services.probate_property_tax_title_enrichment_service import ProbatePropertyTaxTitleEnrichmentService
-from app.services.probate_source_provider_service import (
-    ProbateSourceProviderBridgeService,
-    probate_source_provider_bridge_service,
-)
+from app.services.probate_source_provider_service import ProbateSourceProviderBridgeService
 
 
 DEFAULT_SOURCE_DEFINITIONS: tuple[dict[str, str], ...] = (
@@ -80,7 +77,7 @@ class NightlyLeadMachineService:
     ) -> None:
         self.repository = repository or source_runs_repository
         self.settings = settings or get_settings()
-        self.source_provider_bridge = source_provider_bridge or probate_source_provider_bridge_service
+        self.source_provider_bridge = source_provider_bridge or ProbateSourceProviderBridgeService(settings=self.settings)
         self.enrichment_service = enrichment_service or ProbatePropertyTaxTitleEnrichmentService(settings=self.settings)
 
     def run_nightly_source_pull(self, request: NightlySourcePullRequest) -> NightlySourcePullResponse:
@@ -121,6 +118,7 @@ class NightlyLeadMachineService:
             ]
         created_runs: list[SourceRun] = []
         response_warnings: list[str] = []
+        would_call_external_sources = _metadata_would_call_live_sources(request.metadata)
         if not request.source_runs and not is_probate_autopilot_request(request.metadata):
             response_warnings.append("no source artifacts supplied; fixture source definitions recorded with zero counts")
 
@@ -142,8 +140,10 @@ class NightlyLeadMachineService:
                 keep_now_count=manifest.keep_now_count,
                 metadata={
                     **manifest.metadata,
-                    "would_call_external_sources": False,
-                    "live_source_calls_enabled": False,
+                    "would_call_external_sources": would_call_external_sources
+                    or _metadata_would_call_live_sources(manifest.metadata),
+                    "live_source_calls_enabled": would_call_external_sources
+                    or _metadata_would_call_live_sources(manifest.metadata),
                 },
             )
             stored = self.repository.start_run(run)
@@ -175,7 +175,13 @@ class NightlyLeadMachineService:
             metadata=brief_metadata,
         )
         self.repository.save_brief(brief)
-        response = NightlySourcePullResponse(source_runs=created_runs, morning_brief=brief, warnings=response_warnings + brief.warnings)
+        response = NightlySourcePullResponse(
+            would_call_external_sources=would_call_external_sources,
+            live_source_calls_enabled=would_call_external_sources,
+            source_runs=created_runs,
+            morning_brief=brief,
+            warnings=response_warnings + brief.warnings,
+        )
         if request.idempotency_key:
             self.repository.save_nightly_response_for_idempotency_key(
                 idempotency_key=request.idempotency_key,
@@ -463,6 +469,7 @@ class NightlyLeadMachineService:
 
         new_record_count = sum(run.record_count for run in source_runs if run.status == SourceRunStatus.COMPLETED)
         keep_now_total = sum(item["keep_now_count"] for item in county_summaries.values())
+        live_source_calls_attempted = _brief_would_call_live_sources(metadata or {}, source_runs)
         expected_counties = self._expected_counties(metadata=metadata or {}, source_runs=source_runs)
         missing_counties = [county for county in expected_counties if county not in county_summaries]
         source_anomalies = self._source_anomalies(
@@ -486,8 +493,8 @@ class NightlyLeadMachineService:
         )
         sections = {
             "source_health": {
-                "would_call_external_sources": False,
-                "live_source_calls_enabled": False,
+                "would_call_external_sources": live_source_calls_attempted,
+                "live_source_calls_enabled": live_source_calls_attempted,
                 "total_runs": len(source_runs),
                 "completed_runs": sum(1 for run in source_runs if run.status == SourceRunStatus.COMPLETED),
                 "failed_runs": sum(1 for run in source_runs if run.status == SourceRunStatus.FAILED),
@@ -1281,6 +1288,17 @@ def _non_negative_int(value: Any) -> int:
     if isinstance(value, int) and value >= 0:
         return value
     return 0
+
+
+def _metadata_would_call_live_sources(metadata: Mapping[str, Any]) -> bool:
+    bridge = metadata.get("source_provider_bridge")
+    return isinstance(bridge, Mapping) and bridge.get("would_call_live_sources") is True
+
+
+def _brief_would_call_live_sources(metadata: Mapping[str, Any], source_runs: list[SourceRun]) -> bool:
+    if _metadata_would_call_live_sources(metadata):
+        return True
+    return any(run.metadata.get("would_call_external_sources") is True for run in source_runs)
 
 
 nightly_lead_machine_service = NightlyLeadMachineService()
