@@ -1,0 +1,175 @@
+from __future__ import annotations
+
+import json
+
+import pytest
+
+from app.core.config import Settings
+from app.db.source_runs import SourceRunsRepository
+from app.models.source_runs import NightlySourcePullRequest
+from app.services.nightly_lead_machine_service import NightlyLeadMachineService
+from app.services.probate_source_file_service import ProbateSourceFileService
+
+
+def test_csv_source_file_builds_no_send_payload_grouped_by_county(tmp_path):
+    source_file = tmp_path / "probate.csv"
+    source_file.write_text(
+        "county,case_number,filing_type,style\n"
+        "Harris County,543678,App for Independent Administration with an Heirship,Estate of Harris Seller\n"
+        "Montgomery,24-CP-001,Independent Administration,Estate of Montgomery Seller\n",
+        encoding="utf-8",
+    )
+
+    payload = ProbateSourceFileService().build_nightly_payload(
+        business_id="limitless",
+        environment="prod",
+        source_file=source_file,
+        run_kind="morning_catchup",
+        idempotency_key="file-drop-2026-05-15-0710",
+        window_end="2026-05-15T07:10:00Z",
+    )
+
+    assert payload["business_id"] == "limitless"
+    assert payload["environment"] == "prod"
+    assert payload["live_source_calls"] is False
+    assert payload["idempotency_key"] == "file-drop-2026-05-15-0710"
+    assert payload["metadata"]["county_scope"] == ["harris", "montgomery"]
+    assert payload["metadata"]["expected_counties"] == ["harris", "montgomery"]
+    assert payload["metadata"]["no_send"] is True
+    assert payload["metadata"]["provider_sends_enabled"] is False
+    assert payload["metadata"]["source_rows"]["harris"][0]["case_number"] == "543678"
+    assert payload["metadata"]["source_rows"]["montgomery"][0]["case_number"] == "24-CP-001"
+
+
+def test_json_source_file_supports_county_keyed_payloads(tmp_path):
+    source_file = tmp_path / "probate.json"
+    source_file.write_text(
+        json.dumps(
+            {
+                "harris": [{"case_number": "543678", "filing_type": "Independent Administration"}],
+                "montgomery": [{"case_number": "24-CP-001", "filing_type": "Small Estate"}],
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    payload = ProbateSourceFileService().build_nightly_payload(
+        business_id="biz",
+        environment="test",
+        source_file=source_file,
+    )
+
+    assert payload["metadata"]["county_scope"] == ["harris", "montgomery"]
+    assert payload["metadata"]["source_rows"]["harris"][0]["county"] == "harris"
+    assert payload["metadata"]["source_rows"]["montgomery"][0]["county"] == "montgomery"
+
+
+def test_json_source_file_supports_nested_source_rows_payload(tmp_path):
+    source_file = tmp_path / "probate.json"
+    source_file.write_text(
+        json.dumps(
+            {
+                "source_rows": {
+                    "harris": [{"case_number": "543678", "filing_type": "Independent Administration"}],
+                }
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    payload = ProbateSourceFileService().build_nightly_payload(
+        business_id="biz",
+        environment="test",
+        source_file=source_file,
+    )
+
+    assert payload["metadata"]["county_scope"] == ["harris"]
+    assert payload["metadata"]["expected_counties"] == ["harris", "montgomery"]
+    assert payload["metadata"]["source_rows"]["harris"][0]["case_number"] == "543678"
+
+
+def test_json_source_file_rejects_non_object_rows(tmp_path):
+    source_file = tmp_path / "probate.json"
+    source_file.write_text(json.dumps({"rows": [[]]}), encoding="utf-8")
+
+    with pytest.raises(ValueError, match="rows row 1 must be an object"):
+        ProbateSourceFileService().load_rows(source_file)
+
+
+def test_source_file_payload_requires_supported_county_without_default(tmp_path):
+    source_file = tmp_path / "probate.csv"
+    source_file.write_text(
+        "county,case_number,filing_type\n"
+        "Fort Bend,123,Independent Administration\n",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ValueError, match=r"missing supported county at row\(s\): 1"):
+        ProbateSourceFileService().build_nightly_payload(
+            business_id="biz",
+            environment="test",
+            source_file=source_file,
+        )
+
+
+def test_jsonl_source_file_requires_object_rows(tmp_path):
+    source_file = tmp_path / "probate.jsonl"
+    source_file.write_text("[]\n", encoding="utf-8")
+
+    with pytest.raises(ValueError, match="JSONL row 1 must be an object"):
+        ProbateSourceFileService().load_rows(source_file)
+
+
+def test_source_file_payload_runs_through_nightly_service_without_provider_side_effects(tmp_path):
+    source_file = tmp_path / "probate.csv"
+    artifact_root = tmp_path / "artifacts"
+    source_file.write_text(
+        "county,case_number,filing_type,style\n"
+        "Harris,543678,Independent Administration,Estate of Harris Seller\n"
+        "Montgomery,24-CP-001,Small Estate,Estate of Montgomery Seller\n",
+        encoding="utf-8",
+    )
+    payload = ProbateSourceFileService().build_nightly_payload(
+        business_id="biz",
+        environment="prod",
+        source_file=source_file,
+        run_kind="midday",
+        idempotency_key="local-file-midday",
+    )
+    service = NightlyLeadMachineService(
+        repository=SourceRunsRepository(),
+        settings=Settings(_env_file=None, lead_machine_artifact_root=str(artifact_root)),
+    )
+    result = service.run_nightly_source_pull(NightlySourcePullRequest(**payload))
+
+    assert result.would_call_external_sources is False
+    assert result.live_source_calls_enabled is False
+    no_send = result.morning_brief.sections["no_send_confirmation"]
+    assert no_send["no_send"] is True
+    assert no_send["provider_sends_enabled"] is False
+    assert no_send["instantly_enrollment_enabled"] is False
+    assert {run.county for run in result.source_runs} == {"harris", "montgomery"}
+    assert sum(run.keep_now_count or 0 for run in result.source_runs) == 1
+
+
+def test_source_file_payload_marks_missing_expected_county_in_brief(tmp_path):
+    source_file = tmp_path / "probate.csv"
+    source_file.write_text(
+        "county,case_number,filing_type,style\n"
+        "Harris,543678,Independent Administration,Estate of Harris Seller\n",
+        encoding="utf-8",
+    )
+    payload = ProbateSourceFileService().build_nightly_payload(
+        business_id="biz",
+        environment="prod",
+        source_file=source_file,
+        run_kind="midday",
+        idempotency_key="harris-only-file",
+    )
+    result = NightlyLeadMachineService(repository=SourceRunsRepository()).run_nightly_source_pull(
+        NightlySourcePullRequest(**payload)
+    )
+
+    assert result.morning_brief.sections["sla_health"]["status"] == "blocked"
+    assert result.morning_brief.sections["sla_health"]["missing_counties"] == ["montgomery"]
+    assert result.morning_brief.sections["source_anomalies"][0]["type"] == "missing_expected_county"

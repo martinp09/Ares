@@ -233,6 +233,16 @@ class NightlyLeadMachineService:
 
         new_record_count = sum(run.record_count for run in source_runs if run.status == SourceRunStatus.COMPLETED)
         keep_now_total = sum(item["keep_now_count"] for item in county_summaries.values())
+        expected_counties = self._expected_counties(metadata=metadata or {}, source_runs=source_runs)
+        missing_counties = [county for county in expected_counties if county not in county_summaries]
+        source_anomalies = self._source_anomalies(
+            blocked_lanes=blocked_lanes,
+            source_count_mismatches=source_count_mismatches,
+            county_summaries=county_summaries,
+            expected_counties=expected_counties,
+            missing_counties=missing_counties,
+            invalid_row_count=invalid_row_count,
+        )
         unique_warnings = list(dict.fromkeys(warnings))
         operator_next_actions = self._operator_next_actions(
             failed_lane_count=len(blocked_lanes),
@@ -266,6 +276,21 @@ class NightlyLeadMachineService:
                 "invalid_row_count": invalid_row_count,
                 "artifact_warning_count": artifact_warning_count,
             },
+            "sla_health": self._sla_health(
+                failed_lane_count=len(blocked_lanes),
+                mismatch_count=len(source_count_mismatches),
+                anomaly_count=len(source_anomalies),
+                expected_counties=expected_counties,
+                missing_counties=missing_counties,
+                completed_county_count=len(
+                    [
+                        county
+                        for county in expected_counties
+                        if county in county_summaries and county_summaries[county]["failed_count"] == 0
+                    ]
+                ),
+            ),
+            "source_anomalies": source_anomalies,
             "enrichment_backlog": {
                 "property_match_pending_count": keep_now_total,
                 "tax_overlay_pending_count": keep_now_total,
@@ -408,6 +433,125 @@ class NightlyLeadMachineService:
     @staticmethod
     def _sanitize_brief_sections(sections: dict[str, Any]) -> dict[str, Any]:
         return {key: value for key, value in sections.items() if key != "metadata"}
+
+    @staticmethod
+    def _expected_counties(*, metadata: dict[str, Any], source_runs: list[SourceRun]) -> list[str]:
+        for key in ("expected_counties", "county_scope", "counties"):
+            value = metadata.get(key)
+            counties = NightlyLeadMachineService._normalize_county_list(value)
+            if counties:
+                return counties
+        if any(run.metadata.get("autopilot") == "harris_montgomery_probate" for run in source_runs):
+            return ["harris", "montgomery"]
+        return sorted({run.county for run in source_runs if run.county})
+
+    @staticmethod
+    def _normalize_county_list(value: Any) -> list[str]:
+        if isinstance(value, str):
+            raw_items = [value]
+        elif isinstance(value, (list, tuple, set)):
+            raw_items = list(value)
+        else:
+            return []
+        counties: list[str] = []
+        for item in raw_items:
+            normalized = str(item or "").strip().lower().replace("_county", "").replace(" county", "")
+            if normalized in {"harris", "montgomery"} and normalized not in counties:
+                counties.append(normalized)
+        return counties
+
+    @staticmethod
+    def _source_anomalies(
+        *,
+        blocked_lanes: list[dict[str, Any]],
+        source_count_mismatches: list[dict[str, Any]],
+        county_summaries: dict[str, dict[str, Any]],
+        expected_counties: list[str],
+        missing_counties: list[str],
+        invalid_row_count: int,
+    ) -> list[dict[str, Any]]:
+        anomalies: list[dict[str, Any]] = []
+        for county in missing_counties:
+            anomalies.append(
+                {
+                    "severity": "blocked",
+                    "type": "missing_expected_county",
+                    "county": county,
+                    "message": f"Expected {county} probate source lane was not present in this run",
+                }
+            )
+        for lane in blocked_lanes:
+            anomalies.append(
+                {
+                    "severity": "blocked",
+                    "type": "source_lane_failed",
+                    "source_key": lane["source_key"],
+                    "source_lane": lane["source_lane"],
+                    "county": lane.get("county"),
+                    "message": lane["error_message"],
+                }
+            )
+        for mismatch in source_count_mismatches:
+            anomalies.append(
+                {
+                    "severity": "warning",
+                    "type": "source_count_mismatch",
+                    **mismatch,
+                }
+            )
+        raw_total = sum(summary["raw_count"] for summary in county_summaries.values())
+        invalid_rate = invalid_row_count / raw_total if raw_total else 0
+        if invalid_row_count and (invalid_rate >= 0.10 or invalid_row_count >= 5):
+            anomalies.append(
+                {
+                    "severity": "warning",
+                    "type": "invalid_row_rate_high",
+                    "invalid_row_count": invalid_row_count,
+                    "raw_count": raw_total,
+                    "invalid_row_rate": round(invalid_rate, 4),
+                }
+            )
+        for county in expected_counties:
+            summary = county_summaries.get(county)
+            if summary and summary["raw_count"] > 0 and summary["parsed_count"] == 0:
+                anomalies.append(
+                    {
+                        "severity": "blocked",
+                        "type": "zero_parse_yield",
+                        "county": county,
+                        "raw_count": summary["raw_count"],
+                        "message": "A source lane returned raw rows but none could be parsed",
+                    }
+                )
+        return anomalies
+
+    @staticmethod
+    def _sla_health(
+        *,
+        failed_lane_count: int,
+        mismatch_count: int,
+        anomaly_count: int,
+        expected_counties: list[str],
+        missing_counties: list[str],
+        completed_county_count: int,
+    ) -> dict[str, Any]:
+        if failed_lane_count or missing_counties:
+            status = "blocked"
+        elif mismatch_count or anomaly_count:
+            status = "warning"
+        else:
+            status = "healthy"
+        return {
+            "status": status,
+            "expected_counties": expected_counties,
+            "missing_counties": missing_counties,
+            "completed_county_count": completed_county_count,
+            "failed_lane_count": failed_lane_count,
+            "source_count_mismatch_count": mismatch_count,
+            "anomaly_count": anomaly_count,
+            "outbound_allowed": False,
+            "operator_message": "Autopilot source SLA is for scrape/enrich/brief readiness only; outbound remains separately approval-gated.",
+        }
 
     @staticmethod
     def _operator_next_actions(

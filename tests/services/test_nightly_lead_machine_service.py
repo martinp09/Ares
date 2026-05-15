@@ -460,6 +460,36 @@ def test_probate_autopilot_source_rows_detect_source_report_mismatch(service: Ni
             "parsed_count": 1,
         }
     ]
+    assert result.morning_brief.sections["sla_health"]["status"] == "warning"
+    assert result.morning_brief.sections["source_anomalies"][0]["type"] == "source_count_mismatch"
+
+
+def test_probate_autopilot_sla_flags_missing_expected_county(service: NightlyLeadMachineService):
+    result = service.run_nightly_source_pull(
+        NightlySourcePullRequest(
+            business_id="biz",
+            environment="prod",
+            metadata={
+                "autopilot": "harris_montgomery_probate",
+                "expected_counties": ["harris", "montgomery"],
+                "county_scope": ["harris"],
+                "source_rows": {
+                    "harris": [
+                        {"case_number": "543678", "filing_type": "Independent Administration"},
+                    ]
+                },
+            },
+        )
+    )
+
+    assert result.morning_brief.sections["sla_health"]["status"] == "blocked"
+    assert result.morning_brief.sections["sla_health"]["missing_counties"] == ["montgomery"]
+    assert result.morning_brief.sections["source_anomalies"][0] == {
+        "severity": "blocked",
+        "type": "missing_expected_county",
+        "county": "montgomery",
+        "message": "Expected montgomery probate source lane was not present in this run",
+    }
 
 
 def test_file_backed_repository_replays_nightly_idempotency_after_restart(tmp_path):
