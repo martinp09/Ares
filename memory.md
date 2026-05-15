@@ -28,7 +28,7 @@
 ## Current Direction
 
 - `/opt/ares/worktrees/probate-autopilot-source-foundation` on `feature/probate-autopilot-source-foundation` is the active implementation checkout for the Harris+Montgomery probate autopilot PRD Phase 1 source-run foundation; based on `origin/feature/copywriting-brain-offer-engine`.
-- Probate autopilot Phase 1 source-run foundation is implemented locally: source-run lanes/fields now support Harris+Montgomery probate, no-send autopilot manifests, morning brief county/keep-now/mismatch/no-send sections, and Trigger.dev CT schedule wrappers. Evidence: `docs/qc/2026-05-15/probate-autopilot-source-foundation/`. No live scraping or provider side effects.
+- Probate autopilot source-run foundation is implemented locally/pushed: source-run lanes/fields support Harris+Montgomery probate; no-send autopilot manifests; morning brief county/keep-now/mismatch/source-quality/enrichment-backlog/operator-action sections; Trigger.dev CT schedule wrappers; optional file-backed source-run/idempotency state (`LEAD_MACHINE_SOURCE_RUNS_STATE_PATH`); optional source-row JSONL artifact root (`LEAD_MACHINE_ARTIFACT_ROOT`). Evidence: `docs/qc/2026-05-15/probate-autopilot-source-foundation/` and `docs/qc/2026-05-15/probate-autopilot-durable-source-rows/`. No live scraping or provider side effects.
 - HubSpot operating spine / agentic company Phases 1-9 are complete with final QC index/readiness artifacts and runbooks under `docs/qc/2026-05-14/` and `docs/runbooks/`.
 - HubSpot portal customization itself was live-applied after operator instruction; HubSpot now has Ares property groups/properties and all 12 Ares stages in the existing single `Sales Pipeline` (`docs/qc/2026-05-14/hubspot-live-buildout/`).
 - First synthetic HubSpot record-sync canary is complete after remote provider-links migration: contact `486079925950`, deal `325110558439`, provider links verified (`docs/qc/2026-05-14/hubspot-record-sync-canary/`).
@@ -194,7 +194,7 @@
 ## Open Work
 
 1. review the pushed probate-autopilot source-foundation branch; merge/rebase path depends on the active copywriting/operating-spine branch state
-2. probate autopilot next phase: replace Phase 1 placeholder manifests with real Harris source adapter and Montgomery source discovery/adapter behind no-send source-provider gates; preserve raw-first artifacts and source-count mismatch warnings
+2. probate autopilot next phase: implement real Harris source adapter/browser bridge and Montgomery source discovery/adapter behind no-send source-provider gates; feed rows through the new `source_rows` + `LEAD_MACHINE_ARTIFACT_ROOT` path and preserve source-count mismatch warnings
 3. activate/upgrade the newly keyed Instantly workspace to a paid plan, then rerun real-account sync from `docs/marketing/exports/instantly-campaign-backups-2026-05-02/`; current preflight is blocked by HTTP 402 / workspace has no active paid plan
 4. capture stronger primary Alen Sultanic source material and update `docs/copywriting-wiki/`; current YouTube transcript access is blocked from this environment
 5. add Mission Control read/approval endpoints for Ares offer/copy assets

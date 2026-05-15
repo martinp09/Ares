@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from typing import Any
 
+from app.core.config import Settings, get_settings
 from app.db.source_runs import SourceRunsRepository, source_runs_repository
 from app.models.source_runs import (
     MorningBrief,
@@ -48,8 +49,9 @@ DEFAULT_SOURCE_DEFINITIONS: tuple[dict[str, str], ...] = (
 
 
 class NightlyLeadMachineService:
-    def __init__(self, repository: SourceRunsRepository | None = None) -> None:
+    def __init__(self, repository: SourceRunsRepository | None = None, settings: Settings | None = None) -> None:
         self.repository = repository or source_runs_repository
+        self.settings = settings or get_settings()
 
     def run_nightly_source_pull(self, request: NightlySourcePullRequest) -> NightlySourcePullResponse:
         if request.live_source_calls:
@@ -70,6 +72,7 @@ class NightlyLeadMachineService:
             manifests = build_probate_autopilot_manifests(
                 metadata=request.metadata,
                 idempotency_key=request.idempotency_key,
+                artifact_root=self.settings.lead_machine_artifact_root,
             )
         else:
             manifests = self._default_manifests()
@@ -155,6 +158,8 @@ class NightlyLeadMachineService:
         county_summaries: dict[str, dict[str, Any]] = {}
         source_count_mismatches: list[dict[str, Any]] = []
         blocked_lanes: list[dict[str, Any]] = []
+        invalid_row_count = 0
+        artifact_warning_count = 0
 
         for run in source_runs:
             lane_summary = lane_summaries.setdefault(
@@ -212,12 +217,14 @@ class NightlyLeadMachineService:
                 )
                 warnings.append(f"{run.source_key} failed: {run.error_message or 'unknown error'}")
             warnings.extend(str(item) for item in run.metadata.get("warnings", []) if item)
+            invalid_row_count += self._int_from_metadata(run.metadata, "invalid_row_count")
 
             for artifact in run.artifacts:
                 hot_lead_count += self._int_from_metadata(artifact.metadata, "hot_lead_count")
                 warm_lead_count += self._int_from_metadata(artifact.metadata, "warm_lead_count")
                 blocked_count += self._int_from_metadata(artifact.metadata, "blocked_count")
                 approval_required_count += self._int_from_metadata(artifact.metadata, "approval_required_count")
+                artifact_warning_count += len(artifact.warnings)
                 warnings.extend(artifact.warnings)
             hot_lead_count += self._int_from_metadata(run.metadata, "hot_lead_count")
             warm_lead_count += self._int_from_metadata(run.metadata, "warm_lead_count")
@@ -225,7 +232,14 @@ class NightlyLeadMachineService:
             approval_required_count += self._int_from_metadata(run.metadata, "approval_required_count")
 
         new_record_count = sum(run.record_count for run in source_runs if run.status == SourceRunStatus.COMPLETED)
+        keep_now_total = sum(item["keep_now_count"] for item in county_summaries.values())
         unique_warnings = list(dict.fromkeys(warnings))
+        operator_next_actions = self._operator_next_actions(
+            failed_lane_count=len(blocked_lanes),
+            mismatch_count=len(source_count_mismatches),
+            invalid_row_count=invalid_row_count,
+            keep_now_count=keep_now_total,
+        )
         sections = {
             "source_health": {
                 "would_call_external_sources": False,
@@ -245,8 +259,20 @@ class NightlyLeadMachineService:
             },
             "county_counts": list(county_summaries.values()),
             "keep_now": {
-                "keep_now_count": sum(item["keep_now_count"] for item in county_summaries.values()),
+                "keep_now_count": keep_now_total,
             },
+            "source_quality": {
+                "source_count_mismatch_count": len(source_count_mismatches),
+                "invalid_row_count": invalid_row_count,
+                "artifact_warning_count": artifact_warning_count,
+            },
+            "enrichment_backlog": {
+                "property_match_pending_count": keep_now_total,
+                "tax_overlay_pending_count": keep_now_total,
+                "hubspot_mirror_blocked_until_approval_count": keep_now_total,
+                "outbound_blocked_until_explicit_approval_count": keep_now_total,
+            },
+            "operator_next_actions": operator_next_actions,
             "blocked_lanes": blocked_lanes,
             "source_count_mismatches": source_count_mismatches,
             "no_send_confirmation": {
@@ -382,6 +408,64 @@ class NightlyLeadMachineService:
     @staticmethod
     def _sanitize_brief_sections(sections: dict[str, Any]) -> dict[str, Any]:
         return {key: value for key, value in sections.items() if key != "metadata"}
+
+    @staticmethod
+    def _operator_next_actions(
+        *,
+        failed_lane_count: int,
+        mismatch_count: int,
+        invalid_row_count: int,
+        keep_now_count: int,
+    ) -> list[dict[str, Any]]:
+        actions: list[dict[str, Any]] = []
+        if failed_lane_count:
+            actions.append(
+                {
+                    "priority": "urgent",
+                    "action": "review_failed_source_lanes",
+                    "reason": f"{failed_lane_count} source lane(s) failed during this pull",
+                }
+            )
+        if mismatch_count:
+            actions.append(
+                {
+                    "priority": "high",
+                    "action": "reconcile_source_count_mismatches",
+                    "reason": f"{mismatch_count} source lane(s) reported a different count than Ares parsed",
+                }
+            )
+        if invalid_row_count:
+            actions.append(
+                {
+                    "priority": "normal",
+                    "action": "inspect_invalid_source_rows",
+                    "reason": f"{invalid_row_count} source row(s) could not be normalized",
+                }
+            )
+        if keep_now_count:
+            actions.append(
+                {
+                    "priority": "high",
+                    "action": "run_property_tax_title_enrichment",
+                    "reason": f"{keep_now_count} keep-now probate row(s) are ready for property match, tax overlay, and title-friction enrichment",
+                }
+            )
+            actions.append(
+                {
+                    "priority": "normal",
+                    "action": "keep_outbound_blocked",
+                    "reason": "No sends/enrollment are allowed until enrichment, suppression, and exact copy approval are complete",
+                }
+            )
+        if not actions:
+            actions.append(
+                {
+                    "priority": "normal",
+                    "action": "monitor_next_scheduled_pull",
+                    "reason": "No keep-now probate rows or source failures were detected in this brief",
+                }
+            )
+        return actions
 
     @staticmethod
     def _int_from_metadata(metadata: dict[str, Any], key: str) -> int:

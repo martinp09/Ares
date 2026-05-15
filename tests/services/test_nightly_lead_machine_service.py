@@ -1,6 +1,9 @@
+from pathlib import Path
+
 import pytest
 
-from app.db.source_runs import SourceRunsRepository
+from app.core.config import Settings
+from app.db.source_runs import SourceRunsPersistenceError, SourceRunsRepository
 from app.models.source_runs import MorningBriefRequest, NightlySourcePullRequest, SourceRunArtifact, SourceRunManifest, SourceRunStatus
 from app.services.nightly_lead_machine_service import NightlyLeadMachineService
 
@@ -363,3 +366,163 @@ def test_probate_autopilot_boolean_counts_are_ignored(service: NightlyLeadMachin
     assert run.keep_now_count == 0
     assert run.source_reported_count is None
     assert result.morning_brief.sections["source_count_mismatches"] == []
+
+
+def test_probate_autopilot_source_rows_create_artifacts_and_keep_now_counts(tmp_path):
+    service = NightlyLeadMachineService(
+        repository=SourceRunsRepository(),
+        settings=Settings(_env_file=None, lead_machine_artifact_root=str(tmp_path)),
+    )
+    result = service.run_nightly_source_pull(
+        NightlySourcePullRequest(
+            business_id="biz",
+            environment="prod",
+            idempotency_key="source-rows-0710",
+            metadata={
+                "autopilot": "harris_montgomery_probate",
+                "run_kind": "morning_catchup",
+                "window_end": "2026-05-15T07:10:00+00:00",
+                "county_scope": ["harris"],
+                "source_rows": {
+                    "harris": [
+                        {
+                            "case_number": "543678",
+                            "filing_type": "App for Independent Administration with an Heirship",
+                            "style": "Estate of Test Seller",
+                        },
+                        {"case_number": "543679", "filing_type": "Small Estate", "style": "Estate of Skip Seller"},
+                        {"case_number": "", "filing_type": "Independent Administration"},
+                    ]
+                },
+            },
+        )
+    )
+
+    run = result.source_runs[0]
+    assert run.raw_count == 3
+    assert run.parsed_count == 2
+    assert run.keep_now_count == 1
+    assert run.record_count == 2
+    assert run.metadata["invalid_row_count"] == 1
+    assert {artifact.artifact_type for artifact in run.artifacts} == {
+        "raw_source_rows",
+        "normalized_source_rows",
+        "keep_now_rows",
+        "invalid_source_rows",
+    }
+    assert all(artifact.checksum for artifact in run.artifacts)
+    assert all(tmp_path.as_posix() in artifact.path for artifact in run.artifacts)
+    keep_now_artifact = next(artifact for artifact in run.artifacts if artifact.artifact_type == "keep_now_rows")
+    assert "543678" in Path(keep_now_artifact.path).read_text(encoding="utf-8")
+    assert result.morning_brief.sections["keep_now"]["keep_now_count"] == 1
+    assert result.morning_brief.sections["county_counts"][0]["parsed_count"] == 2
+    assert result.morning_brief.sections["source_quality"]["invalid_row_count"] == 1
+    assert result.morning_brief.sections["enrichment_backlog"] == {
+        "property_match_pending_count": 1,
+        "tax_overlay_pending_count": 1,
+        "hubspot_mirror_blocked_until_approval_count": 1,
+        "outbound_blocked_until_explicit_approval_count": 1,
+    }
+    assert [action["action"] for action in result.morning_brief.sections["operator_next_actions"]] == [
+        "reconcile_source_count_mismatches",
+        "inspect_invalid_source_rows",
+        "run_property_tax_title_enrichment",
+        "keep_outbound_blocked",
+    ]
+
+
+def test_probate_autopilot_source_rows_detect_source_report_mismatch(service: NightlyLeadMachineService):
+    result = service.run_nightly_source_pull(
+        NightlySourcePullRequest(
+            business_id="biz",
+            environment="prod",
+            metadata={
+                "autopilot": "harris_montgomery_probate",
+                "county_scope": ["montgomery"],
+                "source_rows": {
+                    "montgomery": [
+                        {"case_number": "24-CP-001", "filing_type": "Independent Administration"},
+                    ]
+                },
+                "record_counts": {"montgomery": {"source_reported_count": 3}},
+            },
+        )
+    )
+
+    assert result.source_runs[0].source_reported_count == 3
+    assert result.source_runs[0].parsed_count == 1
+    assert result.morning_brief.sections["source_count_mismatches"] == [
+        {
+            "source_key": "montgomery_county_probate:manual:unspecified-window",
+            "source_lane": "montgomery_county_probate",
+            "county": "montgomery",
+            "source_reported_count": 3,
+            "parsed_count": 1,
+        }
+    ]
+
+
+def test_file_backed_repository_replays_nightly_idempotency_after_restart(tmp_path):
+    state_path = tmp_path / "source-runs.json"
+    first_service = NightlyLeadMachineService(repository=SourceRunsRepository(state_path=state_path))
+    first = first_service.run_nightly_source_pull(
+        NightlySourcePullRequest(
+            business_id="biz",
+            environment="prod",
+            idempotency_key="daily-probate-2026-05-15",
+            metadata={"autopilot": "harris_montgomery_probate", "county_scope": ["harris"]},
+        )
+    )
+
+    restarted_service = NightlyLeadMachineService(repository=SourceRunsRepository(state_path=state_path))
+    second = restarted_service.run_nightly_source_pull(
+        NightlySourcePullRequest(
+            business_id="biz",
+            environment="prod",
+            idempotency_key="daily-probate-2026-05-15",
+            metadata={"autopilot": "harris_montgomery_probate", "county_scope": ["harris"]},
+        )
+    )
+
+    assert second.duplicate is True
+    assert second.replayed is True
+    assert [run.id for run in second.source_runs] == [run.id for run in first.source_runs]
+    assert len(restarted_service.list_source_runs(business_id="biz", environment="prod")) == 1
+
+
+def test_file_backed_repository_reloads_before_save_to_preserve_other_writers(tmp_path):
+    state_path = tmp_path / "source-runs.json"
+    writer_a = NightlyLeadMachineService(repository=SourceRunsRepository(state_path=state_path))
+    writer_b = NightlyLeadMachineService(repository=SourceRunsRepository(state_path=state_path))
+
+    writer_a.run_nightly_source_pull(
+        NightlySourcePullRequest(
+            business_id="biz",
+            environment="prod",
+            idempotency_key="harris-run",
+            metadata={"autopilot": "harris_montgomery_probate", "county_scope": ["harris"]},
+        )
+    )
+    writer_b.run_nightly_source_pull(
+        NightlySourcePullRequest(
+            business_id="biz",
+            environment="prod",
+            idempotency_key="montgomery-run",
+            metadata={"autopilot": "harris_montgomery_probate", "county_scope": ["montgomery"]},
+        )
+    )
+
+    reloaded = NightlyLeadMachineService(repository=SourceRunsRepository(state_path=state_path))
+    assert {run.county for run in reloaded.list_source_runs(business_id="biz", environment="prod")} == {
+        "harris",
+        "montgomery",
+    }
+
+
+def test_file_backed_repository_corrupt_state_raises_domain_error(tmp_path):
+    state_path = tmp_path / "source-runs.json"
+    state_path.write_text("{not-json", encoding="utf-8")
+    repo = SourceRunsRepository(state_path=state_path)
+
+    with pytest.raises(SourceRunsPersistenceError, match="Corrupted source-runs repository state"):
+        repo.list_runs(business_id="biz", environment="prod")

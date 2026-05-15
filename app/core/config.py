@@ -22,6 +22,14 @@ class Settings(BaseSettings):
     control_plane_backend: Literal["memory", "supabase"] = "memory"
     marketing_backend: Literal["memory", "supabase"] = "memory"
     lead_machine_backend: Literal["memory", "supabase"] = "memory"
+    lead_machine_source_runs_state_path: str | None = Field(
+        default=None,
+        validation_alias=AliasChoices("lead_machine_source_runs_state_path", "LEAD_MACHINE_SOURCE_RUNS_STATE_PATH"),
+    )
+    lead_machine_artifact_root: str | None = Field(
+        default=None,
+        validation_alias=AliasChoices("lead_machine_artifact_root", "LEAD_MACHINE_ARTIFACT_ROOT"),
+    )
     database_url: str | None = None
     site_events_backend: Literal["memory", "supabase"] = "memory"
     runtime_provider_default: Literal["anthropic", "openai_compat", "local"] = "anthropic"
