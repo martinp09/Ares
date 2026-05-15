@@ -262,3 +262,104 @@ def test_manifest_warnings_are_not_double_counted(service: NightlyLeadMachineSer
     assert result.source_runs[0].warning_count == 2
     assert result.morning_brief.sections["source_health"]["lanes"][0]["warning_count"] == 2
     assert result.morning_brief.warnings.count("manifest warning") == 1
+
+
+def test_probate_autopilot_builds_harris_and_montgomery_no_send_manifests(service: NightlyLeadMachineService):
+    result = service.run_nightly_source_pull(
+        NightlySourcePullRequest(
+            business_id="biz",
+            environment="prod",
+            idempotency_key="probate-auto-2026-05-15-0710",
+            metadata={
+                "autopilot": "harris_montgomery_probate",
+                "run_kind": "morning_catchup",
+                "county_scope": ["harris", "montgomery"],
+                "record_counts": {
+                    "harris": {"raw_count": 4, "parsed_count": 4, "keep_now_count": 2, "record_count": 4},
+                    "montgomery": {"raw_count": 3, "parsed_count": 2, "keep_now_count": 1, "record_count": 2, "source_reported_count": 3},
+                },
+            },
+        )
+    )
+
+    assert {run.source_lane for run in result.source_runs} == {"harris_county_probate", "montgomery_county_probate"}
+    assert {run.county for run in result.source_runs} == {"harris", "montgomery"}
+    assert all(run.run_kind == "morning_catchup" for run in result.source_runs)
+    assert all(run.metadata["no_send"] is True for run in result.source_runs)
+    assert all(run.metadata["provider_sends_enabled"] is False for run in result.source_runs)
+    assert all(run.idempotency_key for run in result.source_runs)
+
+    sections = result.morning_brief.sections
+    assert sections["no_send_confirmation"]["no_send"] is True
+    assert sections["no_send_confirmation"]["instantly_enrollment_enabled"] is False
+    assert sections["keep_now"]["keep_now_count"] == 3
+    assert {item["county"]: item["keep_now_count"] for item in sections["county_counts"]} == {
+        "harris": 2,
+        "montgomery": 1,
+    }
+    assert sections["source_count_mismatches"] == [
+        {
+            "source_key": "montgomery_county_probate:morning_catchup:unspecified-window",
+            "source_lane": "montgomery_county_probate",
+            "county": "montgomery",
+            "source_reported_count": 3,
+            "parsed_count": 2,
+        }
+    ]
+
+
+def test_montgomery_probate_manifest_is_accepted_and_summarized(service: NightlyLeadMachineService):
+    result = service.run_nightly_source_pull(
+        NightlySourcePullRequest(
+            business_id="biz",
+            environment="test",
+            source_runs=[
+                SourceRunManifest(
+                    source_key="montgomery-probate",
+                    source_label="Montgomery probate fixture",
+                    source_lane="montgomery_county_probate",
+                    county="montgomery",
+                    run_kind="midday",
+                    raw_count=6,
+                    parsed_count=6,
+                    keep_now_count=2,
+                    record_count=6,
+                )
+            ],
+        )
+    )
+
+    run = result.source_runs[0]
+    assert run.county == "montgomery"
+    assert run.run_kind == "midday"
+    assert run.keep_now_count == 2
+    assert result.morning_brief.sections["county_counts"][0]["raw_count"] == 6
+    assert result.morning_brief.sections["keep_now"]["keep_now_count"] == 2
+
+
+def test_probate_autopilot_boolean_counts_are_ignored(service: NightlyLeadMachineService):
+    result = service.run_nightly_source_pull(
+        NightlySourcePullRequest(
+            business_id="biz",
+            environment="prod",
+            metadata={
+                "autopilot": "harris_montgomery_probate",
+                "county_scope": ["harris"],
+                "record_counts": {
+                    "harris": {
+                        "raw_count": True,
+                        "parsed_count": True,
+                        "keep_now_count": True,
+                        "source_reported_count": True,
+                    }
+                },
+            },
+        )
+    )
+
+    run = result.source_runs[0]
+    assert run.raw_count == 0
+    assert run.parsed_count == 0
+    assert run.keep_now_count == 0
+    assert run.source_reported_count is None
+    assert result.morning_brief.sections["source_count_mismatches"] == []

@@ -16,11 +16,29 @@ class SourceRunStatus(StrEnum):
     FAILED = "failed"
 
 
+SourceCounty = Literal["harris", "montgomery"]
+SourceRunKind = Literal[
+    "morning_catchup",
+    "midday",
+    "end_of_day",
+    "daily_reconciliation",
+    "weekly_reconciliation",
+    "manual",
+]
 SourceLane = Literal[
     "harris_county_probate",
+    "montgomery_county_probate",
     "hcad_estate_of",
     "hctax_delinquency_overlay",
     "harris_land_records",
+    "harris_hcad_property_match",
+    "montgomery_cad_property_match",
+    "harris_hctax_overlay",
+    "montgomery_act_tax_overlay",
+    "montgomery_land_records",
+    "skiptrace_contact_enrichment",
+    "copy_asset_generation",
+    "hubspot_crm_mirror",
 ]
 
 
@@ -44,8 +62,15 @@ class SourceRun(BaseModel):
     source_key: str = Field(min_length=1)
     source_label: str = Field(min_length=1)
     source_lane: SourceLane
+    county: SourceCounty | None = None
+    run_kind: SourceRunKind | None = None
     window_start: datetime | None = None
     window_end: datetime | None = None
+    idempotency_key: str | None = None
+    source_reported_count: int | None = Field(default=None, ge=0)
+    raw_count: int | None = Field(default=None, ge=0)
+    parsed_count: int | None = Field(default=None, ge=0)
+    keep_now_count: int | None = Field(default=None, ge=0)
     status: SourceRunStatus = SourceRunStatus.PENDING
     started_at: datetime | None = None
     completed_at: datetime | None = None
@@ -63,8 +88,15 @@ class SourceRunManifest(BaseModel):
     source_key: str = Field(min_length=1)
     source_label: str = Field(min_length=1)
     source_lane: SourceLane
+    county: SourceCounty | None = None
+    run_kind: SourceRunKind | None = None
     window_start: datetime | None = None
     window_end: datetime | None = None
+    idempotency_key: str | None = None
+    source_reported_count: int | None = Field(default=None, ge=0)
+    raw_count: int | None = Field(default=None, ge=0)
+    parsed_count: int | None = Field(default=None, ge=0)
+    keep_now_count: int | None = Field(default=None, ge=0)
     artifacts: list[SourceRunArtifact] = Field(default_factory=list)
     record_count: int | None = Field(default=None, ge=0)
     warnings: list[str] = Field(default_factory=list)
@@ -149,8 +181,15 @@ class SourceRunSummary(BaseModel):
     source_key: str
     source_label: str
     source_lane: SourceLane
+    county: SourceCounty | None = None
+    run_kind: SourceRunKind | None = None
     window_start: datetime | None = None
     window_end: datetime | None = None
+    idempotency_key: str | None = None
+    source_reported_count: int | None = Field(default=None, ge=0)
+    raw_count: int | None = Field(default=None, ge=0)
+    parsed_count: int | None = Field(default=None, ge=0)
+    keep_now_count: int | None = Field(default=None, ge=0)
     status: SourceRunStatus
     started_at: datetime | None = None
     completed_at: datetime | None = None

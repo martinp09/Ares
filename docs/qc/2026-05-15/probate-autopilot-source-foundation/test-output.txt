@@ -1,0 +1,11 @@
+$ python -m pytest tests/services/test_nightly_lead_machine_service.py tests/api/test_nightly_lead_machine.py tests/api/test_trigger_contract_files.py tests/services/test_harris_probate_intake_service.py tests/services/test_probate_write_path_service.py tests/services/test_tax_overlay_service.py -q
+.........................................                                [100%]
+41 passed in 0.33s
+
+$ npm --prefix trigger run typecheck
+
+> typecheck
+> tsc --noEmit -p tsconfig.json
+
+
+$ git diff --check

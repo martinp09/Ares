@@ -183,12 +183,44 @@ export type SourceRunArtifact = {
   metadata?: Record<string, unknown>;
 };
 
+export type SourceRunLane =
+  | "harris_county_probate"
+  | "montgomery_county_probate"
+  | "hcad_estate_of"
+  | "hctax_delinquency_overlay"
+  | "harris_land_records"
+  | "harris_hcad_property_match"
+  | "montgomery_cad_property_match"
+  | "harris_hctax_overlay"
+  | "montgomery_act_tax_overlay"
+  | "montgomery_land_records"
+  | "skiptrace_contact_enrichment"
+  | "copy_asset_generation"
+  | "hubspot_crm_mirror";
+
+export type SourceRunCounty = "harris" | "montgomery";
+
+export type SourceRunKind =
+  | "morning_catchup"
+  | "midday"
+  | "end_of_day"
+  | "daily_reconciliation"
+  | "weekly_reconciliation"
+  | "manual";
+
 export type SourceRunManifest = {
   source_key: string;
   source_label: string;
-  source_lane: "harris_county_probate" | "hcad_estate_of" | "hctax_delinquency_overlay" | "harris_land_records";
+  source_lane: SourceRunLane;
+  county?: SourceRunCounty | null;
+  run_kind?: SourceRunKind | null;
   window_start?: string | null;
   window_end?: string | null;
+  idempotency_key?: string | null;
+  source_reported_count?: number | null;
+  raw_count?: number | null;
+  parsed_count?: number | null;
+  keep_now_count?: number | null;
   artifacts?: SourceRunArtifact[];
   record_count?: number | null;
   warnings?: string[];
@@ -219,6 +251,15 @@ export type SourceRunResponse = {
   source_key: string;
   source_label: string;
   source_lane: string;
+  county?: SourceRunCounty | null;
+  run_kind?: SourceRunKind | null;
+  window_start?: string | null;
+  window_end?: string | null;
+  idempotency_key?: string | null;
+  source_reported_count?: number | null;
+  raw_count?: number | null;
+  parsed_count?: number | null;
+  keep_now_count?: number | null;
   status: "pending" | "running" | "completed" | "failed";
   record_count: number;
   artifact_count: number;
@@ -250,4 +291,6 @@ export type NightlySourcePullResponse = {
   source_runs: SourceRunResponse[];
   morning_brief: MorningBriefResponse;
   warnings: string[];
+  duplicate?: boolean;
+  replayed?: boolean;
 };

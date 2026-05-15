@@ -1,10 +1,10 @@
 ---
 title: "Ares TODO / Handoff"
 status: active
-updated_at: "2026-05-14T13:47:32Z"
+updated_at: "2026-05-15T02:29:23Z"
 repo: "martinp09/Ares"
-local_checkout: "/opt/ares/Ares"
-current_branch: "feature/copywriting-brain-offer-engine"
+local_checkout: "/opt/ares/worktrees/probate-autopilot-source-foundation"
+current_branch: "feature/probate-autopilot-source-foundation"
 production_wiring_commit: "47be904"
 ---
 
@@ -20,6 +20,8 @@ HubSpot record-sync canary result: remote provider-links migration `202605140900
 
 HubSpot real-lead sync result: one hand-selected `limitless/prod` Harris probate lead (`lead_341`, case `543678`) was synced HubSpot-only after preview; HubSpot contact `485815102172` and deal `325123310274` were created with provider links `plink_3`/`plink_4`. Follow-up corrections added probate/heir/contact/mailing/property/tax-overlay fields, then mapped the applicant/mailing address into standard HubSpot contact `address/city/state/zip/country` fields for normal contact visibility. Current sync hash: `hubspot-real-lead-lead_341-visible-v4`. Email/phone/mobile and property/HCAD remain true data gaps. No real batch sync, Instantly enrollment/send, Reacher call, Vapi call, source-provider pull, Slack send, or deploy side effect.
 
+Probate autopilot Phase 1 source-run foundation is implemented on this branch. It adds Harris+Montgomery no-send source-run manifests, PRD source-run fields, morning brief sections, and Trigger.dev CT schedule wrappers. QC: `docs/qc/2026-05-15/probate-autopilot-source-foundation/`. No live scraping, HubSpot writes, skiptrace spend, Instantly enrollment/send, SMS, Vapi, Slack, or direct-mail side effects.
+
 Primary handoff artifacts:
 
 - QC index: `docs/qc/2026-05-14/README.md`
@@ -31,6 +33,7 @@ Primary handoff artifacts:
 - HubSpot real-lead sync: `docs/qc/2026-05-14/hubspot-real-lead-sync/`
 - HubSpot rich probate/heir fields: `docs/qc/2026-05-14/hubspot-rich-probate-fields/`
 - HubSpot contact visibility correction: `docs/qc/2026-05-14/hubspot-contact-visibility-correction/`
+- Probate autopilot source foundation: `docs/qc/2026-05-15/probate-autopilot-source-foundation/`
 - Reacher/SMTP egress check: `docs/qc/2026-05-14/reacher-smtp-egress/`
 - Master plan status: `docs/superpowers/plans/2026-05-14-hubspot-operating-spine-agentic-company-plan.md`
 
@@ -38,15 +41,17 @@ Do not claim merged, deployed, or promotable until the pushed branch is reviewed
 
 ## Immediate next actions
 
-1. Review/open PR or merge the pushed branch intentionally.
-2. Keep deployment separate from branch review/merge; do not promote a commit different from the evidenced state.
-3. For Instantly later, let inboxes continue warming, write/review the exact copy first, then only use an approved recipient/lead with verified contact info and the existing gated enrollment/send path.
-4. Keep remaining live provider actions behind explicit operator approvals and env gates: HubSpot record batches, Instantly enroll/send, Vapi dispatch, source-provider pulls, Slack/provider sends.
-5. If live provider rollout continues, start with preview/dry-run, narrow hand-selected records, provider links/idempotency review, and evidence capture.
+1. Review/push the probate-autopilot source-foundation branch and decide whether to merge into the active copywriting/operating-spine branch or rebase after that branch lands.
+2. Next probate-autopilot gate: implement real Harris source adapter and Montgomery source discovery/adapter behind the no-send source-provider gate, with raw artifacts under `/opt/ares/lead-data/probate_autopilot/`.
+3. Keep deployment separate from branch review/merge; do not promote a commit different from the evidenced state.
+4. For Instantly later, let inboxes continue warming, write/review the exact copy first, then only use an approved recipient/lead with verified contact info and the existing gated enrollment/send path.
+5. Keep remaining live provider actions behind explicit operator approvals and env gates: HubSpot record batches, Instantly enroll/send, Vapi dispatch, source-provider pulls, Slack/provider sends.
+6. If live provider rollout continues, start with preview/dry-run, narrow hand-selected records, provider links/idempotency review, and evidence capture.
 
 ## Open product follow-ups
 
 - Add Mission Control read/approval endpoints and frontend review page for Ares offer/copy assets and Harris probate campaign launch.
+- Probate autopilot next phase: replace Phase 1 placeholder manifests with real Harris and Montgomery source adapters while preserving raw-first artifacts, idempotency, no-send policy, and source-count mismatch warnings.
 - Reacher/SMTP-capable email verification cannot run recipient-MX mailbox probes from the current Hetzner VPS while outbound port 25 is blocked; request unblock, move verifier sidecar, or use DNS/MX/disposable-only checks until egress is available.
 - Enrich Harris probate exports with email/phone via Tracerfy only after Martin explicitly approves skiptrace spend.
 - Activate/upgrade the keyed Instantly workspace to a paid plan before real-account campaign sync/enrollment.

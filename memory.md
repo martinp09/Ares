@@ -27,7 +27,8 @@
 
 ## Current Direction
 
-- `/opt/ares/Ares` on `feature/copywriting-brain-offer-engine` is the active VPS checkout; operating-spine commit `8c19c26` is pushed, with unrelated local tracked/untracked files still outside scope.
+- `/opt/ares/worktrees/probate-autopilot-source-foundation` on `feature/probate-autopilot-source-foundation` is the active implementation checkout for the Harris+Montgomery probate autopilot PRD Phase 1 source-run foundation; based on `origin/feature/copywriting-brain-offer-engine`.
+- Probate autopilot Phase 1 source-run foundation is implemented locally: source-run lanes/fields now support Harris+Montgomery probate, no-send autopilot manifests, morning brief county/keep-now/mismatch/no-send sections, and Trigger.dev CT schedule wrappers. Evidence: `docs/qc/2026-05-15/probate-autopilot-source-foundation/`. No live scraping or provider side effects.
 - HubSpot operating spine / agentic company Phases 1-9 are complete with final QC index/readiness artifacts and runbooks under `docs/qc/2026-05-14/` and `docs/runbooks/`.
 - HubSpot portal customization itself was live-applied after operator instruction; HubSpot now has Ares property groups/properties and all 12 Ares stages in the existing single `Sales Pipeline` (`docs/qc/2026-05-14/hubspot-live-buildout/`).
 - First synthetic HubSpot record-sync canary is complete after remote provider-links migration: contact `486079925950`, deal `325110558439`, provider links verified (`docs/qc/2026-05-14/hubspot-record-sync-canary/`).
@@ -192,17 +193,19 @@
 
 ## Open Work
 
-1. activate/upgrade the newly keyed Instantly workspace to a paid plan, then rerun real-account sync from `docs/marketing/exports/instantly-campaign-backups-2026-05-02/`; current preflight is blocked by HTTP 402 / workspace has no active paid plan
-2. capture stronger primary Alen Sultanic source material and update `docs/copywriting-wiki/`; current YouTube transcript access is blocked from this environment
-3. add Mission Control read/approval endpoints for Ares offer/copy assets
-4. add dedicated Mission Control frontend campaign-launch review page for the Harris probate HOT/WARM/COLD API contract
-5. enrich Harris probate campaign exports with email/phone via Tracerfy only after Martin explicitly approves skiptrace spend; single-record CRM skiptrace endpoint is wired, batch export enrichment remains unapproved
-6. consider an atomic backend bulk-record endpoint if large batch throughput/transaction semantics become necessary; current Records bulk UI fans out through real single-record command callbacks
-7. defer owner/property graph, research cockpit, and map UI until Records and stage model are stable
-8. preserve production evidence files as the handoff source of truth
-9. optionally replace the REST rollback bundle with native pg_dump once Supabase CLI container DNS is fixed
-10. add production monitoring/alerts for provider callback failures
-11. keep browser acquisition and ambiguous research in Hermes or other driver agents, not inside Ares
+1. review/push the probate-autopilot source-foundation branch; merge/rebase path depends on the active copywriting/operating-spine branch state
+2. probate autopilot next phase: replace Phase 1 placeholder manifests with real Harris source adapter and Montgomery source discovery/adapter behind no-send source-provider gates; preserve raw-first artifacts and source-count mismatch warnings
+3. activate/upgrade the newly keyed Instantly workspace to a paid plan, then rerun real-account sync from `docs/marketing/exports/instantly-campaign-backups-2026-05-02/`; current preflight is blocked by HTTP 402 / workspace has no active paid plan
+4. capture stronger primary Alen Sultanic source material and update `docs/copywriting-wiki/`; current YouTube transcript access is blocked from this environment
+5. add Mission Control read/approval endpoints for Ares offer/copy assets
+6. add dedicated Mission Control frontend campaign-launch review page for the Harris probate HOT/WARM/COLD API contract
+7. enrich Harris probate campaign exports with email/phone via Tracerfy only after Martin explicitly approves skiptrace spend; single-record CRM skiptrace endpoint is wired, batch export enrichment remains unapproved
+8. consider an atomic backend bulk-record endpoint if large batch throughput/transaction semantics become necessary; current Records bulk UI fans out through real single-record command callbacks
+9. defer owner/property graph, research cockpit, and map UI until Records and stage model are stable
+10. preserve production evidence files as the handoff source of truth
+11. optionally replace the REST rollback bundle with native pg_dump once Supabase CLI container DNS is fixed
+12. add production monitoring/alerts for provider callback failures
+13. keep browser acquisition and ambiguous research in Hermes or other driver agents, not inside Ares
 
 ## Completed Branch Work
 

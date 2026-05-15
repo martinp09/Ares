@@ -176,6 +176,58 @@ def test_morning_brief_idempotency_key_keeps_counts_stable(client):
     assert second.json()["new_record_count"] == first.json()["new_record_count"] == 2
 
 
+def test_montgomery_probate_source_lane_is_queryable_from_mission_control(client):
+    payload = {
+        "business_id": "biz-api",
+        "environment": "test",
+        "source_runs": [
+            {
+                "source_key": "montgomery-probate-api",
+                "source_label": "Montgomery probate API fixture",
+                "source_lane": "montgomery_county_probate",
+                "county": "montgomery",
+                "run_kind": "midday",
+                "raw_count": 5,
+                "parsed_count": 5,
+                "keep_now_count": 2,
+                "record_count": 5,
+            }
+        ],
+    }
+    created = client.post("/lead-machine/internal/nightly-source-pull", json=payload, headers=AUTH_HEADERS)
+    assert created.status_code == 200
+    assert created.json()["morning_brief"]["sections"]["keep_now"]["keep_now_count"] == 2
+
+    runs = client.get(
+        "/mission-control/source-runs?business_id=biz-api&environment=test&source_lane=montgomery_county_probate",
+        headers=AUTH_HEADERS,
+    )
+    assert runs.status_code == 200
+    assert [run["source_key"] for run in runs.json()["source_runs"]] == ["montgomery-probate-api"]
+    assert runs.json()["source_runs"][0]["keep_now_count"] == 2
+
+
+def test_probate_autopilot_api_builds_no_send_harris_montgomery_source_runs(client):
+    payload = {
+        "business_id": "biz-api",
+        "environment": "prod",
+        "idempotency_key": "probate-autopilot-api-0710",
+        "metadata": {
+            "autopilot": "harris_montgomery_probate",
+            "run_kind": "morning_catchup",
+            "county_scope": ["harris", "montgomery"],
+        },
+    }
+
+    response = client.post("/lead-machine/internal/nightly-source-pull", json=payload, headers=AUTH_HEADERS)
+
+    assert response.status_code == 200
+    body = response.json()
+    assert {run["source_lane"] for run in body["source_runs"]} == {"harris_county_probate", "montgomery_county_probate"}
+    assert body["morning_brief"]["sections"]["no_send_confirmation"]["no_send"] is True
+    assert body["morning_brief"]["sections"]["no_send_confirmation"]["instantly_enrollment_enabled"] is False
+
+
 def test_mission_control_source_run_and_brief_responses_do_not_echo_raw_metadata(client):
     payload = _payload()
     payload["metadata"] = {"operator_secret": "TOP-SECRET-BRIEF"}
