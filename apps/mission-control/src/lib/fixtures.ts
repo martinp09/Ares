@@ -1,4 +1,11 @@
-import type { CatalogEntrySummary, AgentDetailData, MissionControlSnapshot, ProviderOperationsData, TasksData } from "./api";
+import type {
+  CatalogEntrySummary,
+  AgentDetailData,
+  MissionControlSnapshot,
+  ProbateAutopilotHealthData,
+  ProviderOperationsData,
+  TasksData,
+} from "./api";
 
 export const providerOperationsFixture: ProviderOperationsData = {
   hubspot: {
@@ -38,6 +45,68 @@ export const providerOperationsFixture: ProviderOperationsData = {
       { sourceLane: "hctax_delinquency", status: "completed", recordCount: 10, warningCount: 1 },
     ],
   },
+};
+
+export const probateAutopilotHealthFixture: ProbateAutopilotHealthData = {
+  businessId: "limitless",
+  environment: "prod",
+  status: "warning",
+  latestBriefId: "brief-fixture-probate-autopilot",
+  generatedAt: "2026-05-15T10:22:53Z",
+  briefAgeHours: 1.25,
+  freshnessSlaHours: 8,
+  freshnessOk: true,
+  staleBrief: false,
+  noSendOk: true,
+  outboundAllowed: false,
+  sourceRunCount: 2,
+  warningCount: 2,
+  newRecordCount: 14,
+  slaHealth: {
+    status: "warning",
+    expectedCounties: ["harris", "montgomery"],
+    missingCounties: [],
+    completedCountyCount: 2,
+    failedLaneCount: 0,
+    sourceCountMismatchCount: 1,
+    anomalyCount: 1,
+    outboundAllowed: false,
+    operatorMessage: "Autopilot source SLA is for scrape/enrich/brief readiness only; outbound remains separately approval-gated.",
+  },
+  sourceQuality: {
+    sourceCountMismatchCount: 1,
+    invalidRowCount: 0,
+    duplicateCaseCount: 2,
+    duplicateCaseCountByCounty: { harris: 2 },
+    artifactWarningCount: 0,
+  },
+  enrichmentBacklog: {
+    propertyMatchPendingCount: 9,
+    taxOverlayPendingCount: 9,
+    hubSpotMirrorBlockedUntilApprovalCount: 9,
+    outboundBlockedUntilExplicitApprovalCount: 9,
+  },
+  anomalyCount: 1,
+  anomalies: [
+    {
+      severity: "warning",
+      type: "source_count_mismatch",
+      message: "One source lane reported a different count than Ares parsed.",
+      county: "harris",
+    },
+  ],
+  operatorNextActions: [
+    {
+      priority: "high",
+      action: "run_property_tax_title_enrichment",
+      reason: "9 keep-now probate row(s) are ready for property match, tax overlay, and title-friction enrichment",
+    },
+    {
+      priority: "normal",
+      action: "keep_outbound_blocked",
+      reason: "No sends/enrollment are allowed until enrichment, suppression, and exact copy approval are complete",
+    },
+  ],
 };
 
 export const missionControlCatalogFixtures: CatalogEntrySummary[] = [

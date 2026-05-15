@@ -28,7 +28,7 @@
 ## Current Direction
 
 - `/opt/ares/worktrees/probate-autopilot-source-foundation` on `feature/probate-autopilot-source-foundation` is the active implementation checkout for the Harris+Montgomery probate autopilot PRD Phase 1 source-run foundation; based on `origin/feature/copywriting-brain-offer-engine`.
-- Probate autopilot source-run foundation is implemented locally/pushed: source-run lanes/fields support Harris+Montgomery probate; no-send autopilot manifests; morning brief county/keep-now/mismatch/source-quality/enrichment-backlog/operator-action/SLA/anomaly sections; Trigger.dev CT schedule wrappers; optional file-backed source-run/idempotency state (`LEAD_MACHINE_SOURCE_RUNS_STATE_PATH`); optional source-row JSONL artifact root (`LEAD_MACHINE_ARTIFACT_ROOT`); safe local source-file payload adapter/CLI (`scripts/probate_source_file_payload.py`); read-only Harris+Montgomery export adapter contract; repeatable source-packet CLI inputs; duplicate-case aggregate anomalies; read-only doctor CLI (`scripts/probate_autopilot_doctor.py`) with freshness SLA; and Mission Control health API/client (`GET /mission-control/probate-autopilot/health`). Evidence: `docs/qc/2026-05-15/probate-autopilot-source-foundation/`, `docs/qc/2026-05-15/probate-autopilot-durable-source-rows/`, `docs/qc/2026-05-15/probate-source-file-adapter-operator-health/`, `docs/qc/2026-05-15/probate-autopilot-doctor/`, and `docs/qc/2026-05-15/probate-source-adapters-health-surface/`. No live scraping or provider side effects.
+- Probate autopilot source-run foundation is implemented locally/pushed: source-run lanes/fields support Harris+Montgomery probate; no-send autopilot manifests; morning brief county/keep-now/mismatch/source-quality/enrichment-backlog/operator-action/SLA/anomaly sections; Trigger.dev CT schedule wrappers; optional file-backed source-run/idempotency state (`LEAD_MACHINE_SOURCE_RUNS_STATE_PATH`); optional source-row JSONL artifact root (`LEAD_MACHINE_ARTIFACT_ROOT`); safe local source-file payload adapter/CLI (`scripts/probate_source_file_payload.py`); read-only Harris+Montgomery export adapter contract; repeatable source-packet CLI inputs; duplicate-case aggregate anomalies; read-only doctor CLI (`scripts/probate_autopilot_doctor.py`) with freshness SLA; Mission Control health API/client (`GET /mission-control/probate-autopilot/health`); and page-level Mission Control Autopilot health panel. Evidence: `docs/qc/2026-05-15/probate-autopilot-source-foundation/`, `docs/qc/2026-05-15/probate-autopilot-durable-source-rows/`, `docs/qc/2026-05-15/probate-source-file-adapter-operator-health/`, `docs/qc/2026-05-15/probate-autopilot-doctor/`, `docs/qc/2026-05-15/probate-source-adapters-health-surface/`, and `docs/qc/2026-05-15/probate-autopilot-mission-control-health-panel/`. No live scraping or provider side effects.
 - HubSpot operating spine / agentic company Phases 1-9 are complete with final QC index/readiness artifacts and runbooks under `docs/qc/2026-05-14/` and `docs/runbooks/`.
 - HubSpot portal customization itself was live-applied after operator instruction; HubSpot now has Ares property groups/properties and all 12 Ares stages in the existing single `Sales Pipeline` (`docs/qc/2026-05-14/hubspot-live-buildout/`).
 - First synthetic HubSpot record-sync canary is complete after remote provider-links migration: contact `486079925950`, deal `325110558439`, provider links verified (`docs/qc/2026-05-14/hubspot-record-sync-canary/`).
@@ -194,8 +194,8 @@
 ## Open Work
 
 1. review the pushed probate-autopilot source-foundation branch; merge/rebase path depends on the active copywriting/operating-spine branch state
-2. probate autopilot next no-send UI phase: render `/mission-control/probate-autopilot/health` on a Mission Control page/panel with SLA status, source anomalies, duplicate counts, freshness, and enrichment backlog
-3. probate autopilot next source-provider phase: implement real Harris source adapter/browser bridge and Montgomery source discovery/adapter behind explicit live-source approval gates; until then feed exported rows through repeated `--source-file` inputs in `scripts/probate_source_file_payload.py` + `LEAD_MACHINE_ARTIFACT_ROOT`; preserve expected-counties SLA, source-count mismatch warnings, duplicate-case aggregate redaction, and no-send gates
+2. probate autopilot next source-provider phase: implement real Harris source adapter/browser bridge and Montgomery source discovery/adapter behind explicit live-source approval gates; until then feed exported rows through repeated `--source-file` inputs in `scripts/probate_source_file_payload.py` + `LEAD_MACHINE_ARTIFACT_ROOT`; preserve expected-counties SLA, source-count mismatch warnings, duplicate-case aggregate redaction, Mission Control Autopilot health visibility, and no-send gates
+3. keep the Mission Control Autopilot page read-only and sourced from `GET /mission-control/probate-autopilot/health`; do not add provider mutation buttons until separate approval gates exist
 4. activate/upgrade the newly keyed Instantly workspace to a paid plan, then rerun real-account sync from `docs/marketing/exports/instantly-campaign-backups-2026-05-02/`; current preflight is blocked by HTTP 402 / workspace has no active paid plan
 5. capture stronger primary Alen Sultanic source material and update `docs/copywriting-wiki/`; current YouTube transcript access is blocked from this environment
 6. add Mission Control read/approval endpoints for Ares offer/copy assets
@@ -216,6 +216,13 @@
 - `TasksRepository` now treats `lead_machine_backend=supabase` as a Supabase-backed task path so title-packet review tasks persist with lead-machine records.
 
 ## Change Log
+
+### 2026-05-15 Probate Autopilot Mission Control Health Panel
+
+- Added page-level Mission Control `Autopilot` view under the Lead Machine workspace backed by `GET /mission-control/probate-autopilot/health`.
+- UI surfaces SLA status, freshness, no-send confirmation, source quality, aggregate duplicate-case counts by county, enrichment backlog, anomaly watch, and operator next actions without any provider mutation buttons.
+- Frontend API mapping intentionally drops raw source rows, owner names, raw duplicate-case-number maps, and arbitrary payload fields; optional health fallback no longer downgrades the whole shell data-source badge.
+- QC captured full backend tests (`790 passed`), Mission Control tests (`79 passed`), Mission Control typecheck/build, Trigger typecheck, `git diff --check`, and delegated QC review. Evidence: `docs/qc/2026-05-15/probate-autopilot-mission-control-health-panel/`. No live county scraping or provider side effects.
 
 ### 2026-05-15 Probate Autopilot Source Adapters + Health Surface
 
