@@ -1,3 +1,4 @@
+from app.core.config import Settings
 from app.domains.ares.models import AresCounty
 from app.services.probate_property_tax_title_enrichment_service import ProbatePropertyTaxTitleEnrichmentService
 from app.services.tax_overlay_service import TaxOverlayResult, TaxOverlayStatus
@@ -96,9 +97,29 @@ def test_property_tax_title_enrichment_rejects_live_execution_flags_before_work(
             live_tax_calls=True,
         )
     except RuntimeError as exc:
-        assert "live CAD/tax/land-record calls are not enabled" in str(exc)
+        assert "enrichment_approval.approved=true" in str(exc)
     else:  # pragma: no cover - defensive assertion
         raise AssertionError("expected live execution rejection")
+
+
+def test_property_tax_title_enrichment_rejects_live_execution_without_explicit_no_send_approval() -> None:
+    service = ProbatePropertyTaxTitleEnrichmentService(
+        settings=Settings(_env_file=None, lead_machine_live_tax_calls_enabled=True),
+        tax_client=FakeTaxClient(),
+    )
+
+    try:
+        service.run_enrichment(
+            business_id="limitless",
+            environment="test",
+            keep_now_rows=[],
+            live_tax_calls=True,
+            enrichment_approval={"approved": True, "approved_by": "operator"},
+        )
+    except RuntimeError as exc:
+        assert "enrichment_approval.no_send=true" in str(exc)
+    else:  # pragma: no cover - defensive assertion
+        raise AssertionError("expected no-send live approval rejection")
 
 
 def test_property_tax_title_enrichment_keeps_unmatched_and_unchecked_as_blocked_review_state() -> None:
@@ -125,3 +146,103 @@ def test_property_tax_title_enrichment_keeps_unmatched_and_unchecked_as_blocked_
     assert record["pain_stack"]["title_friction"]["status"] == "not_checked"
     assert result["hubspot_mirror_blocked_until_approval_count"] == 1
     assert result["outbound_blocked_until_explicit_approval_count"] == 1
+
+
+class FakeCadClient:
+    def __init__(self) -> None:
+        self.calls = []
+
+    def fetch_candidates(self, *, record, source_row):
+        self.calls.append((record.case_number, source_row["case_number"]))
+        return [
+            {
+                "acct": "000999000001",
+                "owner_name": record.decedent_name,
+                "mailing_address": "100 LIVE MAIL ST, HOUSTON, TX",
+                "property_address": "200 LIVE PROPERTY ST, HOUSTON, TX",
+            }
+        ]
+
+
+class FakeTaxClient:
+    def __init__(self) -> None:
+        self.calls = []
+
+    def fetch_tax_overlay(self, *, record, source_row):
+        self.calls.append((record.case_number, record.hcad_acct, source_row["case_number"]))
+        return {
+            "status": TaxOverlayStatus.VERIFIED_DELINQUENT,
+            "is_delinquent": True,
+            "amount_owed": 1800.0,
+            "account": record.hcad_acct,
+            "confidence": "high",
+            "search_method": "fake_public_tax_client",
+        }
+
+
+class FakeLandRecordClient:
+    def __init__(self) -> None:
+        self.calls = []
+
+    def fetch_land_records(self, *, record, source_row):
+        self.calls.append((record.case_number, source_row["case_number"]))
+        return [
+            {
+                "instrument_number": "RP-LIVE-1",
+                "instrument_type": "Affidavit of Heirship",
+                "grantor": record.decedent_name,
+                "grantee": "Example Heirs",
+            }
+        ]
+
+
+def test_property_tax_title_enrichment_uses_registered_live_clients_with_explicit_no_send_approval() -> None:
+    cad_client = FakeCadClient()
+    tax_client = FakeTaxClient()
+    land_record_client = FakeLandRecordClient()
+    service = ProbatePropertyTaxTitleEnrichmentService(
+        settings=Settings(
+            _env_file=None,
+            lead_machine_live_cad_calls_enabled=True,
+            lead_machine_live_tax_calls_enabled=True,
+            lead_machine_live_land_record_calls_enabled=True,
+        ),
+        cad_client=cad_client,
+        tax_client=tax_client,
+        land_record_client=land_record_client,
+    )
+
+    result = service.run_enrichment(
+        business_id="limitless",
+        environment="test",
+        keep_now_rows=[
+            {
+                "case_number": "2026-LIVE-1",
+                "filing_type": "APP TO DETERMINE HEIRSHIP",
+                "estate_name": "Estate of Live Example",
+                "decedent_name": "Live Example",
+                "keep_now": True,
+            }
+        ],
+        live_cad_calls=True,
+        live_tax_calls=True,
+        live_land_record_calls=True,
+        enrichment_approval={"approved": True, "approved_by": "operator", "no_send": True, "provider_sends_enabled": False},
+    )
+
+    assert cad_client.calls == [("2026-LIVE-1", "2026-LIVE-1")]
+    assert tax_client.calls == [("2026-LIVE-1", "999000001", "2026-LIVE-1")]
+    assert land_record_client.calls == [("2026-LIVE-1", "2026-LIVE-1")]
+    assert result["no_send"] is True
+    assert result["provider_sends_enabled"] is False
+    assert result["outbound_allowed"] is False
+    assert result["live_cad_calls_attempted"] is True
+    assert result["live_tax_calls_attempted"] is True
+    assert result["live_land_record_calls_attempted"] is True
+    record = result["records"][0]
+    assert record["hcad_acct"] == "999000001"
+    assert record["tax_delinquent"] is True
+    assert record["pain_stack"]["property_match"]["live_calls_attempted"] is True
+    assert record["pain_stack"]["tax_overlay"]["live_calls_attempted"] is True
+    assert record["pain_stack"]["title_friction"]["live_calls_attempted"] is True
+    assert record["pain_stack"]["title_friction"]["friction_flags"]["affidavit_of_heirship"] is True

@@ -6,6 +6,11 @@ from typing import Any, Iterable, Mapping, cast
 from app.core.config import Settings, get_settings
 from app.models.source_runs import NightlySourcePullRequest, SourceCounty
 from app.services.probate_autopilot_manifest_service import PROBATE_AUTOPILOT_KEY
+from app.services.probate_live_source_adapter_service import (
+    PROBATE_LIVE_SOURCE_ADAPTER_VERSION,
+    ProbateLiveSourceAdapterService,
+    probate_live_source_adapter_service,
+)
 from app.services.probate_source_adapter_service import ADAPTER_VERSION, probate_source_adapter_service
 from app.services.probate_source_file_service import ProbateSourceFileService
 
@@ -13,6 +18,7 @@ PROBATE_SOURCE_PROVIDER_BRIDGE_VERSION = "probate_source_provider_bridge_v1"
 PROBATE_SOURCE_ADAPTER_PREVIEW_VERSION = "probate_source_adapter_preview_v1"
 _LOCAL_EXPORT_MODE = "local_export_files"
 _ADAPTER_PREVIEW_MODE = "adapter_preview"
+_LIVE_SOURCE_MODE = "live_source_adapters"
 _PROVIDER_LABELS: dict[SourceCounty, str] = {
     "harris": "harris_county_probate_export",
     "montgomery": "montgomery_county_probate_export",
@@ -42,12 +48,23 @@ class ProbateSourceProviderBridgeService:
         *,
         settings: Settings | None = None,
         file_service: ProbateSourceFileService | None = None,
+        live_source_adapter: ProbateLiveSourceAdapterService | None = None,
     ) -> None:
         self.settings = settings or get_settings()
         self.file_service = file_service or ProbateSourceFileService()
+        self.live_source_adapter = live_source_adapter or probate_live_source_adapter_service
 
     def reject_live_source_calls(self, request: NightlySourcePullRequest) -> None:
+        self._validate_live_source_gate(request, self._bridge_config(request.metadata))
+
+    def _validate_live_source_gate(
+        self,
+        request: NightlySourcePullRequest,
+        bridge_config: Mapping[str, Any] | None,
+    ) -> Mapping[str, Any]:
         approval = request.metadata.get("source_provider_approval") if isinstance(request.metadata, Mapping) else None
+        if approval is None and isinstance(bridge_config, Mapping):
+            approval = bridge_config.get("source_provider_approval") or bridge_config.get("approval")
         approved = isinstance(approval, Mapping) and approval.get("approved") is True
         if not self.settings.lead_machine_live_source_calls_enabled:
             raise RuntimeError(
@@ -55,17 +72,27 @@ class ProbateSourceProviderBridgeService:
             )
         if not approved:
             raise RuntimeError("live source calls require explicit source_provider_approval.approved=true")
-        raise RuntimeError("live source calls have no registered Harris/Montgomery county adapters yet")
+        if bridge_config is None or str(bridge_config.get("mode") or "").strip().lower() != _LIVE_SOURCE_MODE:
+            raise RuntimeError("live source calls require source_provider_bridge.mode=live_source_adapters")
+        if approval.get("no_send") is not True or approval.get("provider_sends_enabled") is not False:
+            raise RuntimeError("live source calls require source_provider_approval.no_send=true and provider_sends_enabled=false")
+        if request.metadata.get("no_send") is False or request.metadata.get("provider_sends_enabled") is True:
+            raise RuntimeError("live source calls are no-send only; provider_sends_enabled must remain false")
+        return cast(Mapping[str, Any], approval)
 
     def hydrate_request(self, request: NightlySourcePullRequest) -> NightlySourcePullRequest:
         bridge_config = self._bridge_config(request.metadata)
         if bridge_config is None or request.source_runs:
             return request
         mode = str(bridge_config.get("mode") or "").strip().lower()
+        if mode == _LIVE_SOURCE_MODE:
+            return self._hydrate_live_source_adapters(request, bridge_config)
         if mode == _ADAPTER_PREVIEW_MODE:
             return self._hydrate_adapter_preview(request, bridge_config)
         if mode != _LOCAL_EXPORT_MODE:
-            raise ValueError("probate source-provider bridge only supports mode=local_export_files or mode=adapter_preview")
+            raise ValueError(
+                "probate source-provider bridge only supports mode=local_export_files, mode=adapter_preview, or mode=live_source_adapters"
+            )
         exports = bridge_config.get("exports") or request.metadata.get("source_provider_exports")
         export_items = self._export_items(exports)
         grouped_rows, summaries, source_uris, record_counts = self._load_exports(export_items)
@@ -90,6 +117,83 @@ class ProbateSourceProviderBridgeService:
                 "would_call_live_sources": False,
                 "live_source_calls_requested": bool(request.live_source_calls),
                 "provider_adapters": sorted({_PROVIDER_LABELS[county] for county in grouped_rows}),
+                "no_send": True,
+                "provider_sends_enabled": False,
+            },
+            "no_send": True,
+            "provider_sends_enabled": False,
+        }
+        return request.model_copy(update={"metadata": merged_metadata, "live_source_calls": False})
+
+    def _hydrate_live_source_adapters(
+        self,
+        request: NightlySourcePullRequest,
+        bridge_config: Mapping[str, Any],
+    ) -> NightlySourcePullRequest:
+        if not request.live_source_calls:
+            raise RuntimeError("live_source_adapters mode requires live_source_calls=true")
+        approval = self._validate_live_source_gate(request, bridge_config)
+        expected_counties = self._expected_counties(bridge_config, {})
+        window_start = request.metadata.get("window_start") or bridge_config.get("window_start")
+        window_end = request.metadata.get("window_end") or bridge_config.get("window_end")
+        fetched = self.live_source_adapter.fetch_window(
+            counties=expected_counties,
+            window_start=window_start,
+            window_end=window_end,
+            live_source_calls_enabled=self.settings.lead_machine_live_source_calls_enabled,
+            source_provider_approval=approval,
+        )
+        grouped_rows = {county: fetched[county].rows for county in expected_counties if county in fetched}
+        source_uris = {county: fetched[county].source_url for county in grouped_rows}
+        record_counts = {
+            county: {
+                "source_reported_count": fetched[county].source_reported_count,
+                "raw_count": fetched[county].raw_count,
+                "parsed_count": len(fetched[county].rows),
+                "record_count": len(fetched[county].rows),
+            }
+            for county in grouped_rows
+        }
+        summaries = [
+            {
+                "source_url": fetched[county].source_url,
+                "row_count": len(fetched[county].rows),
+                "county": county,
+                "source_reported_count": fetched[county].source_reported_count,
+                "provider": _LIVE_PROVIDER_LABELS[county],
+                "bridge_version": PROBATE_SOURCE_PROVIDER_BRIDGE_VERSION,
+                "live_source_adapter_version": PROBATE_LIVE_SOURCE_ADAPTER_VERSION,
+                "metadata": fetched[county].metadata,
+                "warnings": fetched[county].parser_warnings,
+            }
+            for county in grouped_rows
+        ]
+        missing_counties = [county for county in expected_counties if county not in grouped_rows]
+        if missing_counties:
+            raise RuntimeError("live source adapters returned no result for: " + ", ".join(missing_counties))
+        merged_metadata = {
+            **request.metadata,
+            "autopilot": request.metadata.get("autopilot") or PROBATE_AUTOPILOT_KEY,
+            "county_scope": expected_counties,
+            "expected_counties": expected_counties,
+            "source_rows": grouped_rows,
+            "source_uri": summaries[0]["source_url"] if len(summaries) == 1 else None,
+            "source_uris": source_uris,
+            "source_files": summaries,
+            "record_counts": record_counts,
+            "source_adapter_contract": PROBATE_LIVE_SOURCE_ADAPTER_VERSION,
+            "source_provider_bridge": {
+                "version": PROBATE_SOURCE_PROVIDER_BRIDGE_VERSION,
+                "mode": _LIVE_SOURCE_MODE,
+                "county_scope": expected_counties,
+                "expected_counties": expected_counties,
+                "would_call_live_sources": True,
+                "live_source_calls_requested": True,
+                "provider_adapters": sorted(_LIVE_PROVIDER_LABELS[county] for county in expected_counties),
+                "live_source_adapter_version": PROBATE_LIVE_SOURCE_ADAPTER_VERSION,
+                "network_calls_attempted": True,
+                "browser_calls_attempted": False,
+                "dry_run": False,
                 "no_send": True,
                 "provider_sends_enabled": False,
             },

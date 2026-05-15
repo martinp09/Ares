@@ -1,0 +1,15 @@
+ .env.example                                       |   4 +
+ CONTEXT.md                                         |   9 +-
+ TODO.md                                            |  16 +-
+ app/api/lead_machine.py                            |   2 +
+ app/core/config.py                                 |  21 +++
+ app/services/probate_autopilot_manifest_service.py |   1 +
+ ...robate_property_tax_title_enrichment_service.py | 111 +++++++++++---
+ app/services/probate_source_provider_service.py    | 108 ++++++++++++-
+ memory.md                                          |  14 +-
+ tests/api/test_lead_machine.py                     |   2 +-
+ tests/api/test_trigger_contract_files.py           |   4 +-
+ ...robate_property_tax_title_enrichment_service.py | 123 ++++++++++++++-
+ .../test_probate_source_provider_service.py        | 169 ++++++++++++++++++++-
+ .../src/lead-machine/probateAutopilotSchedules.ts  |  24 ++-
+ 14 files changed, 566 insertions(+), 42 deletions(-)

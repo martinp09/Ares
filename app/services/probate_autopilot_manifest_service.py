@@ -354,6 +354,7 @@ def _source_provider_bridge_metadata(metadata: Mapping[str, Any]) -> dict[str, A
         "network_calls_attempted",
         "browser_calls_attempted",
         "adapter_discovery_status",
+        "live_source_adapter_version",
         "no_send",
         "provider_sends_enabled",
     }

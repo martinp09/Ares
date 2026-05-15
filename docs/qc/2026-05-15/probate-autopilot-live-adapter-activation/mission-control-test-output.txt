@@ -1,0 +1,41 @@
+$ npm --prefix apps/mission-control test -- --run
+
+> @hermes/mission-control@0.1.0 test
+> vitest --run
+
+
+ RUN  v2.1.9 /opt/ares/worktrees/probate-autopilot-source-foundation/apps/mission-control
+
+ ✓ src/lib/api.test.ts (12 tests) 48ms
+ ✓ src/pages/RecordsPage.test.tsx (5 tests) 583ms
+ ✓ src/pages/AgentDetailPage.test.tsx (4 tests) 276ms
+ ✓ src/pages/AgentsPage.test.tsx (2 tests) 214ms
+ ✓ src/pages/CatalogPage.test.tsx (3 tests) 167ms
+ ✓ src/pages/PipelinePage.test.tsx (3 tests) 307ms
+ ✓ src/components/SecretHealthPanel.test.tsx (3 tests) 49ms
+ ✓ src/App.test.tsx (23 tests) 3152ms
+   ✓ App > refetches inbox detail when the operator selects a different conversation 311ms
+ ✓ src/components/MissionControlShell.test.tsx (2 tests) 194ms
+ ✓ src/pages/DashboardPage.test.tsx (3 tests) 155ms
+ ✓ src/pages/SuppressionPage.test.tsx (1 test) 112ms
+ ✓ src/pages/TasksPage.test.tsx (2 tests) 47ms
+ ✓ src/components/UsagePanel.test.tsx (2 tests) 119ms
+ ✓ src/components/OrgSwitcher.test.tsx (1 test) 137ms
+ ✓ src/pages/ProbateAutopilotPage.test.tsx (2 tests) 90ms
+ ✓ src/components/AuditTimeline.test.tsx (2 tests) 85ms
+ ✓ src/components/ProviderOperationsPanel.test.tsx (2 tests) 102ms
+ ✓ src/pages/UsagePage.test.tsx (1 test) 92ms
+ ✓ src/pages/IntakePage.test.tsx (1 test) 127ms
+ ✓ src/pages/InboxPage.test.tsx (1 test) 33ms
+ ✓ src/pages/SettingsPage.test.tsx (1 test) 48ms
+ ✓ src/pages/TurnsPage.test.tsx (1 test) 109ms
+ ✓ src/pages/SecretsPage.test.tsx (1 test) 83ms
+ ✓ src/pages/AuditPage.test.tsx (1 test) 88ms
+
+ Test Files  24 passed (24)
+      Tests  79 passed (79)
+   Start at  20:06:12
+   Duration  9.12s (transform 983ms, setup 1.35s, collect 3.44s, tests 6.42s, environment 10.09s, prepare 1.71s)
+
+
+[exit_code=0]

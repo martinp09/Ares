@@ -306,7 +306,7 @@ def test_post_probate_property_tax_title_enrichment_rejects_live_flags() -> None
     )
 
     assert response.status_code == 422
-    assert "live CAD/tax/land-record calls are not enabled" in response.json()["detail"]
+    assert "enrichment_approval.approved=true" in response.json()["detail"]
 
 
 def test_post_outbound_enqueue_returns_ids_from_service_result(monkeypatch) -> None:

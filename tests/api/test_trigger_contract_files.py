@@ -33,7 +33,9 @@ def test_probate_autopilot_schedules_are_no_send_and_ct_cadenced() -> None:
     assert "20 2 * * *" in source
     assert "15 3 * * 0" in source
     assert "harris_montgomery_probate" in source
-    assert "live_source_calls: false" in source
+    assert 'envFlag("LEAD_MACHINE_SCHEDULED_LIVE_SOURCE_CALLS_ENABLED")' in source
+    assert "live_source_calls: liveSourceCalls" in source
+    assert "source_provider_approval" in source
     assert "no_send: true" in source
     assert "provider_sends_enabled: false" in source
     assert "window_end: scheduledAt.toISOString()" in source

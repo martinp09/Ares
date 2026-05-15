@@ -1,0 +1,14 @@
+M	.env.example
+M	CONTEXT.md
+M	TODO.md
+M	app/api/lead_machine.py
+M	app/core/config.py
+M	app/services/probate_autopilot_manifest_service.py
+M	app/services/probate_property_tax_title_enrichment_service.py
+M	app/services/probate_source_provider_service.py
+M	memory.md
+M	tests/api/test_lead_machine.py
+M	tests/api/test_trigger_contract_files.py
+M	tests/services/test_probate_property_tax_title_enrichment_service.py
+M	tests/services/test_probate_source_provider_service.py
+M	trigger/src/lead-machine/probateAutopilotSchedules.ts

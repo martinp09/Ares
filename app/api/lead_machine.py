@@ -110,6 +110,7 @@ class ProbatePropertyTaxTitleEnrichmentRequest(BaseModel):
     live_cad_calls: bool = False
     live_tax_calls: bool = False
     live_land_record_calls: bool = False
+    enrichment_approval: dict[str, Any] = Field(default_factory=dict)
 
 
 class ProbatePropertyTaxTitleEnrichmentResponse(BaseModel):
@@ -310,6 +311,7 @@ def run_probate_property_tax_title_enrichment(
             live_cad_calls=request.live_cad_calls,
             live_tax_calls=request.live_tax_calls,
             live_land_record_calls=request.live_land_record_calls,
+            enrichment_approval=request.enrichment_approval,
         )
     except RuntimeError as exc:
         raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(exc)) from exc

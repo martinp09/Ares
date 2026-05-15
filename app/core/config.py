@@ -44,6 +44,27 @@ class Settings(BaseSettings):
             "LEAD_MACHINE_SOURCE_ADAPTER_PREVIEW_ENABLED",
         ),
     )
+    lead_machine_live_cad_calls_enabled: bool = Field(
+        default=False,
+        validation_alias=AliasChoices(
+            "lead_machine_live_cad_calls_enabled",
+            "LEAD_MACHINE_LIVE_CAD_CALLS_ENABLED",
+        ),
+    )
+    lead_machine_live_tax_calls_enabled: bool = Field(
+        default=False,
+        validation_alias=AliasChoices(
+            "lead_machine_live_tax_calls_enabled",
+            "LEAD_MACHINE_LIVE_TAX_CALLS_ENABLED",
+        ),
+    )
+    lead_machine_live_land_record_calls_enabled: bool = Field(
+        default=False,
+        validation_alias=AliasChoices(
+            "lead_machine_live_land_record_calls_enabled",
+            "LEAD_MACHINE_LIVE_LAND_RECORD_CALLS_ENABLED",
+        ),
+    )
     database_url: str | None = None
     site_events_backend: Literal["memory", "supabase"] = "memory"
     runtime_provider_default: Literal["anthropic", "openai_compat", "local"] = "anthropic"
