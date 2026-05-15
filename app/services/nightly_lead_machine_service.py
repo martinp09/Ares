@@ -1,7 +1,11 @@
 from __future__ import annotations
 
+import hashlib
+import json
+import re
 from datetime import datetime, timezone
-from typing import Any
+from pathlib import Path
+from typing import Any, Mapping
 
 from app.core.config import Settings, get_settings
 from app.db.source_runs import SourceRunsRepository, source_runs_repository
@@ -22,8 +26,10 @@ from app.models.source_runs import (
 )
 from app.services.probate_autopilot_manifest_service import (
     build_probate_autopilot_manifests,
+    collect_probate_autopilot_keep_now_rows,
     is_probate_autopilot_request,
 )
+from app.services.probate_property_tax_title_enrichment_service import ProbatePropertyTaxTitleEnrichmentService
 from app.services.probate_source_provider_service import (
     ProbateSourceProviderBridgeService,
     probate_source_provider_bridge_service,
@@ -53,6 +59,16 @@ DEFAULT_SOURCE_DEFINITIONS: tuple[dict[str, str], ...] = (
     },
 )
 
+_PROBATE_SOURCE_LANES = {"harris_county_probate", "montgomery_county_probate"}
+_PROPERTY_MATCH_LANES = {"harris": "harris_hcad_property_match", "montgomery": "montgomery_cad_property_match"}
+_TAX_OVERLAY_LANES = {"harris": "harris_hctax_overlay", "montgomery": "montgomery_act_tax_overlay"}
+_LAND_RECORD_LANES = {"harris": "harris_land_records", "montgomery": "montgomery_land_records"}
+_ENRICHMENT_STAGE_LABELS = {
+    "property_match": "Property/CAD match enrichment",
+    "tax_overlay": "Tax delinquency overlay enrichment",
+    "title_friction": "Land-record/title-friction enrichment",
+}
+
 
 class NightlyLeadMachineService:
     def __init__(
@@ -60,10 +76,12 @@ class NightlyLeadMachineService:
         repository: SourceRunsRepository | None = None,
         settings: Settings | None = None,
         source_provider_bridge: ProbateSourceProviderBridgeService | None = None,
+        enrichment_service: ProbatePropertyTaxTitleEnrichmentService | None = None,
     ) -> None:
         self.repository = repository or source_runs_repository
         self.settings = settings or get_settings()
         self.source_provider_bridge = source_provider_bridge or probate_source_provider_bridge_service
+        self.enrichment_service = enrichment_service or ProbatePropertyTaxTitleEnrichmentService(settings=self.settings)
 
     def run_nightly_source_pull(self, request: NightlySourcePullRequest) -> NightlySourcePullResponse:
         if request.live_source_calls:
@@ -91,6 +109,16 @@ class NightlyLeadMachineService:
             )
         else:
             manifests = self._default_manifests()
+
+        enrichment_result = self._run_probate_property_tax_title_enrichment(request)
+        if enrichment_result is not None:
+            manifests = [
+                *manifests,
+                *self._probate_enrichment_manifests(
+                    request=request,
+                    enrichment_result=enrichment_result,
+                ),
+            ]
         created_runs: list[SourceRun] = []
         response_warnings: list[str] = []
         if not request.source_runs and not is_probate_autopilot_request(request.metadata):
@@ -134,11 +162,17 @@ class NightlyLeadMachineService:
                 stored = self.repository.complete_run(stored.id, record_count=record_count, warnings=manifest.warnings)
             created_runs.append(stored)
 
+        brief_metadata = request.metadata
+        if enrichment_result is not None:
+            brief_metadata = {
+                **request.metadata,
+                "probate_property_tax_title_enrichment": _safe_enrichment_summary(enrichment_result),
+            }
         brief = self.build_morning_brief(
             business_id=request.business_id,
             environment=request.environment,
             source_runs=created_runs,
-            metadata=request.metadata,
+            metadata=brief_metadata,
         )
         self.repository.save_brief(brief)
         response = NightlySourcePullResponse(source_runs=created_runs, morning_brief=brief, warnings=response_warnings + brief.warnings)
@@ -148,6 +182,175 @@ class NightlyLeadMachineService:
                 response=response,
             )
         return response
+
+    def _run_probate_property_tax_title_enrichment(
+        self,
+        request: NightlySourcePullRequest,
+    ) -> dict[str, Any] | None:
+        keep_now_rows = collect_probate_autopilot_keep_now_rows(metadata=request.metadata)
+        if not keep_now_rows:
+            return None
+        enrichment_config = _enrichment_config(request.metadata)
+        return self.enrichment_service.run_enrichment(
+            business_id=request.business_id,
+            environment=request.environment,
+            keep_now_rows=keep_now_rows,
+            hcad_candidates_by_case=_mapping_from_enrichment_config(
+                enrichment_config,
+                request.metadata,
+                "hcad_candidates_by_case",
+            ),
+            tax_overlays_by_case=_mapping_from_enrichment_config(
+                enrichment_config,
+                request.metadata,
+                "tax_overlays_by_case",
+            ),
+            tax_overlays_by_account=_mapping_from_enrichment_config(
+                enrichment_config,
+                request.metadata,
+                "tax_overlays_by_account",
+            ),
+            land_record_rows_by_case=_mapping_from_enrichment_config(
+                enrichment_config,
+                request.metadata,
+                "land_record_rows_by_case",
+            ),
+            live_cad_calls=_bool_from_enrichment_config(enrichment_config, request.metadata, "live_cad_calls"),
+            live_tax_calls=_bool_from_enrichment_config(enrichment_config, request.metadata, "live_tax_calls"),
+            live_land_record_calls=_bool_from_enrichment_config(
+                enrichment_config,
+                request.metadata,
+                "live_land_record_calls",
+            ),
+            enrichment_approval=_mapping_from_enrichment_config(
+                enrichment_config,
+                request.metadata,
+                "enrichment_approval",
+            ),
+        )
+
+    def _probate_enrichment_manifests(
+        self,
+        *,
+        request: NightlySourcePullRequest,
+        enrichment_result: Mapping[str, Any],
+    ) -> list[SourceRunManifest]:
+        records_by_county: dict[str, list[dict[str, Any]]] = {"harris": [], "montgomery": []}
+        for record in enrichment_result.get("records", []):
+            if not isinstance(record, dict):
+                continue
+            county = _record_county(record)
+            if county in records_by_county:
+                records_by_county[county].append(record)
+
+        run_kind = _metadata_run_kind(request.metadata)
+        window_key = _window_key_from_metadata(request.metadata)
+        manifests: list[SourceRunManifest] = []
+        for county, records in records_by_county.items():
+            if not records:
+                continue
+            summary = _county_enrichment_summary(records, enrichment_result=enrichment_result)
+            for stage, lane in (
+                ("property_match", _PROPERTY_MATCH_LANES[county]),
+                ("tax_overlay", _TAX_OVERLAY_LANES[county]),
+                ("title_friction", _LAND_RECORD_LANES[county]),
+            ):
+                stage_summary = _stage_summary(summary, stage=stage)
+                manifests.append(
+                    SourceRunManifest(
+                        source_key=":".join(
+                            [
+                                lane,
+                                run_kind,
+                                window_key,
+                                request.idempotency_key or "no-idempotency-key",
+                            ]
+                        ),
+                        source_label=f"{county.title()} {_ENRICHMENT_STAGE_LABELS[stage]}",
+                        source_lane=lane,  # type: ignore[arg-type]
+                        county=county,  # type: ignore[arg-type]
+                        run_kind=run_kind,  # type: ignore[arg-type]
+                        window_start=_parse_metadata_datetime(request.metadata.get("window_start")),
+                        window_end=_parse_metadata_datetime(request.metadata.get("window_end")),
+                        idempotency_key=(
+                            f"{request.idempotency_key}:{county}:{stage}" if request.idempotency_key else None
+                        ),
+                        raw_count=0,
+                        parsed_count=0,
+                        keep_now_count=0,
+                        record_count=0,
+                        artifacts=[
+                            self._enrichment_artifact(
+                                county=county,
+                                run_kind=run_kind,
+                                window_key=window_key,
+                                stage=stage,
+                                summary=stage_summary,
+                                records=records,
+                            )
+                        ],
+                        metadata={
+                            "autopilot": "harris_montgomery_probate",
+                            "phase": "phase_3_property_tax_title_enrichment",
+                            "county": county,
+                            "run_kind": run_kind,
+                            "enrichment_stage": stage,
+                            **stage_summary,
+                            "no_send": True,
+                            "provider_sends_enabled": False,
+                            "outbound_allowed": False,
+                        },
+                    )
+                )
+        return manifests
+
+    def _enrichment_artifact(
+        self,
+        *,
+        county: str,
+        run_kind: str,
+        window_key: str,
+        stage: str,
+        summary: Mapping[str, Any],
+        records: list[dict[str, Any]],
+    ) -> SourceRunArtifact:
+        payload = {
+            "county": county,
+            "run_kind": run_kind,
+            "stage": stage,
+            "summary": dict(summary),
+            "records": records,
+            "no_send": True,
+            "provider_sends_enabled": False,
+            "outbound_allowed": False,
+        }
+        body = json.dumps(payload, sort_keys=True, default=str, indent=2) + "\n"
+        checksum = hashlib.sha256(body.encode("utf-8")).hexdigest()
+        logical_path = (
+            f"/opt/ares/lead-data/probate_autopilot/{county}/{run_kind}/"
+            f"{_safe_path_part(window_key)}/{stage}_enrichment.json"
+        )
+        path = logical_path
+        if self.settings.lead_machine_artifact_root:
+            root = Path(self.settings.lead_machine_artifact_root).expanduser()
+            file_path = (
+                root
+                / "probate_autopilot"
+                / county
+                / run_kind
+                / _safe_path_part(window_key)
+                / f"{stage}_enrichment.json"
+            )
+            file_path.parent.mkdir(parents=True, exist_ok=True)
+            file_path.write_text(body, encoding="utf-8")
+            path = str(file_path)
+        return SourceRunArtifact(
+            path=path,
+            artifact_type=f"{stage}_enrichment",
+            record_count=0,
+            checksum=checksum,
+            metadata={"county": county, "run_kind": run_kind, "stage": stage, **dict(summary)},
+        )
 
     def build_morning_brief(
         self,
@@ -177,6 +380,9 @@ class NightlyLeadMachineService:
         duplicate_case_count = 0
         duplicate_case_count_by_county: dict[str, int] = {}
         artifact_warning_count = 0
+        enrichment_summary = _safe_enrichment_summary(
+            (metadata or {}).get("probate_property_tax_title_enrichment")
+        )
 
         for run in source_runs:
             lane_summary = lane_summaries.setdefault(
@@ -276,6 +482,7 @@ class NightlyLeadMachineService:
             invalid_row_count=invalid_row_count,
             duplicate_case_count=duplicate_case_count,
             keep_now_count=keep_now_total,
+            enrichment_pending_count=_enrichment_pending_count(keep_now_total, enrichment_summary),
         )
         sections = {
             "source_health": {
@@ -320,12 +527,7 @@ class NightlyLeadMachineService:
                 ),
             ),
             "source_anomalies": source_anomalies,
-            "enrichment_backlog": {
-                "property_match_pending_count": keep_now_total,
-                "tax_overlay_pending_count": keep_now_total,
-                "hubspot_mirror_blocked_until_approval_count": keep_now_total,
-                "outbound_blocked_until_explicit_approval_count": keep_now_total,
-            },
+            "enrichment_backlog": _enrichment_backlog(keep_now_total, enrichment_summary),
             "operator_next_actions": operator_next_actions,
             "blocked_lanes": blocked_lanes,
             "source_count_mismatches": source_count_mismatches,
@@ -703,6 +905,7 @@ class NightlyLeadMachineService:
         invalid_row_count: int,
         duplicate_case_count: int,
         keep_now_count: int,
+        enrichment_pending_count: int,
     ) -> list[dict[str, Any]]:
         actions: list[dict[str, Any]] = []
         if failed_lane_count:
@@ -738,13 +941,28 @@ class NightlyLeadMachineService:
                 }
             )
         if keep_now_count:
-            actions.append(
-                {
-                    "priority": "high",
-                    "action": "run_property_tax_title_enrichment",
-                    "reason": f"{keep_now_count} keep-now probate row(s) are ready for property match, tax overlay, and title-friction enrichment",
-                }
-            )
+            if enrichment_pending_count:
+                actions.append(
+                    {
+                        "priority": "high",
+                        "action": "complete_property_tax_title_enrichment",
+                        "reason": (
+                            f"{enrichment_pending_count} keep-now probate row(s) still need property match, "
+                            "tax overlay, or title-friction evidence"
+                        ),
+                    }
+                )
+            else:
+                actions.append(
+                    {
+                        "priority": "normal",
+                        "action": "review_enriched_probate_queue",
+                        "reason": (
+                            f"{keep_now_count} keep-now probate row(s) completed the scheduled property, tax, "
+                            "and title-friction enrichment pass"
+                        ),
+                    }
+                )
             actions.append(
                 {
                     "priority": "normal",
@@ -777,6 +995,292 @@ class NightlyLeadMachineService:
         if isinstance(value, int) and value >= 0 and not isinstance(value, bool):
             return value
         return None
+
+
+def _enrichment_config(metadata: Mapping[str, Any]) -> Mapping[str, Any]:
+    for key in ("property_tax_title_enrichment", "probate_property_tax_title_enrichment", "enrichment"):
+        value = metadata.get(key)
+        if isinstance(value, Mapping):
+            return value
+    return {}
+
+
+def _mapping_from_enrichment_config(
+    enrichment_config: Mapping[str, Any],
+    metadata: Mapping[str, Any],
+    key: str,
+) -> Mapping[str, Any]:
+    value = enrichment_config.get(key)
+    if isinstance(value, Mapping):
+        return value
+    value = metadata.get(key)
+    if isinstance(value, Mapping):
+        return value
+    return {}
+
+
+def _bool_from_enrichment_config(enrichment_config: Mapping[str, Any], metadata: Mapping[str, Any], key: str) -> bool:
+    if key in enrichment_config:
+        return enrichment_config.get(key) is True
+    return metadata.get(key) is True
+
+
+def _safe_enrichment_summary(value: Any) -> dict[str, Any]:
+    if not isinstance(value, Mapping):
+        return {
+            "status": "not_run",
+            "received_count": 0,
+            "enriched_count": 0,
+            "property_match_completed_count": 0,
+            "property_match_unmatched_count": 0,
+            "property_match_pending_count": 0,
+            "tax_overlay_completed_count": 0,
+            "tax_overlay_pending_count": 0,
+            "tax_overlay_ambiguous_count": 0,
+            "title_friction_completed_count": 0,
+            "title_friction_pending_count": 0,
+            "title_friction_review_count": 0,
+            "hubspot_mirror_blocked_until_approval_count": 0,
+            "outbound_blocked_until_explicit_approval_count": 0,
+            "no_send": True,
+            "provider_sends_enabled": False,
+            "outbound_allowed": False,
+            "live_cad_calls_attempted": False,
+            "live_tax_calls_attempted": False,
+            "live_land_record_calls_attempted": False,
+        }
+    enriched_count = _non_negative_int(value.get("enriched_count"))
+    property_completed = _non_negative_int(value.get("property_match_completed_count"))
+    tax_completed = _non_negative_int(value.get("tax_overlay_completed_count"))
+    title_completed = _non_negative_int(value.get("title_friction_completed_count"))
+    property_pending = max(0, enriched_count - property_completed)
+    tax_pending = max(0, enriched_count - tax_completed)
+    title_pending = max(0, enriched_count - title_completed)
+    status = "not_run"
+    if enriched_count and any((property_pending, tax_pending, title_pending)):
+        status = "partial"
+    elif enriched_count:
+        status = "completed"
+    return {
+        "status": status,
+        "received_count": _non_negative_int(value.get("received_count")),
+        "enriched_count": enriched_count,
+        "property_match_completed_count": property_completed,
+        "property_match_unmatched_count": _non_negative_int(value.get("property_match_unmatched_count")),
+        "property_match_pending_count": property_pending,
+        "tax_overlay_completed_count": tax_completed,
+        "tax_overlay_pending_count": tax_pending,
+        "tax_overlay_ambiguous_count": _non_negative_int(value.get("tax_overlay_ambiguous_count")),
+        "title_friction_completed_count": title_completed,
+        "title_friction_pending_count": title_pending,
+        "title_friction_review_count": _non_negative_int(value.get("title_friction_review_count")),
+        "hubspot_mirror_blocked_until_approval_count": _non_negative_int(
+            value.get("hubspot_mirror_blocked_until_approval_count")
+        ),
+        "outbound_blocked_until_explicit_approval_count": _non_negative_int(
+            value.get("outbound_blocked_until_explicit_approval_count")
+        ),
+        "no_send": value.get("no_send") is not False,
+        "provider_sends_enabled": value.get("provider_sends_enabled") is True,
+        "outbound_allowed": value.get("outbound_allowed") is True,
+        "live_cad_calls_attempted": value.get("live_cad_calls_attempted") is True,
+        "live_tax_calls_attempted": value.get("live_tax_calls_attempted") is True,
+        "live_land_record_calls_attempted": value.get("live_land_record_calls_attempted") is True,
+    }
+
+
+def _enrichment_backlog(keep_now_count: int, enrichment_summary: Mapping[str, Any]) -> dict[str, Any]:
+    if enrichment_summary.get("status") == "not_run":
+        return {
+            "status": "pending",
+            "property_match_pending_count": keep_now_count,
+            "tax_overlay_pending_count": keep_now_count,
+            "title_friction_pending_count": keep_now_count,
+            "hubspot_mirror_blocked_until_approval_count": keep_now_count,
+            "outbound_blocked_until_explicit_approval_count": keep_now_count,
+        }
+    return {
+        "status": enrichment_summary.get("status"),
+        "enriched_count": _non_negative_int(enrichment_summary.get("enriched_count")),
+        "property_match_completed_count": _non_negative_int(
+            enrichment_summary.get("property_match_completed_count")
+        ),
+        "property_match_pending_count": _non_negative_int(enrichment_summary.get("property_match_pending_count")),
+        "property_match_unmatched_count": _non_negative_int(
+            enrichment_summary.get("property_match_unmatched_count")
+        ),
+        "tax_overlay_completed_count": _non_negative_int(enrichment_summary.get("tax_overlay_completed_count")),
+        "tax_overlay_pending_count": _non_negative_int(enrichment_summary.get("tax_overlay_pending_count")),
+        "tax_overlay_ambiguous_count": _non_negative_int(enrichment_summary.get("tax_overlay_ambiguous_count")),
+        "title_friction_completed_count": _non_negative_int(
+            enrichment_summary.get("title_friction_completed_count")
+        ),
+        "title_friction_pending_count": _non_negative_int(enrichment_summary.get("title_friction_pending_count")),
+        "title_friction_review_count": _non_negative_int(enrichment_summary.get("title_friction_review_count")),
+        "hubspot_mirror_blocked_until_approval_count": _non_negative_int(
+            enrichment_summary.get("hubspot_mirror_blocked_until_approval_count")
+        ),
+        "outbound_blocked_until_explicit_approval_count": _non_negative_int(
+            enrichment_summary.get("outbound_blocked_until_explicit_approval_count")
+        ),
+        "no_send": enrichment_summary.get("no_send") is True,
+        "provider_sends_enabled": enrichment_summary.get("provider_sends_enabled") is True,
+        "outbound_allowed": enrichment_summary.get("outbound_allowed") is True,
+        "live_cad_calls_attempted": enrichment_summary.get("live_cad_calls_attempted") is True,
+        "live_tax_calls_attempted": enrichment_summary.get("live_tax_calls_attempted") is True,
+        "live_land_record_calls_attempted": enrichment_summary.get("live_land_record_calls_attempted") is True,
+    }
+
+
+def _enrichment_pending_count(keep_now_count: int, enrichment_summary: Mapping[str, Any]) -> int:
+    if enrichment_summary.get("status") == "not_run":
+        return keep_now_count
+    return max(
+        _non_negative_int(enrichment_summary.get("property_match_pending_count")),
+        _non_negative_int(enrichment_summary.get("tax_overlay_pending_count")),
+        _non_negative_int(enrichment_summary.get("title_friction_pending_count")),
+    )
+
+
+def _county_enrichment_summary(
+    records: list[dict[str, Any]],
+    *,
+    enrichment_result: Mapping[str, Any],
+) -> dict[str, Any]:
+    property_completed = sum(1 for record in records if record.get("hcad_acct"))
+    tax_completed = 0
+    tax_ambiguous = 0
+    title_completed = 0
+    title_review = 0
+    for record in records:
+        pain_stack = record.get("pain_stack") if isinstance(record.get("pain_stack"), Mapping) else {}
+        tax_overlay = pain_stack.get("tax_overlay") if isinstance(pain_stack.get("tax_overlay"), Mapping) else {}
+        title_friction = pain_stack.get("title_friction") if isinstance(pain_stack.get("title_friction"), Mapping) else {}
+        tax_status = str(tax_overlay.get("status") or "")
+        if tax_status and tax_status != "tax_overlay_not_checked":
+            tax_completed += 1
+        if tax_status == "tax_overlay_ambiguous":
+            tax_ambiguous += 1
+        title_status = str(title_friction.get("status") or "")
+        if title_status and title_status != "not_checked":
+            title_completed += 1
+        if title_friction.get("next_action") in {"needs_document_image_review", "needs_land_record_review"}:
+            title_review += 1
+    enriched_count = len(records)
+    return {
+        "enriched_count": enriched_count,
+        "property_match_completed_count": property_completed,
+        "property_match_unmatched_count": max(0, enriched_count - property_completed),
+        "property_match_pending_count": max(0, enriched_count - property_completed),
+        "tax_overlay_completed_count": tax_completed,
+        "tax_overlay_pending_count": max(0, enriched_count - tax_completed),
+        "tax_overlay_ambiguous_count": tax_ambiguous,
+        "title_friction_completed_count": title_completed,
+        "title_friction_pending_count": max(0, enriched_count - title_completed),
+        "title_friction_review_count": title_review,
+        "hubspot_mirror_blocked_until_approval_count": enriched_count,
+        "outbound_blocked_until_explicit_approval_count": enriched_count,
+        "no_send": True,
+        "provider_sends_enabled": False,
+        "outbound_allowed": False,
+        "live_cad_calls_attempted": enrichment_result.get("live_cad_calls_attempted") is True,
+        "live_tax_calls_attempted": enrichment_result.get("live_tax_calls_attempted") is True,
+        "live_land_record_calls_attempted": enrichment_result.get("live_land_record_calls_attempted") is True,
+    }
+
+
+def _stage_summary(summary: Mapping[str, Any], *, stage: str) -> dict[str, Any]:
+    base = {
+        "enriched_count": _non_negative_int(summary.get("enriched_count")),
+        "no_send": True,
+        "provider_sends_enabled": False,
+        "outbound_allowed": False,
+    }
+    if stage == "property_match":
+        return {
+            **base,
+            "property_match_completed_count": _non_negative_int(
+                summary.get("property_match_completed_count")
+            ),
+            "property_match_pending_count": _non_negative_int(summary.get("property_match_pending_count")),
+            "property_match_unmatched_count": _non_negative_int(
+                summary.get("property_match_unmatched_count")
+            ),
+            "live_cad_calls_attempted": summary.get("live_cad_calls_attempted") is True,
+        }
+    if stage == "tax_overlay":
+        return {
+            **base,
+            "tax_overlay_completed_count": _non_negative_int(summary.get("tax_overlay_completed_count")),
+            "tax_overlay_pending_count": _non_negative_int(summary.get("tax_overlay_pending_count")),
+            "tax_overlay_ambiguous_count": _non_negative_int(summary.get("tax_overlay_ambiguous_count")),
+            "live_tax_calls_attempted": summary.get("live_tax_calls_attempted") is True,
+        }
+    return {
+        **base,
+        "title_friction_completed_count": _non_negative_int(summary.get("title_friction_completed_count")),
+        "title_friction_pending_count": _non_negative_int(summary.get("title_friction_pending_count")),
+        "title_friction_review_count": _non_negative_int(summary.get("title_friction_review_count")),
+        "live_land_record_calls_attempted": summary.get("live_land_record_calls_attempted") is True,
+    }
+
+
+def _record_county(record: Mapping[str, Any]) -> str | None:
+    raw_payload = record.get("raw_payload") if isinstance(record.get("raw_payload"), Mapping) else {}
+    source_row = raw_payload.get("source_row") if isinstance(raw_payload.get("source_row"), Mapping) else {}
+    raw = source_row.get("raw") if isinstance(source_row.get("raw"), Mapping) else {}
+    for candidate in (record.get("county"), source_row.get("county"), raw.get("county")):
+        normalized = str(candidate or "").strip().lower().replace(" county", "")
+        if normalized in {"harris", "montgomery"}:
+            return normalized
+    return None
+
+
+def _metadata_run_kind(metadata: Mapping[str, Any]) -> str:
+    value = str(metadata.get("run_kind") or metadata.get("slot") or metadata.get("schedule_slot") or "manual")
+    normalized = value.strip().lower()
+    if normalized in {
+        "morning_catchup",
+        "midday",
+        "end_of_day",
+        "daily_reconciliation",
+        "weekly_reconciliation",
+        "manual",
+    }:
+        return normalized
+    return "manual"
+
+
+def _window_key_from_metadata(metadata: Mapping[str, Any]) -> str:
+    start = metadata.get("window_start")
+    end = metadata.get("window_end")
+    if start or end:
+        return f"{start or 'open'}__{end or 'open'}"
+    return "unspecified-window"
+
+
+def _parse_metadata_datetime(value: Any) -> datetime | None:
+    if isinstance(value, datetime):
+        return value
+    if not isinstance(value, str) or not value.strip():
+        return None
+    try:
+        return datetime.fromisoformat(value.replace("Z", "+00:00"))
+    except ValueError:
+        return None
+
+
+def _safe_path_part(value: Any) -> str:
+    text = re.sub(r"[^A-Za-z0-9_.=-]+", "-", str(value or "").strip())
+    return text.strip("-") or "unspecified"
+
+
+def _non_negative_int(value: Any) -> int:
+    if isinstance(value, bool):
+        return 0
+    if isinstance(value, int) and value >= 0:
+        return value
+    return 0
 
 
 nightly_lead_machine_service = NightlyLeadMachineService()

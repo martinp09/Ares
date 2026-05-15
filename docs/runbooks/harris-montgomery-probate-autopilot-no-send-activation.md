@@ -1,7 +1,7 @@
 # Harris + Montgomery Probate Autopilot — No-Send Activation Runbook
 
 - Status: draft / engineering handoff
-- Updated UTC: 2026-05-15T19:45:02Z
+- Updated UTC: 2026-05-15T21:36:35Z
 - Scope: scheduled source acquisition, enrichment, scoring, briefing, and qualified-review preparation only
 - Hard stop: no Instantly enrollment, no email/SMS/Vapi sends, no paid skiptrace, no HubSpot writes without separate approval gate
 
@@ -44,7 +44,7 @@ Trigger schedules are registered at:
 - `harris-montgomery-probate-0220-ct`: `20 2 * * *` America/Chicago
 - `harris-montgomery-probate-weekly-sunday-0315-ct`: `15 3 * * 0` America/Chicago
 
-With `LEAD_MACHINE_SCHEDULED_LIVE_SOURCE_CALLS_ENABLED=false`, schedules create no-send placeholder/source-run control-plane records unless source rows are supplied through the file/export bridge.
+With `LEAD_MACHINE_SCHEDULED_LIVE_SOURCE_CALLS_ENABLED=false`, schedules create no-send placeholder/source-run control-plane records unless source rows are supplied through the file/export bridge. When source rows are present, the nightly source pull now runs the property/CAD, tax-overlay, and land-record/title-friction enrichment pass inside the same no-send runtime call, then emits aggregate morning-brief enrichment status plus internal stage artifacts.
 
 With `LEAD_MACHINE_SCHEDULED_LIVE_SOURCE_CALLS_ENABLED=true` and backend `LEAD_MACHINE_LIVE_SOURCE_CALLS_ENABLED=true`, the schedule payload requests:
 
@@ -88,7 +88,19 @@ Controls:
 
 ## Enrichment controls
 
-Local artifact enrichment remains the default. Live enrichment clients are injectable and separately gated:
+The nightly source-pull path now invokes the property/tax/title enrichment service automatically for normalized `keep_now` probate rows when source rows are present. Local artifact enrichment remains the default input mode:
+
+- `property_tax_title_enrichment.hcad_candidates_by_case`
+- `property_tax_title_enrichment.tax_overlays_by_case`
+- `property_tax_title_enrichment.tax_overlays_by_account`
+- `property_tax_title_enrichment.land_record_rows_by_case`
+
+The same pass writes internal zero-count source-run stage artifacts for:
+
+- Harris: `harris_hcad_property_match`, `harris_hctax_overlay`, `harris_land_records`
+- Montgomery: `montgomery_cad_property_match`, `montgomery_act_tax_overlay`, `montgomery_land_records`
+
+Those enrichment stage runs do not inflate `new_record_count`; the morning brief reports completion/pending counts under `enrichment_backlog`. Live enrichment clients are still injectable and separately gated:
 
 - `LEAD_MACHINE_LIVE_CAD_CALLS_ENABLED=true` for CAD/property candidates
 - `LEAD_MACHINE_LIVE_TAX_CALLS_ENABLED=true` for public tax overlays

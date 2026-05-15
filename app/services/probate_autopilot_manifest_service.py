@@ -85,6 +85,26 @@ def build_probate_autopilot_manifests(
     return manifests
 
 
+def collect_probate_autopilot_keep_now_rows(*, metadata: dict[str, Any]) -> list[dict[str, Any]]:
+    """Return normalized keep-now rows for the in-run enrichment pass.
+
+    Source-run manifests keep raw row payloads out of public summaries. The
+    nightly service still needs normalized keep-now rows in memory so property,
+    tax, and title enrichment run in the same scheduled no-send pass instead of
+    remaining a separate manual endpoint.
+    """
+
+    if not is_probate_autopilot_request(metadata):
+        return []
+    counties = _counties(metadata.get("county_scope") or metadata.get("counties"))
+    rows_by_county = _rows_by_county(metadata.get("source_rows"), counties=counties)
+    keep_now_rows: list[dict[str, Any]] = []
+    for county in counties:
+        normalized_rows, _invalid_rows = _normalize_source_rows(rows_by_county.get(county, []), county=county)
+        keep_now_rows.extend(row for row in normalized_rows if row.get("keep_now") is True)
+    return keep_now_rows
+
+
 def _build_placeholder_manifest(
     *,
     county: SourceCounty,

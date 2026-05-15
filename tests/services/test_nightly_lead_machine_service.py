@@ -418,17 +418,142 @@ def test_probate_autopilot_source_rows_create_artifacts_and_keep_now_counts(tmp_
     assert result.morning_brief.sections["county_counts"][0]["parsed_count"] == 2
     assert result.morning_brief.sections["source_quality"]["invalid_row_count"] == 1
     assert result.morning_brief.sections["enrichment_backlog"] == {
+        "status": "partial",
+        "enriched_count": 1,
+        "property_match_completed_count": 0,
         "property_match_pending_count": 1,
+        "property_match_unmatched_count": 1,
+        "tax_overlay_completed_count": 0,
         "tax_overlay_pending_count": 1,
+        "tax_overlay_ambiguous_count": 0,
+        "title_friction_completed_count": 0,
+        "title_friction_pending_count": 1,
+        "title_friction_review_count": 1,
         "hubspot_mirror_blocked_until_approval_count": 1,
         "outbound_blocked_until_explicit_approval_count": 1,
+        "no_send": True,
+        "provider_sends_enabled": False,
+        "outbound_allowed": False,
+        "live_cad_calls_attempted": False,
+        "live_tax_calls_attempted": False,
+        "live_land_record_calls_attempted": False,
     }
     assert [action["action"] for action in result.morning_brief.sections["operator_next_actions"]] == [
         "reconcile_source_count_mismatches",
         "inspect_invalid_source_rows",
-        "run_property_tax_title_enrichment",
+        "complete_property_tax_title_enrichment",
         "keep_outbound_blocked",
     ]
+
+
+def test_probate_autopilot_runs_enrichment_stages_inside_nightly_pull(tmp_path):
+    service = NightlyLeadMachineService(
+        repository=SourceRunsRepository(),
+        settings=Settings(_env_file=None, lead_machine_artifact_root=str(tmp_path)),
+    )
+
+    result = service.run_nightly_source_pull(
+        NightlySourcePullRequest(
+            business_id="biz",
+            environment="prod",
+            idempotency_key="enriched-source-0710",
+            metadata={
+                "autopilot": "harris_montgomery_probate",
+                "run_kind": "morning_catchup",
+                "window_end": "2026-05-15T07:10:00+00:00",
+                "county_scope": ["harris"],
+                "source_rows": {
+                    "harris": [
+                        {
+                            "case_number": "543680",
+                            "filing_type": "App to Determine Heirship",
+                            "style": "Estate of Jane Example",
+                            "decedent_name": "Jane Example",
+                        }
+                    ]
+                },
+                "property_tax_title_enrichment": {
+                    "hcad_candidates_by_case": {
+                        "543680": [
+                            {
+                                "acct": "000123400001",
+                                "owner_name": "Jane Example",
+                                "mailing_address": "123 MAIN ST, HOUSTON, TX 77002",
+                                "property_address": "456 OAK ST, HOUSTON, TX 77008",
+                            }
+                        ]
+                    },
+                    "tax_overlays_by_account": {
+                        "123400001": {
+                            "status": "tax_overlay_verified_delinquent",
+                            "is_delinquent": True,
+                            "amount_owed": 5250.75,
+                            "account": "123400001",
+                            "confidence": "high",
+                            "search_method": "local_harris_tax_statement_snapshot",
+                        }
+                    },
+                    "land_record_rows_by_case": {
+                        "543680": [
+                            {
+                                "instrument_number": "RP-2026-1",
+                                "instrument_type": "Affidavit of Heirship",
+                                "grantor": "Jane Example",
+                                "grantee": "Example Heirs",
+                            }
+                        ]
+                    },
+                },
+            },
+        )
+    )
+
+    lanes = {run.source_lane for run in result.source_runs}
+    assert {
+        "harris_county_probate",
+        "harris_hcad_property_match",
+        "harris_hctax_overlay",
+        "harris_land_records",
+    }.issubset(lanes)
+    assert result.morning_brief.new_record_count == 1
+    assert result.morning_brief.sections["enrichment_backlog"] == {
+        "status": "completed",
+        "enriched_count": 1,
+        "property_match_completed_count": 1,
+        "property_match_pending_count": 0,
+        "property_match_unmatched_count": 0,
+        "tax_overlay_completed_count": 1,
+        "tax_overlay_pending_count": 0,
+        "tax_overlay_ambiguous_count": 0,
+        "title_friction_completed_count": 1,
+        "title_friction_pending_count": 0,
+        "title_friction_review_count": 1,
+        "hubspot_mirror_blocked_until_approval_count": 1,
+        "outbound_blocked_until_explicit_approval_count": 1,
+        "no_send": True,
+        "provider_sends_enabled": False,
+        "outbound_allowed": False,
+        "live_cad_calls_attempted": False,
+        "live_tax_calls_attempted": False,
+        "live_land_record_calls_attempted": False,
+    }
+    assert [action["action"] for action in result.morning_brief.sections["operator_next_actions"]] == [
+        "review_enriched_probate_queue",
+        "keep_outbound_blocked",
+    ]
+    enrichment_artifacts = [
+        artifact
+        for run in result.source_runs
+        for artifact in run.artifacts
+        if artifact.artifact_type.endswith("_enrichment")
+    ]
+    assert {artifact.artifact_type for artifact in enrichment_artifacts} == {
+        "property_match_enrichment",
+        "tax_overlay_enrichment",
+        "title_friction_enrichment",
+    }
+    assert all(Path(artifact.path).exists() for artifact in enrichment_artifacts)
+    assert "Jane Example" in Path(enrichment_artifacts[0].path).read_text(encoding="utf-8")
 
 
 def test_probate_autopilot_source_rows_detect_source_report_mismatch(service: NightlyLeadMachineService):

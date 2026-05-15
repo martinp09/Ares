@@ -1,0 +1,55 @@
+{
+  "enrichment_artifact_count": 6,
+  "enrichment_artifact_paths": [
+    "/tmp/ares-probate-enrichment-smoke/probate_autopilot/harris/manual/open__2026-05-15T21-36-35-00-00/property_match_enrichment.json",
+    "/tmp/ares-probate-enrichment-smoke/probate_autopilot/harris/manual/open__2026-05-15T21-36-35-00-00/tax_overlay_enrichment.json",
+    "/tmp/ares-probate-enrichment-smoke/probate_autopilot/harris/manual/open__2026-05-15T21-36-35-00-00/title_friction_enrichment.json",
+    "/tmp/ares-probate-enrichment-smoke/probate_autopilot/montgomery/manual/open__2026-05-15T21-36-35-00-00/property_match_enrichment.json",
+    "/tmp/ares-probate-enrichment-smoke/probate_autopilot/montgomery/manual/open__2026-05-15T21-36-35-00-00/tax_overlay_enrichment.json",
+    "/tmp/ares-probate-enrichment-smoke/probate_autopilot/montgomery/manual/open__2026-05-15T21-36-35-00-00/title_friction_enrichment.json"
+  ],
+  "enrichment_backlog": {
+    "enriched_count": 2,
+    "hubspot_mirror_blocked_until_approval_count": 2,
+    "live_cad_calls_attempted": false,
+    "live_land_record_calls_attempted": false,
+    "live_tax_calls_attempted": false,
+    "no_send": true,
+    "outbound_allowed": false,
+    "outbound_blocked_until_explicit_approval_count": 2,
+    "property_match_completed_count": 2,
+    "property_match_pending_count": 0,
+    "property_match_unmatched_count": 0,
+    "provider_sends_enabled": false,
+    "status": "completed",
+    "tax_overlay_ambiguous_count": 0,
+    "tax_overlay_completed_count": 2,
+    "tax_overlay_pending_count": 0,
+    "title_friction_completed_count": 2,
+    "title_friction_pending_count": 0,
+    "title_friction_review_count": 2
+  },
+  "lanes": [
+    "harris_county_probate",
+    "harris_hcad_property_match",
+    "harris_hctax_overlay",
+    "harris_land_records",
+    "montgomery_act_tax_overlay",
+    "montgomery_cad_property_match",
+    "montgomery_county_probate",
+    "montgomery_land_records"
+  ],
+  "new_record_count": 2,
+  "no_send_confirmation": {
+    "instantly_enrollment_enabled": false,
+    "message": "Probate autopilot source pulls do not enroll, activate, or send outreach.",
+    "no_send": true,
+    "provider_sends_enabled": false
+  },
+  "operator_actions": [
+    "review_enriched_probate_queue",
+    "keep_outbound_blocked"
+  ],
+  "source_run_count": 8,
+  "status": "completed"
+}

@@ -1,24 +1,25 @@
 ---
 title: "Ares TODO / Handoff"
 status: active
-updated_at: "2026-05-15T21:20:05Z"
+updated_at: "2026-05-15T21:36:35Z"
 repo: "martinp09/Ares"
 local_checkout: "/opt/ares/worktrees/ares-main"
-current_branch: "fix/montgomery-probate-odyssey-adapter"
+current_branch: "fix/probate-autopilot-enrichment-wiring"
 ---
 
 # Ares TODO / Handoff
 
 ## Current status
 
-The Harris + Montgomery probate autopilot source-foundation/live-adapter activation slice is landed on `main` as a disabled-by-default, no-send runtime capability. A follow-up Montgomery Odyssey adapter fix is active on `fix/montgomery-probate-odyssey-adapter`; it replaces the brittle direct-GET/302 bootstrap with the required Odyssey node-launch POST and has QC evidence at `docs/qc/2026-05-15/montgomery-probate-odyssey-adapter/`.
+The Harris + Montgomery probate autopilot source-foundation/live-adapter activation slice is landed on `main` as a disabled-by-default, no-send runtime capability. The current follow-up branch is `fix/probate-autopilot-enrichment-wiring`: it includes the Montgomery Odyssey node-launch POST fix and wires the nightly source-pull path into property/CAD, tax-overlay, and land-record/title-friction enrichment for keep-now rows.
 
-One manual no-send public county pilot was executed for the Montgomery fix: Harris parsed `32` rows / `8` keep-now, Montgomery parsed `8` rows / `0` keep-now, `partial_failures={}`, `sla_status=healthy`, and provider side effects stayed false. No HubSpot batch writes, Instantly enrollment/sends, SMS/Vapi calls, paid skiptrace, Slack/provider sends, or deploys were executed.
+One manual no-send public county pilot was executed for the Montgomery fix: Harris parsed `32` rows / `8` keep-now, Montgomery parsed `8` rows / `0` keep-now, `partial_failures={}`, `sla_status=healthy`, and provider side effects stayed false. A local-artifact no-send enrichment smoke then completed property/CAD, tax-overlay, and land-record/title-friction stages for Harris + Montgomery keep-now examples, emitted 6 enrichment artifacts, and kept HubSpot/Instantly/SMS/Vapi/paid skiptrace/live tax/land calls off. No HubSpot batch writes, Instantly enrollment/sends, SMS/Vapi calls, paid skiptrace, Slack/provider sends, or deploys were executed.
 
 HubSpot operating-spine work remains dry-run/gated except for the previously approved single-record canaries documented in QC. HubSpot live apply is still credential/scope-gated.
 
 ## Primary handoff artifacts
 
+- Probate nightly enrichment wiring QC: `docs/qc/2026-05-15/probate-autopilot-enrichment-wiring/`
 - Montgomery Odyssey adapter fix QC: `docs/qc/2026-05-15/montgomery-probate-odyssey-adapter/`
 - Probate no-send activation runbook: `docs/runbooks/harris-montgomery-probate-autopilot-no-send-activation.md`
 - Probate live adapter activation QC: `docs/qc/2026-05-15/probate-autopilot-live-adapter-activation/`
@@ -36,10 +37,10 @@ HubSpot operating-spine work remains dry-run/gated except for the previously app
 
 ## Immediate next actions
 
-1. Review/merge `fix/montgomery-probate-odyssey-adapter`, then keep monitoring the Hermes no-send cron reports for aggregate source-run health.
+1. Review/merge `fix/probate-autopilot-enrichment-wiring`, then keep monitoring the Hermes no-send cron reports for aggregate source-run/enrichment health.
 2. Keep `LEAD_MACHINE_SCHEDULED_LIVE_SOURCE_CALLS_ENABLED=false` until Martin explicitly approves Ares-side scheduled live-source execution.
-3. Keep HubSpot batch mirror writes, Instantly enrollment/send, SMS/Vapi dispatch, paid skiptrace, and deploy as separate explicit approval gates.
-4. For Instantly later, let inboxes continue warming, write/review exact copy first, then use only approved recipient/lead lists with verified contact info and existing gated enrollment/send paths.
+3. Keep live CAD/tax/land-record clients disabled until the exact public-client/adaptor scope is approved and registered.
+4. Keep HubSpot batch mirror writes, Instantly enrollment/send, SMS/Vapi dispatch, paid skiptrace, and deploy as separate explicit approval gates.
 
 ## Open product follow-ups
 
