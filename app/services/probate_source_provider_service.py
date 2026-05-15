@@ -10,10 +10,20 @@ from app.services.probate_source_adapter_service import ADAPTER_VERSION, probate
 from app.services.probate_source_file_service import ProbateSourceFileService
 
 PROBATE_SOURCE_PROVIDER_BRIDGE_VERSION = "probate_source_provider_bridge_v1"
-_SUPPORTED_MODE = "local_export_files"
+PROBATE_SOURCE_ADAPTER_PREVIEW_VERSION = "probate_source_adapter_preview_v1"
+_LOCAL_EXPORT_MODE = "local_export_files"
+_ADAPTER_PREVIEW_MODE = "adapter_preview"
 _PROVIDER_LABELS: dict[SourceCounty, str] = {
     "harris": "harris_county_probate_export",
     "montgomery": "montgomery_county_probate_export",
+}
+_LIVE_PROVIDER_LABELS: dict[SourceCounty, str] = {
+    "harris": "harris_county_probate_live_v1",
+    "montgomery": "montgomery_county_probate_live_v1",
+}
+_ADAPTER_DISCOVERY_STATUS: dict[SourceCounty, str] = {
+    "harris": "adapter_contract_ready_no_network_implementation",
+    "montgomery": "adapter_contract_ready_no_network_implementation",
 }
 
 
@@ -21,9 +31,10 @@ class ProbateSourceProviderBridgeService:
     """Bridge source-provider intent into no-send source-row metadata.
 
     This is intentionally *not* a live county scraper. The bridge gives the
-    scheduled source-pull path a stable provider contract while only accepting
-    local export files. Live source calls remain behind a separate env gate and
-    explicit operator approval before any network/browser adapter can be wired.
+    scheduled source-pull path a stable provider contract while accepting local
+    export files and a dry-run adapter-preview mode. Live source calls remain
+    behind a separate env gate and explicit operator approval before any
+    network/browser adapter can be wired.
     """
 
     def __init__(
@@ -40,7 +51,7 @@ class ProbateSourceProviderBridgeService:
         approved = isinstance(approval, Mapping) and approval.get("approved") is True
         if not self.settings.lead_machine_live_source_calls_enabled:
             raise RuntimeError(
-                "live source calls are disabled; probate source-provider bridge currently supports local_export_files only"
+                "live source calls are disabled; probate source-provider bridge currently supports local_export_files and dry-run adapter_preview only"
             )
         if not approved:
             raise RuntimeError("live source calls require explicit source_provider_approval.approved=true")
@@ -51,8 +62,10 @@ class ProbateSourceProviderBridgeService:
         if bridge_config is None or request.source_runs:
             return request
         mode = str(bridge_config.get("mode") or "").strip().lower()
-        if mode != _SUPPORTED_MODE:
-            raise ValueError("probate source-provider bridge only supports mode=local_export_files")
+        if mode == _ADAPTER_PREVIEW_MODE:
+            return self._hydrate_adapter_preview(request, bridge_config)
+        if mode != _LOCAL_EXPORT_MODE:
+            raise ValueError("probate source-provider bridge only supports mode=local_export_files or mode=adapter_preview")
         exports = bridge_config.get("exports") or request.metadata.get("source_provider_exports")
         export_items = self._export_items(exports)
         grouped_rows, summaries, source_uris, record_counts = self._load_exports(export_items)
@@ -70,7 +83,7 @@ class ProbateSourceProviderBridgeService:
             "source_adapter_contract": ADAPTER_VERSION,
             "source_provider_bridge": {
                 "version": PROBATE_SOURCE_PROVIDER_BRIDGE_VERSION,
-                "mode": _SUPPORTED_MODE,
+                "mode": _LOCAL_EXPORT_MODE,
                 "export_count": len(summaries),
                 "county_scope": list(grouped_rows),
                 "expected_counties": expected_counties,
@@ -85,13 +98,63 @@ class ProbateSourceProviderBridgeService:
         }
         return request.model_copy(update={"metadata": merged_metadata, "live_source_calls": False})
 
+    def _hydrate_adapter_preview(
+        self,
+        request: NightlySourcePullRequest,
+        bridge_config: Mapping[str, Any],
+    ) -> NightlySourcePullRequest:
+        if request.live_source_calls:
+            raise RuntimeError("adapter_preview is dry-run only; live_source_calls must be false")
+        if not self.settings.lead_machine_source_adapter_preview_enabled:
+            raise RuntimeError(
+                "probate source adapter preview is disabled; set LEAD_MACHINE_SOURCE_ADAPTER_PREVIEW_ENABLED=true for dry-run adapter preview"
+            )
+        approval = request.metadata.get("source_provider_approval") if isinstance(request.metadata, Mapping) else None
+        if approval is None:
+            approval = bridge_config.get("source_provider_approval") or bridge_config.get("approval")
+        approved = isinstance(approval, Mapping) and approval.get("approved") is True
+        if not approved:
+            raise RuntimeError("adapter_preview requires explicit source_provider_approval.approved=true")
+
+        expected_counties = self._expected_counties(bridge_config, {})
+        adapter_labels = sorted(_LIVE_PROVIDER_LABELS[county] for county in expected_counties)
+        merged_metadata = {
+            **request.metadata,
+            "autopilot": request.metadata.get("autopilot") or PROBATE_AUTOPILOT_KEY,
+            "county_scope": expected_counties,
+            "expected_counties": expected_counties,
+            "source_rows": {county: [] for county in expected_counties},
+            "record_counts": {county: {"source_reported_count": 0} for county in expected_counties},
+            "source_adapter_contract": PROBATE_SOURCE_ADAPTER_PREVIEW_VERSION,
+            "source_provider_bridge": {
+                "version": PROBATE_SOURCE_PROVIDER_BRIDGE_VERSION,
+                "adapter_preview_version": PROBATE_SOURCE_ADAPTER_PREVIEW_VERSION,
+                "mode": _ADAPTER_PREVIEW_MODE,
+                "adapter_status": "dry_run_preview_only_no_network_calls",
+                "dry_run": True,
+                "county_scope": expected_counties,
+                "expected_counties": expected_counties,
+                "would_call_live_sources": False,
+                "live_source_calls_requested": bool(request.live_source_calls),
+                "network_calls_attempted": False,
+                "browser_calls_attempted": False,
+                "provider_adapters": adapter_labels,
+                "adapter_discovery_status": {county: _ADAPTER_DISCOVERY_STATUS[county] for county in expected_counties},
+                "no_send": True,
+                "provider_sends_enabled": False,
+            },
+            "no_send": True,
+            "provider_sends_enabled": False,
+        }
+        return request.model_copy(update={"metadata": merged_metadata, "live_source_calls": False})
+
     @staticmethod
     def _bridge_config(metadata: Mapping[str, Any]) -> Mapping[str, Any] | None:
         bridge_config = metadata.get("source_provider_bridge") or metadata.get("source_provider")
         if isinstance(bridge_config, Mapping):
             return bridge_config
         if metadata.get("source_provider_exports"):
-            return {"mode": _SUPPORTED_MODE, "exports": metadata.get("source_provider_exports")}
+            return {"mode": _LOCAL_EXPORT_MODE, "exports": metadata.get("source_provider_exports")}
         return None
 
     @staticmethod

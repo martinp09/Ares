@@ -234,6 +234,81 @@ def test_post_probate_intake_rejects_missing_required_record_fields() -> None:
     assert response.status_code == 422
 
 
+def test_post_probate_property_tax_title_enrichment_runs_no_send_gate() -> None:
+    client = TestClient(app)
+
+    response = client.post(
+        "/lead-machine/internal/probate-property-tax-title-enrichment",
+        headers=AUTH_HEADERS,
+        json={
+            "business_id": "limitless",
+            "environment": "dev",
+            "keep_now_rows": [
+                {
+                    "case_number": "2026-PTT-1",
+                    "filing_type": "APP TO DETERMINE HEIRSHIP",
+                    "estate_name": "Estate of Jane Example",
+                    "decedent_name": "Jane Example",
+                    "keep_now": True,
+                }
+            ],
+            "hcad_candidates_by_case": {
+                "2026-PTT-1": [
+                    {
+                        "acct": "000123400001",
+                        "owner_name": "Example Jane",
+                        "mailing_address": "123 MAIN ST",
+                        "property_address": "456 OAK ST",
+                    }
+                ]
+            },
+            "tax_overlays_by_account": {
+                "123400001": {
+                    "status": "tax_overlay_verified_delinquent",
+                    "is_delinquent": True,
+                    "amount_owed": 5250.75,
+                    "account": "123400001",
+                    "confidence": "high",
+                    "search_method": "local_snapshot",
+                }
+            },
+            "land_record_rows_by_case": {
+                "2026-PTT-1": [
+                    {"instrument_number": "RP-1", "instrument_type": "Affidavit of Heirship"}
+                ]
+            },
+        },
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["no_send"] is True
+    assert payload["provider_sends_enabled"] is False
+    assert payload["outbound_allowed"] is False
+    assert payload["property_match_completed_count"] == 1
+    assert payload["tax_overlay_completed_count"] == 1
+    assert payload["title_friction_review_count"] == 1
+    assert payload["records"][0]["tax_delinquent"] is True
+
+
+def test_post_probate_property_tax_title_enrichment_rejects_live_flags() -> None:
+    client = TestClient(app)
+
+    response = client.post(
+        "/lead-machine/internal/probate-property-tax-title-enrichment",
+        headers=AUTH_HEADERS,
+        json={
+            "business_id": "limitless",
+            "environment": "dev",
+            "keep_now_rows": [],
+            "live_land_record_calls": True,
+        },
+    )
+
+    assert response.status_code == 422
+    assert "live CAD/tax/land-record calls are not enabled" in response.json()["detail"]
+
+
 def test_post_outbound_enqueue_returns_ids_from_service_result(monkeypatch) -> None:
     class StubWritePathService:
         def __init__(self) -> None:
@@ -267,6 +342,7 @@ def test_post_outbound_enqueue_returns_ids_from_service_result(monkeypatch) -> N
             "campaign_id": "camp_1",
             "assigned_to": "agent_7",
             "verify_leads_on_import": True,
+            "operator_approval": True,
             "chunk_size": 50,
             "wait_seconds": 1.5,
         },
@@ -288,8 +364,28 @@ def test_post_outbound_enqueue_returns_ids_from_service_result(monkeypatch) -> N
     assert outbound_request["campaign_id"] == "camp_1"
     assert outbound_request["assigned_to"] == "agent_7"
     assert outbound_request["verify_leads_on_import"] is True
+    assert outbound_request["operator_approval"] is True
     assert outbound_request["chunk_size"] == 50
     assert outbound_request["wait_seconds"] == 1.5
+
+
+def test_post_outbound_enqueue_blocks_without_operator_approval_before_provider_configuration() -> None:
+    client = TestClient(app)
+
+    response = client.post(
+        "/lead-machine/outbound/enqueue",
+        json={
+            "business_id": "limitless",
+            "environment": "dev",
+            "lead_ids": ["lead_1"],
+            "campaign_id": "camp_1",
+        },
+        headers=AUTH_HEADERS,
+    )
+
+    assert response.status_code == 503
+    assert "Explicit operator approval" in response.json()["detail"]
+    assert "INSTANTLY_API_KEY" not in response.json()["detail"]
 
 
 def test_post_instantly_webhook_records_headers_and_trust_metadata(monkeypatch) -> None:
@@ -600,6 +696,7 @@ def test_create_app_mounts_lead_machine_router() -> None:
 
     assert "/lead-machine/intake" in routes
     assert "/lead-machine/probate/intake" in routes
+    assert "/lead-machine/internal/probate-property-tax-title-enrichment" in routes
     assert "/lead-machine/outbound/enqueue" in routes
     assert "/lead-machine/webhooks/instantly" in routes
     assert "/lead-machine/internal/followup-step-runner" in routes

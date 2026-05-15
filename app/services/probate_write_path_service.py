@@ -115,7 +115,9 @@ class ProbateWritePathService:
         verify_leads_on_import: bool = False,
         chunk_size: int | None = None,
         wait_seconds: float | None = None,
+        operator_approval: bool = False,
     ) -> OutboundEnrollmentResult:
+        self._require_outbound_preflight(operator_approval=operator_approval)
         service = self._get_outbound_service()
         return service.enqueue_leads(
             OutboundEnrollmentRequest(
@@ -132,6 +134,7 @@ class ProbateWritePathService:
                 verify_leads_on_import=verify_leads_on_import,
                 chunk_size=chunk_size,
                 wait_seconds=wait_seconds,
+                operator_approval=operator_approval,
             )
         )
 
@@ -153,6 +156,14 @@ class ProbateWritePathService:
             trusted=trusted,
             trust_reason=trust_reason,
         )
+
+    def _require_outbound_preflight(self, *, operator_approval: bool) -> None:
+        if not operator_approval:
+            raise RuntimeError("Explicit operator approval is required before Instantly outbound enqueue.")
+        if not self.settings.provider_live_sends_enabled:
+            raise RuntimeError("PROVIDER_LIVE_SENDS_ENABLED must be true before Instantly outbound enqueue.")
+        if not self.settings.instantly_provider_live_enrollment_enabled:
+            raise RuntimeError("INSTANTLY_PROVIDER_LIVE_ENROLLMENT_ENABLED must be true before Instantly outbound enqueue.")
 
     def _enrich_probate_record(
         self,
@@ -208,7 +219,8 @@ class ProbateWritePathService:
                 base_url=self.settings.instantly_base_url,
                 batch_size=self.settings.instantly_batch_size,
                 batch_wait_seconds=self.settings.instantly_batch_wait_seconds,
-            )
+            ),
+            settings=self.settings,
         )
         return self._outbound_service
 

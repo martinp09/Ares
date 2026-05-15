@@ -1,7 +1,7 @@
 ---
 title: "Ares TODO / Handoff"
 status: active
-updated_at: "2026-05-15T11:26:54Z"
+updated_at: "2026-05-15T16:04:22Z"
 repo: "martinp09/Ares"
 local_checkout: "/opt/ares/worktrees/probate-autopilot-source-foundation"
 current_branch: "feature/probate-autopilot-source-foundation"
@@ -20,7 +20,7 @@ HubSpot record-sync canary result: remote provider-links migration `202605140900
 
 HubSpot real-lead sync result: one hand-selected `limitless/prod` Harris probate lead (`lead_341`, case `543678`) was synced HubSpot-only after preview; HubSpot contact `485815102172` and deal `325123310274` were created with provider links `plink_3`/`plink_4`. Follow-up corrections added probate/heir/contact/mailing/property/tax-overlay fields, then mapped the applicant/mailing address into standard HubSpot contact `address/city/state/zip/country` fields for normal contact visibility. Current sync hash: `hubspot-real-lead-lead_341-visible-v4`. Email/phone/mobile and property/HCAD remain true data gaps. No real batch sync, Instantly enrollment/send, Reacher call, Vapi call, source-provider pull, Slack send, or deploy side effect.
 
-Probate autopilot source-run foundation is implemented on this branch. It adds Harris+Montgomery no-send source-run manifests, PRD source-run fields, Trigger.dev CT schedule wrappers, optional file-backed source-run/idempotency state, metadata `source_rows` ingestion, artifact writing, safe source-file adapter/CLI, read-only Harris+Montgomery export adapter contract, repeatable source-packet CLI inputs, duplicate-case aggregate anomalies, read-only doctor CLI with freshness SLA, Mission Control health API/client, page-level Mission Control Autopilot health panel, disabled-by-default local-export source-provider bridge gate, SLA/anomaly brief sections, and operator next-action brief sections. QC: `docs/qc/2026-05-15/probate-autopilot-source-foundation/`, `docs/qc/2026-05-15/probate-autopilot-durable-source-rows/`, `docs/qc/2026-05-15/probate-source-file-adapter-operator-health/`, `docs/qc/2026-05-15/probate-autopilot-doctor/`, `docs/qc/2026-05-15/probate-source-adapters-health-surface/`, `docs/qc/2026-05-15/probate-autopilot-mission-control-health-panel/`, and `docs/qc/2026-05-15/probate-source-provider-bridge-gate/`. No live scraping, HubSpot writes, skiptrace spend, Instantly enrollment/send, SMS, Vapi, Slack, or direct-mail side effects.
+Probate autopilot source-run foundation plus the next safe no-send PRD gates are implemented on this branch. It adds Harris+Montgomery no-send source-run manifests, PRD source-run fields, Trigger.dev CT schedule wrappers, optional file-backed source-run/idempotency state, metadata `source_rows` ingestion, artifact writing, safe source-file adapter/CLI, read-only Harris+Montgomery export adapter contract, repeatable source-packet CLI inputs, duplicate-case aggregate anomalies, read-only doctor CLI with freshness SLA, Mission Control health API/client, page-level Mission Control Autopilot health panel, disabled-by-default local-export source-provider bridge gate, dry-run source adapter preview (`adapter_preview`, default-off + approval-gated + no-network/no-browser), local-artifact property/CAD + tax + land-record/title-friction enrichment endpoint/task, outbound enqueue hard-blocks requiring explicit operator approval plus global/Instantly live gates, SLA/anomaly brief sections, and operator next-action brief sections. QC: `docs/qc/2026-05-15/probate-autopilot-source-foundation/`, `docs/qc/2026-05-15/probate-autopilot-durable-source-rows/`, `docs/qc/2026-05-15/probate-source-file-adapter-operator-health/`, `docs/qc/2026-05-15/probate-autopilot-doctor/`, `docs/qc/2026-05-15/probate-source-adapters-health-surface/`, `docs/qc/2026-05-15/probate-autopilot-mission-control-health-panel/`, `docs/qc/2026-05-15/probate-source-provider-bridge-gate/`, and `docs/qc/2026-05-15/probate-autopilot-bigger-gates/`. No live scraping, HubSpot batch writes, skiptrace spend, Instantly enrollment/send, SMS, Vapi, Slack, direct-mail, or deploy side effects.
 
 Primary handoff artifacts:
 
@@ -40,6 +40,7 @@ Primary handoff artifacts:
 - Probate source adapters + health surface: `docs/qc/2026-05-15/probate-source-adapters-health-surface/`
 - Probate Mission Control health panel: `docs/qc/2026-05-15/probate-autopilot-mission-control-health-panel/`
 - Probate source-provider bridge gate: `docs/qc/2026-05-15/probate-source-provider-bridge-gate/`
+- Probate bigger gates: `docs/qc/2026-05-15/probate-autopilot-bigger-gates/`
 - Reacher/SMTP egress check: `docs/qc/2026-05-14/reacher-smtp-egress/`
 - Master plan status: `docs/superpowers/plans/2026-05-14-hubspot-operating-spine-agentic-company-plan.md`
 

@@ -1,5 +1,6 @@
 import pytest
 
+from app.core.config import Settings
 from app.db.source_runs import SourceRunsRepository
 from app.models.source_runs import NightlySourcePullRequest
 from app.services.nightly_lead_machine_service import NightlyLeadMachineService
@@ -97,7 +98,7 @@ def test_nightly_service_runs_local_export_provider_bridge_without_live_calls(tm
 
 def test_source_provider_bridge_rejects_unsupported_mode():
     bridge = ProbateSourceProviderBridgeService()
-    with pytest.raises(ValueError, match="only supports mode=local_export_files"):
+    with pytest.raises(ValueError, match="only supports mode=local_export_files or mode=adapter_preview"):
         bridge.hydrate_request(
             NightlySourcePullRequest(
                 business_id="biz",
@@ -105,3 +106,92 @@ def test_source_provider_bridge_rejects_unsupported_mode():
                 metadata={"source_provider_bridge": {"mode": "live_browser", "exports": ["/tmp/nope.csv"]}},
             )
         )
+
+
+def test_source_provider_adapter_preview_rejects_when_preview_gate_disabled():
+    bridge = ProbateSourceProviderBridgeService(settings=Settings(_env_file=None))
+
+    with pytest.raises(RuntimeError, match="source adapter preview is disabled"):
+        bridge.hydrate_request(
+            NightlySourcePullRequest(
+                business_id="biz",
+                environment="test",
+                metadata={
+                    "source_provider_approval": {"approved": True, "approved_by": "operator"},
+                    "source_provider_bridge": {"mode": "adapter_preview", "expected_counties": ["harris"]},
+                },
+            )
+        )
+
+
+def test_source_provider_adapter_preview_requires_explicit_approval():
+    bridge = ProbateSourceProviderBridgeService(
+        settings=Settings(_env_file=None, lead_machine_source_adapter_preview_enabled=True)
+    )
+
+    with pytest.raises(RuntimeError, match="source_provider_approval.approved=true"):
+        bridge.hydrate_request(
+            NightlySourcePullRequest(
+                business_id="biz",
+                environment="test",
+                metadata={"source_provider_bridge": {"mode": "adapter_preview", "expected_counties": ["harris"]}},
+            )
+        )
+
+
+def test_source_provider_adapter_preview_hydrates_dry_run_metadata_without_network_calls():
+    bridge = ProbateSourceProviderBridgeService(
+        settings=Settings(_env_file=None, lead_machine_source_adapter_preview_enabled=True)
+    )
+
+    request = bridge.hydrate_request(
+        NightlySourcePullRequest(
+            business_id="biz",
+            environment="test",
+            metadata={
+                "source_provider_approval": {"approved": True, "approved_by": "operator", "scope": "dry_run_preview"},
+                "source_provider_bridge": {"mode": "adapter_preview", "expected_counties": ["harris", "montgomery"]},
+            },
+        )
+    )
+
+    bridge_metadata = request.metadata["source_provider_bridge"]
+    assert request.live_source_calls is False
+    assert request.metadata["source_rows"] == {"harris": [], "montgomery": []}
+    assert bridge_metadata["mode"] == "adapter_preview"
+    assert bridge_metadata["dry_run"] is True
+    assert bridge_metadata["would_call_live_sources"] is False
+    assert bridge_metadata["network_calls_attempted"] is False
+    assert bridge_metadata["browser_calls_attempted"] is False
+    assert bridge_metadata["provider_adapters"] == ["harris_county_probate_live_v1", "montgomery_county_probate_live_v1"]
+    assert "raw" not in bridge_metadata
+    assert "case_number" not in str(bridge_metadata).lower()
+
+
+def test_nightly_service_runs_adapter_preview_as_placeholder_manifests_without_live_calls():
+    settings = Settings(_env_file=None, lead_machine_source_adapter_preview_enabled=True)
+    bridge = ProbateSourceProviderBridgeService(settings=settings)
+    service = NightlyLeadMachineService(
+        repository=SourceRunsRepository(),
+        settings=settings,
+        source_provider_bridge=bridge,
+    )
+
+    result = service.run_nightly_source_pull(
+        NightlySourcePullRequest(
+            business_id="biz",
+            environment="test",
+            metadata={
+                "source_provider_approval": {"approved": True, "approved_by": "operator", "scope": "dry_run_preview"},
+                "source_provider_bridge": {"mode": "adapter_preview", "expected_counties": ["harris", "montgomery"]},
+            },
+        )
+    )
+
+    assert result.would_call_external_sources is False
+    assert result.live_source_calls_enabled is False
+    assert {run.county for run in result.source_runs} == {"harris", "montgomery"}
+    assert all(run.record_count == 0 for run in result.source_runs)
+    assert all(run.metadata["source_provider_bridge"]["dry_run"] is True for run in result.source_runs)
+    assert all(run.metadata["source_provider_bridge"]["network_calls_attempted"] is False for run in result.source_runs)
+    assert result.morning_brief.sections["no_send_confirmation"]["no_send"] is True

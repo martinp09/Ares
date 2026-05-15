@@ -348,6 +348,12 @@ def _source_provider_bridge_metadata(metadata: Mapping[str, Any]) -> dict[str, A
         "would_call_live_sources",
         "live_source_calls_requested",
         "provider_adapters",
+        "adapter_preview_version",
+        "adapter_status",
+        "dry_run",
+        "network_calls_attempted",
+        "browser_calls_attempted",
+        "adapter_discovery_status",
         "no_send",
         "provider_sends_enabled",
     }

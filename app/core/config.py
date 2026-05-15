@@ -37,6 +37,13 @@ class Settings(BaseSettings):
             "LEAD_MACHINE_LIVE_SOURCE_CALLS_ENABLED",
         ),
     )
+    lead_machine_source_adapter_preview_enabled: bool = Field(
+        default=False,
+        validation_alias=AliasChoices(
+            "lead_machine_source_adapter_preview_enabled",
+            "LEAD_MACHINE_SOURCE_ADAPTER_PREVIEW_ENABLED",
+        ),
+    )
     database_url: str | None = None
     site_events_backend: Literal["memory", "supabase"] = "memory"
     runtime_provider_default: Literal["anthropic", "openai_compat", "local"] = "anthropic"

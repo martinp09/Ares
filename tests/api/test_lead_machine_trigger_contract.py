@@ -33,6 +33,10 @@ def test_phase_four_trigger_jobs_cover_the_expected_id_set() -> None:
             'id: "probate-intake"',
             "invokeLeadMachineRuntimeApi",
         ),
+        LEAD_MACHINE_DIR / "probatePropertyTaxTitleEnrichment.ts": (
+            'id: "probate-property-tax-title-enrichment"',
+            "invokeLeadMachineRuntimeApi",
+        ),
         LEAD_MACHINE_DIR / "instantlyEnqueueLead.ts": (
             'id: "instantly-enqueue-lead"',
             "invokeLeadMachineRuntimeApi",
@@ -76,6 +80,7 @@ def test_phase_four_trigger_jobs_cover_the_expected_id_set() -> None:
         "marketing-create-manual-call-task",
         "lead-intake",
         "probate-intake",
+        "probate-property-tax-title-enrichment",
         "instantly-enqueue-lead",
         "instantly-webhook-ingest",
         "followup-step-runner",
@@ -93,6 +98,7 @@ def test_lead_machine_runtime_exports_all_todo_endpoints() -> None:
     for endpoint in (
         'leadIntake: "/lead-machine/intake"',
         'probateIntake: "/lead-machine/probate/intake"',
+        'probatePropertyTaxTitleEnrichment: "/lead-machine/internal/probate-property-tax-title-enrichment"',
         'outboundEnqueue: "/lead-machine/outbound/enqueue"',
         'instantlyWebhookIngest: "/lead-machine/webhooks/instantly"',
         'followupStepRunner: "/lead-machine/internal/followup-step-runner"',
@@ -126,6 +132,7 @@ def test_trigger_jobs_require_lifecycle_reporting_for_run_mapped_payloads() -> N
     for path in (
         LEAD_MACHINE_DIR / "leadIntake.ts",
         LEAD_MACHINE_DIR / "probateIntake.ts",
+        LEAD_MACHINE_DIR / "probatePropertyTaxTitleEnrichment.ts",
         LEAD_MACHINE_DIR / "instantlyEnqueueLead.ts",
         LEAD_MACHINE_DIR / "instantlyWebhookIngest.ts",
         LEAD_MACHINE_DIR / "followupStepRunner.ts",
@@ -186,3 +193,12 @@ def test_morning_brief_task_uses_endpoint_map_not_raw_path() -> None:
 
     assert '"morningBrief"' in source
     assert '"/lead-machine/internal/morning-brief"' not in source
+
+
+def test_probate_property_tax_title_enrichment_task_does_not_publish_raw_response_artifact() -> None:
+    source = _source(LEAD_MACHINE_DIR / "probatePropertyTaxTitleEnrichment.ts")
+
+    assert '"probatePropertyTaxTitleEnrichment"' in source
+    assert "runWithLifecycle" in source
+    assert "artifactType" not in source
+    assert "lead_machine_probate_property_tax_title_enrichment" not in source

@@ -1,3 +1,4 @@
+from app.core.config import Settings
 from app.db.automation_runs import AutomationRunsRepository
 from app.db.campaign_memberships import CampaignMembershipsRepository
 from app.db.campaigns import CampaignsRepository
@@ -153,6 +154,12 @@ def test_enqueue_probate_leads_records_runs_and_memberships() -> None:
     automation_runs_repository = AutomationRunsRepository(client)
     suppression_repository = SuppressionRepository(client)
     campaign_lifecycle_service = CampaignLifecycleService(campaigns_repository)
+    live_settings = Settings(
+        _env_file=None,
+        provider_live_sends_enabled=True,
+        instantly_provider_live_enrollment_enabled=True,
+        instantly_api_key="inst_123",
+    )
     sent_batches: list[dict] = []
     outbound_service = LeadOutboundService(
         instantly_client=InstantlyClient(
@@ -166,8 +173,9 @@ def test_enqueue_probate_leads_records_runs_and_memberships() -> None:
         automation_runs_repository=automation_runs_repository,
         suppression_service=LeadSuppressionService(suppression_repository),
         campaign_lifecycle_service=campaign_lifecycle_service,
+        settings=live_settings,
     )
-    service = ProbateWritePathService(outbound_service=outbound_service)
+    service = ProbateWritePathService(settings=live_settings, outbound_service=outbound_service)
     campaign = campaign_lifecycle_service.create_or_upsert(
         CampaignRecord(
             business_id="limitless",
@@ -192,6 +200,7 @@ def test_enqueue_probate_leads_records_runs_and_memberships() -> None:
         environment="dev",
         lead_ids=[lead.id or ""],
         campaign_id=campaign.id,
+        operator_approval=True,
     )
 
     assert len(result.automation_runs) == 1
@@ -201,6 +210,23 @@ def test_enqueue_probate_leads_records_runs_and_memberships() -> None:
     refreshed = leads_repository.get(lead.id or "")
     assert refreshed is not None
     assert refreshed.lifecycle_status == LeadLifecycleStatus.ROUTED
+
+
+def test_enqueue_probate_leads_requires_approval_before_instantly_client_construction() -> None:
+    service = ProbateWritePathService(settings=Settings(_env_file=None, instantly_api_key=None))
+
+    try:
+        service.enqueue_probate_leads(
+            business_id="limitless",
+            environment="dev",
+            lead_ids=["lead_1"],
+            campaign_id="camp_1",
+        )
+    except RuntimeError as exc:
+        assert "Explicit operator approval" in str(exc)
+        assert "INSTANTLY_API_KEY" not in str(exc)
+    else:  # pragma: no cover - defensive assertion
+        raise AssertionError("expected outbound approval gate rejection")
 
 
 def test_handle_instantly_webhook_writes_receipt_then_event() -> None:

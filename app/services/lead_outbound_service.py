@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any
 
+from app.core.config import Settings, get_settings
 from app.db.automation_runs import AutomationRunsRepository
 from app.db.campaign_memberships import CampaignMembershipsRepository
 from app.db.campaigns import CampaignsRepository
@@ -31,6 +32,7 @@ class OutboundEnrollmentRequest:
     verify_leads_on_import: bool = False
     chunk_size: int | None = None
     wait_seconds: float | None = None
+    operator_approval: bool = False
 
 
 @dataclass(slots=True)
@@ -52,8 +54,10 @@ class LeadOutboundService:
         automation_runs_repository: AutomationRunsRepository | None = None,
         suppression_service: LeadSuppressionService | None = None,
         campaign_lifecycle_service: CampaignLifecycleService | None = None,
+        settings: Settings | None = None,
     ) -> None:
         self.instantly_client = instantly_client
+        self.settings = settings or get_settings()
         self.leads_repository = leads_repository or LeadsRepository()
         self.campaigns_repository = campaigns_repository or CampaignsRepository()
         self.memberships_repository = memberships_repository or CampaignMembershipsRepository()
@@ -66,6 +70,7 @@ class LeadOutboundService:
             raise ValueError("campaign_id or list_id may be set, not both")
         if not request.lead_ids:
             raise ValueError("at least one lead_id is required")
+        self._require_live_enrollment_preflight(request)
         if request.campaign_id:
             self.campaign_lifecycle_service.require_active_campaign(
                 campaign_id=request.campaign_id,
@@ -210,6 +215,14 @@ class LeadOutboundService:
                     )
                 )
         return result
+
+    def _require_live_enrollment_preflight(self, request: OutboundEnrollmentRequest) -> None:
+        if not request.operator_approval:
+            raise RuntimeError("Explicit operator approval is required before Instantly outbound enqueue.")
+        if not self.settings.provider_live_sends_enabled:
+            raise RuntimeError("PROVIDER_LIVE_SENDS_ENABLED must be true before Instantly outbound enqueue.")
+        if not self.settings.instantly_provider_live_enrollment_enabled:
+            raise RuntimeError("INSTANTLY_PROVIDER_LIVE_ENROLLMENT_ENABLED must be true before Instantly outbound enqueue.")
 
     @staticmethod
     def _lead_payload(lead: LeadRecord) -> dict[str, Any]:

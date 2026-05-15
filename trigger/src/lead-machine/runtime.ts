@@ -1,6 +1,7 @@
 export const LEAD_MACHINE_ENDPOINTS = {
   leadIntake: "/lead-machine/intake",
   probateIntake: "/lead-machine/probate/intake",
+  probatePropertyTaxTitleEnrichment: "/lead-machine/internal/probate-property-tax-title-enrichment",
   outboundEnqueue: "/lead-machine/outbound/enqueue",
   instantlyWebhookIngest: "/lead-machine/webhooks/instantly",
   followupStepRunner: "/lead-machine/internal/followup-step-runner",
@@ -47,6 +48,41 @@ export type ProbateIntakeResponse = {
   }>;
 };
 
+export type ProbatePropertyTaxTitleEnrichmentPayload = {
+  business_id: string;
+  environment: string;
+  keep_now_rows?: Array<Record<string, unknown>>;
+  hcad_candidates_by_case?: Record<string, Array<Record<string, unknown>>>;
+  tax_overlays_by_case?: Record<string, Record<string, unknown>>;
+  tax_overlays_by_account?: Record<string, Record<string, unknown>>;
+  land_record_rows_by_case?: Record<string, Array<Record<string, unknown>>>;
+  live_cad_calls?: boolean;
+  live_tax_calls?: boolean;
+  live_land_record_calls?: boolean;
+} & LeadMachineRunContext;
+
+export type ProbatePropertyTaxTitleEnrichmentResponse = {
+  business_id: string;
+  environment: string;
+  received_count: number;
+  enriched_count: number;
+  property_match_completed_count: number;
+  property_match_unmatched_count: number;
+  tax_overlay_completed_count: number;
+  tax_overlay_ambiguous_count: number;
+  title_friction_completed_count: number;
+  title_friction_review_count: number;
+  hubspot_mirror_blocked_until_approval_count: number;
+  outbound_blocked_until_explicit_approval_count: number;
+  no_send: boolean;
+  provider_sends_enabled: boolean;
+  outbound_allowed: boolean;
+  live_cad_calls_attempted: boolean;
+  live_tax_calls_attempted: boolean;
+  live_land_record_calls_attempted: boolean;
+  records: Array<Record<string, unknown>>;
+};
+
 export type LeadIntakePayload = {
   business_id: string;
   environment: string;
@@ -87,6 +123,7 @@ export type OutboundEnqueuePayload = {
   blocklist_id?: string | null;
   assigned_to?: string | null;
   verify_leads_on_import?: boolean;
+  operator_approval?: boolean;
   chunk_size?: number | null;
   wait_seconds?: number | null;
 } & LeadMachineRunContext;
