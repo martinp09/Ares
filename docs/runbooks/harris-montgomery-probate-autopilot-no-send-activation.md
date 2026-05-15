@@ -1,7 +1,7 @@
 # Harris + Montgomery Probate Autopilot — Live No-Send Activation Runbook
 
 - Status: current / operational no-send
-- Updated UTC: 2026-05-15T22:37:26Z
+- Updated UTC: 2026-05-15T22:59:40Z
 - Scope: scheduled public source acquisition, public CAD/tax/land-record enrichment, scoring inputs, briefing, and qualified-review preparation
 - Hard stop: no Instantly enrollment, no email/SMS/Vapi sends, no paid skiptrace, no HubSpot writes without separate approval gate
 
@@ -39,9 +39,17 @@ LEAD_MACHINE_BUSINESS_ID=<business-id>
 LEAD_MACHINE_ENVIRONMENT=<environment>
 ```
 
+Run the read-only environment preflight before deployment or schedule activation. It does not create files/directories, call county sources, or mutate providers:
+
+```bash
+uv run python scripts/probate_autopilot_env_contract.py --env-file .env --require-scheduled-live
+```
+
+Preflight must report `status=healthy`, `no_send_ok=true`, `live_intelligence_ready=true`, and no blockers before a production no-send rollout.
+
 ## Schedule controls
 
-Trigger schedules are registered at:
+Trigger schedule definitions are in code at:
 
 - `harris-montgomery-probate-0710-ct`: `10 7 * * *` America/Chicago
 - `harris-montgomery-probate-1240-ct`: `40 12 * * *` America/Chicago
@@ -166,7 +174,7 @@ Latest evidence:
 
 ## Operator next actions
 
-1. If deploying this branch, configure durable state/artifact paths before enabling long-running production schedules.
+1. Before deploying a build that includes this preflight, run the env preflight and configure durable state/artifact paths.
 2. Monitor source-run counts, county coverage, parser warnings, enrichment backlog, and no-send confirmation in the morning brief / Mission Control health panel.
 3. Only after source/enrichment quality is stable, design a separate qualified-only HubSpot mirror approval path.
 4. Do not add Instantly/SMS send controls to this workflow without exact campaign/recipient approval.

@@ -13,7 +13,7 @@
 - Current priorities:
   - `## Current Direction
 
-- `/opt/ares/worktrees/ares-main` is back on `main`; Harris+Montgomery probate autopilot operational no-send execution is merged/pushed at `9c256bf` and the finished `fix/probate-autopilot-enrichment-wiring` branch was deleted.
+- `/opt/ares/worktrees/ares-main` main handoff for Harris+Montgomery probate autopilot operational no-send implementation is `9c256bf` plus handoff docs at `9f30d2f`; the finished `fix/probate-autopilot-enrichment-wiring` branch was deleted.
 - Probate autopilot is a live no-send intelligence/enrichment system: Trigger schedules and backend defaults run Harris+Montgomery public probate source adapters plus public CAD/tax/land-record enrichment, while Ares still requires explicit no-send approvals and blocks Instantly/SMS/Vapi/paid skiptrace/HubSpot batch writes until separately approved. 2026-05-15 live smoke: `47` source records, `8` keep-now enriched, `sla_status=healthy`, `source_health_failed_runs=0`; QC `docs/qc/2026-05-15/probate-autopilot-live-operational-prd-execution/`.
 - Ares remains source of truth; HubSpot is a mirror/operator surface; Instantly/Vapi/SMS/paid skiptrace remain separate explicit approval gates.
 - HubSpot operating spine / agentic company Phases 1-9 are complete with final QC index/readiness artifacts and runbooks under `docs/qc/2026-05-14/` and `docs/runbooks/`.
@@ -216,22 +216,21 @@
 
 ## Open Work
 
-1. Probate autopilot next source-provider phase: run a controlled no-send live-source pilot only after durable state/artifact paths are configured; backend/schedule source gates plus explicit approval are required, and Mission Control must remain aggregate-only.
-2. Keep `LEAD_MACHINE_SCHEDULED_LIVE_SOURCE_CALLS_ENABLED=false` until the manual live-source pilot is reviewed.
-3. Keep HubSpot batch writes, Instantly enrollment/send, SMS/Vapi dispatch, paid skiptrace, Slack/provider sends, and deploy as separate explicit approval gates.
-4. Live HubSpot CRM apply/batch operations require a valid HubSpot private-app/personal access token with CRM schema/pipeline scopes as `HUBSPOT_ACCESS_TOKEN`; rotate any pasted chat token/key before broader use.
-5. Activate/upgrade the keyed Instantly workspace to a paid plan before real-account campaign sync/enrollment.
-6. Capture stronger primary Alen Sultanic source material and update `docs/copywriting-wiki/`; current YouTube transcript access is blocked from this environment.
-7. Add Mission Control read/approval endpoints and frontend review page for Ares offer/copy assets and Harris probate campaign launch.
-8. Enrich Harris probate campaign exports with email/phone via Tracerfy only after Martin explicitly approves skiptrace spend; single-record CRM skiptrace endpoint is wired, batch enrichment remains unapproved.
-9. Before live Vapi callbacks/calls, configure Vapi Server URL credentials to send Ares bearer auth and `X-Vapi-Secret`, then run a dry-run-to-live progression with approved numbers only.
-10. Wire real Slack daily digest delivery only after Slack bot token and target channel config are available.
-11. Run dedicated production promotion only when intentionally preserving/updating production runtime/provider env wiring.
-12. Consider an atomic backend bulk-record endpoint if large batch throughput/transaction semantics become necessary.
-13. Defer owner/property graph, research cockpit, and map UI until Records and stage model are stable.
-14. Preserve production evidence files as the handoff source of truth; optionally replace the REST rollback bundle with native pg_dump once Supabase CLI container DNS is fixed.
-15. Add production monitoring/alerts for provider callback failures.
-16. Keep browser acquisition and ambiguous research in Hermes or other driver agents, not inside Ares.
+1. Before any production no-send deployment, run `uv run python scripts/probate_autopilot_env_contract.py --env-file .env --require-scheduled-live`; configure durable `LEAD_MACHINE_SOURCE_RUNS_STATE_PATH` / `LEAD_MACHINE_ARTIFACT_ROOT`; keep scheduled live source/enrichment gates explicit and provider mutation gates false.
+2. Keep HubSpot batch writes, Instantly enrollment/send, SMS/Vapi dispatch, paid skiptrace, Slack/provider sends, and deploy as separate explicit approval gates.
+3. Live HubSpot CRM apply/batch operations require a valid HubSpot private-app/personal access token with CRM schema/pipeline scopes as `HUBSPOT_ACCESS_TOKEN`; rotate any pasted chat token/key before broader use.
+4. Activate/upgrade the keyed Instantly workspace to a paid plan before real-account campaign sync/enrollment.
+5. Capture stronger primary Alen Sultanic source material and update `docs/copywriting-wiki/`; current YouTube transcript access is blocked from this environment.
+6. Add Mission Control read/approval endpoints and frontend review page for Ares offer/copy assets and Harris probate campaign launch.
+7. Enrich Harris probate campaign exports with email/phone via Tracerfy only after Martin explicitly approves skiptrace spend; single-record CRM skiptrace endpoint is wired, batch enrichment remains unapproved.
+8. Before live Vapi callbacks/calls, configure Vapi Server URL credentials to send Ares bearer auth and `X-Vapi-Secret`, then run a dry-run-to-live progression with approved numbers only.
+9. Wire real Slack daily digest delivery only after Slack bot token and target channel config are available.
+10. Run dedicated production promotion only when intentionally preserving/updating production runtime/provider env wiring.
+11. Consider an atomic backend bulk-record endpoint if large batch throughput/transaction semantics become necessary.
+12. Defer owner/property graph, research cockpit, and map UI until Records and stage model are stable.
+13. Preserve production evidence files as the handoff source of truth; optionally replace the REST rollback bundle with native pg_dump once Supabase CLI container DNS is fixed.
+14. Add production monitoring/alerts for provider callback failures.
+15. Keep browser acquisition and ambiguous research in Hermes or other driver agents, not inside Ares.
 
 ## Completed Branch Work
 
@@ -241,6 +240,12 @@
 - `TasksRepository` now treats `lead_machine_backend=supabase` as a Supabase-backed task path so title-packet review tasks persist with lead-machine records.
 
 ## Change Log
+
+### 2026-05-15 Probate Autopilot Env Preflight Follow-up
+
+- Added read-only no-send env preflight `scripts/probate_autopilot_env_contract.py` for production deployment readiness: durable source-run state path, artifact root, business/environment, live intelligence booleans, scheduled-live strict mode, and outbound/provider mutation gates.
+- Verification evidence: `docs/qc/2026-05-15/probate-autopilot-env-preflight/`; focused contracts `18 passed`, full backend `910 passed`, Trigger typecheck passed; no live county calls, provider mutations, or deploy.
+- Updated current handoff docs and Obsidian PRD so completed no-send phases and remaining enrichment-depth work are explicit.
 
 ### 2026-05-15 Probate Autopilot Live Operational PRD Execution
 

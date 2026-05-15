@@ -1,18 +1,19 @@
 ---
 title: "Ares TODO / Handoff"
 status: active
-updated_at: "2026-05-15T22:50:00Z"
+updated_at: "2026-05-15T22:59:40Z"
 repo: "martinp09/Ares"
 local_checkout: "/opt/ares/worktrees/ares-main"
-current_branch: "main"
-latest_commit: "9c256bf"
+target_branch: "main"
+previous_handoff_commit: "9f30d2f"
+implementation_commit: "9c256bf"
 ---
 
 # Ares TODO / Handoff
 
 ## Current status
 
-The Harris + Montgomery probate autopilot PRD is merged to `origin/main` at `9c256bf` as an operational no-send system. Trigger schedules default to live public probate source acquisition plus live public CAD/tax/land-record enrichment, and the backend defaults those live lanes on. Ares still requires explicit no-send approval metadata for live source/enrichment runtime requests and keeps every outbound path blocked.
+The Harris + Montgomery probate autopilot PRD implementation landed at `9c256bf` as an operational no-send system; handoff docs landed at `9f30d2f`, and this env-preflight follow-up supersedes the deploy-gate wording. Trigger schedules default to live public probate source acquisition plus live public CAD/tax/land-record enrichment, and the backend defaults those live lanes on. Ares still requires explicit no-send approval metadata for live source/enrichment runtime requests and keeps every outbound path blocked.
 
 Latest manual live no-send smoke (`docs/qc/2026-05-15/probate-autopilot-live-operational-prd-execution/live-smoke-output.txt`) completed with Harris + Montgomery counties, `47` live public probate source records, `8` keep-now rows enriched, live CAD/tax/land-record calls attempted, `sla_status=healthy`, `source_health_failed_runs=0`, `no_send=true`, and `provider_sends_enabled=false`.
 
@@ -22,6 +23,8 @@ No HubSpot batch writes, Instantly enrollment/sends, SMS/Vapi calls, paid skiptr
 
 ## Primary handoff artifacts
 
+- Env preflight QC: `docs/qc/2026-05-15/probate-autopilot-env-preflight/`
+- Env preflight command: `uv run python scripts/probate_autopilot_env_contract.py --env-file .env --require-scheduled-live`
 - Live operational PRD execution QC: `docs/qc/2026-05-15/probate-autopilot-live-operational-prd-execution/`
 - Live no-send smoke command: `uv run python scripts/smoke/probate_autopilot_live_no_send_smoke.py --day YYYY-MM-DD`
 - Probate no-send activation runbook: `docs/runbooks/harris-montgomery-probate-autopilot-no-send-activation.md`
@@ -29,8 +32,8 @@ No HubSpot batch writes, Instantly enrollment/sends, SMS/Vapi calls, paid skiptr
 
 ## Immediate next actions
 
-1. If production deployment is requested, set durable state/artifact paths first: `LEAD_MACHINE_SOURCE_RUNS_STATE_PATH` and `LEAD_MACHINE_ARTIFACT_ROOT`.
-2. Monitor the no-send cron reports for aggregate source-run/enrichment health after deployment.
+1. Before production no-send deployment, run `uv run python scripts/probate_autopilot_env_contract.py --env-file .env --require-scheduled-live` and configure durable `LEAD_MACHINE_SOURCE_RUNS_STATE_PATH` / `LEAD_MACHINE_ARTIFACT_ROOT`.
+2. After production deployment, monitor the no-send Trigger schedule reports for aggregate source-run/enrichment health.
 3. Keep Instantly enrollment/send, SMS/Vapi dispatch, paid skiptrace, and HubSpot batch mirror writes gated until separately approved.
 4. Add stronger property matching once probate rows carry richer addresses/heir/applicant context.
 

@@ -8,7 +8,7 @@
 
 ## Scope
 
-Martin clarified that the PRD should be executed as a fully working operational system, with only actual outbound email sending blocked. This slice therefore moved the probate autopilot from gated/scaffold-style readiness to live no-send operation:
+Martin clarified that the PRD should be executed as a working operational system while outbound/provider mutations remain blocked. This slice therefore moved the probate autopilot from gated/scaffold-style readiness to live no-send operation:
 
 - real Harris + Montgomery public probate source adapters;
 - real public CAD/property, tax-overlay, and land-record enrichment clients;

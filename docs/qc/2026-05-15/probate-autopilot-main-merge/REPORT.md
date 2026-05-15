@@ -5,6 +5,7 @@
 - Repo: `martinp09/Ares`
 - Worktree: `/opt/ares/worktrees/ares-main`
 - Status: PASS locally after merge-conflict resolution; not deployed
+- Superseded by: live operational no-send execution evidence in `docs/qc/2026-05-15/probate-autopilot-live-operational-prd-execution/` and env preflight evidence in `docs/qc/2026-05-15/probate-autopilot-env-preflight/`
 
 ## Scope
 
@@ -104,6 +105,8 @@ Outputs:
 
 ## Remaining live gates
 
-- Run one manual no-send Harris/Montgomery source pull only after durable source-run/artifact paths are configured.
-- Keep `LEAD_MACHINE_SCHEDULED_LIVE_SOURCE_CALLS_ENABLED=false` until the manual source pull is reviewed.
+These were the gates at the time of this historical main-merge QC. Current handoff is superseded by `docs/qc/2026-05-15/probate-autopilot-live-operational-prd-execution/` and `docs/qc/2026-05-15/probate-autopilot-env-preflight/`.
+
+- Manual live no-send Harris/Montgomery source pull is complete and healthy in the superseding QC evidence.
+- Before production deployment, run the env preflight and configure durable source-run/artifact paths.
 - Keep HubSpot batches, Instantly enrollment/send, SMS/Vapi, paid skiptrace, Slack/provider notifications, and deploy as separate explicit approval gates.
