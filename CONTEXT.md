@@ -3,7 +3,7 @@
 ## Stable Facts
 - Repo: `martinp09/Ares`
 - Active checkout: `/opt/ares/worktrees/probate-autopilot-source-foundation`
-- Branch: `feature/probate-autopilot-source-foundation` (based on `origin/feature/copywriting-brain-offer-engine`; implementation/QC local until pushed)
+- Branch: `feature/probate-autopilot-source-foundation` (based on `origin/feature/copywriting-brain-offer-engine`; pushed to origin, pending review/merge-base decision)
 - Runtime production URL: `https://production-readiness-afternoon.vercel.app`
 - Mission Control URL: `https://mission-control-g8un1ly0w-martins-projects-9600e79e.vercel.app`
 - Supabase project ref: `awmsrjeawcxndfnggoxw`

@@ -193,7 +193,7 @@
 
 ## Open Work
 
-1. review/push the probate-autopilot source-foundation branch; merge/rebase path depends on the active copywriting/operating-spine branch state
+1. review the pushed probate-autopilot source-foundation branch; merge/rebase path depends on the active copywriting/operating-spine branch state
 2. probate autopilot next phase: replace Phase 1 placeholder manifests with real Harris source adapter and Montgomery source discovery/adapter behind no-send source-provider gates; preserve raw-first artifacts and source-count mismatch warnings
 3. activate/upgrade the newly keyed Instantly workspace to a paid plan, then rerun real-account sync from `docs/marketing/exports/instantly-campaign-backups-2026-05-02/`; current preflight is blocked by HTTP 402 / workspace has no active paid plan
 4. capture stronger primary Alen Sultanic source material and update `docs/copywriting-wiki/`; current YouTube transcript access is blocked from this environment
