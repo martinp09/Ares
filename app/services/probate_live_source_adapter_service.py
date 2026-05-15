@@ -3,13 +3,11 @@ from __future__ import annotations
 import html
 import http.cookiejar
 import re
-import urllib.error
 import urllib.parse
 import urllib.request
 from dataclasses import dataclass, field
 from datetime import date, datetime
 from html.parser import HTMLParser
-from http.cookies import SimpleCookie
 from typing import Any, Mapping
 
 from app.models.source_runs import SourceCounty
@@ -24,6 +22,7 @@ PROBATE_LIVE_SOURCE_ADAPTER_VERSION = "probate_live_source_adapter_v1"
 _HARRIS_USER_AGENT = "Mozilla/5.0 (compatible; AresProbateAutopilot/1.0; +https://github.com/martinp09/Ares)"
 _MONTGOMERY_ALL_COUNTY_COURTS_NODE_ID = "100,105,110,120,130,140,150,160,180"
 _MONTGOMERY_ALL_COUNTY_COURTS_NODE_DESC = "All County Courts"
+_MONTGOMERY_SESSION_ATTEMPTS = 3
 
 
 @dataclass(frozen=True)
@@ -118,152 +117,136 @@ class MontgomeryCountyProbateLiveAdapter:
     source_url = MONTGOMERY_ODYSSEY_SEARCH_URL
 
     def fetch(self, *, start_date: date, end_date: date) -> CountyProbateSourceFetch:
-        cookies: dict[str, str] = {}
-        _bootstrap_montgomery_public_access_session(cookies)
-        _request_montgomery_text(cookies, MONTGOMERY_ODYSSEY_DEFAULT_URL)
-        search_html = _request_montgomery_text(
-            cookies,
-            self.source_url,
-            headers={"Referer": MONTGOMERY_ODYSSEY_DEFAULT_URL},
-        )
-        if not _looks_like_montgomery_search_form(search_html):
-            raise RuntimeError("Montgomery Odyssey live source did not return the expected case-search form")
-        form = _extract_form_defaults(search_html)
         start = _mmddyyyy(start_date)
         end = _mmddyyyy(end_date)
-        form.update(
-            {
-                "NodeID": _MONTGOMERY_ALL_COUNTY_COURTS_NODE_ID,
-                "NodeDesc": _MONTGOMERY_ALL_COUNTY_COURTS_NODE_DESC,
-                "SearchBy": "6",
-                "DateFiledOnAfter": start,
-                "DateFiledOnBefore": end,
-                "CaseStatusType": "0",
-                "SortBy": "fileddate",
-                "SearchSubmit": "Search",
-                "SearchType": "CASE",
-                "SearchMode": "FILED",
-                "StatusType": "true",
-                "AllStatusTypes": "true",
-                "SearchParams": (
-                    "DateFiled~~Search By:~~6~~Date Filed"
-                    "||chkExactName~~Exact Name:~~on~~on"
-                    "||AllOption~~All~~0~~All"
-                    f"||DateFiledOnAfter~~Date Filed On or After:~~{start}~~{start}"
-                    f"||DateFiledOnBefore~~Date Filed On or Before:~~{end}~~{end}"
-                    "||selectSortBy~~Sort By:~~Filed Date~~Filed Date"
-                ),
-            }
-        )
-        for name in (
-            "chkCriminal",
-            "chkFamily",
-            "chkCivil",
-            "chkDtRangeCriminal",
-            "chkDtRangeFamily",
-            "chkDtRangeCivil",
-            "chkCriminalMagist",
-            "chkFamilyMagist",
-            "chkCivilMagist",
-        ):
-            form.pop(name, None)
-        for name in ("ExactName", "chkProbate", "chkDtRangeProbate", "chkProbateMagist"):
-            form[name] = "on"
-        response_html = _request_montgomery_text(
-            cookies,
-            self.source_url,
-            data=form,
-            headers={"Referer": self.source_url},
-        )
-        if not _looks_like_montgomery_results_page(response_html):
-            raise RuntimeError("Montgomery Odyssey live source did not return the expected search-results page")
-        portal_record_count = _montgomery_record_count(response_html)
-        rows = _parse_montgomery_probate_rows(response_html)
-        normalized = probate_source_adapter_service.normalize_rows(rows, county="montgomery", source_uri=self.source_url)
-        for row in normalized:
-            row["source_portal"] = "montgomery_odyssey_public_access"
-            row["source_adapter"] = "montgomery_county_probate_live_v1"
-            row["source_adapter_version"] = PROBATE_LIVE_SOURCE_ADAPTER_VERSION
-        warnings = [] if rows else ["montgomery_live_source_returned_no_probate_rows_for_window"]
-        return CountyProbateSourceFetch(
-            county="montgomery",
-            source_url=self.source_url,
-            rows=normalized,
-            source_reported_count=len(normalized),
-            raw_count=len(rows),
-            parser_warnings=warnings,
-            metadata={
-                "date_from": start,
-                "date_to": end,
-                "portal_record_count_before_probate_filter": portal_record_count,
-            },
-        )
+        errors: list[str] = []
+        for attempt in range(1, _MONTGOMERY_SESSION_ATTEMPTS + 1):
+            opener = _opener(cookie_jar=http.cookiejar.CookieJar())
+            try:
+                search_html = _open_montgomery_search_form(opener)
+                form = _prepare_montgomery_date_filed_probate_form(search_html, start=start, end=end)
+                response_html = _request_text(
+                    opener,
+                    self.source_url,
+                    data=form,
+                    headers={"Referer": self.source_url},
+                )
+                if not _looks_like_montgomery_results_page(response_html):
+                    raise RuntimeError("search-results page missing Record Count/CaseDetail markers")
+                return _montgomery_fetch_from_results(response_html=response_html, source_url=self.source_url, start=start, end=end)
+            except Exception as exc:  # noqa: BLE001 - Odyssey public access can bounce sessions; retry cleanly.
+                errors.append(f"attempt {attempt}: {type(exc).__name__}: {exc}")
+        raise RuntimeError("Montgomery Odyssey live source failed after session retries; " + "; ".join(errors[-2:]))
 
 
 probate_live_source_adapter_service = ProbateLiveSourceAdapterService()
 
 
-class _NoRedirect(urllib.request.HTTPRedirectHandler):
-    def redirect_request(self, req, fp, code, msg, headers, newurl):  # type: ignore[no-untyped-def]
-        return None
+def _open_montgomery_search_form(opener: urllib.request.OpenerDirector) -> str:
+    _request_text(opener, MONTGOMERY_ODYSSEY_LOGIN_URL)
+    search_html = _request_text(
+        opener,
+        MONTGOMERY_ODYSSEY_SEARCH_URL,
+        data=_montgomery_search_launch_payload(),
+        headers={"Referer": MONTGOMERY_ODYSSEY_DEFAULT_URL},
+    )
+    if _looks_like_montgomery_search_form(search_html):
+        return search_html
+    search_html = _request_text(
+        opener,
+        MONTGOMERY_ODYSSEY_SEARCH_URL,
+        data=_montgomery_search_launch_payload(),
+        headers={"Referer": MONTGOMERY_ODYSSEY_DEFAULT_URL},
+    )
+    if _looks_like_montgomery_search_form(search_html):
+        return search_html
+    raise RuntimeError("case-search form missing after Odyssey node launch POST")
 
 
-def _bootstrap_montgomery_public_access_session(cookies: dict[str, str]) -> None:
-    _request_montgomery_text(cookies, MONTGOMERY_ODYSSEY_LOGIN_URL, allowed_redirect_statuses={302})
+def _montgomery_search_launch_payload() -> dict[str, str]:
+    return {
+        "NodeID": _MONTGOMERY_ALL_COUNTY_COURTS_NODE_ID,
+        "NodeDesc": _MONTGOMERY_ALL_COUNTY_COURTS_NODE_DESC,
+    }
 
 
-def _request_montgomery_text(
-    cookies: dict[str, str],
-    url: str,
-    *,
-    data: Mapping[str, Any] | None = None,
-    headers: Mapping[str, str] | None = None,
-    allowed_redirect_statuses: set[int] | None = None,
-) -> str:
-    body = urllib.parse.urlencode({key: value for key, value in (data or {}).items() if value is not None}).encode(
-        "utf-8"
-    ) if data is not None else None
-    request_headers = {"User-Agent": _HARRIS_USER_AGENT, **dict(headers or {})}
-    if body is not None:
-        request_headers["Content-Type"] = "application/x-www-form-urlencoded"
-    if cookies:
-        request_headers["Cookie"] = _cookie_header(cookies)
-    request = urllib.request.Request(url, data=body, headers=request_headers)
-    opener = urllib.request.build_opener(_NoRedirect())
-    try:
-        with opener.open(request, timeout=45) as response:  # noqa: S310 - public county portal
-            _store_response_cookies(cookies, response.headers)
-            return response.read().decode("utf-8", errors="replace")
-    except urllib.error.HTTPError as exc:
-        _store_response_cookies(cookies, exc.headers)
-        if allowed_redirect_statuses and exc.code in allowed_redirect_statuses:
-            return exc.read().decode("utf-8", errors="replace")
-        raise
+def _prepare_montgomery_date_filed_probate_form(html_text: str, *, start: str, end: str) -> dict[str, str]:
+    if not _looks_like_montgomery_search_form(html_text):
+        raise RuntimeError("Montgomery Odyssey live source did not return the expected case-search form")
+    form = _extract_form_defaults(html_text)
+    form.update(
+        {
+            "NodeID": _MONTGOMERY_ALL_COUNTY_COURTS_NODE_ID,
+            "NodeDesc": _MONTGOMERY_ALL_COUNTY_COURTS_NODE_DESC,
+            "SearchBy": "6",
+            "DateFiledOnAfter": start,
+            "DateFiledOnBefore": end,
+            "CaseStatusType": "0",
+            "SortBy": "fileddate",
+            "SearchSubmit": "Search",
+            "SearchType": "CASE",
+            "SearchMode": "FILED",
+            "StatusType": "true",
+            "AllStatusTypes": "true",
+            "CaseCategories": "PR",
+            "SearchParams": (
+                "DateFiled~~Search By:~~6~~Date Filed"
+                "||chkExactName~~Exact Name:~~on~~on"
+                "||AllOption~~All~~0~~All"
+                f"||DateFiledOnAfter~~Date Filed On or After:~~{start}~~{start}"
+                f"||DateFiledOnBefore~~Date Filed On or Before:~~{end}~~{end}"
+                "||CaseCategories~~Case Categories:~~PR~~Probate and Mental Health"
+                "||selectSortBy~~Sort By:~~Filed Date~~Filed Date"
+            ),
+        }
+    )
+    for name in (
+        "chkCriminal",
+        "chkFamily",
+        "chkCivil",
+        "chkDtRangeCriminal",
+        "chkDtRangeFamily",
+        "chkDtRangeCivil",
+        "chkCriminalMagist",
+        "chkFamilyMagist",
+        "chkCivilMagist",
+    ):
+        form.pop(name, None)
+    for name in ("ExactName", "chkProbate", "chkDtRangeProbate", "chkProbateMagist"):
+        form[name] = "on"
+    return form
 
 
-def _cookie_header(cookies: Mapping[str, str]) -> str:
-    return "; ".join(f"{name}={value}" for name, value in cookies.items())
-
-
-def _store_response_cookies(cookies: dict[str, str], headers: Any) -> None:
-    for header in headers.get_all("Set-Cookie", []):
-        parsed = SimpleCookie()
-        parsed.load(header)
-        for name, morsel in parsed.items():
-            if morsel.value:
-                cookies[name] = morsel.value
+def _montgomery_fetch_from_results(*, response_html: str, source_url: str, start: str, end: str) -> CountyProbateSourceFetch:
+    portal_record_count = _montgomery_record_count(response_html)
+    rows = _parse_montgomery_probate_rows(response_html)
+    normalized = probate_source_adapter_service.normalize_rows(rows, county="montgomery", source_uri=source_url)
+    for row in normalized:
+        row["source_portal"] = "montgomery_odyssey_public_access"
+        row["source_adapter"] = "montgomery_county_probate_live_v1"
+        row["source_adapter_version"] = PROBATE_LIVE_SOURCE_ADAPTER_VERSION
+    warnings = [] if rows else ["montgomery_live_source_returned_no_probate_rows_for_window"]
+    return CountyProbateSourceFetch(
+        county="montgomery",
+        source_url=source_url,
+        rows=normalized,
+        source_reported_count=len(normalized),
+        raw_count=len(rows),
+        parser_warnings=warnings,
+        metadata={
+            "date_from": start,
+            "date_to": end,
+            "portal_record_count_before_probate_filter": portal_record_count,
+        },
+    )
 
 
 def _opener(
     *,
-    no_redirect: bool = False,
     cookie_jar: http.cookiejar.CookieJar | None = None,
 ) -> urllib.request.OpenerDirector:
     jar = cookie_jar or http.cookiejar.CookieJar()
-    handlers: list[Any] = [urllib.request.HTTPCookieProcessor(jar)]
-    if no_redirect:
-        handlers.append(_NoRedirect())
-    return urllib.request.build_opener(*handlers)
+    return urllib.request.build_opener(urllib.request.HTTPCookieProcessor(jar))
 
 
 def _request_text(

@@ -1,24 +1,25 @@
 ---
 title: "Ares TODO / Handoff"
 status: active
-updated_at: "2026-05-15T20:20:00Z"
+updated_at: "2026-05-15T21:20:05Z"
 repo: "martinp09/Ares"
 local_checkout: "/opt/ares/worktrees/ares-main"
-current_branch: "main"
+current_branch: "fix/montgomery-probate-odyssey-adapter"
 ---
 
 # Ares TODO / Handoff
 
 ## Current status
 
-The Harris + Montgomery probate autopilot source-foundation/live-adapter activation slice is landed on `main` as a disabled-by-default, no-send runtime capability. The slice adds public probate source adapters, source-run/idempotency foundations, Mission Control health surfaces, Trigger.dev schedule wrappers, file/local-export provider seams, live-source gates, live CAD/tax/land-record enrichment seams, activation runbook, and QC evidence.
+The Harris + Montgomery probate autopilot source-foundation/live-adapter activation slice is landed on `main` as a disabled-by-default, no-send runtime capability. A follow-up Montgomery Odyssey adapter fix is active on `fix/montgomery-probate-odyssey-adapter`; it replaces the brittle direct-GET/302 bootstrap with the required Odyssey node-launch POST and has QC evidence at `docs/qc/2026-05-15/montgomery-probate-odyssey-adapter/`.
 
-No live county pulls, HubSpot batch writes, Instantly enrollment/sends, SMS/Vapi calls, paid skiptrace, Slack/provider sends, or deploys were executed by this slice.
+One manual no-send public county pilot was executed for the Montgomery fix: Harris parsed `32` rows / `8` keep-now, Montgomery parsed `8` rows / `0` keep-now, `partial_failures={}`, `sla_status=healthy`, and provider side effects stayed false. No HubSpot batch writes, Instantly enrollment/sends, SMS/Vapi calls, paid skiptrace, Slack/provider sends, or deploys were executed.
 
 HubSpot operating-spine work remains dry-run/gated except for the previously approved single-record canaries documented in QC. HubSpot live apply is still credential/scope-gated.
 
 ## Primary handoff artifacts
 
+- Montgomery Odyssey adapter fix QC: `docs/qc/2026-05-15/montgomery-probate-odyssey-adapter/`
 - Probate no-send activation runbook: `docs/runbooks/harris-montgomery-probate-autopilot-no-send-activation.md`
 - Probate live adapter activation QC: `docs/qc/2026-05-15/probate-autopilot-live-adapter-activation/`
 - Probate source foundation QC: `docs/qc/2026-05-15/probate-autopilot-source-foundation/`
@@ -35,15 +36,15 @@ HubSpot operating-spine work remains dry-run/gated except for the previously app
 
 ## Immediate next actions
 
-1. Before live county pulls, configure durable source-run/artifact paths, set source env gates deliberately, and run one manual no-send source pull per the activation runbook.
-2. Keep `LEAD_MACHINE_SCHEDULED_LIVE_SOURCE_CALLS_ENABLED=false` until the manual live-source pilot is reviewed.
+1. Review/merge `fix/montgomery-probate-odyssey-adapter`, then keep monitoring the Hermes no-send cron reports for aggregate source-run health.
+2. Keep `LEAD_MACHINE_SCHEDULED_LIVE_SOURCE_CALLS_ENABLED=false` until Martin explicitly approves Ares-side scheduled live-source execution.
 3. Keep HubSpot batch mirror writes, Instantly enrollment/send, SMS/Vapi dispatch, paid skiptrace, and deploy as separate explicit approval gates.
 4. For Instantly later, let inboxes continue warming, write/review exact copy first, then use only approved recipient/lead lists with verified contact info and existing gated enrollment/send paths.
 
 ## Open product follow-ups
 
 - Add Mission Control read/approval endpoints and frontend review page for Ares offer/copy assets and Harris probate campaign launch.
-- Run a controlled no-send live-source pilot for Harris/Montgomery after durable state/artifacts are configured; preserve raw-first artifacts, idempotency, expected-counties SLA, source-count mismatch warnings, Mission Control Autopilot health visibility, and aggregate duplicate-case redaction.
+- Run a controlled no-send live-source pilot for Harris/Montgomery after durable state/artifacts are configured; preserve raw-first artifacts, idempotency, expected-counties SLA, source-count mismatch warnings, Mission Control Autopilot health visibility, and aggregate duplicate-case redaction. 2026-05-15 update: manual pilot succeeded on `fix/montgomery-probate-odyssey-adapter` with both counties parsed; keep monitoring scheduled no-send reports.
 - Reacher/SMTP-capable email verification cannot run recipient-MX mailbox probes from the current Hetzner VPS while outbound port 25 is blocked; request unblock, move verifier sidecar, or use DNS/MX/disposable-only checks until egress is available.
 - Enrich Harris probate exports with email/phone via Tracerfy only after Martin explicitly approves skiptrace spend.
 - Activate/upgrade the keyed Instantly workspace to a paid plan before real-account campaign sync/enrollment.

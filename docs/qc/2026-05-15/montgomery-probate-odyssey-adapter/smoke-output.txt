@@ -1,0 +1,72 @@
+$ python - <<PY
+{'county': 'montgomery', 'raw_count': 8, 'parsed_rows': 8, 'source_reported_count': 8, 'warnings': [], 'portal_record_count_before_probate_filter': 10}
+
+$ /root/.hermes/scripts/ares_probate_autopilot_no_send.py --force-now --json
+{
+  "artifact_root": "/opt/ares/lead-data/probate_autopilot/artifacts",
+  "business_id": "limitless",
+  "county_counts": [
+    {
+      "county": "harris",
+      "failed_count": 0,
+      "keep_now_count": 8,
+      "parsed_count": 32,
+      "raw_count": 32,
+      "record_count": 32,
+      "run_count": 1
+    },
+    {
+      "county": "montgomery",
+      "failed_count": 0,
+      "keep_now_count": 0,
+      "parsed_count": 8,
+      "raw_count": 8,
+      "record_count": 8,
+      "run_count": 1
+    }
+  ],
+  "ct_run_time": "2026-05-15T16:19:22.454695-05:00",
+  "duplicate": false,
+  "enrichment": {
+    "enriched_count": 8,
+    "live_cad_calls_attempted": false,
+    "live_land_record_calls_attempted": false,
+    "live_tax_calls_attempted": false,
+    "output_path": "/opt/ares/lead-data/probate_autopilot/enriched/probate-autopilot_harris-montgomery_2026-05-15_manual_1619.json",
+    "property_match_completed_count": 0,
+    "property_match_unmatched_count": 8,
+    "received_count": 8,
+    "tax_overlay_completed_count": 0,
+    "title_friction_review_count": 8
+  },
+  "environment": "dev",
+  "idempotency_key": "probate-autopilot:harris-montgomery:2026-05-15:manual:1619",
+  "keep_now_count": 8,
+  "new_record_count": 40,
+  "no_send_ok": true,
+  "outbound_allowed": false,
+  "partial_failures": {},
+  "provider_side_effects": {
+    "email_sms_vapi_sends": false,
+    "hubspot_writes": false,
+    "instantly_enrollment": false,
+    "paid_skiptrace": false
+  },
+  "replayed": false,
+  "run_kind": "manual",
+  "sla_status": "healthy",
+  "slot_label": "manual-now 2026-05-15 16:19 CT",
+  "source_quality": {
+    "artifact_warning_count": 0,
+    "duplicate_case_count": 0,
+    "duplicate_case_count_by_county": {},
+    "invalid_row_count": 0,
+    "source_count_mismatch_count": 0
+  },
+  "source_run_count": 2,
+  "state_path": "/opt/ares/lead-data/probate_autopilot/state/source-runs.json",
+  "status": "completed",
+  "timezone": "America/Chicago",
+  "warning_count": 0,
+  "warnings": []
+}
