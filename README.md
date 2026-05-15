@@ -34,7 +34,7 @@ This repo is the deterministic runtime, policy layer, orchestration surface, and
 - HubSpot contact visibility correction evidence: `docs/qc/2026-05-14/hubspot-contact-visibility-correction/`
 - Operating cadence runbook: `docs/runbooks/agentic-company-operating-cadence.md`
 - Provider sync/recovery runbook: `docs/runbooks/provider-sync-and-recovery.md`
-- Current repo state has the feature branch pushed with unrelated local files still unstaged/untracked; review/merge intentionally before any promotable/deployed claim.
+- Current follow-up branch `fix/probate-autopilot-enrichment-wiring` is pushed and clean; review/merge intentionally before any promotable/deployed claim.
 
 ## Initial Direction
 
