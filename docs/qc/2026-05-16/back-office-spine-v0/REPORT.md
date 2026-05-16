@@ -53,7 +53,7 @@ Code-level safety added/verified:
 
 ## Fresh verification
 
-### Backend focused deal/Supabase contracts
+### Pre-merge backend focused deal/Supabase contracts
 
 Command:
 
@@ -116,6 +116,32 @@ Artifacts:
 - `browser-spotcheck.txt`
 - `deal-desk-browser-spotcheck.png`
 
+### Post-merge verification on main
+
+Branch was fast-forward merged to `main` and pushed as `e898ee0`; local `feature/back-office-spine-v0` branch was deleted.
+
+Command bundle:
+
+```bash
+uv run pytest -q
+npm --prefix apps/mission-control test -- --run
+npm --prefix apps/mission-control run typecheck
+npm --prefix apps/mission-control run build
+npm --prefix trigger run typecheck
+git diff --check
+```
+
+Results:
+
+- Full backend: `942 passed`.
+- Mission Control: `25` test files / `82` tests passed.
+- Mission Control typecheck: passed.
+- Mission Control build: passed.
+- Trigger typecheck: passed.
+- `git diff --check`: passed.
+
+Artifact: `post-merge-output.txt`
+
 ## Review feedback addressed
 
 Subagent QC requested changes before ship:
@@ -135,4 +161,4 @@ Subagent QC requested changes before ship:
 
 ## Verdict
 
-Local readiness gate: **pass** for commit/merge/push, pending staged diff check and post-merge verification.
+Shipped to `main` at `e898ee0`. Post-merge verification passed. Production deploy/provider activation remains intentionally not executed.

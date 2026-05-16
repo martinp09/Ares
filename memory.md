@@ -14,7 +14,7 @@
   - `## Current Direction
 
 - `/opt/ares/worktrees/ares-main` main handoff for Harris+Montgomery probate autopilot operational no-send implementation is `9c256bf` plus handoff docs at `9f30d2f`; the finished `fix/probate-autopilot-enrichment-wiring` branch was deleted.
-- Back Office Spine v0 is implemented locally on `feature/back-office-spine-v0`: canonical deal records, lead-to-deal promotion, lane-template tasks/docs/risks, stage blockers, fire-list, Supabase runtime persistence, and a read-only Mission Control Deal Desk. QC `docs/qc/2026-05-16/back-office-spine-v0/`; ship-clean still pending until commit/merge/push/post-merge verification completes.
+- Back Office Spine v0 landed on `main` at `e898ee0` and the local feature branch was deleted: canonical deal records, lead-to-deal promotion, lane-template tasks/docs/risks, stage blockers, fire-list, Supabase runtime persistence, and a read-only Mission Control Deal Desk. QC `docs/qc/2026-05-16/back-office-spine-v0/`; post-merge verification passed full backend `942`, Mission Control `82`, Mission Control typecheck/build, Trigger typecheck, and diff check.
 - Probate autopilot is a live no-send intelligence/enrichment system: Trigger schedules and backend defaults run Harris+Montgomery public probate source adapters, public case-detail party/event/document/contact-candidate enrichment, and public CAD/tax/land-record enrichment, while Ares still requires explicit no-send approvals and blocks Instantly/SMS/Vapi/paid skiptrace/HubSpot batch writes until separately approved. 2026-05-15 live smoke: `47` source records, `8` keep-now enriched, `sla_status=healthy`, `source_health_failed_runs=0`; QC `docs/qc/2026-05-15/probate-autopilot-live-operational-prd-execution/`; case-detail QC `docs/qc/2026-05-15/probate-case-detail-enrichment/`.
 - Ares remains source of truth; HubSpot is a mirror/operator surface; Instantly/Vapi/SMS/paid skiptrace remain separate explicit approval gates.
 - HubSpot operating spine / agentic company Phases 1-9 are complete with final QC index/readiness artifacts and runbooks under `docs/qc/2026-05-14/` and `docs/runbooks/`.
@@ -44,7 +44,7 @@
 - Resend CLI `resend-cli v2.2.1` is installed in this environment; a CLI smoke to `delivered@resend.dev` delivered with ID `1d4172f1-765a-42cf-9a4a-029a5d2f5e5d` using verified sender domain `send.limitleshome.com`.
 - `POST /lead-machine/harris/daily-import` is implemented for Harris daily probate + HCAD `Estate Of` imports; it defaults to dry-run, records QC warnings, and never sends providers/Slack.
 
-- `/opt/ares/worktrees/ares-main` on `feature/back-office-spine-v0` adds Back Office Spine v0 locally: canonical deal records, lead promotion, lane-template tasks/document requirements/risk flags, stage blockers, fire-list, Supabase runtime persistence tables, and a read-only Mission Control Deal Desk. No-send remains invariant; promotion rejects `no_send=false`, provider sends default false, and UI has no provider action controls.
+- `/opt/ares/worktrees/ares-main` on `main` includes Back Office Spine v0 at `e898ee0`: canonical deal records, lead promotion, lane-template tasks/document requirements/risk flags, stage blockers, fire-list, Supabase runtime persistence tables, and a read-only Mission Control Deal Desk. No-send remains invariant; promotion rejects `no_send=false`, provider sends default false, and UI has no provider action controls.
 - `/opt/ares/worktrees/ares-main` on `main` now includes the Harris+Montgomery probate autopilot PRD execution as an operational no-send system: scheduled payloads default to live public sources, live public case-detail page enrichment, and live public CAD/tax/land enrichment; backend live source/case-detail/CAD/tax/land flags default on; runtime requests still require no-send approvals while all outbound/provider-send paths remain blocked.
 - Probate autopilot source-run foundation is merged to `main`: source-run lanes/fields support Harris+Montgomery probate; no-send autopilot manifests; morning brief county/keep-now/mismatch/source-quality/enrichment-backlog/operator-action/SLA/anomaly sections; Trigger.dev CT schedule wrappers; optional file-backed source-run/idempotency state (`LEAD_MACHINE_SOURCE_RUNS_STATE_PATH`); optional source-row JSONL artifact root (`LEAD_MACHINE_ARTIFACT_ROOT`); safe local source-file payload adapter/CLI (`scripts/probate_source_file_payload.py`); read-only Harris+Montgomery export adapter contract; repeatable source-packet CLI inputs; duplicate-case aggregate anomalies; read-only doctor CLI (`scripts/probate_autopilot_doctor.py`) with freshness SLA; Mission Control health API/client (`GET /mission-control/probate-autopilot/health`); page-level Mission Control Autopilot health panel; live Harris/Montgomery public probate source adapters; inline no-send case-detail party/event/document/contact-candidate enrichment with capped primary contacts and no seller-authority assertion; inline no-send property/CAD, tax-overlay, and land-record/title-friction enrichment for keep-now rows; public live CAD/tax/land enrichment clients; public case-detail URL allowlist; and live smoke script `scripts/smoke/probate_autopilot_live_no_send_smoke.py`. 2026-05-15 operational smoke produced `47` public source records, `8` keep-now enriched rows, `sla_status=healthy`, `source_health_failed_runs=0`, `no_send=true`, and `provider_sends_enabled=false`.
 - HubSpot operating spine / agentic company Phases 1-9 are complete with final QC index/readiness artifacts and runbooks under `docs/qc/2026-05-14/` and `docs/runbooks/`.
@@ -218,23 +218,22 @@
 
 ## Open Work
 
-1. Ship-clean Back Office Spine v0 from `feature/back-office-spine-v0`: stage intentional files, run cached diff check, commit, merge/push `main`, delete branch, and rerun post-merge verification.
-2. Before any production no-send deployment, run `uv run python scripts/probate_autopilot_env_contract.py --env-file .env --require-scheduled-live`; configure durable `LEAD_MACHINE_SOURCE_RUNS_STATE_PATH` / `LEAD_MACHINE_ARTIFACT_ROOT`; keep scheduled live source/case-detail/enrichment gates explicit and provider mutation gates false.
-3. Keep HubSpot batch writes, Instantly enrollment/send, SMS/Vapi dispatch, paid skiptrace, Slack/provider sends, and deploy as separate explicit approval gates.
-4. Measure property-match lift from case-detail-derived party/address/context evidence; contact candidates are not confirmed sellers and seller authority remains unverified until separate evidence.
-5. Live HubSpot CRM apply/batch operations require a valid HubSpot private-app/personal access token with CRM schema/pipeline scopes as `HUBSPOT_ACCESS_TOKEN`; rotate any pasted chat token/key before broader use.
-6. Activate/upgrade the keyed Instantly workspace to a paid plan before real-account campaign sync/enrollment.
-7. Capture stronger primary Alen Sultanic source material and update `docs/copywriting-wiki/`; current YouTube transcript access is blocked from this environment.
-8. Add Mission Control read/approval endpoints and frontend review page for Ares offer/copy assets and Harris probate campaign launch.
-9. Enrich Harris probate campaign exports with email/phone via Tracerfy only after Martin explicitly approves skiptrace spend; single-record CRM skiptrace endpoint is wired, batch enrichment remains unapproved.
-10. Before live Vapi callbacks/calls, configure Vapi Server URL credentials to send Ares bearer auth and `X-Vapi-Secret`, then run a dry-run-to-live progression with approved numbers only.
-11. Wire real Slack daily digest delivery only after Slack bot token and target channel config are available.
-12. Run dedicated production promotion only when intentionally preserving/updating production runtime/provider env wiring.
-13. Consider an atomic backend bulk-record endpoint if large batch throughput/transaction semantics become necessary.
-14. Defer owner/property graph, research cockpit, and map UI until Records and stage model are stable.
-15. Preserve production evidence files as the handoff source of truth; optionally replace the REST rollback bundle with native pg_dump once Supabase CLI container DNS is fixed.
-16. Add production monitoring/alerts for provider callback failures.
-17. Keep browser acquisition and ambiguous research in Hermes or other driver agents, not inside Ares.
+1. Before any production no-send deployment, run `uv run python scripts/probate_autopilot_env_contract.py --env-file .env --require-scheduled-live`; configure durable `LEAD_MACHINE_SOURCE_RUNS_STATE_PATH` / `LEAD_MACHINE_ARTIFACT_ROOT`; keep scheduled live source/case-detail/enrichment gates explicit and provider mutation gates false.
+2. Keep HubSpot batch writes, Instantly enrollment/send, SMS/Vapi dispatch, paid skiptrace, Slack/provider sends, and deploy as separate explicit approval gates.
+3. Measure property-match lift from case-detail-derived party/address/context evidence; contact candidates are not confirmed sellers and seller authority remains unverified until separate evidence.
+4. Live HubSpot CRM apply/batch operations require a valid HubSpot private-app/personal access token with CRM schema/pipeline scopes as `HUBSPOT_ACCESS_TOKEN`; rotate any pasted chat token/key before broader use.
+5. Activate/upgrade the keyed Instantly workspace to a paid plan before real-account campaign sync/enrollment.
+6. Capture stronger primary Alen Sultanic source material and update `docs/copywriting-wiki/`; current YouTube transcript access is blocked from this environment.
+7. Add Mission Control read/approval endpoints and frontend review page for Ares offer/copy assets and Harris probate campaign launch.
+8. Enrich Harris probate campaign exports with email/phone via Tracerfy only after Martin explicitly approves skiptrace spend; single-record CRM skiptrace endpoint is wired, batch enrichment remains unapproved.
+9. Before live Vapi callbacks/calls, configure Vapi Server URL credentials to send Ares bearer auth and `X-Vapi-Secret`, then run a dry-run-to-live progression with approved numbers only.
+10. Wire real Slack daily digest delivery only after Slack bot token and target channel config are available.
+11. Run dedicated production promotion only when intentionally preserving/updating production runtime/provider env wiring.
+12. Consider an atomic backend bulk-record endpoint if large batch throughput/transaction semantics become necessary.
+13. Defer owner/property graph, research cockpit, and map UI until Records and stage model are stable.
+14. Preserve production evidence files as the handoff source of truth; optionally replace the REST rollback bundle with native pg_dump once Supabase CLI container DNS is fixed.
+15. Add production monitoring/alerts for provider callback failures.
+16. Keep browser acquisition and ambiguous research in Hermes or other driver agents, not inside Ares.
 
 ## Completed Branch Work
 
@@ -244,6 +243,12 @@
 - `TasksRepository` now treats `lead_machine_backend=supabase` as a Supabase-backed task path so title-packet review tasks persist with lead-machine records.
 
 ## Change Log
+
+### 2026-05-16 Back Office Spine v0 Main Merge
+
+- Landed Back Office Spine v0 on `main` at `e898ee0` and deleted the local `feature/back-office-spine-v0` branch.
+- Post-merge verification on `main`: full backend `942 passed`, Mission Control `25 files / 82 tests`, Mission Control typecheck/build passed, Trigger typecheck passed, and `git diff --check` passed.
+- No Instantly enrollment/send, SMS/Vapi, paid skiptrace, HubSpot batch write, Slack/provider send, provider mutation, or deploy.
 
 ### 2026-05-16 Back Office Spine v0 Local Implementation
 
