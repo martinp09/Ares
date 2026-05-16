@@ -112,12 +112,14 @@ Backend runtime calls still reject before live work if approval metadata is miss
 Current runtime guardrails:
 
 - Source identity is `probate_case_sha256:{sha256("probate_case:{county}:{normalized_case_number}")}` using version `county_case_sha256_v1`; raw case numbers stay in internal source artifacts, while dedupe summaries can use aggregate counts.
-- Before building source-run manifests, the nightly service loads prior completed probate source runs for the same `business_id`, `environment`, and `source_run_scope`.
+- Before building source-run manifests, the nightly service loads prior completed probate source runs for the same `business_id`, `environment`, and `source_run_scope`. With `LEAD_MACHINE_BACKEND=supabase`, it first reads durable same-scope keys from `public.probate_source_identities`, then overlays any file-backed completed runs still present in the local runtime ledger.
+- After a Harris/Montgomery probate source run completes, the nightly service records normalized source identities back to `public.probate_source_identities` when the lead-machine backend is Supabase. Hashed `source_identity_records` in run metadata provide a non-PII fallback when artifact paths are logical/non-local. Manual isolated environments such as `<environment>-manual` skip remote identity reads/writes.
+- Remote identity ledger read/write failures are downgraded to sanitized warnings; the nightly path continues with file-backed dedupe and still saves the morning brief/idempotency response.
 - `record_count` and `keep_now_count` for the run only include new unique rows. Rows seen in prior same-scope source runs are written to `duplicate_prior_run_rows` artifacts and counted in `source_quality.duplicate_prior_run_count` / `source_quality.deduped_existing_record_count`.
 - Duplicate rows inside the same source packet are written to `duplicate_current_run_rows` and counted in `source_quality.duplicate_current_run_count`.
 - Trigger.dev schedule payloads set `source_run_scope=autonomous`.
 - Forced/manual Hermes runner executions use a separate manual ledger path and `LEAD_MACHINE_ENVIRONMENT=<environment>-manual`, plus `source_run_scope=manual`, so manual experiments cannot mutate autonomous source-run state or suppress autonomous records.
-- Supabase migration `20260516131500_probate_source_identity_dedupe.sql` defines `public.probate_source_identities` with unique `(business_id, environment, source_run_scope, county, source_identity_key)` for the durable control-plane version of the same boundary.
+- Supabase migration `20260516131500_probate_source_identity_dedupe.sql` defines `public.probate_source_identities` with unique `(business_id, environment, source_run_scope, county, source_identity_key)` for the durable control-plane version of the same boundary; adapter QC is `docs/qc/2026-05-16/probate-source-identity-supabase-adapter/`.
 
 ## Live source adapter behavior
 
@@ -210,6 +212,11 @@ npm --prefix trigger run typecheck
 
 Latest evidence:
 
+- Supabase source identity adapter QC folder: `docs/qc/2026-05-16/probate-source-identity-supabase-adapter/`
+- Focused identity/nightly/source-file contracts: `43 passed`
+- Backend db+services suite: `470 passed`
+- Full backend: `961 passed`
+- Trigger typecheck: passed
 - Dedupe/manual-isolation hardening QC folder: `docs/qc/2026-05-16/probate-dedupe-runtime-isolation/`
 - Local autonomous ledger comparison, latest two dates: 2026-05-15 had 39 Harris / 8 Montgomery source identities; 2026-05-16 had 0 Harris / 0 Montgomery source identities; overlap count was 0 for both counties, with no raw PII printed.
 - Dedupe/runtime/schema focused contracts: `36 passed`

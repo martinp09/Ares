@@ -1,0 +1,4 @@
+$ uv run pytest tests/db/test_probate_source_identity_repository.py tests/db/test_probate_source_identity_schema.py tests/services/test_probate_source_file_service.py tests/services/test_nightly_lead_machine_service.py -q
+warning: `VIRTUAL_ENV=/usr/local/lib/hermes-agent/venv` does not match the project environment path `.venv` and will be ignored; use `--active` to target the active environment instead
+...........................................                              [100%]
+43 passed in 0.53s

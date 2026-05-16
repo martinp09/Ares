@@ -336,16 +336,26 @@ def _build_row_manifest(
             "source_run_scope": metadata.get("source_run_scope"),
             "source_identity_version": metadata.get("source_identity_version"),
             "source_uri": _source_uri(metadata, county),
+            "source_dedupe": metadata.get("source_dedupe") if isinstance(metadata.get("source_dedupe"), Mapping) else None,
+            "warnings": _metadata_warnings(metadata),
             "invalid_row_count": len(invalid_rows),
             "duplicate_case_count": duplicate_case_count,
             "duplicate_prior_run_count": duplicate_prior_run_count,
             "duplicate_current_run_count": duplicate_current_run_count,
             "new_unique_record_count": new_unique_record_count,
+            "source_identity_records": _source_identity_records(new_unique_rows),
             "duplicate_case_numbers": duplicate_case_numbers,
             "window_start": window_start.isoformat() if window_start else None,
             "window_end": window_end.isoformat() if window_end else None,
         },
     )
+
+
+def _metadata_warnings(metadata: Mapping[str, Any]) -> list[str]:
+    warnings = metadata.get("warnings")
+    if not isinstance(warnings, list):
+        return []
+    return list(dict.fromkeys(str(item) for item in warnings if item))
 
 
 def _normalize_source_rows(rows: Iterable[Mapping[str, Any]], *, county: SourceCounty) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
@@ -423,6 +433,18 @@ def _existing_source_identity_keys(metadata: Mapping[str, Any], county: SourceCo
     if not isinstance(values, list):
         return set()
     return {str(value) for value in values if str(value).strip()}
+
+
+def _source_identity_records(rows: Iterable[Mapping[str, Any]]) -> list[dict[str, Any]]:
+    records: list[dict[str, Any]] = []
+    seen: set[str] = set()
+    for row in rows:
+        key = row.get("source_identity_key")
+        if not isinstance(key, str) or not key.strip() or key in seen:
+            continue
+        seen.add(key)
+        records.append({"source_identity_key": key, "keep_now": row.get("keep_now") is True})
+    return records
 
 
 def _artifact_for_records(

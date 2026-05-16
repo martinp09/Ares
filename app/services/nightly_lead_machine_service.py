@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Any, Mapping
 
 from app.core.config import Settings, get_settings
+from app.db.probate_source_identities import ProbateSourceIdentityRepository
 from app.db.source_runs import SourceRunsRepository, source_runs_repository
 from app.models.source_runs import (
     MorningBrief,
@@ -79,12 +80,14 @@ class NightlyLeadMachineService:
         source_provider_bridge: ProbateSourceProviderBridgeService | None = None,
         case_detail_service: ProbateCaseDetailEnrichmentService | None = None,
         enrichment_service: ProbatePropertyTaxTitleEnrichmentService | None = None,
+        source_identity_repository: ProbateSourceIdentityRepository | None = None,
     ) -> None:
         self.repository = repository or source_runs_repository
         self.settings = settings or get_settings()
         self.source_provider_bridge = source_provider_bridge or ProbateSourceProviderBridgeService(settings=self.settings)
         self.case_detail_service = case_detail_service or ProbateCaseDetailEnrichmentService(settings=self.settings)
         self.enrichment_service = enrichment_service or ProbatePropertyTaxTitleEnrichmentService(settings=self.settings)
+        self.source_identity_repository = source_identity_repository or ProbateSourceIdentityRepository(settings=self.settings)
 
     def run_nightly_source_pull(self, request: NightlySourcePullRequest) -> NightlySourcePullResponse:
         if request.live_source_calls:
@@ -181,6 +184,7 @@ class NightlyLeadMachineService:
                 if record_count is None:
                     record_count = sum(artifact.record_count for artifact in manifest.artifacts)
                 stored = self.repository.complete_run(stored.id, record_count=record_count, warnings=manifest.warnings)
+                stored = self._record_source_identities_without_blocking(stored)
             created_runs.append(stored)
 
         brief_metadata = request.metadata
@@ -209,24 +213,53 @@ class NightlyLeadMachineService:
             warnings=response_warnings + brief.warnings,
         )
         if request.idempotency_key:
-            self.repository.save_nightly_response_for_idempotency_key(
+            return self.repository.save_nightly_response_for_idempotency_key(
                 idempotency_key=request.idempotency_key,
                 response=response,
             )
         return response
+
+    def _record_source_identities_without_blocking(self, run: SourceRun) -> SourceRun:
+        try:
+            recorded_count = self.source_identity_repository.record_source_run(run)
+        except Exception as exc:  # pragma: no cover - exact provider exceptions vary by runtime/client
+            warning = (
+                f"probate source identity ledger write failed with {exc.__class__.__name__}; "
+                "nightly source pull continued without provider/outbound side effects"
+            )
+            return self.repository.complete_run(
+                run.id,
+                record_count=run.record_count,
+                warnings=[*run.metadata.get("warnings", []), warning],
+            )
+        if recorded_count:
+            return run.model_copy(
+                update={
+                    "metadata": {
+                        **run.metadata,
+                        "source_identity_remote_record_status": "recorded",
+                        "source_identity_remote_recorded_count": recorded_count,
+                    }
+                }
+            )
+        return run
 
     def _with_source_dedupe_context(self, request: NightlySourcePullRequest) -> NightlySourcePullRequest:
         rows = request.metadata.get("source_rows")
         if not rows:
             return request
         run_scope = _source_run_scope(request.metadata)
-        existing = self._existing_probate_source_identity_keys_by_county(
+        existing, remote_identity_warning = self._existing_probate_source_identity_keys_by_county(
             business_id=request.business_id,
             environment=request.environment,
             run_scope=run_scope,
         )
+        metadata_warnings = [str(item) for item in request.metadata.get("warnings", []) if item]
+        if remote_identity_warning:
+            metadata_warnings.append(remote_identity_warning)
         metadata = {
             **request.metadata,
+            "warnings": list(dict.fromkeys(metadata_warnings)),
             "source_run_scope": run_scope,
             "source_identity_version": "county_case_sha256_v1",
             "existing_source_identity_keys_by_county": {
@@ -236,6 +269,7 @@ class NightlyLeadMachineService:
                 "strategy": "county_case_sha256_v1",
                 "scope": run_scope,
                 "existing_identity_count_by_county": {county: len(keys) for county, keys in existing.items()},
+                "remote_identity_ledger_status": "warning" if remote_identity_warning else "loaded",
                 "manual_runs_isolated": run_scope != "manual",
             },
         }
@@ -247,8 +281,24 @@ class NightlyLeadMachineService:
         business_id: str,
         environment: str,
         run_scope: str,
-    ) -> dict[str, set[str]]:
+    ) -> tuple[dict[str, set[str]], str | None]:
         keys_by_county: dict[str, set[str]] = {"harris": set(), "montgomery": set()}
+        remote_identity_warning: str | None = None
+        try:
+            remote_keys = self.source_identity_repository.list_identity_keys(
+                business_id=business_id,
+                environment=environment,
+                run_scope=run_scope,
+                counties=("harris", "montgomery"),
+            )
+        except Exception as exc:  # pragma: no cover - exact provider exceptions vary by runtime/client
+            remote_keys = {}
+            remote_identity_warning = (
+                f"probate source identity ledger read failed with {exc.__class__.__name__}; "
+                "continuing with file-backed completed-run dedupe"
+            )
+        for county, keys in remote_keys.items():
+            keys_by_county.setdefault(county, set()).update(keys)
         for run in self.repository.list_runs(business_id=business_id, environment=environment):
             if run.source_lane not in _PROBATE_SOURCE_LANES or run.status != SourceRunStatus.COMPLETED or not run.county:
                 continue
@@ -275,7 +325,7 @@ class NightlyLeadMachineService:
                         identity_key = probate_source_identity_key(row, county=county)  # type: ignore[arg-type]
                     if identity_key:
                         keys_by_county.setdefault(county, set()).add(identity_key)
-        return keys_by_county
+        return keys_by_county, remote_identity_warning
 
     def _run_probate_case_detail_enrichment(
         self,
