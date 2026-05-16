@@ -1,0 +1,35 @@
+--- supabase migration list --db-url <redacted> ---
+
+
+   Local          | Remote         | Time (UTC)
+  ----------------|----------------|---------------------
+   202604130001   | 202604130001   | 202604130001
+   202604130003   | 202604130003   | 202604130003
+   202604140001   | 202604140001   | 202604140001
+   202604160001   | 202604160001   | 202604160001
+   202604160002   | 202604160002   | 202604160002
+   202604200001   | 202604200001   | 202604200001
+   202604230001   | 202604230001   | 202604230001
+   202604230002   | 202604230002   | 202604230002
+   202604230003   | 202604230003   | 202604230003
+   202604240001   | 202604240001   | 202604240001
+   20260425182943 | 20260425182943 | 2026-04-25 18:29:43
+   20260429180000 | 20260429180000 | 2026-04-29 18:00:00
+   20260429183000 | 20260429183000 | 2026-04-29 18:30:00
+   20260429184500 | 20260429184500 | 2026-04-29 18:45:00
+   20260514090000 | 20260514090000 | 2026-05-14 09:00:00
+   20260516011000 | 20260516011000 | 2026-05-16 01:10:00
+   20260516131500 | 20260516131500 | 2026-05-16 13:15:00
+
+Connecting to remote database...
+A new version of Supabase CLI is available: v2.98.2 (currently installed v2.90.0)
+We recommend updating regularly for new features and bug fixes: https://supabase.com/docs/guides/cli/getting-started#updating-the-supabase-cli
+exit=0
+--- asyncpg schema verification ---
+schema_verify=ok
+business_id_type=bigint
+column_count=21
+constraints=probate_source_identities_business_fk:b'f',probate_source_identities_business_id_environment_source_ru_key:b'u',probate_source_identities_counts_check:b'c',probate_source_identities_county_check:b'c',probate_source_identities_key_check:b'c',probate_source_identities_lower_check:b'c',probate_source_identities_pkey:b'p',probate_source_identities_scope_check:b'c',probate_source_identities_version_check:b'c'
+rls={'relrowsecurity': True, 'relforcerowsecurity': False}
+policies=tenant_isolation_insert_probate_source_identities:INSERT,tenant_isolation_select_probate_source_identities:SELECT,tenant_isolation_update_probate_source_identities:UPDATE
+indexes=probate_source_identities_business_id_environment_source_ru_key,probate_source_identities_first_seen_idx,probate_source_identities_lookup_idx,probate_source_identities_pkey

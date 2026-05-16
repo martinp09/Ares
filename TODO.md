@@ -1,7 +1,7 @@
 ---
 title: "Ares TODO / Handoff"
 status: active
-updated_at: "2026-05-16T13:10:45Z"
+updated_at: "2026-05-16T13:45:00Z"
 repo: "martinp09/Ares"
 local_checkout: "/opt/ares/worktrees/ares-main"
 target_branch: "main"
@@ -16,7 +16,7 @@ implementation_commit: "9c256bf"
 
 Back Office Spine v0 landed on `main` at `e898ee0` and the local `feature/back-office-spine-v0` branch was deleted. This slice turns qualified leads into canonical deal records with lane-aware task/document/risk templates, stage transition blockers, fire-list read models, Supabase runtime persistence, and a read-only Mission Control Deal Desk page.
 
-The Harris + Montgomery probate autopilot PRD implementation landed at `9c256bf` as an operational no-send system; handoff docs landed at `9f30d2f`, env preflight landed at `a859fd2`, and case-detail enrichment finished the last high-value probate enrichment gap. Trigger schedules default to live public probate source acquisition, live public case-detail page enrichment, and live public CAD/tax/land-record enrichment. Backend defaults those live intelligence lanes on, but Ares still requires explicit no-send approval metadata for live source/case-detail/enrichment runtime requests and keeps every outbound path blocked. Dedupe/manual-isolation hardening now adds hashed probate source identities, same-scope prior-run dedupe, same-packet duplicate exclusion, `source_run_scope=autonomous` scheduled payloads, isolated manual Hermes runner state, and Supabase durable identity schema `20260516131500_probate_source_identity_dedupe.sql`; QC `docs/qc/2026-05-16/probate-dedupe-runtime-isolation/`.
+The Harris + Montgomery probate autopilot PRD implementation landed at `9c256bf` as an operational no-send system; handoff docs landed at `9f30d2f`, env preflight landed at `a859fd2`, and case-detail enrichment finished the last high-value probate enrichment gap. Trigger schedules default to live public probate source acquisition, live public case-detail page enrichment, and live public CAD/tax/land-record enrichment. Backend defaults those live intelligence lanes on, but Ares still requires explicit no-send approval metadata for live source/case-detail/enrichment runtime requests and keeps every outbound path blocked. Dedupe/manual-isolation hardening adds hashed probate source identities, same-scope prior-run dedupe, same-packet duplicate exclusion, `source_run_scope=autonomous` scheduled payloads, isolated manual Hermes runner state, and remote Supabase durable identity schema `20260516131500_probate_source_identity_dedupe.sql` applied on 2026-05-16; QC `docs/qc/2026-05-16/probate-dedupe-runtime-isolation/` and `docs/qc/2026-05-16/probate-source-identity-supabase-migration/`.
 
 Origin-main hardening cleanup landed on GitHub `main`: `709f714` adds the dynamic Montgomery PublicSearch land-record end date, live no-send smoke case-detail assertion, legacy `/crm/hubspot/*` `operator_approval=true` live-write gate, and CI; `be11aaa` tracks Docker deployment files and Docker CI.
 
@@ -30,7 +30,7 @@ Back Office Spine v0 verification passed pre-merge and post-merge: focused backe
 
 Cleanup verification on the `be76288` baseline passed: focused backend => `44 passed`; full backend => `945 passed`; Mission Control tests => `25 files / 82 tests`; Mission Control typecheck/build => passed; Trigger typecheck => passed; `git diff --check` and smoke/script py-compile => passed. GitHub Actions CI passed on `709f714` and `be11aaa`.
 
-No HubSpot batch writes, Instantly enrollment/sends, SMS/Vapi calls, paid skiptrace, Slack/provider sends, live smoke, or Vercel deploys were executed by this cleanup. The only live mutations after approval were the VPS Docker/Caddy rebuild and the existing Supabase deal-spine migration.
+- No HubSpot batch writes, Instantly enrollment/sends, SMS/Vapi calls, paid skiptrace, Slack/provider sends, live smoke, or Vercel deploys were executed by this cleanup. The only live mutations after approval were the VPS Docker/Caddy rebuild, the existing Supabase deal-spine migration, and the approved Supabase probate source identity migration.
 
 ## Primary handoff artifacts
 
@@ -42,13 +42,14 @@ No HubSpot batch writes, Instantly enrollment/sends, SMS/Vapi calls, paid skiptr
 - Live operational PRD execution QC: `docs/qc/2026-05-15/probate-autopilot-live-operational-prd-execution/`
 - Live no-send smoke command: `uv run python scripts/smoke/probate_autopilot_live_no_send_smoke.py --day YYYY-MM-DD`
 - Probate dedupe/isolation QC: `docs/qc/2026-05-16/probate-dedupe-runtime-isolation/`
-- Supabase probate source identity migration: `supabase/migrations/20260516131500_probate_source_identity_dedupe.sql`
+- Supabase probate source identity migration: `supabase/migrations/20260516131500_probate_source_identity_dedupe.sql` (applied remotely 2026-05-16)
+- Remote Supabase probate source identity migration QC: `docs/qc/2026-05-16/probate-source-identity-supabase-migration/`
 - Probate no-send activation runbook: `docs/runbooks/harris-montgomery-probate-autopilot-no-send-activation.md`
 - HubSpot operating-spine QC index: `docs/qc/2026-05-14/README.md`
 
 ## Immediate next actions
 
-1. Monitor the next non-empty no-send probate scheduler run after the 2026-05-16 dedupe/isolation hardening. Current local autonomous ledger comparison has 2026-05-15 Harris `39` / Montgomery `8` source identities and 2026-05-16 `0` / `0`, so there are no today-vs-yesterday duplicate scraped identities yet; future non-empty runs should show `duplicate_prior_run_count` when overlap exists.
+1. Monitor the next non-empty no-send probate scheduler run after the 2026-05-16 dedupe/isolation hardening. The durable source identity table is now applied in remote Supabase, while current local autonomous ledger comparison has 2026-05-15 Harris `39` / Montgomery `8` source identities and 2026-05-16 `0` / `0`, so there are no today-vs-yesterday duplicate scraped identities yet; future non-empty runs should show `duplicate_prior_run_count` when overlap exists.
 2. Wire `public.probate_source_identities` into the production Supabase source-run persistence adapter when this lane moves from file-backed source-run state to Supabase-backed state.
 3. Before production no-send deployment, run `uv run python scripts/probate_autopilot_env_contract.py --env-file .env --require-scheduled-live` and configure durable `LEAD_MACHINE_SOURCE_RUNS_STATE_PATH` / `LEAD_MACHINE_ARTIFACT_ROOT`.
 4. Keep Instantly enrollment/send, SMS/Vapi dispatch, paid skiptrace, and HubSpot batch mirror writes gated until separately approved.

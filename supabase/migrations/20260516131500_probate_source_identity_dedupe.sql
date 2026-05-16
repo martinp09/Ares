@@ -5,7 +5,7 @@
 
 create table if not exists public.probate_source_identities (
     id uuid primary key default gen_random_uuid(),
-    business_id text not null,
+    business_id bigint not null,
     environment text not null,
     source_run_scope text not null default 'autonomous',
     county text not null,
@@ -33,8 +33,7 @@ create table if not exists public.probate_source_identities (
     constraint probate_source_identities_version_check check (source_identity_version = 'county_case_sha256_v1'),
     constraint probate_source_identities_counts_check check (seen_count >= 1 and latest_record_count >= 0),
     constraint probate_source_identities_lower_check check (
-        business_id = lower(business_id)
-        and environment = lower(environment)
+        environment = lower(environment)
         and source_run_scope = lower(source_run_scope)
         and county = lower(county)
         and source_identity_key = lower(source_identity_key)

@@ -17,6 +17,7 @@ def test_probate_source_identity_migration_adds_durable_dedupe_table() -> None:
     sql = _sql()
 
     assert "create table if not exists public.probate_source_identities" in sql
+    assert "business_id bigint not null" in sql
     assert "references public.businesses (business_id, environment)" in sql
     assert "alter table public.probate_source_identities enable row level security" in sql
     assert "public.current_tenant_business_id()" in sql
@@ -40,4 +41,5 @@ def test_probate_source_identity_migration_enforces_stable_hashed_case_identity(
     assert "check (source_identity_version = 'county_case_sha256_v1')" in sql
     assert "county in ('harris', 'montgomery')" in sql
     assert "source_identity_key = lower(source_identity_key)" in sql
+    assert "business_id = lower(business_id)" not in sql
     assert "seen_count >= 1 and latest_record_count >= 0" in sql
