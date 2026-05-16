@@ -1,14 +1,19 @@
 from __future__ import annotations
 
-from typing import Any, Callable
+from typing import TYPE_CHECKING, Any, Callable
 
 import httpx
 
 from app.core.config import Settings, get_settings
 from app.db.conversations import ConversationsRepository
 from app.db.messages import MessagesRepository
-from app.models.sms_agent import SmsAgentSendRequest, SmsAgentSendResponse
+from app.db.sms_agent import SmsAgentRepository
+from app.models.sms_agent import SmsAgentJobCreate, SmsAgentSendRequest, SmsAgentSendResponse
 from app.providers.textgrid import build_outbound_sms_request, normalize_phone_number
+
+if TYPE_CHECKING:
+    from app.models.marketing_leads import MarketingLeadRecord
+    from app.services.inbound_sms_service import NormalizedSmsEvent
 
 RequestSender = Callable[[dict[str, Any]], dict[str, Any]]
 
@@ -61,12 +66,45 @@ class SmsAgentService:
         settings: Settings | None = None,
         conversations: ConversationsRepository | None = None,
         messages: MessagesRepository | None = None,
+        sms_agent_repository: SmsAgentRepository | None = None,
         request_sender: RequestSender | None = None,
     ) -> None:
         self.settings = settings or get_settings()
         self.conversations = conversations or ConversationsRepository(settings=self.settings)
         self.messages = messages or MessagesRepository(settings=self.settings)
+        self.sms_agent_repository = sms_agent_repository or SmsAgentRepository(settings=self.settings)
         self.request_sender = request_sender or self._send_textgrid_request
+
+    def enqueue_inbound_reply_job(
+        self,
+        *,
+        event: NormalizedSmsEvent,
+        lead: MarketingLeadRecord | None,
+        provider_thread_id: str | None,
+        receipt_id: str | None,
+    ) -> str | None:
+        if event.event_type != "inbound" or lead is None:
+            return None
+        business_id = lead.business_id
+        environment = lead.environment
+        if not business_id or not environment:
+            return None
+        job = self.sms_agent_repository.enqueue_job(
+            SmsAgentJobCreate(
+                business_id=business_id,
+                environment=environment,
+                provider_webhook_id=receipt_id,
+                conversation_id=provider_thread_id,
+                contact_id=lead.id,
+                from_number=event.from_number,
+                to_number=event.to_number,
+                metadata={
+                    "external_id": event.external_id,
+                    "body_preview": event.body[:160],
+                },
+            )
+        )
+        return job.id
 
     def send_message(self, request: SmsAgentSendRequest) -> SmsAgentSendResponse:
         normalized_to = normalize_phone_number(request.to)

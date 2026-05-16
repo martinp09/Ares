@@ -1,8 +1,13 @@
+from types import SimpleNamespace
+
 from app.core.config import Settings
 from app.db.client import InMemoryControlPlaneClient, InMemoryControlPlaneStore
+from app.db.contacts import ContactsRepository
 from app.db.conversations import ConversationsRepository
 from app.db.messages import MessagesRepository
+from app.models.marketing_leads import LeadUpsertRequest
 from app.models.sms_agent import SmsAgentSendRequest
+from app.services.inbound_sms_service import NormalizedSmsEvent
 from app.services.sms_agent_service import SmsAgentService
 
 
@@ -37,6 +42,136 @@ def test_sms_agent_dry_run_skips_provider_when_live_sends_disabled() -> None:
     assert response.to == "+15551234567"
     assert response.log_status == "skipped_dry_run"
     assert sent_requests == []
+
+
+def test_sms_agent_enqueue_inbound_reply_job_records_tenant_and_context() -> None:
+    client = InMemoryControlPlaneClient(InMemoryControlPlaneStore())
+    contacts = ContactsRepository(client)
+    lead = contacts.upsert_lead(
+        LeadUpsertRequest(
+            business_id="limitless",
+            environment="dev",
+            first_name="Maya",
+            phone="+15551234567",
+            email="maya@example.com",
+            property_address="123 Main St, Houston, TX",
+        )
+    )
+
+    class RecordingRepository:
+        def __init__(self) -> None:
+            self.creates = []
+
+        def enqueue_job(self, create):
+            self.creates.append(create)
+            return SimpleNamespace(id="smsjob_123")
+
+    repository = RecordingRepository()
+    service = SmsAgentService(
+        settings=Settings(_env_file=None),
+        sms_agent_repository=repository,
+    )
+    event = NormalizedSmsEvent(
+        event_type="inbound",
+        body="x" * 200,
+        from_number="+15551234567",
+        to_number="+13467725914",
+        external_id="SM123",
+        metadata={"business_id": "ignored", "environment": "ignored"},
+    )
+
+    job_id = service.enqueue_inbound_reply_job(
+        event=event,
+        lead=lead,
+        provider_thread_id="thread_123",
+        receipt_id="wh_123",
+    )
+
+    assert job_id == "smsjob_123"
+    assert len(repository.creates) == 1
+    create = repository.creates[0]
+    assert create.business_id == lead.business_id
+    assert create.environment == lead.environment
+    assert create.provider_webhook_id == "wh_123"
+    assert create.conversation_id == "thread_123"
+    assert create.contact_id == lead.id
+    assert create.from_number == "+15551234567"
+    assert create.to_number == "+13467725914"
+    assert create.metadata == {"external_id": "SM123", "body_preview": "x" * 160}
+
+
+def test_sms_agent_enqueue_inbound_reply_job_skips_non_inbound_and_unknown_tenant() -> None:
+    class FailingRepository:
+        def enqueue_job(self, create):
+            raise AssertionError("unknown tenant or non-inbound events should not enqueue jobs")
+
+    service = SmsAgentService(
+        settings=Settings(_env_file=None),
+        sms_agent_repository=FailingRepository(),
+    )
+
+    assert (
+        service.enqueue_inbound_reply_job(
+            event=NormalizedSmsEvent(
+                event_type="status",
+                body="",
+                from_number="+15551234567",
+                to_number="+13467725914",
+            ),
+            lead=None,
+            provider_thread_id=None,
+            receipt_id=None,
+        )
+        is None
+    )
+    assert (
+        service.enqueue_inbound_reply_job(
+            event=NormalizedSmsEvent(
+                event_type="inbound",
+                body="Need details",
+                from_number="+15551234567",
+                to_number="+13467725914",
+                metadata={},
+            ),
+            lead=None,
+            provider_thread_id=None,
+            receipt_id=None,
+        )
+        is None
+    )
+
+
+def test_sms_agent_enqueue_inbound_reply_job_skips_inbound_without_lead_even_with_tenant_metadata() -> None:
+    class RecordingRepository:
+        def __init__(self) -> None:
+            self.creates = []
+
+        def enqueue_job(self, create):
+            self.creates.append(create)
+            return SimpleNamespace(id="smsjob_123")
+
+    repository = RecordingRepository()
+    service = SmsAgentService(
+        settings=Settings(_env_file=None),
+        sms_agent_repository=repository,
+    )
+
+    job_id = service.enqueue_inbound_reply_job(
+        event=NormalizedSmsEvent(
+            event_type="inbound",
+            body="Need details",
+            from_number="+15551234567",
+            to_number="+13467725914",
+            external_id="SM123",
+            metadata={"business_id": "limitless", "environment": "dev"},
+        ),
+        lead=None,
+        provider_thread_id="thread_123",
+        receipt_id="wh_123",
+    )
+
+    assert job_id is None
+    assert repository.creates == []
 
 
 def test_sms_agent_live_send_builds_textgrid_request_and_logs_message() -> None:

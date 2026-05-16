@@ -81,6 +81,160 @@ def _twilio_style_signature(secret: str, url: str, payload: dict[str, object]) -
     digest = hmac.new(secret.encode("utf-8"), data.encode("utf-8"), hashlib.sha1).digest()
     return base64.b64encode(digest).decode("utf-8")
 
+
+def test_inbound_sms_enqueues_sms_reply_agent_job_for_resolved_lead() -> None:
+    client = InMemoryControlPlaneClient(InMemoryControlPlaneStore())
+    contacts = ContactsRepository(client)
+    lead = contacts.upsert_lead(
+        LeadUpsertRequest(
+            business_id="limitless",
+            environment="dev",
+            first_name="Maya",
+            phone="+15551234567",
+            email="maya@example.com",
+            property_address="123 Main St, Houston, TX",
+        )
+    )
+
+    class RecordingSmsAgent:
+        def __init__(self) -> None:
+            self.calls = []
+
+        def enqueue_inbound_reply_job(self, *, event, lead, provider_thread_id, receipt_id):
+            self.calls.append(
+                {
+                    "event": event,
+                    "lead": lead,
+                    "provider_thread_id": provider_thread_id,
+                    "receipt_id": receipt_id,
+                }
+            )
+            return "smsjob_1"
+
+    sms_agent = RecordingSmsAgent()
+    service = InboundSmsService(
+        textgrid_adapter=_StubTextgridAdapter(
+            event=NormalizedSmsEvent(
+                event_type="inbound",
+                body="Can you call me?",
+                from_number=lead.phone,
+                to_number="+13467725914",
+                external_id="sms_inbound_enqueue_1",
+                metadata={
+                    "business_id": lead.business_id,
+                    "environment": lead.environment,
+                    "provider_thread_id": "thread_123",
+                },
+            )
+        ),
+        contacts=contacts,
+        sms_agent_service=sms_agent,
+    )
+
+    result = service.handle_textgrid_webhook({}, signature=None)
+
+    with client.transaction() as store:
+        receipt = next(iter(store.provider_webhooks.values()))
+
+    assert result["job_id"] == "smsjob_1"
+    assert sms_agent.calls == [
+        {
+            "event": service.textgrid_adapter.event,
+            "lead": lead,
+            "provider_thread_id": "thread_123",
+            "receipt_id": receipt.id,
+        }
+    ]
+
+
+def test_inbound_sms_with_tenant_metadata_but_no_lead_does_not_enqueue_sms_reply_agent_job() -> None:
+    client = InMemoryControlPlaneClient(InMemoryControlPlaneStore())
+    contacts = ContactsRepository(client)
+
+    class RecordingSmsAgent:
+        def __init__(self) -> None:
+            self.calls = []
+
+        def enqueue_inbound_reply_job(self, *, event, lead, provider_thread_id, receipt_id):
+            self.calls.append((event, lead, provider_thread_id, receipt_id))
+            return "unsafe_job"
+
+    sms_agent = RecordingSmsAgent()
+    service = InboundSmsService(
+        textgrid_adapter=_StubTextgridAdapter(
+            event=NormalizedSmsEvent(
+                event_type="inbound",
+                body="Can someone help?",
+                from_number="+15550001111",
+                to_number="+13467725914",
+                external_id="sms_unresolved_tenant_1",
+                metadata={
+                    "business_id": "limitless",
+                    "environment": "dev",
+                    "provider_thread_id": "thread_missing_lead",
+                },
+            )
+        ),
+        contacts=contacts,
+        sms_agent_service=sms_agent,
+    )
+
+    result = service.handle_textgrid_webhook({}, signature=None)
+
+    assert result["job_id"] == ""
+    assert sms_agent.calls == []
+
+
+def test_inbound_sms_deduped_webhook_does_not_enqueue_sms_reply_agent_job_again() -> None:
+    client = InMemoryControlPlaneClient(InMemoryControlPlaneStore())
+    contacts = ContactsRepository(client)
+    lead = contacts.upsert_lead(
+        LeadUpsertRequest(
+            business_id="limitless",
+            environment="dev",
+            first_name="Maya",
+            phone="+15551234567",
+            email="maya@example.com",
+            property_address="123 Main St, Houston, TX",
+        )
+    )
+
+    class RecordingSmsAgent:
+        def __init__(self) -> None:
+            self.calls = []
+
+        def enqueue_inbound_reply_job(self, *, event, lead, provider_thread_id, receipt_id):
+            self.calls.append((event.external_id, lead.id if lead else None, provider_thread_id, receipt_id))
+            return f"smsjob_{len(self.calls)}"
+
+    sms_agent = RecordingSmsAgent()
+    service = InboundSmsService(
+        textgrid_adapter=_StubTextgridAdapter(
+            event=NormalizedSmsEvent(
+                event_type="inbound",
+                body="Need details",
+                from_number=lead.phone,
+                to_number="+13467725914",
+                external_id="sms_inbound_dedupe_1",
+                metadata={
+                    "business_id": lead.business_id,
+                    "environment": lead.environment,
+                    "provider_thread_id": "thread_123",
+                },
+            )
+        ),
+        contacts=contacts,
+        sms_agent_service=sms_agent,
+    )
+
+    first = service.handle_textgrid_webhook({}, signature=None)
+    second = service.handle_textgrid_webhook({}, signature=None)
+
+    assert first["job_id"] == "smsjob_1"
+    assert second["job_id"] == ""
+    assert len(sms_agent.calls) == 1
+
+
 def test_inbound_sms_stop_reply_does_not_mutate_sequence_when_phone_is_ambiguous() -> None:
     client = InMemoryControlPlaneClient(InMemoryControlPlaneStore())
     contacts = ContactsRepository(client)
@@ -234,7 +388,7 @@ def test_inbound_sms_service_skips_live_backend_review_writes_without_tenant_met
         request_url="https://runtime.example.com/marketing/webhooks/textgrid",
     )
 
-    assert result == {"status": "processed", "event_type": "inbound", "action": "qualify"}
+    assert result == {"status": "processed", "event_type": "inbound", "action": "qualify", "job_id": ""}
 
 
 def test_inbound_sms_resolves_provider_thread_using_tenant_scope_before_phone_fallback() -> None:

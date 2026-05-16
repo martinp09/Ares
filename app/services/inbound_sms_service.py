@@ -14,12 +14,14 @@ from app.db.lead_machine_supabase import lead_machine_backend_enabled
 from app.db.messages import MessagesRepository
 from app.db.provider_webhooks import ProviderWebhooksRepository
 from app.db.sequences import SequencesRepository
+from app.db.sms_agent import SmsAgentRepository
 from app.db.tasks import TasksRepository
 from app.models.lead_events import LeadEventRecord, ProviderWebhookReceiptRecord
 from app.models.marketing_leads import MarketingLeadRecord
 from app.models.tasks import TaskPriority, TaskRecord, TaskStatus, TaskType
 from app.providers.resend import build_send_email_request
 from app.providers.textgrid import build_outbound_sms_request, normalize_incoming_webhook, verify_webhook_signature
+from app.services.sms_agent_service import SmsAgentService
 
 
 SmsAction = Literal["ignore", "qualify", "pause", "stop"]
@@ -427,6 +429,7 @@ class InboundSmsService:
         webhook_receipts: WebhookReceiptService | None = None,
         message_logging_hook: MessageLoggingHook | None = None,
         lead_events_repository: LeadEventsRepository | None = None,
+        sms_agent_service: SmsAgentService | None = None,
     ) -> None:
         self.settings = settings or get_settings()
         self.textgrid_adapter = textgrid_adapter or _DefaultTextgridWebhookAdapter(self.settings)
@@ -477,6 +480,20 @@ class InboundSmsService:
             ),
         )
         self.lead_events_repository = lead_events_repository or LeadEventsRepository(self.contacts.client, settings=self.settings)
+        self.sms_agent_service = sms_agent_service or SmsAgentService(
+            settings=self.settings,
+            conversations=self.conversations,
+            messages=MessagesRepository(
+                self.contacts.client,
+                settings=self.settings,
+                force_memory=repo_force_memory,
+            ),
+            sms_agent_repository=SmsAgentRepository(
+                self.contacts.client,
+                settings=self.settings,
+                force_memory=repo_force_memory,
+            ),
+        )
 
     def handle_textgrid_webhook(
         self,
@@ -509,7 +526,12 @@ class InboundSmsService:
             receipt_id, deduped = self.webhook_receipts.record_textgrid_event(event=event, lead=resolved.lead, payload=payload)
             if deduped:
                 self.webhook_receipts.mark_processed(receipt_id)
-                return {"status": "processed", "event_type": event.event_type, "action": self._decide_action(event)}
+                return {
+                    "status": "processed",
+                    "event_type": event.event_type,
+                    "action": self._decide_action(event),
+                    "job_id": "",
+                }
         if resolved.lead is not None:
             self._append_inbound_message(
                 event=event,
@@ -525,9 +547,20 @@ class InboundSmsService:
                 self._mutate_sequence(action=action, lead=resolved.lead)
             elif action == "pause":
                 self._mutate_sequence(action=action, lead=resolved.lead)
+        job_id = None
+        if event.event_type == "inbound" and resolved.lead is not None:
+            job_id = self.sms_agent_service.enqueue_inbound_reply_job(
+                event=event,
+                lead=resolved.lead,
+                provider_thread_id=resolved.provider_thread_id,
+                receipt_id=receipt_id,
+            )
         if receipt_id is not None:
             self.webhook_receipts.mark_processed(receipt_id)
-        return {"status": "processed", "event_type": event.event_type, "action": action}
+        response = {"status": "processed", "event_type": event.event_type, "action": action}
+        if event.event_type == "inbound":
+            response["job_id"] = job_id or ""
+        return response
 
     def dispatch_lease_option_sequence_step(
         self,
