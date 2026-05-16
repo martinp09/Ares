@@ -4,9 +4,14 @@ import inspect
 from typing import Any
 from urllib.parse import parse_qs
 
-from fastapi import APIRouter, Depends, Header, HTTPException, Request, Response, status
+from fastapi import APIRouter, Body, Depends, Header, HTTPException, Request, Response, status
 
-from app.models.sms_agent import SmsAgentSendRequest, SmsAgentSendResponse
+from app.models.sms_agent import (
+    SmsAgentProcessPendingRequest,
+    SmsAgentProcessPendingResponse,
+    SmsAgentSendRequest,
+    SmsAgentSendResponse,
+)
 from app.services.inbound_sms_service import inbound_sms_service
 from app.services.sms_agent_service import SmsAgentService
 
@@ -27,6 +32,14 @@ def send_sms_agent_message(
         return service.send_message(request)
     except RuntimeError as exc:
         raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=str(exc)) from exc
+
+
+@router.post("/internal/process-pending", response_model=SmsAgentProcessPendingResponse)
+def process_pending_sms_agent_jobs(
+    request: SmsAgentProcessPendingRequest = Body(default_factory=SmsAgentProcessPendingRequest),
+    service: SmsAgentService = Depends(sms_agent_service_dependency),
+) -> SmsAgentProcessPendingResponse:
+    return SmsAgentProcessPendingResponse(**service.process_pending(limit=request.limit))
 
 
 @public_router.post("/webhooks/textgrid")

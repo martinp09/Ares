@@ -46,6 +46,21 @@ class SmsAgentWebhookResponse(BaseModel):
     task_id: str | None = None
 
 
+class SmsAgentProcessPendingRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid", strict=True)
+
+    limit: int | None = Field(default=None, ge=1, le=100)
+
+
+class SmsAgentProcessPendingResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid", strict=True)
+
+    processed_count: int
+    sent_count: int
+    blocked_count: int
+    failed_count: int
+
+
 class SmsAgentJobCreate(BaseModel):
     model_config = ConfigDict(extra="forbid", strict=True)
 
@@ -67,6 +82,7 @@ class SmsAgentJobRecord(SmsAgentJobCreate):
     attempt_count: int = 0
     locked_until: datetime | None = None
     decision_id: str | None = None
+    last_error: str | None = None
     deduped: bool = False
     created_at: datetime | None = None
     updated_at: datetime | None = None

@@ -132,6 +132,21 @@ def test_sms_agent_repository_mark_completed_preserves_existing_decision_id() ->
     assert completed.decision_id == decision.id
 
 
+def test_sms_agent_repository_mark_failed_preserves_existing_decision_id() -> None:
+    client = InMemoryControlPlaneClient(InMemoryControlPlaneStore())
+    repo = SmsAgentRepository(client=client)
+    job = repo.enqueue_job(_job_create())
+    decision = repo.record_decision(_decision_create(job_id=job.id))
+
+    failed = repo.mark_failed(job.id, retryable=True, error_message="provider unavailable", decision_id=decision.id)
+    failed_again = repo.mark_failed(job.id, retryable=False, error_message="provider still unavailable")
+
+    assert failed is not None
+    assert failed.decision_id == decision.id
+    assert failed_again is not None
+    assert failed_again.decision_id == decision.id
+
+
 def test_sms_agent_repository_mark_completed_requires_decision_audit() -> None:
     client = InMemoryControlPlaneClient(InMemoryControlPlaneStore())
     repo = SmsAgentRepository(client=client)
@@ -139,6 +154,23 @@ def test_sms_agent_repository_mark_completed_requires_decision_audit() -> None:
 
     with pytest.raises(ValueError, match="decision_id is required to complete SMS agent job"):
         repo.mark_completed(job.id)
+
+
+def test_sms_agent_repository_lists_decisions_and_marks_failed() -> None:
+    client = InMemoryControlPlaneClient(InMemoryControlPlaneStore())
+    repo = SmsAgentRepository(client=client)
+    job = repo.enqueue_job(_job_create())
+    other_job = repo.enqueue_job(_job_create(business_id="other", provider_webhook_id="wh_2", message_id="msg_2"))
+
+    first = repo.record_decision(_decision_create(job_id=job.id))
+    repo.record_decision(_decision_create(business_id="other", job_id=other_job.id))
+    failed = repo.mark_failed(job.id, retryable=True, error_message="provider unavailable")
+
+    assert repo.list_decisions(business_id="limitless", environment="dev") == [first]
+    assert failed is not None
+    assert failed.status == "failed_retryable"
+    assert failed.last_error == "provider unavailable"
+    assert failed.locked_until is None
 
 
 def test_sms_agent_repository_rejects_decision_for_wrong_tenant_job() -> None:
@@ -276,6 +308,121 @@ def test_sms_agent_supabase_mark_completed_preserves_existing_decision(monkeypat
     assert completed.decision_id == "smsdec_11"
     assert fetch_calls[0]["table"] == "sms_agent_jobs"
     assert patch_calls[0]["row"]["decision_id"] == 11
+
+
+def test_sms_agent_supabase_list_decisions_resolves_tenant_and_orders(monkeypatch: pytest.MonkeyPatch) -> None:
+    fetch_calls: list[dict] = []
+
+    def fake_resolve_tenant(business_id: str, environment: str, *, settings: Settings | None = None) -> LeadMachineTenant:
+        return LeadMachineTenant(business_pk=7, environment=environment)
+
+    def fake_fetch_rows(table: str, *, params: dict[str, str], settings: Settings | None = None) -> list[dict]:
+        fetch_calls.append({"table": table, "params": params, "settings": settings})
+        return []
+
+    monkeypatch.setattr("app.db.sms_agent.resolve_tenant", fake_resolve_tenant)
+    monkeypatch.setattr("app.db.sms_agent.fetch_rows", fake_fetch_rows)
+
+    repo = SmsAgentRepository(settings=Settings(lead_machine_backend="supabase"), force_memory=False)
+
+    assert repo.list_decisions(business_id="limitless", environment="dev") == []
+    assert fetch_calls == [
+        {
+            "table": "sms_agent_decisions",
+            "params": {
+                "select": "*",
+                "order": "created_at.asc,id.asc",
+                "business_id": "eq.7",
+                "environment": "eq.dev",
+            },
+            "settings": repo.settings,
+        }
+    ]
+
+
+def test_sms_agent_supabase_list_decisions_requires_environment_for_slug_business_id(monkeypatch: pytest.MonkeyPatch) -> None:
+    fetch_calls: list[dict] = []
+
+    def fake_fetch_rows(table: str, *, params: dict[str, str], settings: Settings | None = None) -> list[dict]:
+        fetch_calls.append({"table": table, "params": params, "settings": settings})
+        return []
+
+    monkeypatch.setattr("app.db.sms_agent.fetch_rows", fake_fetch_rows)
+
+    repo = SmsAgentRepository(settings=Settings(lead_machine_backend="supabase"), force_memory=False)
+
+    with pytest.raises(ValueError, match="environment is required when filtering decisions by business_id"):
+        repo.list_decisions(business_id="limitless")
+
+    assert fetch_calls == []
+
+
+def test_sms_agent_supabase_list_decisions_allows_numeric_business_id_without_environment(monkeypatch: pytest.MonkeyPatch) -> None:
+    fetch_calls: list[dict] = []
+
+    def fake_fetch_rows(table: str, *, params: dict[str, str], settings: Settings | None = None) -> list[dict]:
+        fetch_calls.append({"table": table, "params": params, "settings": settings})
+        return []
+
+    monkeypatch.setattr("app.db.sms_agent.fetch_rows", fake_fetch_rows)
+
+    repo = SmsAgentRepository(settings=Settings(lead_machine_backend="supabase"), force_memory=False)
+
+    assert repo.list_decisions(business_id="7") == []
+    assert fetch_calls == [
+        {
+            "table": "sms_agent_decisions",
+            "params": {
+                "select": "*",
+                "order": "created_at.asc,id.asc",
+                "business_id": "eq.7",
+            },
+            "settings": repo.settings,
+        }
+    ]
+
+
+def test_sms_agent_supabase_mark_failed_patches_status_and_error(monkeypatch: pytest.MonkeyPatch) -> None:
+    patch_calls: list[dict] = []
+
+    def fake_patch_rows(
+        table: str,
+        *,
+        params: dict[str, str],
+        row: dict,
+        select: str | None = None,
+        settings: Settings | None = None,
+    ) -> list[dict]:
+        patch_calls.append({"table": table, "params": params, "row": row, "select": select, "settings": settings})
+        return [
+            {
+                "id": 7,
+                "business_id": 1,
+                "environment": "dev",
+                "from_number": "+15551234567",
+                "to_number": "+13467725914",
+                "status": row["status"],
+                "attempt_count": 2,
+                "last_error": row["last_error"],
+                "metadata": {},
+                "created_at": "2026-05-16T09:00:00+00:00",
+                "updated_at": "2026-05-16T09:00:00+00:00",
+            }
+        ]
+
+    monkeypatch.setattr("app.db.sms_agent.patch_rows", fake_patch_rows)
+
+    repo = SmsAgentRepository(settings=Settings(lead_machine_backend="supabase"), force_memory=False)
+    failed = repo.mark_failed("smsjob_7", retryable=False, error_message="provider unavailable")
+
+    assert failed is not None
+    assert failed.status == "failed_terminal"
+    assert failed.last_error == "provider unavailable"
+    assert patch_calls[0]["row"] == {
+        "status": "failed_terminal",
+        "last_error": "provider unavailable",
+        "locked_until": None,
+    }
 
 
 def test_sms_agent_supabase_decision_hydrates_numeric_string_confidence() -> None:

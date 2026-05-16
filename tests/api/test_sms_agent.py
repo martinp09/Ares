@@ -17,6 +17,49 @@ def test_sms_agent_send_requires_runtime_auth() -> None:
     assert response.status_code == 401
 
 
+def test_sms_agent_process_pending_requires_runtime_auth() -> None:
+    client = TestClient(app)
+
+    response = client.post("/sms-agent/internal/process-pending", json={"limit": 10})
+
+    assert response.status_code == 401
+
+
+def test_sms_agent_process_pending_accepts_empty_body_with_runtime_auth() -> None:
+    class StubSmsAgentService:
+        def __init__(self) -> None:
+            self.calls = []
+
+        def process_pending(self, *, limit=None):
+            self.calls.append(limit)
+            return {
+                "processed_count": 0,
+                "sent_count": 0,
+                "blocked_count": 0,
+                "failed_count": 0,
+            }
+
+    from app.api import sms_agent as sms_agent_api
+
+    stub = StubSmsAgentService()
+    app.dependency_overrides[sms_agent_api.sms_agent_service_dependency] = lambda: stub
+    client = TestClient(app)
+
+    try:
+        response = client.post("/sms-agent/internal/process-pending", headers=AUTH_HEADERS)
+    finally:
+        app.dependency_overrides.pop(sms_agent_api.sms_agent_service_dependency, None)
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "processed_count": 0,
+        "sent_count": 0,
+        "blocked_count": 0,
+        "failed_count": 0,
+    }
+    assert stub.calls == [None]
+
+
 def test_sms_agent_send_routes_to_service() -> None:
     class StubSmsAgentService:
         def __init__(self) -> None:

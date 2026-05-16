@@ -126,6 +126,25 @@ class SmsAgentRepository:
             store.sms_agent_decisions[decision_id] = record
             return record
 
+    def list_decisions(
+        self,
+        business_id: str | None = None,
+        environment: str | None = None,
+    ) -> list[SmsAgentReplyDecisionRecord]:
+        if lead_machine_backend_enabled(self.settings) and not self._force_memory:
+            return self._list_decisions_in_supabase(business_id=business_id, environment=environment)
+        with self.client.transaction() as store:
+            decisions = [
+                SmsAgentReplyDecisionRecord.model_validate(decision)
+                for decision in store.sms_agent_decisions.values()
+            ]
+        if business_id is not None:
+            decisions = [decision for decision in decisions if decision.business_id == business_id]
+        if environment is not None:
+            decisions = [decision for decision in decisions if decision.environment == environment]
+        decisions.sort(key=lambda decision: (decision.created_at or datetime.min, decision.id))
+        return decisions
+
     def mark_completed(self, job_id: str, *, decision_id: str | None = None) -> SmsAgentJobRecord | None:
         if lead_machine_backend_enabled(self.settings) and not self._force_memory:
             return self._mark_completed_in_supabase(job_id, decision_id=decision_id)
@@ -146,6 +165,40 @@ class SmsAgentRepository:
                     "updated_at": now,
                 }
             )
+            store.sms_agent_jobs[job_id] = updated
+            return updated
+
+    def mark_failed(
+        self,
+        job_id: str,
+        *,
+        retryable: bool,
+        error_message: str,
+        decision_id: str | None = None,
+    ) -> SmsAgentJobRecord | None:
+        if lead_machine_backend_enabled(self.settings) and not self._force_memory:
+            return self._mark_failed_in_supabase(
+                job_id,
+                retryable=retryable,
+                error_message=error_message,
+                decision_id=decision_id,
+            )
+        now = utc_now()
+        with self.client.transaction() as store:
+            existing = store.sms_agent_jobs.get(job_id)
+            if existing is None:
+                return None
+            job = SmsAgentJobRecord.model_validate(existing)
+            resolved_decision_id = decision_id or job.decision_id
+            update = {
+                "status": "failed_retryable" if retryable else "failed_terminal",
+                "last_error": error_message,
+                "locked_until": None,
+                "updated_at": now,
+            }
+            if resolved_decision_id is not None:
+                update["decision_id"] = resolved_decision_id
+            updated = job.model_copy(update=update)
             store.sms_agent_jobs[job_id] = updated
             return updated
 
@@ -261,6 +314,29 @@ class SmsAgentRepository:
         )[0]
         return self._decision_from_supabase(row)
 
+    def _list_decisions_in_supabase(
+        self,
+        *,
+        business_id: str | None = None,
+        environment: str | None = None,
+    ) -> list[SmsAgentReplyDecisionRecord]:
+        params = {
+            "select": "*",
+            "order": "created_at.asc,id.asc",
+        }
+        if business_id is not None and environment is not None:
+            tenant = resolve_tenant(business_id, environment, settings=self.settings)
+            params["business_id"] = f"eq.{tenant.business_pk}"
+            params["environment"] = f"eq.{tenant.environment}"
+        elif business_id is not None:
+            if not business_id.isdigit():
+                raise ValueError("environment is required when filtering decisions by business_id")
+            params["business_id"] = f"eq.{business_id}"
+        elif environment is not None:
+            params["environment"] = f"eq.{environment}"
+        rows = fetch_rows("sms_agent_decisions", params=params, settings=self.settings)
+        return [self._decision_from_supabase(row) for row in rows]
+
     def _mark_completed_in_supabase(self, job_id: str, *, decision_id: str | None = None) -> SmsAgentJobRecord | None:
         row_id = row_id_from_external_id(job_id, "smsjob")
         if row_id is None:
@@ -278,6 +354,29 @@ class SmsAgentRepository:
         if decision_row_id is None:
             raise ValueError("decision_id is required to complete SMS agent job")
         return self._patch_job_in_supabase(job_id, {"status": "completed", "decision_id": decision_row_id})
+
+    def _mark_failed_in_supabase(
+        self,
+        job_id: str,
+        *,
+        retryable: bool,
+        error_message: str,
+        decision_id: str | None = None,
+    ) -> SmsAgentJobRecord | None:
+        row = {
+            "status": "failed_retryable" if retryable else "failed_terminal",
+            "last_error": error_message,
+            "locked_until": None,
+        }
+        if decision_id is not None:
+            decision_row_id = row_id_from_external_id(decision_id, "smsdec")
+            if decision_row_id is None:
+                raise ValueError("decision_id must reference an SMS agent decision")
+            row["decision_id"] = decision_row_id
+        return self._patch_job_in_supabase(
+            job_id,
+            row,
+        )
 
     def _patch_job_in_supabase(self, job_id: str, row: dict[str, Any]) -> SmsAgentJobRecord | None:
         row_id = row_id_from_external_id(job_id, "smsjob")

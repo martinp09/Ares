@@ -8,8 +8,15 @@ from app.core.config import Settings, get_settings
 from app.db.conversations import ConversationsRepository
 from app.db.messages import MessagesRepository
 from app.db.sms_agent import SmsAgentRepository
-from app.models.sms_agent import SmsAgentJobCreate, SmsAgentSendRequest, SmsAgentSendResponse
+from app.models.sms_agent import (
+    SmsAgentJobCreate,
+    SmsAgentJobRecord,
+    SmsAgentReplyDecisionCreate,
+    SmsAgentSendRequest,
+    SmsAgentSendResponse,
+)
 from app.providers.textgrid import build_outbound_sms_request, normalize_phone_number
+from app.services.sms_reply_agent_service import SmsReplyAgentService, SmsReplyContext
 
 if TYPE_CHECKING:
     from app.models.marketing_leads import MarketingLeadRecord
@@ -105,6 +112,116 @@ class SmsAgentService:
             )
         )
         return job.id
+
+    def process_pending(self, limit: int | None = None) -> dict[str, int]:
+        batch_limit = limit or self.settings.sms_agent_process_batch_size
+        jobs = self.sms_agent_repository.claim_pending(batch_limit, self.settings.sms_agent_lock_seconds)
+        result = {
+            "processed_count": len(jobs),
+            "sent_count": 0,
+            "blocked_count": 0,
+            "failed_count": 0,
+        }
+        reply_agent = SmsReplyAgentService(settings=self.settings)
+        for job in jobs:
+            recorded_decision_id: str | None = None
+            try:
+                context = self._reply_context_for_job(job)
+                decision = reply_agent.decide(context)
+                recorded = self.sms_agent_repository.record_decision(
+                    SmsAgentReplyDecisionCreate(
+                        business_id=job.business_id,
+                        environment=job.environment,
+                        job_id=job.id,
+                        message_id=job.message_id,
+                        conversation_id=job.conversation_id,
+                        contact_id=job.contact_id,
+                        intent=decision.intent,
+                        source_lane=decision.source_lane,
+                        temperature=decision.temperature,
+                        urgency=decision.urgency,
+                        action=decision.action,
+                        suggested_body=decision.suggested_body,
+                        confidence=decision.confidence,
+                        policy_reason=decision.policy_reason,
+                        prompt_version=self.settings.sms_agent_prompt_version,
+                        provider_kind="deterministic",
+                        metadata={
+                            **decision.metadata,
+                            "job_metadata": job.metadata,
+                            "suppress_contact": decision.suppress_contact,
+                            "handoff_required": decision.handoff_required,
+                        },
+                    )
+                )
+                recorded_decision_id = recorded.id
+                if decision.action == "auto_ack":
+                    response = self.send_message(
+                        SmsAgentSendRequest(
+                            business_id=job.business_id,
+                            environment=job.environment,
+                            contact_id=job.contact_id,
+                            conversation_id=job.conversation_id,
+                            to=job.from_number,
+                            body=decision.suggested_body or "Thanks for replying. We will follow up.",
+                            sms_consent_confirmed=True,
+                            dry_run_only=False,
+                            metadata={
+                                "sms_agent_job_id": job.id,
+                                "sms_agent_decision_id": recorded.id,
+                            },
+                        )
+                    )
+                    if not response.dry_run and response.status != "failed" and response.error_message is None:
+                        result["sent_count"] += 1
+                elif decision.action == "human_handoff":
+                    result["blocked_count"] += 1
+                self.sms_agent_repository.mark_completed(job.id, decision_id=recorded.id)
+            except Exception as exc:
+                retryable = job.attempt_count < self.settings.sms_agent_max_attempts
+                self.sms_agent_repository.mark_failed(
+                    job.id,
+                    retryable=retryable,
+                    error_message=str(exc),
+                    decision_id=recorded_decision_id,
+                )
+                result["failed_count"] += 1
+        return result
+
+    @staticmethod
+    def _reply_context_for_job(job: SmsAgentJobRecord) -> SmsReplyContext:
+        metadata = job.metadata
+        body_value = metadata.get("body") or metadata.get("body_preview") or ""
+        body = str(body_value).strip()
+        ambiguous = _metadata_bool(metadata, "ambiguous", default=False)
+        if not body:
+            body = "Inbound SMS body missing"
+            ambiguous = True
+        resolved = bool(job.contact_id)
+        if isinstance(metadata.get("resolved"), bool):
+            resolved = bool(metadata["resolved"])
+        lead_context = {}
+        existing_lead_context = metadata.get("lead_context")
+        if isinstance(existing_lead_context, dict):
+            lead_context.update(existing_lead_context)
+        source_lane = metadata.get("source_lane")
+        if isinstance(source_lane, str) and source_lane.strip():
+            lead_context["source_lane"] = source_lane.strip()
+        return SmsReplyContext(
+            business_id=job.business_id,
+            environment=job.environment,
+            job_id=job.id,
+            message_id=job.message_id,
+            contact_id=job.contact_id,
+            from_number=job.from_number,
+            to_number=job.to_number,
+            body=body,
+            resolved=resolved,
+            ambiguous=ambiguous,
+            sms_consent=_metadata_bool(metadata, "sms_consent", default=False),
+            suppressed=_metadata_bool(metadata, "suppressed", default=False),
+            lead_context=lead_context,
+        )
 
     def send_message(self, request: SmsAgentSendRequest) -> SmsAgentSendResponse:
         normalized_to = normalize_phone_number(request.to)
@@ -206,3 +323,8 @@ class SmsAgentService:
         if response.is_error:
             raise RuntimeError(_extract_error(payload, response))
         return payload
+
+
+def _metadata_bool(metadata: dict[str, Any], key: str, *, default: bool) -> bool:
+    value = metadata.get(key)
+    return value if isinstance(value, bool) else default
