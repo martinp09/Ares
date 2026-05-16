@@ -2,6 +2,7 @@
 
 ## Latest probate source identity / no-send monitor
 
+- `live-source-zero-row-status-fix/` — fixed stale Slack/runtime `live county scraping is deferred` warning for successful zero-row live county adapter runs; deployed API at `619ae77`, manually fired a live no-send source pull, Slack `lead_runs` sent, Harris/Montgomery source runs show `live_source_adapter_status=live_source_adapter`, `network_calls_attempted=true`, and no deferred warning.
 - `trigger-promotion-slack-sms-live/` — Trigger prod scheduler authority promotion from Hermes cron to exactly three Central Time probate lead runs per day; controlled Trigger run completed, Hermes cron paused, Slack `lead_runs`/`hot_leads` delivery verified, SMS/TextGrid processor readiness verified, and provider sends/auto-replies remain gated.
 - `probate-production-readiness-wrap/` — earlier production-readiness wrap for env/deploy/cron/Trigger status, Harris postback source-row hardening, and no-send boundaries. Superseded for current scheduler authority by `trigger-promotion-slack-sms-live/`; its historical status was pre-promotion.
 - `probate-post-adapter-live-no-send-monitor/` — post-adapter live no-send monitor and Harris case-detail postback classification hardening. Two-day monitor passed with `48` source rows, `8` keep-now rows, no provider sends.

@@ -1,0 +1,71 @@
+{
+  "latest_manual_live_brief": {
+    "id": "morning_brief_68c3ab1c99bf490391c3018ec7befb98",
+    "generated_at": "2026-05-16T21:46:40.606227Z",
+    "new_record_count": 0,
+    "hot_lead_count": 0,
+    "warm_lead_count": 0,
+    "warnings": []
+  },
+  "source_runs": [
+    {
+      "id": "source_run_854c52152c9a44439bca5a7c66dbcdee",
+      "source_lane": "harris_county_probate",
+      "county": "harris",
+      "status": "completed",
+      "record_count": 0,
+      "raw_count": 0,
+      "parsed_count": 0,
+      "keep_now_count": 0,
+      "warning_count": 0,
+      "live_source_adapter_status": "live_source_adapter",
+      "would_call_external_sources": true,
+      "source_run_scope": "manual",
+      "source_provider_bridge": {
+        "mode": "live_source_adapters",
+        "would_call_live_sources": true,
+        "network_calls_attempted": true,
+        "browser_calls_attempted": false,
+        "dry_run": false,
+        "no_send": true,
+        "provider_sends_enabled": false
+      },
+      "artifact_types": [
+        "raw_source_rows",
+        "normalized_source_rows",
+        "keep_now_rows"
+      ]
+    },
+    {
+      "id": "source_run_2aa10f5091b246e5b6bc7f88c4c145d0",
+      "source_lane": "montgomery_county_probate",
+      "county": "montgomery",
+      "status": "completed",
+      "record_count": 0,
+      "raw_count": 0,
+      "parsed_count": 0,
+      "keep_now_count": 0,
+      "warning_count": 0,
+      "live_source_adapter_status": "live_source_adapter",
+      "would_call_external_sources": true,
+      "source_run_scope": "manual",
+      "source_provider_bridge": {
+        "mode": "live_source_adapters",
+        "would_call_live_sources": true,
+        "network_calls_attempted": true,
+        "browser_calls_attempted": false,
+        "dry_run": false,
+        "no_send": true,
+        "provider_sends_enabled": false
+      },
+      "artifact_types": [
+        "raw_source_rows",
+        "normalized_source_rows",
+        "keep_now_rows"
+      ]
+    }
+  ],
+  "contains_deferred_warning": false,
+  "no_send": true,
+  "provider_sends_enabled": false
+}

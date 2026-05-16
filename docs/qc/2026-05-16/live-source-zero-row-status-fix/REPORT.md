@@ -37,6 +37,38 @@ Captured in `test-output.txt`:
 - `uv run pytest -q tests/services/test_probate_source_provider_service.py tests/services/test_nightly_lead_machine_service.py tests/api/test_trigger_contract_files.py` → `52 passed`
 - `git diff --check` → passed
 
+## Deployment
+
+- Code commit: `619ae77` / `619ae77560028fc624d4c91bc27efe8af95c4e0b`
+- Pushed to `origin/main`.
+- VPS checkout `/opt/ares/Ares` advanced to `619ae77`.
+- Rebuilt/recreated `ares-api` with `/opt/ares/docker-compose.yml`.
+- `ares-api` health: `running healthy`.
+
+## Post-deploy live no-send verification
+
+Captured in:
+
+- `post-deploy-verification.json`
+- `source-ledger-post-deploy-summary.json`
+
+Manual live no-send pull after deploy:
+
+- Brief: `morning_brief_68c3ab1c99bf490391c3018ec7befb98`
+- Slack `lead_runs` notification: `sent`, ts `1778968001.525219`
+- `would_call_external_sources=true`
+- `live_source_calls_enabled=true`
+- Harris source run: `live_source_adapter_status=live_source_adapter`, `network_calls_attempted=true`, artifacts `raw_source_rows`, `normalized_source_rows`, `keep_now_rows`
+- Montgomery source run: `live_source_adapter_status=live_source_adapter`, `network_calls_attempted=true`, artifacts `raw_source_rows`, `normalized_source_rows`, `keep_now_rows`
+- Same-day narrow window returned `0` new / `0` hot / `0` warm records.
+- `contains_deferred_warning=false`
+- Latest brief warnings: `[]`
+- Probate health: `healthy`, `no_send_ok=true`, `outbound_allowed=false`
+
+## Watchdog
+
+Created one-shot Hermes watcher `9ed644afbc4a` for `2026-05-16T22:50:00Z` to check the next real Trigger schedule after the `17:40 CT` window and report back to Telegram.
+
 ## No-send boundary
 
 No outbound campaign sends were enabled by this patch. SMS/email/Instantly/Vapi/HubSpot provider mutations remain blocked until a separate launch manifest approves exact recipients, copy, limits, and gates.
