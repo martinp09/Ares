@@ -1,0 +1,20 @@
+# Tailnet-only Ares edge proxy.
+# Copy to /etc/caddy/Caddyfile on the VPS, set ARES_TAILNET_IP and
+# ARES_RUNTIME_API_KEY in a root-only systemd EnvironmentFile, then reload Caddy.
+# Do not commit real bearer values.
+
+http://{$ARES_TAILNET_IP}:80 {
+	bind {$ARES_TAILNET_IP}
+	encode gzip zstd
+
+	@ares_api path /agent-assets* /agent-installs* /agents* /approvals* /audit* /catalog* /commands* /health /hermes* /lead-machine* /marketing* /memberships* /mission-control* /organizations* /outcomes* /permissions* /rbac* /release-management* /replays* /runs* /sessions* /site-events* /skills* /trigger* /usage* /crm* /deals* /sms-agent* /voice*
+	handle @ares_api {
+		reverse_proxy 127.0.0.1:8000 {
+			header_up Authorization "Bearer {$ARES_RUNTIME_API_KEY}"
+		}
+	}
+
+	handle {
+		reverse_proxy 127.0.0.1:8080
+	}
+}

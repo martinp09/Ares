@@ -221,6 +221,26 @@ curl -sS http://127.0.0.1:8000/health
 curl -sS -H 'Authorization: Bearer <local-runtime-api-key>' http://127.0.0.1:8000/hermes/tools
 ```
 
+## VPS Docker / Tailnet Edge
+
+The VPS deployment is an internal operator surface, not a public unauthenticated API.
+
+Tracked deployment templates:
+
+- `Dockerfile.api` — API image, non-root runtime user, OCI labels.
+- `Dockerfile.ui` — Mission Control static image, unprivileged Nginx, port `8080`.
+- `deploy/nginx.conf` — SPA fallback plus basic security headers.
+- `deploy/Caddyfile.tailnet.example` — Caddy edge template bound to `ARES_TAILNET_IP` and using `ARES_RUNTIME_API_KEY` from systemd environment, never a committed literal.
+- `deploy/docker-compose.vps.example.yml` — loopback-only API/UI port publishing plus container hardening knobs.
+
+Live VPS rules:
+
+- Caddy should bind to the tailnet IP only, e.g. `100.74.177.6:80`, with `bind {$ARES_TAILNET_IP}`.
+- Caddy may inject the internal runtime bearer only after the tailnet boundary; do not expose this proxy on public `eth0`.
+- Keep API/UI Docker ports loopback-only: `127.0.0.1:8000:8000` and `127.0.0.1:8080:8080`.
+- Keep Supabase/dev ports blocked from public `eth0`; the current VPS uses `ares-edge-firewall.service` to drop public TCP `80,54321,54322,54323,54324,54327` while allowing tailnet/local access.
+- Do not print `/etc/caddy/ares-runtime.env`, raw `Authorization` headers, or runtime bearer values into logs/QC/chat.
+
 ## Verification
 
 - Activation gates: `python scripts/activation_readiness.py --json`
