@@ -282,6 +282,58 @@ class Settings(BaseSettings):
         default=None,
         validation_alias=AliasChoices("textgrid_status_callback_url", "TEXTGRID_STATUS_CALLBACK_URL"),
     )
+    sms_agent_mode: Literal["record_only", "draft_only", "auto_ack"] = Field(
+        default="draft_only",
+        validation_alias=AliasChoices("sms_agent_mode", "SMS_AGENT_MODE"),
+    )
+    sms_agent_auto_replies_enabled: bool = Field(
+        default=False,
+        validation_alias=AliasChoices(
+            "sms_agent_auto_replies_enabled",
+            "SMS_AGENT_AUTO_REPLIES_ENABLED",
+        ),
+    )
+    sms_agent_allowed_from_numbers: str | None = Field(
+        default=None,
+        validation_alias=AliasChoices(
+            "sms_agent_allowed_from_numbers",
+            "SMS_AGENT_ALLOWED_FROM_NUMBERS",
+        ),
+    )
+    sms_agent_process_batch_size: int = Field(
+        default=25,
+        validation_alias=AliasChoices(
+            "sms_agent_process_batch_size",
+            "SMS_AGENT_PROCESS_BATCH_SIZE",
+        ),
+    )
+    sms_agent_max_attempts: int = Field(
+        default=5,
+        validation_alias=AliasChoices("sms_agent_max_attempts", "SMS_AGENT_MAX_ATTEMPTS"),
+    )
+    sms_agent_lock_seconds: int = Field(
+        default=120,
+        validation_alias=AliasChoices("sms_agent_lock_seconds", "SMS_AGENT_LOCK_SECONDS"),
+    )
+    sms_agent_retention_days: int = Field(
+        default=90,
+        validation_alias=AliasChoices("sms_agent_retention_days", "SMS_AGENT_RETENTION_DAYS"),
+    )
+    sms_agent_archive_enabled: bool = Field(
+        default=False,
+        validation_alias=AliasChoices("sms_agent_archive_enabled", "SMS_AGENT_ARCHIVE_ENABLED"),
+    )
+    sms_agent_obsidian_archive_root: str | None = Field(
+        default=None,
+        validation_alias=AliasChoices(
+            "sms_agent_obsidian_archive_root",
+            "SMS_AGENT_OBSIDIAN_ARCHIVE_ROOT",
+        ),
+    )
+    sms_agent_prompt_version: str = Field(
+        default="sms_reply_agent_v1",
+        validation_alias=AliasChoices("sms_agent_prompt_version", "SMS_AGENT_PROMPT_VERSION"),
+    )
     resend_api_key: str | None = Field(
         default=None,
         validation_alias=AliasChoices("resend_api_key", "RESEND_API_KEY"),

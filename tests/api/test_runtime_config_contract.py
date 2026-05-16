@@ -28,6 +28,39 @@ def test_runtime_config_defaults_are_local_safe(monkeypatch) -> None:
     assert settings.trigger_non_booker_check_task_id == "marketing-check-submitted-lead-booking"
 
 
+def test_sms_agent_settings_default_to_draft_safe_mode(monkeypatch) -> None:
+    for env_var in (
+        "sms_agent_mode",
+        "SMS_AGENT_MODE",
+        "sms_agent_auto_replies_enabled",
+        "SMS_AGENT_AUTO_REPLIES_ENABLED",
+        "sms_agent_allowed_from_numbers",
+        "SMS_AGENT_ALLOWED_FROM_NUMBERS",
+        "sms_agent_process_batch_size",
+        "SMS_AGENT_PROCESS_BATCH_SIZE",
+        "sms_agent_max_attempts",
+        "SMS_AGENT_MAX_ATTEMPTS",
+        "sms_agent_lock_seconds",
+        "SMS_AGENT_LOCK_SECONDS",
+        "sms_agent_retention_days",
+        "SMS_AGENT_RETENTION_DAYS",
+        "sms_agent_archive_enabled",
+        "SMS_AGENT_ARCHIVE_ENABLED",
+        "sms_agent_obsidian_archive_root",
+        "SMS_AGENT_OBSIDIAN_ARCHIVE_ROOT",
+        "sms_agent_prompt_version",
+        "SMS_AGENT_PROMPT_VERSION",
+    ):
+        monkeypatch.delenv(env_var, raising=False)
+    settings = Settings(_env_file=None)
+
+    assert settings.sms_agent_mode == "draft_only"
+    assert settings.sms_agent_auto_replies_enabled is False
+    assert settings.sms_agent_process_batch_size == 25
+    assert settings.sms_agent_max_attempts == 5
+    assert settings.sms_agent_archive_enabled is False
+
+
 def test_env_example_declares_full_stack_contract() -> None:
     source = ENV_EXAMPLE.read_text(encoding="utf-8")
 
@@ -57,6 +90,16 @@ def test_env_example_declares_full_stack_contract() -> None:
         "TEXTGRID_FROM_NUMBER=",
         "TEXTGRID_SMS_URL=https://api.textgrid.com",
         "TEXTGRID_WEBHOOK_SECRET=",
+        "SMS_AGENT_MODE=draft_only",
+        "SMS_AGENT_AUTO_REPLIES_ENABLED=false",
+        "SMS_AGENT_ALLOWED_FROM_NUMBERS=",
+        "SMS_AGENT_PROCESS_BATCH_SIZE=25",
+        "SMS_AGENT_MAX_ATTEMPTS=5",
+        "SMS_AGENT_LOCK_SECONDS=120",
+        "SMS_AGENT_RETENTION_DAYS=90",
+        "SMS_AGENT_ARCHIVE_ENABLED=false",
+        "SMS_AGENT_OBSIDIAN_ARCHIVE_ROOT=",
+        "SMS_AGENT_PROMPT_VERSION=sms_reply_agent_v1",
         "RESEND_API_KEY=",
         "RESEND_FROM_EMAIL=",
         "RESEND_REPLY_TO_EMAIL=",
