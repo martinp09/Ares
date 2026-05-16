@@ -52,6 +52,7 @@ git diff --check
 ## Evidence
 
 - Focused contracts: `36 passed`
+- Full backend: see `full-backend-output.txt`
 - Remote migration list shows `20260516131500` present in both Local and Remote columns.
 - Remote schema verification:
   - `schema_verify=ok`
@@ -65,6 +66,7 @@ git diff --check
 ## Files
 
 - `test-output.txt` — focused contract test output
+- `full-backend-output.txt` — full backend pytest output
 - `remote-migration-verify-output.txt` — sanitized remote migration list and schema verification
 - `diff-summary.md` — exact migration/test patch required by live schema compatibility
 - `git-diff-check-output.txt` — whitespace check output
