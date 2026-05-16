@@ -2,7 +2,7 @@
 
 ## Live infrastructure/runtime changes
 
-- Advanced live checkout `/opt/ares/Ares` to current `origin/main` / `61f18de`.
+- Advanced live checkout `/opt/ares/Ares` to `61f18de` (runtime rebuild commit; later docs commits may be newer).
 - Backed up live `/opt/ares/Ares/.env` before appending explicit SMS reply-agent no-send defaults.
 - Rebuilt/recreated Docker `ares-api` and `ares-ui` from `61f18de`.
 - Enabled Tailscale Funnel public HTTPS API edge `https://ares.tail485fd9.ts.net` -> `127.0.0.1:8000`.
