@@ -66,7 +66,28 @@ curl -sS -m 10 -D - 'http://100.74.177.6/mission-control/probate-autopilot/healt
 # HTTP 500 Internal Server Error
 ```
 
-Direct SSH/Tailscale SSH to `root@100.74.177.6` remained blocked by auth. The live probate-health `500` is consistent with an unhealthy durable source-runs read path, so this branch adds a guard that converts `SourceRunsPersistenceError` into a blocked operator health response instead of a raw 500.
+Passworded SSH inspection confirmed the live `ares-api` image and `/opt/ares/Ares` checkout are at `fc99b75`. The live probate-health `500` was caused by `/var/lib/ares/lead-machine/source-runs.json` being owned by `root:root` with mode `600`, while the API container runs as UID/GID `999`.
+
+VPS repair:
+
+```bash
+chown 999:999 /var/lib/ares/lead-machine/source-runs.json
+chmod 640 /var/lib/ares/lead-machine/source-runs.json
+```
+
+After repair, the container can read and parse the durable source-runs state, and authenticated health checks pass:
+
+```bash
+curl -H 'Authorization: Bearer <runtime-api-key>' \
+  'http://127.0.0.1:8000/mission-control/probate-autopilot/health?business_id=limitless&environment=prod'
+# HTTP 200
+# status=healthy, no_send_ok=true, outbound_allowed=false
+
+curl -H 'Authorization: Bearer <runtime-api-key>' http://127.0.0.1:8000/deals
+# HTTP 200 {"deals":[]}
+```
+
+The branch also adds a guard that converts future `SourceRunsPersistenceError` failures into a blocked operator health response instead of a raw 500.
 
 ```bash
 uv run pytest tests/services/test_nightly_lead_machine_service.py::test_probate_autopilot_health_reports_blocked_when_state_file_is_corrupt tests/api/test_nightly_lead_machine.py::test_mission_control_probate_autopilot_health_endpoint_reports_no_data -q
