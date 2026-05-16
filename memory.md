@@ -15,7 +15,7 @@
 
 - `/opt/ares/worktrees/ares-main` main handoff for Harris+Montgomery probate autopilot operational no-send implementation is `9c256bf` plus handoff docs at `9f30d2f`; the finished `fix/probate-autopilot-enrichment-wiring` branch was deleted.
 - Back Office Spine v0 landed on `main` at `e898ee0` and the local feature branch was deleted: canonical deal records, lead-to-deal promotion, lane-template tasks/docs/risks, stage blockers, fire-list, Supabase runtime persistence, and a read-only Mission Control Deal Desk. QC `docs/qc/2026-05-16/back-office-spine-v0/`; post-merge verification passed full backend `942`, Mission Control `82`, Mission Control typecheck/build, Trigger typecheck, and diff check. Follow-on hardening landed on GitHub `main` at `709f714`, Docker deployment tracking at `be11aaa`, and VPS edge/container hardening at `32a3f57`; VPS `100.74.177.6` is now tailnet-only via Caddy, API/UI Docker ports are loopback-only, containers run non-root, and deal read-model smoke improved from ~12s to `/deals` 327ms / `/deals/fire-list` 73ms with no data.
-- Probate autopilot is a live no-send intelligence/enrichment system: Trigger schedules and backend defaults run Harris+Montgomery public probate source adapters, public case-detail party/event/document/contact-candidate enrichment, and public CAD/tax/land-record enrichment, while Ares still requires explicit no-send approvals and blocks Instantly/SMS/Vapi/paid skiptrace/HubSpot batch writes until separately approved. 2026-05-15 live smoke: `47` source records, `8` keep-now enriched, `sla_status=healthy`, `source_health_failed_runs=0`; QC `docs/qc/2026-05-15/probate-autopilot-live-operational-prd-execution/`; case-detail QC `docs/qc/2026-05-15/probate-case-detail-enrichment/`.
+- Probate autopilot is a live no-send intelligence/enrichment system: Trigger schedules and backend defaults run Harris+Montgomery public probate source adapters, public case-detail party/event/document/contact-candidate enrichment, and public CAD/tax/land-record enrichment, while Ares still requires explicit no-send approvals and blocks Instantly/SMS/Vapi/paid skiptrace/HubSpot batch writes until separately approved. 2026-05-16 scheduler fix: 07:10 CT now pulls previous-day→current-day, 02:20 pulls 7 days, Sunday 03:15 pulls 30 days, and zero-row county result pages are valid non-errors; temp replay parsed Harris `40` + Montgomery `8`, SLA healthy. QC `docs/qc/2026-05-16/probate-autopilot-scheduler-runtime-error/`.
 - Ares remains source of truth; HubSpot is a mirror/operator surface; Instantly/Vapi/SMS/paid skiptrace remain separate explicit approval gates.
 - HubSpot operating spine / agentic company Phases 1-9 are complete with final QC index/readiness artifacts and runbooks under `docs/qc/2026-05-14/` and `docs/runbooks/`.
 - HubSpot portal customization was live-applied after operator instruction; HubSpot has Ares property groups/properties and all 12 Ares stages in the existing single `Sales Pipeline` (`docs/qc/2026-05-14/hubspot-live-buildout/`).
@@ -245,6 +245,13 @@
 - `TasksRepository` now treats `lead_machine_backend=supabase` as a Supabase-backed task path so title-packet review tasks persist with lead-machine records.
 
 ## Change Log
+
+### 2026-05-16 Probate Autopilot Scheduler Runtime Error Fix
+
+- Investigated the blocked 07:10 CT Harris+Montgomery no-send cron output. Root cause: the background runner and Trigger payload used a current-day-only window for `morning_catchup`; on Saturday 2026-05-16 the current-day pages were empty/unstable and adapters promoted zero/bounced result pages to runtime errors.
+- Fixed scheduled source windows: 07:10 CT pulls previous-day→current-day, 02:20 CT pulls 7 days, Sunday 03:15 CT pulls 30 days; patched the live Hermes cron script `/root/.hermes/scripts/ares_probate_autopilot_no_send.py` with the same run-kind date windows.
+- Hardened zero-row handling: Harris empty `ListViewCases` pages and Montgomery `Record Count: 0` pages are valid source responses, not runtime failures.
+- QC evidence: `docs/qc/2026-05-16/probate-autopilot-scheduler-runtime-error/`; focused adapter contracts `9 passed`, full backend `948 passed`, Trigger typecheck passed, `git diff --check` passed; temp-state 07:10 replay returned Harris `40`, Montgomery `8`, `partial_failures={}`, `sla_status=healthy`, `no_send_ok=true`. No Instantly enrollment/send, SMS/Vapi, paid skiptrace, HubSpot/CRM write, Slack/provider send, or deploy.
 
 ### 2026-05-16 Back Office Spine v0 Main Merge
 

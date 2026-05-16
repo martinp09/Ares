@@ -6,6 +6,8 @@ from app.services.probate_live_source_adapter_service import (
     MONTGOMERY_ODYSSEY_SEARCH_URL,
     MontgomeryCountyProbateLiveAdapter,
     ProbateLiveSourceAdapterService,
+    _looks_like_harris_results_page,
+    _looks_like_montgomery_results_page,
     _parse_harris_probate_rows,
     _parse_montgomery_probate_rows,
     _prepare_montgomery_date_filed_probate_form,
@@ -89,6 +91,17 @@ def test_harris_live_parser_extracts_public_probate_rows_without_html_artifacts(
     assert "<table" not in str(rows)
 
 
+def test_harris_results_page_accepts_zero_row_search_results():
+    zero_results = """
+    <table id="ctl00_ContentPlaceHolder1_ListViewCases">
+    </table>
+    <input id="ctl00_ContentPlaceHolder1_txtDateFrom" value="05/16/2026" />
+    """
+
+    assert _looks_like_harris_results_page(zero_results)
+    assert _parse_harris_probate_rows(zero_results) == []
+
+
 def test_montgomery_live_parser_filters_to_probate_case_rows():
     rows = _parse_montgomery_probate_rows(
         """
@@ -120,6 +133,18 @@ def test_montgomery_live_parser_filters_to_probate_case_rows():
     assert rows[0]["style"] == "Estate of: SAMPLE MONTGOMERY OWNER"
     assert rows[0]["case_detail_url"] == "https://odyssey.mctx.org/County/CaseDetail.aspx?CaseID=2"
     assert "<table" not in str(rows)
+
+
+def test_montgomery_results_page_accepts_zero_record_count_without_case_links():
+    zero_results = """
+    <table><tr><td>Record Count:</td><td>0</td></tr></table>
+    <table>
+      <tr><th>Case Number</th><th>Citation Number</th><th>Style/Defendant Info</th><th>Filed/Location</th><th>Type/Status</th></tr>
+    </table>
+    """
+
+    assert _looks_like_montgomery_results_page(zero_results)
+    assert _parse_montgomery_probate_rows(zero_results) == []
 
 
 def test_montgomery_date_filed_probate_form_posts_probate_category_only():

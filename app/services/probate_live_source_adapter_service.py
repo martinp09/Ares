@@ -324,7 +324,7 @@ def _extract_form_defaults(html_text: str) -> dict[str, str]:
 
 
 def _looks_like_harris_results_page(html_text: str) -> bool:
-    return "ListViewCases" in html_text and "btnSelect" in html_text
+    return "ListViewCases" in html_text
 
 
 def _looks_like_montgomery_search_form(html_text: str) -> bool:
@@ -332,7 +332,7 @@ def _looks_like_montgomery_search_form(html_text: str) -> bool:
 
 
 def _looks_like_montgomery_results_page(html_text: str) -> bool:
-    return "Record Count" in html_text and "CaseDetail.aspx" in html_text and "Case Number" in html_text
+    return "Record Count" in html_text and "Case Number" in html_text
 
 
 def _parse_harris_probate_rows(html_text: str) -> list[dict[str, Any]]:

@@ -46,8 +46,8 @@ No HubSpot batch writes, Instantly enrollment/sends, SMS/Vapi calls, paid skiptr
 
 ## Immediate next actions
 
-1. Before production no-send deployment, run `uv run python scripts/probate_autopilot_env_contract.py --env-file .env --require-scheduled-live` and configure durable `LEAD_MACHINE_SOURCE_RUNS_STATE_PATH` / `LEAD_MACHINE_ARTIFACT_ROOT`.
-2. After production deployment, monitor the no-send Trigger schedule reports for aggregate source-run/enrichment health.
+1. Monitor the next live no-send probate scheduler tick after the 2026-05-16 source-window fix. The temp-state 07:10 CT replay is healthy (`48` parsed rows, Harris `40`, Montgomery `8`, `partial_failures={}`), but the next real cron/Trigger run should be observed.
+2. Before production no-send deployment, run `uv run python scripts/probate_autopilot_env_contract.py --env-file .env --require-scheduled-live` and configure durable `LEAD_MACHINE_SOURCE_RUNS_STATE_PATH` / `LEAD_MACHINE_ARTIFACT_ROOT`.
 3. Keep Instantly enrollment/send, SMS/Vapi dispatch, paid skiptrace, and HubSpot batch mirror writes gated until separately approved.
 4. Measure property-match lift from case-detail-derived party/address/context evidence; current case-detail layer records contact candidates but still does not assert seller authority.
 5. Monitor the tailnet-only VPS edge and keep `ares-edge-firewall.service` active while Supabase/dev ports remain published by their owning stack.
