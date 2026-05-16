@@ -337,7 +337,7 @@ def _looks_like_montgomery_results_page(html_text: str) -> bool:
 
 def _parse_harris_probate_rows(html_text: str) -> list[dict[str, Any]]:
     pattern = re.compile(
-        r"<a(?P<attrs>[^>]*)>\s*(?P<case>[^<]+)\s*</a>.*?"
+        r"<a(?P<attrs>[^>]*ListViewCases_ctrl(?P<anchor_idx>\d+)_btnSelect[^>]*)>\s*(?P<case>[^<]+)\s*</a>.*?"
         r"ListViewCases_ctrl(?P<idx>\d+)_Td9[^>]*>(?P<file_date>.*?)</td>.*?"
         r"ListViewCases_ctrl(?P=idx)_Td17[^>]*>(?P<status>.*?)</td>.*?"
         r"ListViewCases_ctrl(?P=idx)_Td8[^>]*>(?P<filing_type>.*?)</td>.*?"
@@ -347,6 +347,8 @@ def _parse_harris_probate_rows(html_text: str) -> list[dict[str, Any]]:
     )
     rows: list[dict[str, Any]] = []
     for match in pattern.finditer(html_text):
+        if match.group("anchor_idx") != match.group("idx"):
+            continue
         row = {key: _cell_text(match.group(key)) for key in ("case", "file_date", "status", "filing_type", "filing_subtype", "style")}
         attrs = match.group("attrs") or ""
         href_match = re.search(r"href=(?P<quote>[\"'])(?P<href>.*?)(?P=quote)", attrs, re.IGNORECASE)

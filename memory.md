@@ -220,7 +220,7 @@
 
 ## Open Work
 
-1. Before any production no-send deployment, run `uv run python scripts/probate_autopilot_env_contract.py --env-file .env --require-scheduled-live`; configure durable `LEAD_MACHINE_SOURCE_RUNS_STATE_PATH`, `LEAD_MACHINE_ARTIFACT_ROOT`, `LEAD_MACHINE_BUSINESS_ID`, and `LEAD_MACHINE_ENVIRONMENT`; keep scheduled live source/case-detail/enrichment gates explicit and provider mutation gates false.
+1. Before any production no-send deployment, run `uv run python scripts/probate_autopilot_env_contract.py --env-file .env --require-scheduled-live`; configure `LEAD_MACHINE_BACKEND=supabase`, durable `LEAD_MACHINE_SOURCE_RUNS_STATE_PATH`, `LEAD_MACHINE_ARTIFACT_ROOT`, `LEAD_MACHINE_BUSINESS_ID`, and `LEAD_MACHINE_ENVIRONMENT`; keep scheduled live source/case-detail/enrichment gates explicit and provider mutation gates explicitly false.
 2. Add a Harris postback case-detail client if live Harris party/event/document detail completion is required; current postback-only rows are safely incomplete, not blocked.
 3. Keep HubSpot batch writes, Instantly enrollment/send, SMS/Vapi dispatch, paid skiptrace, Slack/provider sends, and deploy as separate explicit approval gates.
 4. Measure property-match lift from case-detail-derived party/address/context evidence once detail completion exists; contact candidates are not confirmed sellers and seller authority remains unverified until separate evidence.
@@ -246,6 +246,13 @@
 - `TasksRepository` now treats `lead_machine_backend=supabase` as a Supabase-backed task path so title-packet review tasks persist with lead-machine records.
 
 ## Change Log
+
+### 2026-05-16 Probate Production Env Preflight Readiness
+
+- Re-ran the read-only production no-send env preflight against the current local `.env` without printing secret values; it is still blocked because `LEAD_MACHINE_SOURCE_RUNS_STATE_PATH`, `LEAD_MACHINE_ARTIFACT_ROOT`, `LEAD_MACHINE_BUSINESS_ID`, and `LEAD_MACHINE_ENVIRONMENT` are missing, and live intelligence gates are not explicit.
+- Confirmed the preflight itself is safe/read-only (`created_files_or_directories=false`, `live_source_calls=false`, `provider_mutations=false`), focused env-contract tests pass (`9 passed`), and a temp non-secret overlay can reach healthy when durable paths exist, live intelligence gates are true, and outbound gates are false.
+- Updated the no-send activation runbook to include `VAPI_PROVIDER_LIVE_SENDS_ENABLED=false`, recommend `LEAD_MACHINE_BACKEND=supabase` for the durable production identity ledger, document durable path ownership expectations, and keep activation blocked until the deployed runtime env passes `--require-scheduled-live`.
+- No `.env` secrets were printed or edited; no county calls, provider sends/mutations, HubSpot writes, paid skiptrace, Slack sends, deploy, or Supabase changes were executed.
 
 ### 2026-05-16 Probate Source Identity Supabase Adapter
 

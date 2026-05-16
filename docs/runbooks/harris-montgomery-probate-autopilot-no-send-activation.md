@@ -1,7 +1,7 @@
 # Harris + Montgomery Probate Autopilot — Live No-Send Activation Runbook
 
 - Status: current / operational no-send
-- Updated UTC: 2026-05-16T15:04:38Z
+- Updated UTC: 2026-05-16T16:35:00Z
 - Scope: scheduled public source acquisition, public case-detail party/event/document/contact-candidate enrichment, public CAD/tax/land-record enrichment, scoring inputs, briefing, and qualified-review preparation
 - Hard stop: no Instantly enrollment, no email/SMS/Vapi sends, no paid skiptrace, no HubSpot writes without separate approval gate
 
@@ -32,15 +32,22 @@ Outbound/provider mutation gates remain off until Martin approves exact recipien
 PROVIDER_LIVE_SENDS_ENABLED=false
 INSTANTLY_PROVIDER_LIVE_ENROLLMENT_ENABLED=false
 HUBSPOT_PROVIDER_LIVE_WRITES_ENABLED=false
+VAPI_PROVIDER_LIVE_SENDS_ENABLED=false
 ```
 
 Durable state/artifact controls for production deployment:
 
 ```bash
-LEAD_MACHINE_SOURCE_RUNS_STATE_PATH=/path/to/durable/source-runs.json
-LEAD_MACHINE_ARTIFACT_ROOT=/path/to/durable/artifacts
-LEAD_MACHINE_BUSINESS_ID=<business-id>
-LEAD_MACHINE_ENVIRONMENT=<environment>
+# Supabase is required for the durable production identity ledger; memory is local-only.
+LEAD_MACHINE_BACKEND=supabase
+
+# The state file parent and artifact root must already exist and be writable by the runtime user.
+LEAD_MACHINE_SOURCE_RUNS_STATE_PATH=/var/lib/ares/lead-machine/source-runs.json
+LEAD_MACHINE_ARTIFACT_ROOT=/var/lib/ares/lead-machine/artifacts
+
+# Use the production business slug or numeric business_id that resolves in public.businesses.
+LEAD_MACHINE_BUSINESS_ID=<business-slug-or-id>
+LEAD_MACHINE_ENVIRONMENT=prod
 ```
 
 Run the read-only environment preflight before deployment or schedule activation. It does not create files/directories, call county sources, or mutate providers:
@@ -50,6 +57,16 @@ uv run python scripts/probate_autopilot_env_contract.py --env-file .env --requir
 ```
 
 Preflight must report `status=healthy`, `no_send_ok=true`, `live_intelligence_ready=true`, and no blockers before a production no-send rollout.
+
+If the preflight is blocked by missing durable env, make only operator-side config changes; do not commit secrets to the repo:
+
+```bash
+sudo install -d -m 0750 -o <runtime-user> -g <runtime-group> /var/lib/ares/lead-machine
+sudo install -d -m 0750 -o <runtime-user> -g <runtime-group> /var/lib/ares/lead-machine/artifacts
+# Then set the non-secret controls above plus existing Supabase service credentials in the runtime env manager.
+```
+
+Activation remains blocked until the same deployed runtime environment that Trigger/API will use passes the preflight with `--require-scheduled-live`.
 
 ## Schedule controls
 

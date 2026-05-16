@@ -1,5 +1,6 @@
 import pytest
 
+from app.services.probate_source_adapter_service import probate_source_adapter_service
 from app.services.probate_live_source_adapter_service import (
     MONTGOMERY_ODYSSEY_DEFAULT_URL,
     MONTGOMERY_ODYSSEY_LOGIN_URL,
@@ -90,6 +91,47 @@ def test_harris_live_parser_extracts_public_probate_rows_without_html_artifacts(
         }
     ]
     assert "<table" not in str(rows)
+
+
+def test_harris_live_parser_uses_same_row_postback_target_not_page_loginstatus():
+    rows = _parse_harris_probate_rows(
+        """
+        <a id="ctl00_LoginStatus1" href="javascript:__doPostBack('ctl00$LoginStatus1$ctl00','')">Login</a>
+        <table id="ctl00_ContentPlaceHolder1_ListViewCases">
+          <tr>
+            <td><a id="ctl00_ContentPlaceHolder1_ListViewCases_ctrl0_btnSelect" href="javascript:__doPostBack('ctl00$ContentPlaceHolder1$ListViewCases$ctrl0$btnSelect','')">SYN-H-0002</a></td>
+            <td id="ctl00_ContentPlaceHolder1_ListViewCases_ctrl0_Td9">05/15/2026</td>
+            <td id="ctl00_ContentPlaceHolder1_ListViewCases_ctrl0_Td17">Open</td>
+            <td id="ctl00_ContentPlaceHolder1_ListViewCases_ctrl0_Td8">MUNIMENT OF TITLE</td>
+            <td id="ctl00_ContentPlaceHolder1_ListViewCases_ctrl0_Td7">LETTERS TESTAMENTARY</td>
+            <td id="ctl00_ContentPlaceHolder1_ListViewCases_ctrl0_TdStyle">IN THE ESTATE OF: SAMPLE TWO, DECEASED</td>
+          </tr>
+        </table>
+        """
+    )
+
+    assert len(rows) == 1
+    assert rows[0]["case_number"] == "SYN-H-0002"
+    assert rows[0]["case_detail_postback_target"] == "ctl00$ContentPlaceHolder1$ListViewCases$ctrl0$btnSelect"
+
+
+def test_probate_source_adapter_preserves_harris_postback_fields_top_level():
+    normalized = probate_source_adapter_service.normalize_row(
+        {
+            "case_number": "SYN-H-0003",
+            "file_date": "05/15/2026",
+            "style": "IN THE ESTATE OF: SAMPLE THREE, DECEASED",
+            "case_detail_postback_target": "ctl00$ContentPlaceHolder1$ListViewCases$ctrl2$btnSelect",
+            "case_detail_source_url": "https://www.cclerk.hctx.net/Applications/WebSearch/CourtSearch_R.aspx?CaseType=Probate",
+        },
+        county="harris",
+        source_uri="https://www.cclerk.hctx.net/Applications/WebSearch/CourtSearch_R.aspx?CaseType=Probate",
+        row_index=1,
+    )
+
+    assert normalized["case_detail_postback_target"] == "ctl00$ContentPlaceHolder1$ListViewCases$ctrl2$btnSelect"
+    assert normalized["case_detail_source_url"] == "https://www.cclerk.hctx.net/Applications/WebSearch/CourtSearch_R.aspx?CaseType=Probate"
+    assert normalized["raw_export_row"]["case_detail_postback_target"] == "ctl00$ContentPlaceHolder1$ListViewCases$ctrl2$btnSelect"
 
 
 def test_harris_results_page_accepts_zero_row_search_results():

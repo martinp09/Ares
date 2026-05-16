@@ -219,6 +219,38 @@ def test_case_detail_enrichment_marks_harris_postback_links_incomplete_not_block
     assert result["records"][0]["case_detail"]["warnings"] == ["case_detail_postback_only"]
 
 
+def test_case_detail_enrichment_marks_nested_harris_postback_links_incomplete_not_missing():
+    client = FakeCaseDetailClient()
+    service = ProbateCaseDetailEnrichmentService(
+        settings=Settings(_env_file=None, lead_machine_live_case_detail_calls_enabled=True),
+        case_detail_client=client,
+    )
+
+    result = service.run_enrichment(
+        business_id="limitless",
+        environment="test",
+        keep_now_rows=[
+            {
+                "county": "harris",
+                "case_number": "2026-H-10008",
+                "filing_type": "Independent Administration",
+                "raw_export_row": {
+                    "case_detail_postback_target": "ctl00$ContentPlaceHolder1$ListViewCases$ctrl1$btnSelect"
+                },
+                "keep_now": True,
+            }
+        ],
+        live_case_detail_calls=True,
+        case_detail_approval={"approved": True, "no_send": True, "provider_sends_enabled": False},
+    )
+
+    assert client.calls == []
+    assert result["detail_blocked_count"] == 0
+    assert result["detail_incomplete_count"] == 1
+    assert result["records"][0]["case_detail"]["incomplete_reason"] == "case_detail_postback_only"
+    assert result["records"][0]["case_detail"]["warnings"] == ["case_detail_postback_only"]
+
+
 def test_case_detail_enrichment_uses_live_client_with_explicit_no_send_approval():
     client = FakeCaseDetailClient()
     service = ProbateCaseDetailEnrichmentService(
