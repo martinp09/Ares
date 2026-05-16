@@ -9,6 +9,7 @@ export type MissionControlView =
   | "tasks"
   | "records"
   | "pipeline"
+  | "deal-desk"
   | "suppression"
   | "probate-autopilot";
 export type MissionControlDataSource = "api" | "fixture";
@@ -90,6 +91,88 @@ export interface OpportunityStageMoveResult {
   opportunity: OpportunityRecordSummary;
   latestStageEvent?: OpportunityStageHistoryItem | null;
   stageHistory: OpportunityStageHistoryItem[];
+}
+
+export interface DealRecordSummary {
+  id: string;
+  businessId: string;
+  environment: string;
+  sourceLane: string;
+  strategyLane: string;
+  stage: string;
+  sourceLeadId?: string | null;
+  probateCaseNumber?: string | null;
+  propertyAddress?: string | null;
+  county?: string | null;
+  noSend: boolean;
+  providerSendsEnabled: boolean;
+  nextAction?: string | null;
+  blockingReason?: string | null;
+  metadata: Record<string, unknown>;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface DealPartySummary {
+  id?: string | null;
+  dealId: string;
+  name: string;
+  role: string;
+  authorityStatus?: string | null;
+  phone?: string | null;
+  email?: string | null;
+}
+
+export interface DealTaskSummary {
+  id?: string | null;
+  dealId: string;
+  title: string;
+  taskType: string;
+  status: string;
+  dueAt?: string | null;
+}
+
+export interface DealDocumentRequirementSummary {
+  id?: string | null;
+  dealId: string;
+  documentType: string;
+  requiredStage: string;
+  status: string;
+  approvalRequired: boolean;
+}
+
+export interface DealRiskFlagSummary {
+  id?: string | null;
+  dealId: string;
+  code: string;
+  label: string;
+  severity: string;
+  active: boolean;
+}
+
+export interface DealDetailData {
+  deal: DealRecordSummary;
+  parties: DealPartySummary[];
+  tasks: DealTaskSummary[];
+  documentRequirements: DealDocumentRequirementSummary[];
+  riskFlags: DealRiskFlagSummary[];
+}
+
+export interface DealFireListItem {
+  dealId: string;
+  itemType: string;
+  severity: string;
+  reason: string;
+  recommendedAction: string;
+  dueAt?: string | null;
+  actionEnabled: boolean;
+  sourceId?: string | null;
+  metadata: Record<string, unknown>;
+}
+
+export interface DealDeskData {
+  deals: DealRecordSummary[];
+  fireList: DealFireListItem[];
 }
 
 export interface OutboundProbateSummary {
@@ -804,6 +887,10 @@ export interface MissionControlApi {
   getDashboard(): Promise<DashboardSummaryData>;
   getRecords(): Promise<RecordsData>;
   getOpportunities(): Promise<OpportunityRecordSummary[]>;
+  getDealDesk(): Promise<DealDeskData>;
+  getDeals(): Promise<DealRecordSummary[]>;
+  getDealFireList(): Promise<DealFireListItem[]>;
+  getDealDetail(dealId: string): Promise<DealDetailData>;
   updateRecordStatus(recordId: string, request: RecordStatusUpdateRequest): Promise<RecordActionResult>;
   suppressRecord(recordId: string, request: RecordSuppressionRequest): Promise<RecordActionResult>;
   promoteRecord(recordId: string, request: RecordPromotionRequest): Promise<RecordActionResult>;
@@ -1012,6 +1099,91 @@ interface OpportunityPayload {
 
 interface OpportunitiesPayload {
   opportunities?: OpportunityPayload[];
+}
+
+interface DealPayload {
+  id?: string;
+  business_id?: string;
+  environment?: string;
+  source_lane?: string;
+  strategy_lane?: string;
+  stage?: string;
+  source_lead_id?: string | null;
+  probate_case_number?: string | null;
+  property_address?: string | null;
+  county?: string | null;
+  no_send?: boolean;
+  provider_sends_enabled?: boolean;
+  next_action?: string | null;
+  blocking_reason?: string | null;
+  metadata?: Record<string, unknown>;
+  created_at?: string;
+  updated_at?: string;
+}
+
+interface DealListPayload {
+  deals?: DealPayload[];
+}
+
+interface DealPartyPayload {
+  id?: string | null;
+  deal_id?: string;
+  name?: string;
+  role?: string;
+  authority_status?: string | null;
+  phone?: string | null;
+  email?: string | null;
+}
+
+interface DealTaskPayload {
+  id?: string | null;
+  deal_id?: string;
+  title?: string;
+  task_type?: string;
+  status?: string;
+  due_at?: string | null;
+}
+
+interface DealDocumentRequirementPayload {
+  id?: string | null;
+  deal_id?: string;
+  document_type?: string;
+  required_stage?: string;
+  status?: string;
+  approval_required?: boolean;
+}
+
+interface DealRiskFlagPayload {
+  id?: string | null;
+  deal_id?: string;
+  code?: string;
+  label?: string;
+  severity?: string;
+  active?: boolean;
+}
+
+interface DealDetailPayload {
+  deal?: DealPayload;
+  parties?: DealPartyPayload[];
+  tasks?: DealTaskPayload[];
+  document_requirements?: DealDocumentRequirementPayload[];
+  risk_flags?: DealRiskFlagPayload[];
+}
+
+interface DealFireListItemPayload {
+  deal_id?: string;
+  item_type?: string;
+  severity?: string;
+  reason?: string;
+  recommended_action?: string;
+  due_at?: string | null;
+  action_enabled?: boolean;
+  source_id?: string | null;
+  metadata?: Record<string, unknown>;
+}
+
+interface DealFireListPayload {
+  items?: DealFireListItemPayload[];
 }
 
 interface OpportunityStageHistoryPayload {
@@ -1898,6 +2070,81 @@ function mapOpportunityStageMove(payload: OpportunityStageMovePayload): Opportun
   };
 }
 
+function mapDeal(payload: DealPayload = {}): DealRecordSummary {
+  return {
+    id: asString(payload.id),
+    businessId: asString(payload.business_id),
+    environment: asString(payload.environment),
+    sourceLane: asString(payload.source_lane),
+    strategyLane: asString(payload.strategy_lane),
+    stage: asString(payload.stage),
+    sourceLeadId: payload.source_lead_id ?? null,
+    probateCaseNumber: payload.probate_case_number ?? null,
+    propertyAddress: payload.property_address ?? null,
+    county: payload.county ?? null,
+    noSend: asBoolean(payload.no_send, true),
+    providerSendsEnabled: asBoolean(payload.provider_sends_enabled, false),
+    nextAction: payload.next_action ?? null,
+    blockingReason: payload.blocking_reason ?? null,
+    metadata: payload.metadata ?? {},
+    createdAt: asString(payload.created_at),
+    updatedAt: asString(payload.updated_at),
+  };
+}
+
+function mapDealDetail(payload: DealDetailPayload = {}): DealDetailData {
+  return {
+    deal: mapDeal(payload.deal),
+    parties: (payload.parties ?? []).map((party) => ({
+      id: party.id ?? null,
+      dealId: asString(party.deal_id),
+      name: asString(party.name),
+      role: asString(party.role),
+      authorityStatus: party.authority_status ?? null,
+      phone: party.phone ?? null,
+      email: party.email ?? null,
+    })),
+    tasks: (payload.tasks ?? []).map((task) => ({
+      id: task.id ?? null,
+      dealId: asString(task.deal_id),
+      title: asString(task.title),
+      taskType: asString(task.task_type),
+      status: asString(task.status),
+      dueAt: task.due_at ?? null,
+    })),
+    documentRequirements: (payload.document_requirements ?? []).map((requirement) => ({
+      id: requirement.id ?? null,
+      dealId: asString(requirement.deal_id),
+      documentType: asString(requirement.document_type),
+      requiredStage: asString(requirement.required_stage),
+      status: asString(requirement.status),
+      approvalRequired: asBoolean(requirement.approval_required),
+    })),
+    riskFlags: (payload.risk_flags ?? []).map((flag) => ({
+      id: flag.id ?? null,
+      dealId: asString(flag.deal_id),
+      code: asString(flag.code),
+      label: asString(flag.label),
+      severity: asString(flag.severity),
+      active: asBoolean(flag.active),
+    })),
+  };
+}
+
+function mapDealFireListItem(payload: DealFireListItemPayload = {}): DealFireListItem {
+  return {
+    dealId: asString(payload.deal_id),
+    itemType: asString(payload.item_type),
+    severity: asString(payload.severity, "medium"),
+    reason: asString(payload.reason),
+    recommendedAction: asString(payload.recommended_action),
+    dueAt: payload.due_at ?? null,
+    actionEnabled: asBoolean(payload.action_enabled),
+    sourceId: payload.source_id ?? null,
+    metadata: payload.metadata ?? {},
+  };
+}
+
 function mapThreadFromSummary(
   summary: InboxThreadSummaryPayload,
   stage: string,
@@ -2694,6 +2941,22 @@ export function createMissionControlApi(
     getOpportunities: async () =>
       (await requestJson<OpportunitiesPayload>("/mission-control/opportunities", resolvedOptions, "mission-control"))
         .opportunities?.map(mapOpportunity) ?? [],
+    getDealDesk: async () => {
+      const [dealsPayload, fireListPayload] = await Promise.all([
+        requestJson<DealListPayload>("/deals", resolvedOptions, "mission-control"),
+        requestJson<DealFireListPayload>("/deals/fire-list", resolvedOptions, "mission-control"),
+      ]);
+      return {
+        deals: dealsPayload.deals?.map(mapDeal) ?? [],
+        fireList: fireListPayload.items?.map(mapDealFireListItem) ?? [],
+      };
+    },
+    getDeals: async () =>
+      (await requestJson<DealListPayload>("/deals", resolvedOptions, "mission-control")).deals?.map(mapDeal) ?? [],
+    getDealFireList: async () =>
+      (await requestJson<DealFireListPayload>("/deals/fire-list", resolvedOptions, "mission-control")).items?.map(mapDealFireListItem) ?? [],
+    getDealDetail: async (dealId) =>
+      mapDealDetail(await requestJson<DealDetailPayload>(`/deals/${encodeURIComponent(dealId)}`, resolvedOptions)),
     updateRecordStatus: async (recordId, request) =>
       mapRecordAction(
         await requestJson<RecordActionPayload>(

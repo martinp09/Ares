@@ -1,0 +1,70 @@
+## Mission Control full test/typecheck/build
+
+> @hermes/mission-control@0.1.0 test
+> vitest --run
+
+
+[1m[30m[46m RUN [49m[39m[22m [36mv4.1.5 [39m[90m/opt/ares/worktrees/ares-main/apps/mission-control[39m
+
+ [32m✓[39m src/pages/PipelinePage.test.tsx [2m([22m[2m3 tests[22m[2m)[22m[33m 400[2mms[22m[39m
+ [32m✓[39m src/pages/RecordsPage.test.tsx [2m([22m[2m5 tests[22m[2m)[22m[33m 680[2mms[22m[39m
+ [32m✓[39m src/pages/AgentDetailPage.test.tsx [2m([22m[2m4 tests[22m[2m)[22m[33m 405[2mms[22m[39m
+     [33m[2m✓[22m[39m renders a read-only lifecycle page from typed detail data [33m 332[2mms[22m[39m
+ [32m✓[39m src/pages/CatalogPage.test.tsx [2m([22m[2m3 tests[22m[2m)[22m[32m 271[2mms[22m[39m
+ [32m✓[39m src/pages/AgentsPage.test.tsx [2m([22m[2m2 tests[22m[2m)[22m[33m 327[2mms[22m[39m
+     [33m[2m✓[22m[39m renders the agent spotlight, adjacent operator views, and registry from fixture data [33m 306[2mms[22m[39m
+ [32m✓[39m src/components/MissionControlShell.test.tsx [2m([22m[2m2 tests[22m[2m)[22m[32m 271[2mms[22m[39m
+ [32m✓[39m src/App.test.tsx [2m([22m[2m23 tests[22m[2m)[22m[33m 3794[2mms[22m[39m
+     [33m[2m✓[22m[39m refetches inbox detail when the operator selects a different conversation [33m 432[2mms[22m[39m
+     [33m[2m✓[22m[39m opens the read-only agent lifecycle page from the agents-first workspace [32m 300[2mms[22m[39m
+     [33m[2m✓[22m[39m applies org scope first, keeps business and environment as secondary filters, and clears stale selections on scope changes [33m 320[2mms[22m[39m
+ [32m✓[39m src/pages/SuppressionPage.test.tsx [2m([22m[2m1 test[22m[2m)[22m[32m 185[2mms[22m[39m
+ [32m✓[39m src/pages/IntakePage.test.tsx [2m([22m[2m1 test[22m[2m)[22m[32m 226[2mms[22m[39m
+ [32m✓[39m src/components/OrgSwitcher.test.tsx [2m([22m[2m1 test[22m[2m)[22m[32m 223[2mms[22m[39m
+ [32m✓[39m src/components/AuditTimeline.test.tsx [2m([22m[2m2 tests[22m[2m)[22m[32m 183[2mms[22m[39m
+ [32m✓[39m src/components/UsagePanel.test.tsx [2m([22m[2m2 tests[22m[2m)[22m[32m 230[2mms[22m[39m
+ [32m✓[39m src/pages/TurnsPage.test.tsx [2m([22m[2m1 test[22m[2m)[22m[32m 187[2mms[22m[39m
+ [32m✓[39m src/pages/DashboardPage.test.tsx [2m([22m[2m3 tests[22m[2m)[22m[32m 187[2mms[22m[39m
+ [32m✓[39m src/pages/DealDeskPage.test.tsx [2m([22m[2m2 tests[22m[2m)[22m[32m 219[2mms[22m[39m
+ [32m✓[39m src/pages/UsagePage.test.tsx [2m([22m[2m1 test[22m[2m)[22m[32m 178[2mms[22m[39m
+ [32m✓[39m src/pages/SecretsPage.test.tsx [2m([22m[2m1 test[22m[2m)[22m[32m 201[2mms[22m[39m
+ [32m✓[39m src/pages/AuditPage.test.tsx [2m([22m[2m1 test[22m[2m)[22m[32m 164[2mms[22m[39m
+ [32m✓[39m src/pages/ProbateAutopilotPage.test.tsx [2m([22m[2m2 tests[22m[2m)[22m[32m 94[2mms[22m[39m
+ [32m✓[39m src/components/ProviderOperationsPanel.test.tsx [2m([22m[2m2 tests[22m[2m)[22m[32m 90[2mms[22m[39m
+ [32m✓[39m src/components/SecretHealthPanel.test.tsx [2m([22m[2m3 tests[22m[2m)[22m[32m 82[2mms[22m[39m
+ [32m✓[39m src/pages/SettingsPage.test.tsx [2m([22m[2m1 test[22m[2m)[22m[32m 63[2mms[22m[39m
+ [32m✓[39m src/pages/TasksPage.test.tsx [2m([22m[2m2 tests[22m[2m)[22m[32m 50[2mms[22m[39m
+ [32m✓[39m src/pages/InboxPage.test.tsx [2m([22m[2m1 test[22m[2m)[22m[32m 52[2mms[22m[39m
+ [32m✓[39m src/lib/api.test.ts [2m([22m[2m13 tests[22m[2m)[22m[32m 32[2mms[22m[39m
+
+[2m Test Files [22m [1m[32m25 passed[39m[22m[90m (25)[39m
+[2m      Tests [22m [1m[32m82 passed[39m[22m[90m (82)[39m
+[2m   Start at [22m 01:23:30
+[2m   Duration [22m 12.61s[2m (transform 1.03s, setup 1.63s, import 3.24s, tests 8.79s, environment 19.38s)[22m
+
+
+> @hermes/mission-control@0.1.0 typecheck
+> tsc --noEmit
+
+
+> @hermes/mission-control@0.1.0 build
+> vite build
+
+vite v8.0.11 building client environment for production...
+[2Ktransforming...✓ 53 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/index.html                   0.40 kB │ gzip:  0.27 kB
+dist/assets/index-7QJ1X74W.css   25.17 kB │ gzip:  5.59 kB
+dist/assets/index-DQtXb-Vx.js   322.01 kB │ gzip: 84.36 kB
+
+✓ built in 127ms
+
+## Trigger typecheck
+
+> typecheck
+> tsc --noEmit -p tsconfig.json
+
+
+## Diff checks
+git diff --check passed

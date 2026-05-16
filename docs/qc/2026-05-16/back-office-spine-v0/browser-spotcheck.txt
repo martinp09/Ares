@@ -1,0 +1,1 @@
+Browser spot-check: Deal Desk page rendered via Vite dev server at http://127.0.0.1:5177/ with metric cards, two deal cards, and fire list visible. Console errors: none. Screenshot: deal-desk-browser-spotcheck.png

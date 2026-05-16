@@ -1,10 +1,11 @@
 ---
 title: "Ares TODO / Handoff"
 status: active
-updated_at: "2026-05-15T23:43:02Z"
+updated_at: "2026-05-16T01:24:02Z"
 repo: "martinp09/Ares"
 local_checkout: "/opt/ares/worktrees/ares-main"
 target_branch: "main"
+active_branch: "feature/back-office-spine-v0"
 previous_handoff_commit: "9f30d2f"
 implementation_commit: "9c256bf"
 ---
@@ -13,16 +14,20 @@ implementation_commit: "9c256bf"
 
 ## Current status
 
-The Harris + Montgomery probate autopilot PRD implementation landed at `9c256bf` as an operational no-send system; handoff docs landed at `9f30d2f`, env preflight landed at `a859fd2`, and case-detail enrichment finishes the last high-value enrichment gap. Trigger schedules default to live public probate source acquisition, live public case-detail page enrichment, and live public CAD/tax/land-record enrichment. Backend defaults those live intelligence lanes on, but Ares still requires explicit no-send approval metadata for live source/case-detail/enrichment runtime requests and keeps every outbound path blocked.
+Back Office Spine v0 is implemented locally on `feature/back-office-spine-v0` and is in ship-clean. This slice turns qualified leads into canonical deal records with lane-aware task/document/risk templates, stage transition blockers, fire-list read models, Supabase runtime persistence, and a read-only Mission Control Deal Desk page.
+
+The Harris + Montgomery probate autopilot PRD implementation landed at `9c256bf` as an operational no-send system; handoff docs landed at `9f30d2f`, env preflight landed at `a859fd2`, and case-detail enrichment finished the last high-value probate enrichment gap. Trigger schedules default to live public probate source acquisition, live public case-detail page enrichment, and live public CAD/tax/land-record enrichment. Backend defaults those live intelligence lanes on, but Ares still requires explicit no-send approval metadata for live source/case-detail/enrichment runtime requests and keeps every outbound path blocked.
 
 Latest manual live no-send smoke (`docs/qc/2026-05-15/probate-autopilot-live-operational-prd-execution/live-smoke-output.txt`) completed with Harris + Montgomery counties, `47` live public probate source records, `8` keep-now rows enriched, live CAD/tax/land-record calls attempted, `sla_status=healthy`, `source_health_failed_runs=0`, `no_send=true`, and `provider_sends_enabled=false`.
 
-Case-detail verification passed: focused case-detail/source/nightly/env/Trigger contracts => `47 passed`; full backend => `916 passed`; Trigger typecheck => passed.
+Back Office Spine v0 verification passed locally: focused backend/deal/Supabase contracts => `26 passed`; full backend => `942 passed`; Mission Control => `25 files / 82 tests`; Mission Control typecheck/build => passed; Trigger typecheck => passed; `git diff --check` => passed; browser spot-check rendered Deal Desk with no console errors.
 
-No HubSpot batch writes, Instantly enrollment/sends, SMS/Vapi calls, paid skiptrace, Slack/provider sends, or deploys were executed by this slice.
+No HubSpot batch writes, Instantly enrollment/sends, SMS/Vapi calls, paid skiptrace, Slack/provider sends, production deploys, or provider mutations were executed by this slice.
 
 ## Primary handoff artifacts
 
+- Back Office Spine v0 RPD: `/root/obsidian-vault/03-Experiments/Ares Real Estate Operating System RPD.md`
+- Back Office Spine v0 QC: `docs/qc/2026-05-16/back-office-spine-v0/`
 - Case-detail enrichment QC: `docs/qc/2026-05-15/probate-case-detail-enrichment/`
 - Env preflight QC: `docs/qc/2026-05-15/probate-autopilot-env-preflight/`
 - Env preflight command: `uv run python scripts/probate_autopilot_env_contract.py --env-file .env --require-scheduled-live`
@@ -33,13 +38,15 @@ No HubSpot batch writes, Instantly enrollment/sends, SMS/Vapi calls, paid skiptr
 
 ## Immediate next actions
 
-1. Before production no-send deployment, run `uv run python scripts/probate_autopilot_env_contract.py --env-file .env --require-scheduled-live` and configure durable `LEAD_MACHINE_SOURCE_RUNS_STATE_PATH` / `LEAD_MACHINE_ARTIFACT_ROOT`.
-2. After production deployment, monitor the no-send Trigger schedule reports for aggregate source-run/enrichment health.
-3. Keep Instantly enrollment/send, SMS/Vapi dispatch, paid skiptrace, and HubSpot batch mirror writes gated until separately approved.
-4. Measure property-match lift from case-detail-derived party/address/context evidence; current case-detail layer records contact candidates but still does not assert seller authority.
+1. Ship-clean Back Office Spine v0: stage intentional files, run `git diff --cached --check`, commit, merge/push to `main`, delete `feature/back-office-spine-v0`, and rerun post-merge verification.
+2. Before production no-send deployment, run `uv run python scripts/probate_autopilot_env_contract.py --env-file .env --require-scheduled-live` and configure durable `LEAD_MACHINE_SOURCE_RUNS_STATE_PATH` / `LEAD_MACHINE_ARTIFACT_ROOT`.
+3. After production deployment, monitor the no-send Trigger schedule reports for aggregate source-run/enrichment health.
+4. Keep Instantly enrollment/send, SMS/Vapi dispatch, paid skiptrace, and HubSpot batch mirror writes gated until separately approved.
+5. Measure property-match lift from case-detail-derived party/address/context evidence; current case-detail layer records contact candidates but still does not assert seller authority.
 
 ## Open product follow-ups
 
+- Back Office Spine v0 follow-up: add operator actions for task completion/document review only after backend command contracts and approval gates are defined; current Deal Desk page is read-only.
 - Add Mission Control read/approval endpoints and frontend review page for Ares offer/copy assets and Harris probate campaign launch.
 - Use case-detail-derived party/address/context evidence to improve deterministic property matching; current case-detail layer records contact candidates and keeps seller-authority verification false until separate evidence.
 - Reacher/SMTP-capable email verification cannot run recipient-MX mailbox probes from the current Hetzner VPS while outbound port 25 is blocked; request unblock, move verifier sidecar, or use DNS/MX/disposable-only checks until egress is available.
@@ -61,6 +68,9 @@ No HubSpot batch writes, Instantly enrollment/sends, SMS/Vapi calls, paid skiptr
 
 ```bash
 uv run pytest -q
+npm --prefix apps/mission-control test -- --run
+npm --prefix apps/mission-control run typecheck
+npm --prefix apps/mission-control run build
 npm --prefix trigger run typecheck
 git diff --check
 git diff --cached --check

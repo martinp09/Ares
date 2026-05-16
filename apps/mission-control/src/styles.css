@@ -1083,6 +1083,92 @@ textarea:focus-visible {
   background: linear-gradient(180deg, rgba(26, 29, 33, 0.98), rgba(12, 14, 17, 0.98));
 }
 
+.deal-desk-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 12px;
+}
+
+.deal-desk-grid.compact {
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+}
+
+.opportunity-card__header,
+.opportunity-card__footer {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: flex-start;
+}
+
+.opportunity-card__header h4 {
+  margin: 0;
+  color: var(--text-strong);
+  font-size: 1rem;
+}
+
+.opportunity-card__header p {
+  margin: 4px 0 0;
+  color: var(--muted-2);
+  line-height: 1.4;
+}
+
+.opportunity-card__meta {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin: 0;
+}
+
+.opportunity-card__meta div {
+  border: 1px solid rgba(141, 165, 199, 0.12);
+  background: rgba(5, 8, 12, 0.68);
+  border-radius: 6px;
+  padding: 8px;
+}
+
+.opportunity-card__meta dt {
+  color: var(--muted-2);
+  font-size: 0.7rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.opportunity-card__meta dd {
+  margin: 3px 0 0;
+  color: var(--text-strong);
+  overflow-wrap: anywhere;
+}
+
+.opportunity-card__footer {
+  color: var(--muted-2);
+  font-size: 0.82rem;
+  align-items: center;
+}
+
+.opportunity-card .panel-copy {
+  margin: 0;
+  color: var(--text);
+}
+
+.deal-desk-page .empty-state {
+  border: 1px solid rgba(141, 165, 199, 0.16);
+  background: rgba(9, 13, 18, 0.92);
+  border-radius: 6px;
+  padding: 18px;
+}
+
+.deal-desk-page .empty-state h4 {
+  margin: 0 0 6px;
+  color: var(--text-strong);
+}
+
+.deal-desk-page .empty-state p {
+  margin: 0;
+  color: var(--muted-2);
+  line-height: 1.5;
+}
+
 .opportunity-card__lane {
   width: fit-content;
   border: 1px solid rgba(79, 224, 163, 0.18);

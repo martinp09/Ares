@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from collections.abc import Iterable
 from datetime import UTC, datetime
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
 from app.core.config import Settings
 from app.db.control_plane_supabase import delete_rows, fetch_rows, insert_rows, patch_rows
@@ -13,6 +13,15 @@ from app.models.approvals import ApprovalRecord, ApprovalStatus
 from app.models.audit import AuditRecord
 from app.models.catalog import CatalogEntryRecord
 from app.models.commands import CommandPolicy, CommandRecord, CommandStatus
+from app.models.deals import (
+    Deal,
+    DealAuditEvent,
+    DealDocumentRequirement,
+    DealParty,
+    DealRiskFlag,
+    DealStageEvent,
+    DealTask,
+)
 from app.models.host_adapters import HostAdapterDispatchRecord
 from app.models.mission_control import MissionControlThreadRecord
 from app.models.organizations import MembershipRecord, OrganizationRecord
@@ -53,6 +62,13 @@ TEXT_TABLES: dict[str, tuple[str, object]] = {
     "mission_control_threads_runtime": ("mission_control_threads", MissionControlThreadRecord),
     "skills_runtime": ("skills", SkillRecord),
     "host_adapter_dispatches_runtime": ("host_adapter_dispatches", HostAdapterDispatchRecord),
+    "deal_records_runtime": ("deals", Deal),
+    "deal_parties_runtime": ("deal_parties", DealParty),
+    "deal_tasks_runtime": ("deal_tasks", DealTask),
+    "deal_document_requirements_runtime": ("deal_document_requirements", DealDocumentRequirement),
+    "deal_audit_events_runtime": ("deal_audit_events", DealAuditEvent),
+    "deal_stage_events_runtime": ("deal_stage_events", DealStageEvent),
+    "deal_risk_flags_runtime": ("deal_risk_flags", DealRiskFlag),
 }
 
 COMMON_NORMALIZED_FIELDS = (
@@ -80,6 +96,13 @@ TABLE_NORMALIZED_FIELDS: dict[str, tuple[str, ...]] = {
     "org_roles_runtime": ("name",),
     "secrets_runtime": ("name",),
     "skills_runtime": ("name",),
+    "deal_records_runtime": ("source_lane", "strategy_lane", "stage", "county", "no_send", "provider_sends_enabled"),
+    "deal_parties_runtime": ("deal_id", "role"),
+    "deal_tasks_runtime": ("deal_id", "task_type"),
+    "deal_document_requirements_runtime": ("deal_id", "document_type", "required_stage"),
+    "deal_audit_events_runtime": ("deal_id",),
+    "deal_stage_events_runtime": ("deal_id", "to_stage"),
+    "deal_risk_flags_runtime": ("deal_id", "severity", "active"),
 }
 
 PERSISTED_TEXT_TABLES = (
@@ -107,6 +130,13 @@ PERSISTED_TEXT_TABLES = (
     ("mission_control_threads_runtime", lambda store: store.mission_control_threads.values()),
     ("skills_runtime", lambda store: store.skills.values()),
     ("host_adapter_dispatches_runtime", lambda store: store.host_adapter_dispatches.values()),
+    ("deal_records_runtime", lambda store: store.deals.values()),
+    ("deal_parties_runtime", lambda store: store.deal_parties.values()),
+    ("deal_tasks_runtime", lambda store: store.deal_tasks.values()),
+    ("deal_document_requirements_runtime", lambda store: store.deal_document_requirements.values()),
+    ("deal_audit_events_runtime", lambda store: store.deal_audit_events.values()),
+    ("deal_stage_events_runtime", lambda store: store.deal_stage_events.values()),
+    ("deal_risk_flags_runtime", lambda store: store.deal_risk_flags.values()),
     ("turn_events_runtime", lambda store: [event for events in store.turn_events.values() for event in events]),
 )
 
@@ -198,6 +228,7 @@ def hydrate_control_plane_store(settings: Settings) -> InMemoryControlPlaneStore
     for record in store.skills.values():
         store.skill_keys[record.name.strip().lower()] = record.id
     _hydrate_text_table(store.host_adapter_dispatches, "host_adapter_dispatches_runtime", HostAdapterDispatchRecord, settings)
+    _hydrate_deal_spine(store, settings)
     _hydrate_scope_snapshots(store.ares_plans_by_scope, "ares_plans_runtime", settings)
     _hydrate_scope_snapshots(store.ares_execution_runs_by_scope, "ares_execution_runs_runtime", settings)
     _hydrate_scope_snapshots(store.ares_operator_runs_by_scope, "ares_operator_runs_runtime", settings)
@@ -209,6 +240,43 @@ def hydrate_control_plane_store(settings: Settings) -> InMemoryControlPlaneStore
     for session_id, turn_ids in store.turn_ids_by_session.items():
         turn_ids.sort(key=lambda turn_id: store.turns[turn_id].turn_number)
     return store
+
+
+def _hydrate_deal_spine(store: InMemoryControlPlaneStore, settings: Settings) -> None:
+    _hydrate_text_table(store.deals, "deal_records_runtime", Deal, settings)
+    store.deal_keys.clear()
+    for record in cast("dict[str, Deal]", store.deals).values():
+        dedupe_key = str(record.metadata.get("dedupe_key") or record.identity_key())
+        store.deal_keys[(record.business_id, record.environment, dedupe_key)] = record.id or ""
+        store.deal_keys[(record.business_id, record.environment, record.identity_key())] = record.id or ""
+
+    _hydrate_text_table(store.deal_parties, "deal_parties_runtime", DealParty, settings)
+    store.deal_party_keys.clear()
+    for record in cast("dict[str, DealParty]", store.deal_parties).values():
+        store.deal_party_keys[(record.business_id, record.environment, record.identity_key())] = record.id or ""
+
+    _hydrate_text_table(store.deal_tasks, "deal_tasks_runtime", DealTask, settings)
+    store.deal_task_keys.clear()
+    for record in cast("dict[str, DealTask]", store.deal_tasks).values():
+        store.deal_task_keys[(record.business_id, record.environment, record.identity_key())] = record.id or ""
+
+    _hydrate_text_table(store.deal_document_requirements, "deal_document_requirements_runtime", DealDocumentRequirement, settings)
+    store.deal_document_requirement_keys.clear()
+    for record in cast("dict[str, DealDocumentRequirement]", store.deal_document_requirements).values():
+        store.deal_document_requirement_keys[(record.business_id, record.environment, record.identity_key())] = record.id or ""
+
+    _hydrate_text_table(store.deal_audit_events, "deal_audit_events_runtime", DealAuditEvent, settings)
+    store.deal_audit_event_keys.clear()
+    for record in cast("dict[str, DealAuditEvent]", store.deal_audit_events).values():
+        dedupe_key = record.metadata.get("dedupe_key")
+        if dedupe_key:
+            store.deal_audit_event_keys[(record.business_id, record.environment, str(dedupe_key))] = record.id or ""
+
+    _hydrate_text_table(store.deal_stage_events, "deal_stage_events_runtime", DealStageEvent, settings)
+    _hydrate_text_table(store.deal_risk_flags, "deal_risk_flags_runtime", DealRiskFlag, settings)
+    store.deal_risk_flag_keys.clear()
+    for record in cast("dict[str, DealRiskFlag]", store.deal_risk_flags).values():
+        store.deal_risk_flag_keys[(record.business_id, record.environment, record.identity_key())] = record.id or ""
 
 
 def persist_control_plane_store(store: InMemoryControlPlaneStore, settings: Settings) -> None:

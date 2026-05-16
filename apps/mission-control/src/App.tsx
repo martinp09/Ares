@@ -13,6 +13,7 @@ import {
   type CatalogEntrySummary,
   type CrmRecordStatus,
   type CrmRecordSummary,
+  type DealDeskData,
   type MissionControlDataSource,
   type MissionControlSnapshot,
   type MissionControlView,
@@ -24,6 +25,7 @@ import {
 import {
   missionControlAgentDetailFixtures,
   missionControlCatalogFixtures,
+  missionControlDealDeskFixture,
   missionControlFixtures,
   probateAutopilotHealthFixture,
 } from "./lib/fixtures";
@@ -33,6 +35,7 @@ import { AgentsPage, type AgentsPageOperatorView } from "./pages/AgentsPage";
 import { ApprovalsPage } from "./pages/ApprovalsPage";
 import { CatalogPage } from "./pages/CatalogPage";
 import { DashboardPage } from "./pages/DashboardPage";
+import { DealDeskPage } from "./pages/DealDeskPage";
 import { InboxPage } from "./pages/InboxPage";
 import { PipelinePage } from "./pages/PipelinePage";
 import { ProbateAutopilotPage } from "./pages/ProbateAutopilotPage";
@@ -387,6 +390,8 @@ export default function App() {
   const [catalogEntries, setCatalogEntries] = useState<CatalogEntrySummary[]>([]);
   const [probateAutopilotHealth, setProbateAutopilotHealth] = useState<ProbateAutopilotHealthData>(probateAutopilotHealthFixture);
   const [probateAutopilotHealthSource, setProbateAutopilotHealthSource] = useState<MissionControlDataSource>("fixture");
+  const [dealDesk, setDealDesk] = useState<DealDeskData>(missionControlDealDeskFixture);
+  const [dealDeskSource, setDealDeskSource] = useState<MissionControlDataSource>("fixture");
   const [catalogInstallStates, setCatalogInstallStates] = useState<Record<string, CatalogInstallUiState | undefined>>({});
   const [scopeOptionValues, setScopeOptionValues] = useState(() => collectScopeOptionValues(missionControlFixtures));
   const [organizations, setOrganizations] = useState<OrganizationSummary[]>([]);
@@ -485,6 +490,8 @@ export default function App() {
     setCatalogEntries([]);
     setProbateAutopilotHealth(probateAutopilotHealthFixture);
     setProbateAutopilotHealthSource("fixture");
+    setDealDesk(missionControlDealDeskFixture);
+    setDealDeskSource("fixture");
     setSelectedConversationId("");
     setSelectedAgentId(null);
     setRecordActionState(null);
@@ -586,6 +593,11 @@ export default function App() {
       } catch {
         agents = { data: missionControlFixtures.agents, source: "fixture" };
       }
+      const dealDeskData = await queryClient.fetch(
+        `deal-desk:${selectedOrgId ?? "default"}:${selectedBusinessId ?? "all"}:${selectedEnvironment ?? "all"}`,
+        api.getDealDesk,
+        missionControlDealDeskFixture,
+      );
 
       if (!isMounted) {
         return;
@@ -601,6 +613,7 @@ export default function App() {
           ["agents", agents.source],
           ["catalog", catalog.source],
           ["pipeline", opportunities.source],
+          ["deal-desk", dealDeskData.source],
           ["settings", governance.source === "fixture" || assets.source === "fixture" ? "fixture" : "api"],
           ["suppression", dashboard.source],
           ["probate-autopilot", probateHealth.source],
@@ -632,6 +645,8 @@ export default function App() {
       setCatalogEntries(nextCatalogEntries);
       setProbateAutopilotHealth(probateHealth.data);
       setProbateAutopilotHealthSource(probateHealth.source);
+      setDealDesk(dealDeskData.data);
+      setDealDeskSource(dealDeskData.source);
       setScopeOptionValues(collectScopeOptionValues(loadedSnapshot));
       setDataSource(deriveShellDataSource(nextFallbackViews));
       setAgentsDataSource(agents.source);
@@ -1071,6 +1086,35 @@ export default function App() {
       ),
     [normalizedSearchValue, snapshot.opportunities],
   );
+
+  const filteredDealDesk = useMemo(() => {
+    const deals = dealDesk.deals.filter((deal) => {
+      if (!matchesSecondaryScope(deal.businessId, deal.environment, scope)) {
+        return false;
+      }
+      return includesSearch(
+        [
+          deal.id,
+          deal.businessId,
+          deal.environment,
+          deal.sourceLane,
+          deal.strategyLane,
+          deal.stage,
+          deal.sourceLeadId ?? "",
+          deal.probateCaseNumber ?? "",
+          deal.propertyAddress ?? "",
+          deal.county ?? "",
+          deal.nextAction ?? "",
+        ],
+        normalizedSearchValue,
+      );
+    });
+    const visibleDealIds = new Set(deals.map((deal) => deal.id));
+    return {
+      deals,
+      fireList: dealDesk.fireList.filter((item) => visibleDealIds.has(item.dealId)),
+    };
+  }, [dealDesk, normalizedSearchValue, scope]);
 
   const isCatalogInstallEnabled = !fallbackViews.includes("catalog");
   const catalogInstallDisabledReason = isCatalogInstallEnabled
@@ -1661,6 +1705,11 @@ export default function App() {
               badge: filteredOpportunities.length,
             },
             {
+              id: "deal-desk",
+              label: "Deal Desk",
+              badge: filteredDealDesk.fireList.length,
+            },
+            {
               id: "catalog",
               label: "Catalog",
               badge: filteredCatalogEntries.length,
@@ -1728,6 +1777,22 @@ export default function App() {
             />
           ),
         },
+        "deal-desk": {
+          title: "Deal Desk",
+          subtitle: "Back Office Spine v0: canonical deal records, fire-list blockers, and no-send operational gates.",
+          mainContent: <DealDeskPage data={filteredDealDesk} dataSource={dealDeskSource} />,
+          contextContent: (
+            <ContextPanel
+              eyebrow="Back-office spine"
+              title="Promote leads into governed deals"
+              items={[
+                `${filteredDealDesk.deals.length} canonical deals are visible in the current scope`,
+                `${filteredDealDesk.fireList.length} fire-list items need operator review`,
+                "Provider sends and enrollments remain disabled until explicit approval gates open.",
+              ]}
+            />
+          ),
+        },
         settings: settingsPage,
         catalog: catalogPageView,
       },
@@ -1743,7 +1808,7 @@ export default function App() {
   }
 
   const visibleFallbackViews = fallbackViews.filter(
-    (viewId) => (viewId !== "pipeline" || activeWorkspace === "pipeline") && viewId !== "probate-autopilot",
+    (viewId) => ((viewId !== "pipeline" && viewId !== "deal-desk") || activeWorkspace === "pipeline") && viewId !== "probate-autopilot",
   );
   const fallbackLabel = visibleFallbackViews.length > 0 ? ` (${visibleFallbackViews.join(", ")})` : "";
   const isFullFixtureMode = visibleFallbackViews.length >= 9;

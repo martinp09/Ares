@@ -105,6 +105,78 @@ describe("Mission Control API client", () => {
     ]);
   });
 
+  it("loads the deal desk read model without enabling provider actions", async () => {
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+      const url = parseUrl(input);
+      if (url.pathname === "/deals") {
+        expect(url.searchParams.get("business_id")).toBe("limitless");
+        expect(url.searchParams.get("environment")).toBe("prod");
+        return jsonResponse({
+          deals: [
+            {
+              id: "deal_123",
+              business_id: "limitless",
+              environment: "prod",
+              source_lane: "probate",
+              strategy_lane: "curative_title",
+              stage: "qualified",
+              source_lead_id: "lead_123",
+              probate_case_number: "PR-2026-1",
+              property_address: "123 Skyview Dr",
+              county: "harris",
+              no_send: true,
+              provider_sends_enabled: false,
+              next_action: "Verify authority",
+              metadata: { value_band: "median" },
+              created_at: "2026-05-15T10:00:00Z",
+              updated_at: "2026-05-15T10:00:00Z",
+            },
+          ],
+        });
+      }
+      if (url.pathname === "/deals/fire-list") {
+        expect(url.searchParams.get("business_id")).toBe("limitless");
+        expect(url.searchParams.get("environment")).toBe("prod");
+        return jsonResponse({
+          items: [
+            {
+              deal_id: "deal_123",
+              item_type: "risk",
+              severity: "high",
+              reason: "Seller authority is not verified",
+              recommended_action: "Resolve before advancing",
+              action_enabled: false,
+              source_id: "risk_123",
+              metadata: { code: "authority_unverified" },
+            },
+          ],
+        });
+      }
+      throw new Error(`Unexpected URL ${url.toString()}`);
+    });
+    const api = createMissionControlApi({ fetchImpl: fetchMock as typeof fetch, businessId: "limitless", environment: "prod" });
+
+    const dealDesk = await api.getDealDesk();
+
+    expect(dealDesk.deals).toEqual([
+      expect.objectContaining({
+        id: "deal_123",
+        sourceLane: "probate",
+        strategyLane: "curative_title",
+        noSend: true,
+        providerSendsEnabled: false,
+        nextAction: "Verify authority",
+      }),
+    ]);
+    expect(dealDesk.fireList).toEqual([
+      expect.objectContaining({
+        dealId: "deal_123",
+        severity: "high",
+        actionEnabled: false,
+      }),
+    ]);
+  });
+
   it("adds org headers, preserves mission-control filters, and keeps governance org-scoped", async () => {
     const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
       const url = parseUrl(input);
