@@ -6,6 +6,7 @@ RUNTIME_API = REPO_ROOT / "trigger" / "src" / "shared" / "runtimeApi.ts"
 LEAD_MACHINE_RUNTIME = REPO_ROOT / "trigger" / "src" / "lead-machine" / "runtime.ts"
 HARRIS_DAILY_IMPORT_TASK = REPO_ROOT / "trigger" / "src" / "lead-machine" / "harrisDailyImport.ts"
 APPOINTMENT_REMINDER_TASK = REPO_ROOT / "trigger" / "src" / "marketing" / "sendAppointmentReminder.ts"
+SMS_REPLY_AGENT_PROCESSOR_TASK = REPO_ROOT / "trigger" / "src" / "marketing" / "smsReplyAgentProcessor.ts"
 TRIGGER_PACKAGE = REPO_ROOT / "trigger" / "package.json"
 PROBATE_AUTOPILOT_SCHEDULES = REPO_ROOT / "trigger" / "src" / "lead-machine" / "probateAutopilotSchedules.ts"
 
@@ -47,6 +48,21 @@ def test_trigger_exposes_appointment_reminder_contract() -> None:
     assert '"/marketing/internal/appointment-reminder"' in task_source
     assert "smsProviderMessageId" in task_source
     assert "emailProviderMessageId" in task_source
+
+
+def test_trigger_exposes_sms_reply_agent_processor_contract() -> None:
+    task_source = SMS_REPLY_AGENT_PROCESSOR_TASK.read_text(encoding="utf-8")
+
+    assert "schedules.task" in task_source
+    assert 'id: "sms-agent-process-pending"' in task_source
+    assert '"*/1 * * * *"' in task_source
+    assert '"America/Chicago"' in task_source
+    assert "SMS_AGENT_PROCESS_BATCH_SIZE" in task_source
+    assert '"/sms-agent/internal/process-pending"' in task_source
+    assert "processed_count" in task_source
+    assert "sent_count" in task_source
+    assert "blocked_count" in task_source
+    assert "failed_count" in task_source
 
 
 def test_probate_autopilot_schedules_are_no_send_and_ct_cadenced() -> None:
