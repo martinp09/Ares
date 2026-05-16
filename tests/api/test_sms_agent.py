@@ -68,6 +68,42 @@ def test_sms_agent_send_routes_to_service() -> None:
     assert stub.calls[0].body == "Ares SMS agent dry run"
 
 
+def test_sms_agent_textgrid_webhook_accepts_signed_form_without_runtime_auth(monkeypatch) -> None:
+    class StubInboundSmsService:
+        def __init__(self) -> None:
+            self.calls = []
+
+        def handle_textgrid_webhook(self, payload, *, signature, request_url=None):
+            self.calls.append((payload, signature, request_url))
+            return {"status": "processed", "event_type": "message", "action": "queued"}
+
+    from app.api import sms_agent as sms_agent_api
+
+    stub = StubInboundSmsService()
+    monkeypatch.setattr(sms_agent_api, "inbound_sms_service", stub)
+    client = TestClient(app)
+
+    response = client.post(
+        "/sms-agent/webhooks/textgrid",
+        data={"MessageSid": "SM123", "From": "+15551234567", "To": "+15557654321", "Body": "Hello"},
+        headers={
+            "X-Twilio-Signature": "twilio-signature",
+            "content-type": "application/x-www-form-urlencoded",
+        },
+    )
+
+    assert response.status_code == 200
+    assert response.headers["content-type"] == "application/xml"
+    assert response.text == "<Response></Response>"
+    assert stub.calls == [
+        (
+            {"MessageSid": "SM123", "From": "+15551234567", "To": "+15557654321", "Body": "Hello"},
+            "twilio-signature",
+            "http://testserver/sms-agent/webhooks/textgrid",
+        )
+    ]
+
+
 def test_sms_agent_textgrid_webhook_alias_accepts_form_payload(monkeypatch) -> None:
     class StubInboundSmsService:
         def __init__(self) -> None:
@@ -86,16 +122,18 @@ def test_sms_agent_textgrid_webhook_alias_accepts_form_payload(monkeypatch) -> N
     response = client.post(
         "/sms-agent/webhooks/textgrid",
         data={"MessageSid": "SM123", "MessageStatus": "delivered"},
-        headers={**AUTH_HEADERS, "content-type": "application/x-www-form-urlencoded"},
+        headers={
+            **AUTH_HEADERS,
+            "X-TextGrid-Signature": "textgrid-signature",
+            "X-Twilio-Signature": "twilio-signature",
+            "content-type": "application/x-www-form-urlencoded",
+        },
     )
 
     assert response.status_code == 200
-    assert response.json() == {
-        "status": "processed",
-        "event_type": "status",
-        "action": "ignore",
-        "message_id": None,
-        "task_id": None,
-    }
+    assert response.headers["content-type"] == "application/xml"
+    assert response.headers["x-ares-sms-agent-status"] == "processed"
+    assert response.text == "<Response></Response>"
     assert stub.calls[0][0] == {"MessageSid": "SM123", "MessageStatus": "delivered"}
+    assert stub.calls[0][1] == "textgrid-signature"
     assert stub.calls[0][2] == "http://testserver/sms-agent/webhooks/textgrid"

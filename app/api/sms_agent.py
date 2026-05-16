@@ -4,13 +4,14 @@ import inspect
 from typing import Any
 from urllib.parse import parse_qs
 
-from fastapi import APIRouter, Depends, Header, HTTPException, Request, status
+from fastapi import APIRouter, Depends, Header, HTTPException, Request, Response, status
 
-from app.models.sms_agent import SmsAgentSendRequest, SmsAgentSendResponse, SmsAgentWebhookResponse
+from app.models.sms_agent import SmsAgentSendRequest, SmsAgentSendResponse
 from app.services.inbound_sms_service import inbound_sms_service
 from app.services.sms_agent_service import SmsAgentService
 
 router = APIRouter(prefix="/sms-agent", tags=["sms-agent"])
+public_router = APIRouter(prefix="/sms-agent", tags=["sms-agent"])
 
 
 def sms_agent_service_dependency() -> SmsAgentService:
@@ -28,11 +29,12 @@ def send_sms_agent_message(
         raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=str(exc)) from exc
 
 
-@router.post("/webhooks/textgrid", response_model=SmsAgentWebhookResponse)
+@public_router.post("/webhooks/textgrid")
 async def handle_textgrid_sms_agent_webhook(
     request: Request,
     x_textgrid_signature: str | None = Header(default=None),
-) -> SmsAgentWebhookResponse:
+    x_twilio_signature: str | None = Header(default=None),
+) -> Response:
     raw_body = await request.body()
     content_type = request.headers.get("content-type", "")
     if content_type.startswith("application/x-www-form-urlencoded"):
@@ -46,10 +48,11 @@ async def handle_textgrid_sms_agent_webhook(
         payload = await request.json()
 
     handler = inbound_sms_service.handle_textgrid_webhook
-    kwargs: dict[str, Any] = {"signature": x_textgrid_signature}
+    kwargs: dict[str, Any] = {
+        "signature": x_textgrid_signature or x_twilio_signature,
+        "request_url": str(request.url),
+    }
     signature_params = inspect.signature(handler).parameters
-    if "request_url" in signature_params:
-        kwargs["request_url"] = str(request.url)
     if "raw_body" in signature_params:
         kwargs["raw_body"] = raw_body
     if "request_headers" in signature_params:
@@ -69,4 +72,8 @@ async def handle_textgrid_sms_agent_webhook(
         result = handler(payload, **kwargs)
     except ValueError as exc:
         raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(exc)) from exc
-    return SmsAgentWebhookResponse(**result)
+    return Response(
+        "<Response></Response>",
+        media_type="application/xml",
+        headers={"X-Ares-Sms-Agent-Status": str(result.get("status") or "processed")},
+    )
