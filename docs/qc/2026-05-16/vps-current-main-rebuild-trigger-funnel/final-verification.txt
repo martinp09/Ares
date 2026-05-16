@@ -5,8 +5,11 @@ $ git status --short --branch
 ## main...origin/main
  M CONTEXT.md
  M TODO.md
+ M docs/qc/2026-05-16/vps-current-main-rebuild-trigger-funnel/REPORT.md
+ M docs/qc/2026-05-16/vps-current-main-rebuild-trigger-funnel/diff-summary.md
+ M docs/qc/2026-05-16/vps-current-main-rebuild-trigger-funnel/infrastructure-output.txt
+ M docs/qc/2026-05-16/vps-current-main-rebuild-trigger-funnel/smoke-output.json
  M memory.md
-?? docs/qc/2026-05-16/vps-current-main-rebuild-trigger-funnel/
 
 $ git diff --check
 # passed with no output
@@ -16,6 +19,7 @@ $ npm --prefix trigger run typecheck
 > tsc --noEmit -p tsconfig.json
 
 $ python smoke-output.json summary
+deployed_commit 61f18de
 smoke_checks 21
 failed_unexpected []
 expected_401 ['direct_deals_without_bearer', 'funnel_deals_without_bearer']

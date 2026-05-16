@@ -18,7 +18,7 @@
       }
     },
     {
-      "elapsed_ms": 590,
+      "elapsed_ms": 662,
       "label": "direct_deals_with_bearer",
       "status": 200,
       "summary": {
@@ -27,7 +27,7 @@
       }
     },
     {
-      "elapsed_ms": 4,
+      "elapsed_ms": 8,
       "label": "direct_probate_health",
       "status": 200,
       "summary": {
@@ -39,7 +39,7 @@
       }
     },
     {
-      "elapsed_ms": 107,
+      "elapsed_ms": 71,
       "label": "sms_process_pending",
       "status": 200,
       "summary": {
@@ -64,7 +64,7 @@
       }
     },
     {
-      "elapsed_ms": 92,
+      "elapsed_ms": 96,
       "label": "tailnet_deals_auth_injected",
       "status": 200,
       "summary": {
@@ -74,12 +74,12 @@
     },
     {
       "body_prefix": "<!doctype html>\n<html lang=\"en\">\n  <head>\n    <meta charset=\"UTF-8\" />\n    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\" />\n    <title>Hermes Mission Contro",
-      "elapsed_ms": 2,
+      "elapsed_ms": 1,
       "label": "tailnet_ui_root",
       "status": 200
     },
     {
-      "elapsed_ms": 31,
+      "elapsed_ms": 19,
       "label": "funnel_health",
       "status": 200,
       "summary": {
@@ -87,7 +87,7 @@
       }
     },
     {
-      "elapsed_ms": 25,
+      "elapsed_ms": 13,
       "label": "funnel_deals_without_bearer",
       "status": 401,
       "summary": {
@@ -96,7 +96,7 @@
       }
     },
     {
-      "elapsed_ms": 67,
+      "elapsed_ms": 99,
       "label": "funnel_deals_with_bearer",
       "status": 200,
       "summary": {
@@ -105,7 +105,7 @@
       }
     },
     {
-      "elapsed_ms": 34,
+      "elapsed_ms": 18,
       "label": "funnel_probate_health",
       "status": 200,
       "summary": {
@@ -117,7 +117,7 @@
       }
     },
     {
-      "elapsed_ms": 75,
+      "elapsed_ms": 48,
       "label": "supabase_table_sms_agent_jobs",
       "status": 200,
       "summary": {
@@ -125,7 +125,7 @@
       }
     },
     {
-      "elapsed_ms": 56,
+      "elapsed_ms": 45,
       "label": "supabase_table_sms_agent_decisions",
       "status": 200,
       "summary": {
@@ -133,7 +133,7 @@
       }
     },
     {
-      "elapsed_ms": 58,
+      "elapsed_ms": 88,
       "label": "supabase_table_sms_agent_eval_labels",
       "status": 200,
       "summary": {
@@ -141,7 +141,7 @@
       }
     },
     {
-      "elapsed_ms": 64,
+      "elapsed_ms": 46,
       "label": "supabase_table_sms_agent_archives",
       "status": 200,
       "summary": {
@@ -149,7 +149,7 @@
       }
     },
     {
-      "elapsed_ms": 58,
+      "elapsed_ms": 52,
       "label": "supabase_table_slack_notifications",
       "status": 200,
       "summary": {
@@ -157,7 +157,7 @@
       }
     },
     {
-      "elapsed_ms": 56,
+      "elapsed_ms": 52,
       "label": "supabase_table_probate_source_identities",
       "status": 200,
       "summary": {
@@ -165,7 +165,7 @@
       }
     },
     {
-      "elapsed_ms": 16,
+      "elapsed_ms": 25,
       "label": "trigger_env_health",
       "status": 200,
       "summary": {
@@ -173,7 +173,7 @@
       }
     },
     {
-      "elapsed_ms": 18,
+      "elapsed_ms": 31,
       "label": "trigger_env_probate_health",
       "status": 200,
       "summary": {
@@ -185,8 +185,8 @@
       }
     }
   ],
-  "deployed_commit": "17594ba",
-  "generated_at_utc": "2026-05-16T20:25:36Z",
+  "deployed_commit": "61f18de",
+  "generated_at_utc": "2026-05-16T20:33:38Z",
   "runtime_edges": {
     "loopback_api": "http://127.0.0.1:8000",
     "public_funnel_api": "https://ares.tail485fd9.ts.net",

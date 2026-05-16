@@ -8,7 +8,7 @@ Martin asked for infrastructure work, a current Ares API/UI container rebuild, a
 
 This slice:
 
-- Advanced live VPS checkout `/opt/ares/Ares` to current `origin/main` / `17594ba`.
+- Advanced live VPS checkout `/opt/ares/Ares` to current `origin/main` / `61f18de`.
 - Rebuilt and recreated `ares-api` and `ares-ui` from that commit.
 - Added explicit SMS reply-agent runtime defaults in the live VPS env: `SMS_AGENT_MODE=draft_only`, `SMS_AGENT_AUTO_REPLIES_ENABLED=false`, and processing/retention defaults.
 - Exposed the FastAPI runtime to Trigger/cloud callbacks through Tailscale Funnel: `https://ares.tail485fd9.ts.net` -> `127.0.0.1:8000`.

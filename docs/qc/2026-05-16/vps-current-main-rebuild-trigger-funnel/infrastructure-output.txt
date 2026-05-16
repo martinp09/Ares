@@ -1,32 +1,38 @@
 ## date/git live checkout
 exit=0
 ```
-2026-05-16T20:25:36Z
-17594bafa6eb6ac1fcdae6b78f107077851f304e
+2026-05-16T20:33:38Z
+61f18de1bf91003b7ea1e69d23dcda5cad027b46
 ## HEAD (no branch)
 ```
 
 ## main worktree status
 exit=0
 ```
-17594bafa6eb6ac1fcdae6b78f107077851f304e
+61f18de1bf91003b7ea1e69d23dcda5cad027b46
 ## main...origin/main
-?? docs/qc/2026-05-16/vps-current-main-rebuild-trigger-funnel/
+ M CONTEXT.md
+ M TODO.md
+ M docs/qc/2026-05-16/vps-current-main-rebuild-trigger-funnel/REPORT.md
+ M docs/qc/2026-05-16/vps-current-main-rebuild-trigger-funnel/diff-summary.md
+ M docs/qc/2026-05-16/vps-current-main-rebuild-trigger-funnel/infrastructure-output.txt
+ M docs/qc/2026-05-16/vps-current-main-rebuild-trigger-funnel/smoke-output.json
+ M memory.md
 ```
 
 ## docker ps
 exit=0
 ```
-NAMES                                          IMAGE                                           STATUS                   PORTS
-ares-ui                                        ares-ares-ui                                    Up 9 minutes             127.0.0.1:8080->8080/tcp
-ares-api                                       ares-ares-api                                   Up 9 minutes (healthy)   127.0.0.1:8000->8000/tcp
+NAMES                                          IMAGE                                           STATUS                        PORTS
+ares-ui                                        ares-ares-ui                                    Up About a minute             127.0.0.1:8080->8080/tcp
+ares-api                                       ares-ares-api                                   Up About a minute (healthy)   127.0.0.1:8000->8000/tcp
 ```
 
 ## docker inspect summary
 exit=0
 ```
-{"cap_drop": ["ALL"], "health": "healthy", "name": "ares-api", "ports": {"8000/tcp": [{"HostIp": "127.0.0.1", "HostPort": "8000"}]}, "revision": "17594ba", "security_opt": ["no-new-privileges:true"], "status": "running", "user": "ares"}
-{"cap_drop": ["ALL"], "health": null, "name": "ares-ui", "ports": {"8080/tcp": [{"HostIp": "127.0.0.1", "HostPort": "8080"}]}, "revision": "17594ba", "security_opt": ["no-new-privileges:true"], "status": "running", "user": "101"}
+{"cap_drop": ["ALL"], "health": "healthy", "name": "ares-api", "ports": {"8000/tcp": [{"HostIp": "127.0.0.1", "HostPort": "8000"}]}, "revision": "61f18de", "security_opt": ["no-new-privileges:true"], "status": "running", "user": "ares"}
+{"cap_drop": ["ALL"], "health": null, "name": "ares-ui", "ports": {"8080/tcp": [{"HostIp": "127.0.0.1", "HostPort": "8080"}]}, "revision": "61f18de", "security_opt": ["no-new-privileges:true"], "status": "running", "user": "101"}
 ```
 
 ## listeners
@@ -56,7 +62,7 @@ http://{$ARES_TAILNET_IP}:80 {
 	@ares_api path /agent-assets* /agent-installs* /agents* /approvals* /audit* /catalog* /commands* /health /hermes* /lead-machine* /marketing* /memberships* /mission-control* /organizations* /outcomes* /permissions* /rbac* /release-management* /replays* /runs* /sessions* /site-events* /skills* /trigger* /usage* /crm* /deals* /sms-agent* /voice*
 	handle @ares_api {
 		reverse_proxy 127.0.0.1:8000 {
-			header_up Authorization "Bearer <redacted>"
+			header_up Authorization "Bearer {$ARES_RUNTIME_API_KEY}"
 		}
 	}
 
@@ -75,6 +81,7 @@ exit=0
 
 https://<ares-funnel-host> (Funnel on)
 |-- / proxy http://127.0.0.1:8000
+
 ```
 
 ## tailscale serve status json
@@ -118,6 +125,7 @@ Trigger.dev (4.4.0)
 ●  Use --show-values to display the actual values
 │
 └  Found 17 environment variables | Project: proj_puouljyhwiraonjkpiki | Environment: prod
+
 ```
 
 ## recent ares-api warnings/errors
