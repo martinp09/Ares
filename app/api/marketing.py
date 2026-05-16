@@ -4,6 +4,7 @@ import inspect
 from urllib.parse import parse_qs
 
 from fastapi import APIRouter, Header, HTTPException, Request, status
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel, ConfigDict, Field
 
 from app.services.booking_service import (
@@ -69,6 +70,14 @@ class SmsWebhookResponse(BaseModel):
     status: str
     event_type: str
     action: str
+    notification: dict[str, Any] | None = None
+
+
+def _webhook_response_content(response: BaseModel) -> dict[str, Any]:
+    content = response.model_dump(mode="json")
+    if content.get("notification") is None:
+        content.pop("notification", None)
+    return content
 
 
 class NonBookerCheckResponse(BaseModel):
@@ -221,7 +230,7 @@ async def handle_calcom_webhook(
 async def handle_textgrid_webhook(
     request: Request,
     x_textgrid_signature: str | None = Header(default=None),
-) -> SmsWebhookResponse:
+) -> JSONResponse:
     raw_body = await request.body()
     content_type = request.headers.get("content-type", "")
     if content_type.startswith("application/x-www-form-urlencoded"):
@@ -257,7 +266,7 @@ async def handle_textgrid_webhook(
         result = handler(payload, **kwargs)
     except ValueError as exc:
         raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(exc)) from exc
-    return SmsWebhookResponse(**result)
+    return JSONResponse(content=_webhook_response_content(SmsWebhookResponse(**result)))
 
 
 @router.post("/internal/non-booker-check", response_model=NonBookerCheckResponse)

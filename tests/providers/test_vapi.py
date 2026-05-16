@@ -143,3 +143,60 @@ def test_normalize_webhook_payload_maps_call_event_summary() -> None:
     assert normalized["summary"] == "seller wants callback"
     assert normalized["recording_url"] == "https://example.test/r.mp3"
     assert normalized["raw_payload"]["call_id_present"] is True
+
+
+def test_normalize_docs_shaped_end_report_payload() -> None:
+    normalized = normalize_vapi_webhook_payload(
+        {
+            "message": {
+                "type": "end-of-call-report",
+                "call": {"id": "call_docs_123", "status": "ended"},
+                "analysis": {"summary": "Seller asked for callback"},
+                "artifact": {
+                    "transcript": "Seller asked for callback. Please call at 2pm.",
+                    "recording": {"stereoUrl": "https://example.test/docs-recording.mp3"},
+                },
+            }
+        }
+    )
+
+    assert normalized["event_type"] == "end-of-call-report"
+    assert normalized["provider_call_id"] == "call_docs_123"
+    assert normalized["status"] == "ended"
+    assert normalized["summary"] == "Seller asked for callback"
+    assert normalized["transcript"] == "Seller asked for callback. Please call at 2pm."
+    assert normalized["recording_url"] == "https://example.test/docs-recording.mp3"
+
+
+def test_normalize_docs_shaped_end_report_payload_uses_nested_mono_combined_recording_url() -> None:
+    normalized = normalize_vapi_webhook_payload(
+        {
+            "message": {
+                "type": "end-of-call-report",
+                "call": {"id": "call_docs_456", "status": "ended"},
+                "artifact": {
+                    "recording": {
+                        "mono": {"combinedUrl": "https://example.test/docs-mono-combined.mp3"},
+                    },
+                },
+            }
+        }
+    )
+
+    assert normalized["recording_url"] == "https://example.test/docs-mono-combined.mp3"
+
+
+def test_normalize_prefers_explicit_message_recording_url_before_structured_recording() -> None:
+    normalized = normalize_vapi_webhook_payload(
+        {
+            "message": {
+                "type": "end-of-call-report",
+                "recordingUrl": "https://example.test/message-recording.mp3",
+                "artifact": {
+                    "recording": {"stereoUrl": "https://example.test/stereo-recording.mp3"},
+                },
+            }
+        }
+    )
+
+    assert normalized["recording_url"] == "https://example.test/message-recording.mp3"

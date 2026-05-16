@@ -49,7 +49,12 @@ def test_post_textgrid_webhook_processes_inbound_sms(monkeypatch) -> None:
 
         def handle_textgrid_webhook(self, payload, *, signature, request_url=None):
             self.calls.append((payload, signature, request_url))
-            return {"status": "processed", "event_type": "inbound_message", "action": "qualify"}
+            return {
+                "status": "processed",
+                "event_type": "inbound_message",
+                "action": "qualify",
+                "notification": None,
+            }
 
     from app.api import marketing as marketing_api
 
@@ -64,7 +69,11 @@ def test_post_textgrid_webhook_processes_inbound_sms(monkeypatch) -> None:
     )
 
     assert response.status_code == 200
-    assert response.json() == {"status": "processed", "event_type": "inbound_message", "action": "qualify"}
+    assert response.json() == {
+        "status": "processed",
+        "event_type": "inbound_message",
+        "action": "qualify",
+    }
     assert len(stub.calls) == 1
     assert stub.calls[0][2] == "http://testserver/marketing/webhooks/textgrid"
 
@@ -91,8 +100,53 @@ def test_post_textgrid_webhook_accepts_form_encoded_status_callback(monkeypatch)
     )
 
     assert response.status_code == 200
-    assert response.json() == {"status": "processed", "event_type": "status", "action": "ignore"}
+    assert response.json() == {
+        "status": "processed",
+        "event_type": "status",
+        "action": "ignore",
+    }
     assert stub.calls[0][0] == {"MessageSid": "SM123", "MessageStatus": "delivered"}
+
+
+def test_post_textgrid_webhook_preserves_slack_notification(monkeypatch) -> None:
+    class StubInboundSmsService:
+        def handle_textgrid_webhook(self, payload, *, signature, request_url=None):
+            return {
+                "status": "processed",
+                "event_type": "inbound_message",
+                "action": "qualify",
+                "notification": {
+                    "route": "lease_option_inbound_sms",
+                    "status": "sent",
+                    "deduped": False,
+                    "channel_id": "C-LEASE-SMS",
+                    "dedupe_key": "textgrid:SM123",
+                    "slack_message_ts": "1715788800.000200",
+                    "error_message": None,
+                },
+            }
+
+    from app.api import marketing as marketing_api
+
+    monkeypatch.setattr(marketing_api, "inbound_sms_service", StubInboundSmsService())
+    client = TestClient(app)
+
+    response = client.post(
+        "/marketing/webhooks/textgrid",
+        json={"From": "+15557654321", "To": "+15551234567", "Body": "Yes"},
+        headers=AUTH_HEADERS,
+    )
+
+    assert response.status_code == 200
+    assert response.json()["notification"] == {
+        "route": "lease_option_inbound_sms",
+        "status": "sent",
+        "deduped": False,
+        "channel_id": "C-LEASE-SMS",
+        "dedupe_key": "textgrid:SM123",
+        "slack_message_ts": "1715788800.000200",
+        "error_message": None,
+    }
 
 
 def test_post_non_booker_check_runs_internal_check(monkeypatch) -> None:

@@ -515,6 +515,7 @@ def test_post_instantly_webhook_records_headers_and_trust_metadata(monkeypatch) 
                 "suppression_id": None,
                 "membership_id": None,
                 "task_id": "task_123",
+                "notification": None,
             }
 
     from app.api import lead_machine as lead_machine_api
@@ -733,6 +734,63 @@ def test_post_instantly_webhook_is_replay_safe(monkeypatch) -> None:
     assert second.json()["status"] == "duplicate"
     assert second.json()["receipt_id"] == first.json()["receipt_id"]
     assert second.json()["event_id"] == first.json()["event_id"]
+
+
+def test_post_instantly_webhook_preserves_slack_notification(monkeypatch) -> None:
+    class StubWritePathService:
+        def handle_instantly_webhook(self, **kwargs):
+            return {
+                "status": "processed",
+                "receipt_id": "wh_reply",
+                "event_id": "levt_reply",
+                "lead_id": "lead_reply",
+                "suppression_id": "supp_reply",
+                "membership_id": "mship_reply",
+                "task_id": None,
+                "notification": {
+                    "route": "instantly_replies",
+                    "status": "sent",
+                    "deduped": False,
+                    "channel_id": "C-INSTANTLY-REPLIES",
+                    "dedupe_key": "instantly:levt_reply",
+                    "slack_message_ts": "1715788800.000100",
+                    "error_message": None,
+                },
+            }
+
+    from app.api import lead_machine as lead_machine_api
+
+    monkeypatch.setattr(lead_machine_api, "_build_write_path_service", lambda: StubWritePathService())
+    client = TestClient(app)
+
+    response = client.post(
+        "/lead-machine/webhooks/instantly",
+        json={
+            "business_id": "limitless",
+            "environment": "dev",
+            "payload": {
+                "event_type": "reply_received",
+                "timestamp": "2026-04-16T17:05:00Z",
+                "campaign_id": "camp_123",
+                "campaign_name": "Probate Wave",
+                "lead_email": "lane@example.com",
+                "email_id": "msg_124",
+                "reply_text": "Please call me.",
+            },
+        },
+        headers=AUTH_HEADERS,
+    )
+
+    assert response.status_code == 200
+    assert response.json()["notification"] == {
+        "route": "instantly_replies",
+        "status": "sent",
+        "deduped": False,
+        "channel_id": "C-INSTANTLY-REPLIES",
+        "dedupe_key": "instantly:levt_reply",
+        "slack_message_ts": "1715788800.000100",
+        "error_message": None,
+    }
 
 
 def test_post_instantly_webhook_rejects_malformed_payload() -> None:

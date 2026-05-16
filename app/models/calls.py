@@ -62,3 +62,4 @@ class VoiceVapiWebhookResponse(BaseModel):
     idempotency_key: str | None = None
     trust_status: str
     status: str | None = None
+    notification: dict[str, Any] | None = None

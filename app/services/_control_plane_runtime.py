@@ -37,5 +37,6 @@ class StoreBoundControlPlaneClient:
 
 
 def restore_store_from_snapshot(store: InMemoryControlPlaneStore, snapshot: InMemoryControlPlaneStore) -> None:
+    state = deepcopy(snapshot.__getstate__())
     store.__dict__.clear()
-    store.__dict__.update(deepcopy(snapshot.__dict__))
+    store.__setstate__(state)

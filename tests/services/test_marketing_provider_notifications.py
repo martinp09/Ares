@@ -5,7 +5,9 @@ from urllib.parse import parse_qs, urlparse
 from app.core.config import Settings
 from app.db.client import InMemoryControlPlaneClient, InMemoryControlPlaneStore
 from app.db.contacts import ContactsRepository
+from app.db.tasks import TasksRepository
 from app.models.marketing_leads import LeadUpsertRequest
+from app.models.slack_notifications import SlackNotificationAttempt, SlackNotificationRoute
 from app.providers.textgrid import build_outbound_sms_request
 from app.services.booking_service import (
     BookingService,
@@ -60,6 +62,8 @@ def test_lead_intake_sends_confirmation_only_sms_and_booking_link_email_slack() 
             resend_reply_to_email="martin@example.com",
             slack_bot_token="xoxb-test",
             slack_channel_intake="CINTAKE",
+            slack_channel_lease_option_inbound="CLEASE",
+            slack_notifications_enabled=True,
             cal_booking_url="https://cal.com/limitless/lease-option-review",
         ),
         lead_repository=StubLeadRepository(),
@@ -121,18 +125,24 @@ def test_lead_intake_sends_confirmation_only_sms_and_booking_link_email_slack() 
     slack_request = sent_requests[1]
     assert slack_request["endpoint"] == "https://slack.com/api/chat.postMessage"
     assert slack_request["headers"]["Authorization"] == "Bearer xoxb-test"
-    assert slack_request["payload"]["channel"] == "CINTAKE"
+    assert slack_request["payload"]["channel"] == "CLEASE"
     assert "New lease-option lead: Maya Seller" in slack_request["payload"]["text"]
-    assert "123 Main St" in json.dumps(slack_request["payload"])
+    slack_payload = json.dumps(slack_request["payload"])
+    assert "lease_option_inbound" in slack_payload
+    assert "lease-option:lead_speed_123" in slack_payload
+    assert "123 Main St" in slack_payload
 
 
-def test_lead_intake_skips_slack_when_live_sends_are_disabled_even_if_configured() -> None:
+def test_lead_intake_skips_sms_email_but_queues_slack_when_live_sends_disabled() -> None:
+    sent_requests: list[dict[str, object]] = []
+
     class StubLeadRepository:
         def upsert_lead(self, payload: LeadIntakePayload) -> str:
             return "lead_safe_123"
 
-    def request_sender(_outbound_request):
-        raise AssertionError("Slack/TextGrid requests should not be sent when live sends are disabled")
+    def request_sender(outbound_request):
+        sent_requests.append(outbound_request)
+        return {"ok": True, "channel": outbound_request["payload"]["channel"], "ts": "171234.567"}
 
     def resend_sender(*_args, **_kwargs):
         raise AssertionError("Resend requests should not be sent when live sends are disabled")
@@ -147,7 +157,8 @@ def test_lead_intake_skips_slack_when_live_sends_are_disabled_even_if_configured
             resend_api_key="re_123",
             resend_from_email="Martin at Limitless <martin@example.com>",
             slack_bot_token="xoxb-test",
-            slack_channel_intake="CINTAKE",
+            slack_channel_lease_option_inbound="CLEASE",
+            slack_notifications_enabled=True,
             cal_booking_url="https://cal.com/limitless/lease-option-review",
         ),
         lead_repository=StubLeadRepository(),
@@ -170,7 +181,300 @@ def test_lead_intake_skips_slack_when_live_sends_are_disabled_even_if_configured
     side_effects = {effect["name"]: effect["status"] for effect in result["side_effects"]}
     assert side_effects["confirmation_sms"] == "skipped"
     assert side_effects["confirmation_email"] == "skipped"
-    assert side_effects["operator_slack_notification"] == "skipped"
+    assert side_effects["operator_slack_notification"] == "queued"
+    assert len(sent_requests) == 1
+    assert sent_requests[0]["payload"]["channel"] == "CLEASE"
+
+
+def test_lead_intake_slack_uses_lease_option_route_channel_and_dedupe_key() -> None:
+    sent_requests: list[dict[str, object]] = []
+
+    class StubLeadRepository:
+        def upsert_lead(self, payload: LeadIntakePayload) -> str:
+            return "lead_route_123"
+
+    def request_sender(outbound_request):
+        sent_requests.append(outbound_request)
+        return {"ok": True, "channel": outbound_request["payload"]["channel"], "ts": "171234.567"}
+
+    service = MarketingLeadService(
+        settings=Settings(
+            _env_file=None,
+            provider_live_sends_enabled=False,
+            slack_notifications_enabled=True,
+            slack_bot_token="xoxb-test",
+            slack_channel_intake="CINTAKE",
+            slack_channel_lease_option_inbound="CLEASE",
+            cal_booking_url="https://cal.com/limitless/lease-option-review",
+        ),
+        lead_repository=StubLeadRepository(),
+        request_sender=request_sender,
+    )
+
+    result = service.intake_lead(
+        LeadIntakePayload(
+            business_id="limitless",
+            environment="prod",
+            first_name="Maya",
+            phone="5551234567",
+            email="maya@example.com",
+            property_address="123 Main St, Houston, TX",
+            timeline_to_sell="30-60 days",
+            asking_price_goal="$350,000",
+            utm_source="google",
+            utm_medium="cpc",
+            utm_campaign="lease-options",
+            utm_term="sell house",
+            utm_content="hero-form",
+            lp_var="houston-v1",
+        )
+    )
+
+    assert result["side_effects"][2] == {
+        "name": "operator_slack_notification",
+        "status": "queued",
+        "error_message": None,
+    }
+    assert len(sent_requests) == 1
+    slack_payload = sent_requests[0]["payload"]
+    assert slack_payload["channel"] == "CLEASE"
+    assert SlackNotificationRoute.LEASE_OPTION_INBOUND.value in json.dumps(slack_payload)
+    assert "lease-option:lead_route_123" in json.dumps(slack_payload)
+    assert "CINTAKE" not in json.dumps(slack_payload)
+
+
+def test_lead_intake_slack_replay_uses_stable_lead_id_dedupe() -> None:
+    sent_requests: list[dict[str, object]] = []
+
+    class StubLeadRepository:
+        def upsert_lead(self, payload: LeadIntakePayload) -> str:
+            return "lead_replay_123"
+
+    def request_sender(outbound_request):
+        sent_requests.append(outbound_request)
+        return {"ok": True, "channel": outbound_request["payload"]["channel"], "ts": f"171234.{len(sent_requests)}"}
+
+    service = MarketingLeadService(
+        settings=Settings(
+            _env_file=None,
+            provider_live_sends_enabled=False,
+            slack_notifications_enabled=True,
+            slack_bot_token="xoxb-test",
+            slack_channel_lease_option_inbound="CLEASE",
+        ),
+        lead_repository=StubLeadRepository(),
+        request_sender=request_sender,
+    )
+    payload = LeadIntakePayload(
+        business_id="limitless",
+        environment="prod",
+        first_name="Maya",
+        phone="5551234567",
+        email="maya@example.com",
+        property_address="123 Main St, Houston, TX",
+    )
+
+    first = service.intake_lead(payload)
+    second = service.intake_lead(payload)
+
+    assert len(sent_requests) == 1
+    assert first["side_effects"][2]["status"] == "queued"
+    assert second["side_effects"][2]["status"] == "queued"
+
+
+def test_lead_intake_slack_content_includes_context_and_escapes_mrkdwn_fields() -> None:
+    sent_requests: list[dict[str, object]] = []
+
+    class StubLeadRepository:
+        def upsert_lead(self, payload: LeadIntakePayload) -> str:
+            return "lead_escape_123"
+
+    def request_sender(outbound_request):
+        sent_requests.append(outbound_request)
+        return {"ok": True, "channel": outbound_request["payload"]["channel"], "ts": "171234.567"}
+
+    service = MarketingLeadService(
+        settings=Settings(
+            _env_file=None,
+            provider_live_sends_enabled=False,
+            slack_notifications_enabled=True,
+            slack_bot_token="xoxb-test",
+            slack_channel_lease_option_inbound="CLEASE",
+            cal_booking_url="https://cal.com/limitless/lease-option-review",
+        ),
+        lead_repository=StubLeadRepository(),
+        request_sender=request_sender,
+    )
+
+    result = service.intake_lead(
+        LeadIntakePayload(
+            business_id="limit*less",
+            environment="pr_od<1>&",
+            first_name="May*a",
+            last_name="Sell_er",
+            phone="555<123>4567",
+            email="maya&seller@example.com",
+            property_address="123 <Main> & 2nd, Houston, TX",
+            timeline_to_sell="ASAP _urgent_",
+            asking_price_goal="$350,000 *net*",
+            utm_source="google<ads>",
+            utm_medium="cpc",
+            utm_campaign="lease & option",
+            utm_term="sell `fast`",
+            utm_content="hero ~form~",
+            lp_var="houston*v1",
+        )
+    )
+
+    slack_payload_json = json.dumps(sent_requests[0]["payload"])
+    booking_url = result["booking_url"]
+    for expected in [
+        "limit\\\\*less",
+        "pr\\\\_od&lt;1&gt;&amp;",
+        "lease_option_inbound",
+        "lease-option:lead_escape_123",
+        "May\\\\*a Sell\\\\_er",
+        "555&lt;123&gt;4567",
+        "maya&amp;seller@example.com",
+        "123 &lt;Main&gt; &amp; 2nd, Houston, TX",
+        "ASAP \\\\_urgent\\\\_",
+        "$350,000 \\\\*net\\\\*",
+        "google&lt;ads&gt;",
+        "lease &amp; option",
+        "sell \\\\`fast\\\\`",
+        "hero \\\\~form\\\\~",
+        "houston\\\\*v1",
+        "Call or text the seller within 5 minutes, then update the lead record.",
+    ]:
+        assert expected in slack_payload_json
+    slack_blocks = sent_requests[0]["payload"]["blocks"]
+    booking_field = next(
+        field["text"]
+        for block in slack_blocks
+        for field in block.get("fields", [])
+        if field["text"].startswith("*Booking URL:*")
+    )
+    assert booking_url not in booking_field
+    assert "&first_name=" not in booking_field
+    assert "&phone=" not in booking_field
+    assert "&property_address=" not in booking_field
+    assert "&email=" not in booking_field
+    assert "&amp;first\\_name=" in booking_field
+    assert "&amp;phone=" in booking_field
+    assert "&amp;property\\_address=" in booking_field
+    assert "&amp;email=" in booking_field
+
+
+def test_lead_intake_slack_skipped_attempt_preserves_error_reason() -> None:
+    class StubLeadRepository:
+        def upsert_lead(self, payload: LeadIntakePayload) -> str:
+            return "lead_missing_config_123"
+
+    class MissingChannelLeadRepository:
+        def upsert_lead(self, payload: LeadIntakePayload) -> str:
+            return "lead_missing_channel_123"
+
+    service = MarketingLeadService(
+        settings=Settings(
+            _env_file=None,
+            provider_live_sends_enabled=False,
+            slack_notifications_enabled=True,
+            slack_bot_token=None,
+            slack_channel_lease_option_inbound="CLEASE",
+        ),
+        lead_repository=StubLeadRepository(),
+    )
+
+    missing_token = service.intake_lead(
+        LeadIntakePayload(
+            business_id="limitless",
+            environment="prod",
+            first_name="Maya",
+            phone="5551234567",
+            email="maya@example.com",
+            property_address="123 Main St, Houston, TX",
+        )
+    )
+
+    assert missing_token["side_effects"][2] == {
+        "name": "operator_slack_notification",
+        "status": "skipped",
+        "error_message": "slack_bot_token_missing",
+    }
+
+    service = MarketingLeadService(
+        settings=Settings(
+            _env_file=None,
+            provider_live_sends_enabled=False,
+            slack_notifications_enabled=True,
+            slack_bot_token="xoxb-test",
+            slack_channel_lease_option_inbound=None,
+        ),
+        lead_repository=MissingChannelLeadRepository(),
+    )
+
+    missing_channel = service.intake_lead(
+        LeadIntakePayload(
+            business_id="limitless",
+            environment="prod",
+            first_name="Maya",
+            phone="5551234567",
+            email="maya@example.com",
+            property_address="123 Main St, Houston, TX",
+        )
+    )
+
+    assert missing_channel["side_effects"][2] == {
+        "name": "operator_slack_notification",
+        "status": "skipped",
+        "error_message": "slack_channel_not_configured",
+    }
+
+
+def test_lead_intake_deduped_pending_slack_attempt_is_noop_without_failure_task() -> None:
+    client = InMemoryControlPlaneClient(InMemoryControlPlaneStore())
+
+    class StubLeadRepository:
+        def upsert_lead(self, payload: LeadIntakePayload) -> str:
+            return "lead_pending_123"
+
+    class StubOperatorNotifier:
+        def notify_new_lead(self, payload: LeadIntakePayload, *, lead_id: str, booking_url: str):
+            return SlackNotificationAttempt(
+                business_id=payload.business_id,
+                environment=payload.environment,
+                route=SlackNotificationRoute.LEASE_OPTION_INBOUND,
+                dedupe_key=f"lease-option:{lead_id}",
+                channel_id="CLEASE",
+                status="failed",
+                error_message="slack_delivery_pending",
+                deduped=True,
+            )
+
+    service = MarketingLeadService(
+        settings=Settings(_env_file=None, provider_live_sends_enabled=False),
+        lead_repository=StubLeadRepository(),
+        operator_notifier=StubOperatorNotifier(),
+        tasks=TasksRepository(client),
+    )
+
+    result = service.intake_lead(
+        LeadIntakePayload(
+            business_id="limitless",
+            environment="prod",
+            first_name="Maya",
+            phone="5551234567",
+            email="maya@example.com",
+            property_address="123 Main St, Houston, TX",
+        )
+    )
+
+    assert result["side_effects"][2] == {
+        "name": "operator_slack_notification",
+        "status": "queued",
+        "error_message": None,
+    }
+    assert TasksRepository(client).list(lead_id="lead_pending_123") == []
 
 
 def test_booking_service_schedules_appointment_reminders_when_calcom_booking_is_created() -> None:

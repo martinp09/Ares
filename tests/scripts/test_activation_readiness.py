@@ -19,6 +19,12 @@ def _ready_settings(**overrides):
         "resend_api_key": "re_123",
         "resend_from_email": "Martin <ops@example.com>",
         "slack_bot_token": "xoxb-test-token",
+        "slack_notifications_enabled": True,
+        "slack_channel_lead_runs": "C123LEADRUNS",
+        "slack_channel_hot_leads": "C123HOTLEADS",
+        "slack_channel_instantly_replies": "C123REPLIES",
+        "slack_channel_lease_option_inbound": "C123LEASEIN",
+        "slack_channel_sms_calls": "C123SMSCALLS",
         "slack_channel_intake": "CINTAKE",
         "cal_booking_url": "https://cal.com/limitless/review",
         "cal_webhook_secret": "cal-webhook-secret",
@@ -93,6 +99,25 @@ def test_activation_readiness_requires_landing_runtime_env() -> None:
     assert "landing: BUSINESS_RUNTIME_API_KEY is missing" in report["blockers"]
 
 
+def test_activation_readiness_requires_slack_notification_gate_and_route_channels() -> None:
+    report = activation_readiness(
+        settings=_ready_settings(
+            slack_notifications_enabled=False,
+            slack_channel_lead_runs=None,
+            slack_channel_lease_option_inbound=None,
+        ),
+        environ=_ready_landing_env(),
+    )
+
+    assert report["verdict"] == "blocked"
+    assert "slack: SLACK_NOTIFICATIONS_ENABLED=true is required" in report["blockers"]
+    assert "slack: SLACK_CHANNEL_LEAD_RUNS is missing" in report["blockers"]
+    assert "slack: SLACK_CHANNEL_LEASE_OPTION_INBOUND is missing" in report["blockers"]
+    assert report["gates"]["slack"]["route_channels"]["lead_runs"]["preferred_env_var"] == "SLACK_CHANNEL_LEAD_RUNS"
+    assert report["gates"]["slack"]["legacy_channels"]["SLACK_CHANNEL_INTAKE"]["present"] is True
+    assert report["gates"]["slack"]["legacy_channels"]["SLACK_CHANNEL_INTAKE"]["preferred"] is False
+
+
 def test_activation_readiness_cli_exits_nonzero_until_live_ready(monkeypatch, capsys) -> None:
     monkeypatch.setenv("RUNTIME_API_KEY", "runtime-secret")
     monkeypatch.setenv("PROVIDER_LIVE_SENDS_ENABLED", "false")
@@ -156,3 +181,49 @@ def test_activation_readiness_cli_can_load_env_file_and_derive_local_defaults(tm
         "https://ares.example.com/marketing/leads"
     )
     assert "RESEND_FROM_EMAIL must be an email address" in "\n".join(output["blockers"])
+
+
+def test_activation_readiness_env_file_does_not_inherit_ambient_slack_channels(tmp_path, monkeypatch, capsys) -> None:
+    env_file = tmp_path / "ares.env"
+    env_file.write_text(
+        "\n".join(
+            [
+                "RUNTIME_API_KEY=runtime-secret",
+                "PROVIDER_LIVE_SENDS_ENABLED=true",
+                "TEXTGRID_ACCOUNT_SID=acct_123",
+                "TEXTGRID_AUTH_TOKEN=token_123",
+                "TEXTGRID_FROM_NUMBER=3467725914",
+                "TEXTGRID_WEBHOOK_SECRET=textgrid-webhook-secret",
+                "TEXTGRID_STATUS_CALLBACK_URL=https://ares.example.com/marketing/webhooks/textgrid",
+                "RESEND_API_KEY=re_123",
+                "RESEND_FROM_EMAIL=Martin <ops@example.com>",
+                "SLACK_NOTIFICATIONS_ENABLED=true",
+                "SLACK_BOT_TOKEN=xoxb-test-token",
+                "SLACK_CHANNEL_LEAD_RUNS=C123LEADRUNS",
+                "SLACK_CHANNEL_INSTANTLY_REPLIES=C123REPLIES",
+                "SLACK_CHANNEL_LEASE_OPTION_INBOUND=C123LEASEIN",
+                "SLACK_CHANNEL_SMS_CALLS=C123SMSCALLS",
+                "CAL_BOOKING_URL=https://cal.com/limitless/review",
+                "CAL_WEBHOOK_SECRET=cal-webhook-secret",
+                "TRIGGER_SECRET_KEY=tr_secret",
+                "TRIGGER_NON_BOOKER_CHECK_TASK_ID=marketing-check-submitted-lead-booking",
+                "TRIGGER_APPOINTMENT_REMINDER_TASK_ID=marketing-send-appointment-reminder",
+                "MARKETING_APPOINTMENT_REMINDERS_ENABLED=true",
+                "BUSINESS_RUNTIME_MARKETING_LEADS_URL=https://ares.example.com/marketing/leads",
+                "BUSINESS_RUNTIME_API_KEY=runtime-secret",
+                "BUSINESS_RUNTIME_BUSINESS_ID=limitless",
+                "BUSINESS_RUNTIME_ENVIRONMENT=prod",
+            ]
+        )
+    )
+    monkeypatch.setenv("SLACK_CHANNEL_HOT_LEADS", "C123AMBIENT")
+
+    code = main(["--json", "--env-file", str(env_file)])
+
+    assert code == 2
+    output = json.loads(capsys.readouterr().out)
+    assert output["gates"]["slack"]["configured"] is False
+    assert "slack: SLACK_CHANNEL_HOT_LEADS is missing" in output["blockers"]
+    rendered = json.dumps(output)
+    assert "C123AMBIENT" not in rendered
+    assert "xoxb-test-token" not in rendered

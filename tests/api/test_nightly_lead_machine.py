@@ -1,8 +1,35 @@
 import pytest
 
 from app.db.source_runs import source_runs_repository
+from app.models.slack_notifications import SlackNotificationAttempt
+from app.services.nightly_lead_machine_service import nightly_lead_machine_service
 
 AUTH_HEADERS = {"Authorization": "Bearer dev-runtime-key"}
+
+
+class ApiStubSlackNotifier:
+    def __init__(self) -> None:
+        self.calls = []
+
+    def notify(self, **kwargs):
+        self.calls.append(kwargs)
+        return SlackNotificationAttempt(
+            business_id=kwargs["business_id"],
+            environment=kwargs["environment"],
+            route=kwargs["route"],
+            dedupe_key=kwargs["dedupe_key"],
+            channel_id="stubbed-api-slack",
+            status="skipped",
+            error_message="stubbed_api_test_slack_notifier",
+            payload=kwargs.get("payload") or {},
+        )
+
+
+@pytest.fixture(autouse=True)
+def stub_global_nightly_slack_notifier(monkeypatch):
+    stub = ApiStubSlackNotifier()
+    monkeypatch.setattr(nightly_lead_machine_service, "slack_notifier", stub)
+    return stub
 
 
 @pytest.fixture(autouse=True)
@@ -46,6 +73,14 @@ def test_nightly_source_pull_endpoint_returns_expected_shape(client):
     assert body["morning_brief"]["new_record_count"] == 2
     assert body["morning_brief"]["hot_lead_count"] == 1
     assert body["morning_brief"]["blocked_count"] == 1
+
+
+def test_nightly_source_pull_endpoint_uses_stubbed_slack_notifier(client, stub_global_nightly_slack_notifier):
+    response = client.post("/lead-machine/internal/nightly-source-pull", json=_payload(), headers=AUTH_HEADERS)
+
+    assert response.status_code == 200
+    assert [call["route"] for call in stub_global_nightly_slack_notifier.calls] == ["lead_runs"]
+    assert response.json()["notifications"][0]["error_message"] == "stubbed_api_test_slack_notifier"
 
 
 def test_morning_brief_endpoint_builds_from_existing_runs(client):

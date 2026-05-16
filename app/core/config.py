@@ -343,6 +343,14 @@ class Settings(BaseSettings):
         default=None,
         validation_alias=AliasChoices("slack_bot_token", "SLACK_BOT_TOKEN"),
     )
+    slack_notifications_enabled: bool = Field(
+        default=False,
+        validation_alias=AliasChoices("slack_notifications_enabled", "SLACK_NOTIFICATIONS_ENABLED"),
+    )
+    slack_channel_lead_runs: str | None = Field(
+        default=None,
+        validation_alias=AliasChoices("slack_channel_lead_runs", "SLACK_CHANNEL_LEAD_RUNS"),
+    )
     slack_channel_leads: str | None = Field(
         default=None,
         validation_alias=AliasChoices("slack_channel_leads", "SLACK_CHANNEL_LEADS"),
@@ -354,6 +362,18 @@ class Settings(BaseSettings):
     slack_channel_hot_leads: str | None = Field(
         default=None,
         validation_alias=AliasChoices("slack_channel_hot_leads", "SLACK_CHANNEL_HOT_LEADS"),
+    )
+    slack_channel_instantly_replies: str | None = Field(
+        default=None,
+        validation_alias=AliasChoices("slack_channel_instantly_replies", "SLACK_CHANNEL_INSTANTLY_REPLIES"),
+    )
+    slack_channel_lease_option_inbound: str | None = Field(
+        default=None,
+        validation_alias=AliasChoices("slack_channel_lease_option_inbound", "SLACK_CHANNEL_LEASE_OPTION_INBOUND"),
+    )
+    slack_channel_sms_calls: str | None = Field(
+        default=None,
+        validation_alias=AliasChoices("slack_channel_sms_calls", "SLACK_CHANNEL_SMS_CALLS"),
     )
     slack_channel_errors: str | None = Field(
         default=None,

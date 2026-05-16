@@ -25,6 +25,23 @@ os.environ["HUBSPOT_ACCESS_TOKEN"] = ""
 os.environ["PROVIDER_LIVE_SENDS_ENABLED"] = "false"
 os.environ["HUBSPOT_PROVIDER_LIVE_WRITES_ENABLED"] = "false"
 
+SLACK_ENV_VARS = (
+    "SLACK_NOTIFICATIONS_ENABLED",
+    "SLACK_BOT_TOKEN",
+    "SLACK_CHANNEL_LEAD_RUNS",
+    "SLACK_CHANNEL_HOT_LEADS",
+    "SLACK_CHANNEL_INSTANTLY_REPLIES",
+    "SLACK_CHANNEL_LEASE_OPTION_INBOUND",
+    "SLACK_CHANNEL_SMS_CALLS",
+    "SLACK_CHANNEL_ERRORS",
+    "SLACK_CHANNEL_LEADS",
+    "SLACK_CHANNEL_INTAKE",
+)
+
+for name in SLACK_ENV_VARS:
+    os.environ.pop(name, None)
+os.environ["SLACK_NOTIFICATIONS_ENABLED"] = "false"
+
 from app.core.config import get_settings
 from app.main import app
 
@@ -50,6 +67,9 @@ def test_settings(monkeypatch: pytest.MonkeyPatch):
     monkeypatch.setenv("HUBSPOT_ACCESS_TOKEN", "")
     monkeypatch.setenv("PROVIDER_LIVE_SENDS_ENABLED", "false")
     monkeypatch.setenv("HUBSPOT_PROVIDER_LIVE_WRITES_ENABLED", "false")
+    for name in SLACK_ENV_VARS:
+        monkeypatch.delenv(name, raising=False)
+    monkeypatch.setenv("SLACK_NOTIFICATIONS_ENABLED", "false")
     get_settings.cache_clear()
     yield
     get_settings.cache_clear()

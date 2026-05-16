@@ -160,6 +160,7 @@ class NightlySourcePullResponse(BaseModel):
     source_runs: list[SourceRun] = Field(default_factory=list)
     morning_brief: MorningBrief
     warnings: list[str] = Field(default_factory=list)
+    notifications: list[dict[str, Any]] = Field(default_factory=list)
     duplicate: bool = False
     replayed: bool = False
 

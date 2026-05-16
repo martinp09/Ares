@@ -3,6 +3,7 @@ from __future__ import annotations
 from contextlib import contextmanager
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
+from threading import RLock
 from typing import Iterator, Literal, Protocol
 
 from app.core.config import (
@@ -16,6 +17,7 @@ from app.models.approvals import ApprovalRecord
 from app.models.commands import CommandRecord
 from app.models.organizations import MembershipRecord, OrganizationRecord
 from app.models.runs import RunRecord
+from app.models.slack_notifications import SlackNotificationAttempt
 
 
 def utc_now() -> datetime:
@@ -24,6 +26,7 @@ def utc_now() -> datetime:
 
 @dataclass
 class InMemoryControlPlaneStore:
+    _lock: object = field(default_factory=RLock, init=False, repr=False, compare=False)
     commands: dict[str, CommandRecord] = field(default_factory=dict)
     command_keys: dict[tuple[str, str, str, str], str] = field(default_factory=dict)
     approvals: dict[str, ApprovalRecord] = field(default_factory=dict)
@@ -123,6 +126,8 @@ class InMemoryControlPlaneStore:
     deal_stage_events: dict[str, object] = field(default_factory=dict)
     deal_risk_flags: dict[str, object] = field(default_factory=dict)
     deal_risk_flag_keys: dict[tuple[str, str, str], str] = field(default_factory=dict)
+    slack_notifications: dict[str, SlackNotificationAttempt] = field(default_factory=dict)
+    slack_notification_keys: dict[tuple[str, str, str, str], str] = field(default_factory=dict)
     marketing_task_rows: dict[str, object] = field(init=False, repr=False)
     marketing_task_scope: dict[str, tuple[str, str, str]] = field(init=False, repr=False)
     skills: dict[str, object] = field(default_factory=dict)
@@ -138,6 +143,15 @@ class InMemoryControlPlaneStore:
         self.marketing_task_rows = self.tasks
         self.marketing_task_scope = self.task_keys
         seed_control_plane_defaults(self)
+
+    def __getstate__(self) -> dict:
+        state = dict(self.__dict__)
+        state.pop("_lock", None)
+        return state
+
+    def __setstate__(self, state: dict) -> None:
+        self.__dict__.update(state)
+        self._lock = RLock()
 
 
 def seed_control_plane_defaults(store: InMemoryControlPlaneStore) -> None:
@@ -276,6 +290,8 @@ def reset_control_plane_store(store: InMemoryControlPlaneStore | None = None) ->
     target.deal_stage_events.clear()
     target.deal_risk_flags.clear()
     target.deal_risk_flag_keys.clear()
+    target.slack_notifications.clear()
+    target.slack_notification_keys.clear()
     for dynamic_attr in (
         "marketing_contact_rows",
         "marketing_contact_keys",
@@ -319,7 +335,8 @@ class InMemoryControlPlaneClient:
 
     @contextmanager
     def transaction(self) -> Iterator[InMemoryControlPlaneStore]:
-        yield self.store
+        with self.store._lock:
+            yield self.store
 
 
 class SupabaseControlPlaneClient:

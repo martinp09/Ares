@@ -75,7 +75,12 @@ def test_sms_agent_textgrid_webhook_alias_accepts_form_payload(monkeypatch) -> N
 
         def handle_textgrid_webhook(self, payload, *, signature, request_url=None):
             self.calls.append((payload, signature, request_url))
-            return {"status": "processed", "event_type": "status", "action": "ignore"}
+            return {
+                "status": "processed",
+                "event_type": "status",
+                "action": "ignore",
+                "notification": None,
+            }
 
     from app.api import sms_agent as sms_agent_api
 
@@ -99,3 +104,46 @@ def test_sms_agent_textgrid_webhook_alias_accepts_form_payload(monkeypatch) -> N
     }
     assert stub.calls[0][0] == {"MessageSid": "SM123", "MessageStatus": "delivered"}
     assert stub.calls[0][2] == "http://testserver/sms-agent/webhooks/textgrid"
+
+
+def test_sms_agent_textgrid_webhook_preserves_slack_notification(monkeypatch) -> None:
+    class StubInboundSmsService:
+        def handle_textgrid_webhook(self, payload, *, signature, request_url=None):
+            return {
+                "status": "processed",
+                "event_type": "inbound_message",
+                "action": "qualify",
+                "message_id": "msg_123",
+                "task_id": None,
+                "notification": {
+                    "route": "sms_agent_inbound",
+                    "status": "sent",
+                    "deduped": False,
+                    "channel_id": "C-SMS-AGENT",
+                    "dedupe_key": "sms-agent:msg_123",
+                    "slack_message_ts": "1715788800.000300",
+                    "error_message": None,
+                },
+            }
+
+    from app.api import sms_agent as sms_agent_api
+
+    monkeypatch.setattr(sms_agent_api, "inbound_sms_service", StubInboundSmsService())
+    client = TestClient(app)
+
+    response = client.post(
+        "/sms-agent/webhooks/textgrid",
+        json={"From": "+15557654321", "To": "+15551234567", "Body": "Yes"},
+        headers=AUTH_HEADERS,
+    )
+
+    assert response.status_code == 200
+    assert response.json()["notification"] == {
+        "route": "sms_agent_inbound",
+        "status": "sent",
+        "deduped": False,
+        "channel_id": "C-SMS-AGENT",
+        "dedupe_key": "sms-agent:msg_123",
+        "slack_message_ts": "1715788800.000300",
+        "error_message": None,
+    }

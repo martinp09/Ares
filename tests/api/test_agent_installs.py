@@ -1,6 +1,7 @@
 import pytest
 
 from app.db.agent_installs import AgentInstallsRepository
+from app.db.client import STORE
 from app.services.run_service import reset_control_plane_state
 
 AUTH_HEADERS = {"Authorization": "Bearer dev-runtime-key"}
@@ -164,6 +165,8 @@ def test_agent_installs_api_rejects_missing_catalog_entries(client) -> None:
 
     assert response.status_code == 404
     assert response.json()["detail"] == "Catalog entry not found"
+    with STORE._lock:
+        assert STORE.commands == {}
 
 
 def test_agent_installs_api_persists_across_supabase_transaction_boundary(client, fake_supabase_control_plane) -> None:
