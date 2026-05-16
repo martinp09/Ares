@@ -244,6 +244,58 @@ class FakeLiveSourceAdapter:
         }
 
 
+class FakeEmptyLiveSourceAdapter:
+    def __init__(self) -> None:
+        self.calls = []
+
+    def fetch_window(self, **kwargs):
+        self.calls.append(kwargs)
+        assert kwargs["live_source_calls_enabled"] is True
+        return {
+            "harris": CountyProbateSourceFetch(
+                county="harris",
+                source_url="https://example.test/harris-probate",
+                rows=[],
+                source_reported_count=0,
+                raw_count=0,
+                parser_warnings=["harris_live_source_returned_no_rows_for_window"],
+                metadata={"fixture": "empty_harris"},
+            ),
+            "montgomery": CountyProbateSourceFetch(
+                county="montgomery",
+                source_url="https://example.test/montgomery-probate",
+                rows=[],
+                source_reported_count=0,
+                raw_count=0,
+                parser_warnings=["montgomery_live_source_returned_no_probate_rows_for_window"],
+                metadata={"fixture": "empty_montgomery"},
+            ),
+        }
+
+
+def _live_source_request() -> NightlySourcePullRequest:
+    return NightlySourcePullRequest(
+        business_id="biz",
+        environment="test",
+        live_source_calls=True,
+        metadata={
+            "window_start": "2026-05-14T00:00:00+00:00",
+            "window_end": "2026-05-15T00:00:00+00:00",
+            "source_provider_approval": {
+                "approved": True,
+                "approved_by": "operator",
+                "scope": "public_probate_sources",
+                "no_send": True,
+                "provider_sends_enabled": False,
+            },
+            "source_provider_bridge": {
+                "mode": "live_source_adapters",
+                "expected_counties": ["harris", "montgomery"],
+            },
+        },
+    )
+
+
 def test_source_provider_bridge_hydrates_live_source_adapters_only_with_gate_and_approval():
     settings = Settings(_env_file=None, lead_machine_live_source_calls_enabled=True)
     adapter = FakeLiveSourceAdapter()
@@ -332,28 +384,7 @@ def test_nightly_service_runs_live_source_adapters_as_no_send_source_runs():
         source_provider_bridge=bridge,
     )
 
-    result = service.run_nightly_source_pull(
-        NightlySourcePullRequest(
-            business_id="biz",
-            environment="test",
-            live_source_calls=True,
-            metadata={
-                "window_start": "2026-05-14T00:00:00+00:00",
-                "window_end": "2026-05-15T00:00:00+00:00",
-                "source_provider_approval": {
-                    "approved": True,
-                    "approved_by": "operator",
-                    "scope": "public_probate_sources",
-                    "no_send": True,
-                    "provider_sends_enabled": False,
-                },
-                "source_provider_bridge": {
-                    "mode": "live_source_adapters",
-                    "expected_counties": ["harris", "montgomery"],
-                },
-            },
-        )
-    )
+    result = service.run_nightly_source_pull(_live_source_request())
 
     assert result.would_call_external_sources is True
     assert result.live_source_calls_enabled is True
@@ -361,4 +392,32 @@ def test_nightly_service_runs_live_source_adapters_as_no_send_source_runs():
     assert all(run.record_count == 1 for run in result.source_runs)
     assert all(run.metadata["source_provider_bridge"]["mode"] == "live_source_adapters" for run in result.source_runs)
     assert all(run.metadata["source_provider_bridge"]["network_calls_attempted"] is True for run in result.source_runs)
+    assert all(run.metadata["live_source_adapter_status"] == "live_source_adapter" for run in result.source_runs)
     assert result.morning_brief.sections["no_send_confirmation"]["no_send"] is True
+
+
+def test_nightly_service_records_zero_row_live_source_adapter_runs_without_deferred_placeholder():
+    settings = Settings(_env_file=None, lead_machine_live_source_calls_enabled=True)
+    adapter = FakeEmptyLiveSourceAdapter()
+    bridge = ProbateSourceProviderBridgeService(settings=settings, live_source_adapter=adapter)
+    service = NightlyLeadMachineService(
+        repository=SourceRunsRepository(),
+        settings=settings,
+        source_provider_bridge=bridge,
+    )
+
+    result = service.run_nightly_source_pull(_live_source_request())
+
+    assert adapter.calls
+    assert result.would_call_external_sources is True
+    assert result.live_source_calls_enabled is True
+    assert {run.county for run in result.source_runs} == {"harris", "montgomery"}
+    assert all(run.record_count == 0 for run in result.source_runs)
+    assert all(run.raw_count == 0 for run in result.source_runs)
+    assert all(run.parsed_count == 0 for run in result.source_runs)
+    assert all(run.metadata["live_source_adapter_status"] == "live_source_adapter" for run in result.source_runs)
+    assert all(
+        {artifact.artifact_type for artifact in run.artifacts} >= {"raw_source_rows", "normalized_source_rows", "keep_now_rows"}
+        for run in result.source_runs
+    )
+    assert "live county scraping is deferred" not in "\n".join(result.warnings)

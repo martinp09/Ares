@@ -58,11 +58,12 @@ def build_probate_autopilot_manifests(
 
     manifests: list[SourceRunManifest] = []
     for county in counties:
-        if rows_by_county.get(county):
+        county_rows = rows_by_county.get(county, [])
+        if county_rows or _has_declared_source_adapter_result(metadata, county=county):
             manifests.append(
                 _build_row_manifest(
                     county=county,
-                    rows=rows_by_county[county],
+                    rows=county_rows,
                     metadata=metadata,
                     run_kind=run_kind,
                     window_start=window_start,
@@ -332,7 +333,7 @@ def _build_row_manifest(
             "run_kind": run_kind,
             **_NO_SEND_METADATA,
             **_source_provider_bridge_metadata(metadata),
-            "live_source_adapter_status": "file_drop_or_external_adapter",
+            "live_source_adapter_status": _source_adapter_status(metadata),
             "source_run_scope": metadata.get("source_run_scope"),
             "source_identity_version": metadata.get("source_identity_version"),
             "source_uri": _source_uri(metadata, county),
@@ -503,6 +504,37 @@ def _source_provider_bridge_metadata(metadata: Mapping[str, Any]) -> dict[str, A
         "provider_sends_enabled",
     }
     return {"source_provider_bridge": {key: bridge[key] for key in safe_keys if key in bridge}}
+
+
+def _source_provider_bridge_mode(metadata: Mapping[str, Any]) -> str | None:
+    bridge = metadata.get("source_provider_bridge")
+    if not isinstance(bridge, Mapping):
+        return None
+    mode = bridge.get("mode")
+    return str(mode).strip().lower() if mode is not None else None
+
+
+def _has_declared_source_adapter_result(metadata: Mapping[str, Any], *, county: SourceCounty) -> bool:
+    """Return true when a real source adapter/export ran and returned zero rows.
+
+    Without this distinction, a successful live-source fetch for a quiet county
+    falls back to the old Phase 1 placeholder manifest and posts the misleading
+    Slack warning that live county scraping was deferred.
+    """
+
+    if _source_provider_bridge_mode(metadata) not in {"live_source_adapters", "local_export_files"}:
+        return False
+    source_rows = metadata.get("source_rows")
+    return isinstance(source_rows, Mapping) and county in source_rows
+
+
+def _source_adapter_status(metadata: Mapping[str, Any]) -> str:
+    mode = _source_provider_bridge_mode(metadata)
+    if mode == "live_source_adapters":
+        return "live_source_adapter"
+    if mode == "local_export_files":
+        return "local_export_file"
+    return "file_drop_or_external_adapter"
 
 
 def _duplicate_case_numbers(records: list[Mapping[str, Any]]) -> dict[str, int]:
