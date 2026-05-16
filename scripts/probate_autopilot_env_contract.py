@@ -29,7 +29,9 @@ LIVE_INTELLIGENCE_GATE_VARS = (
     "LEAD_MACHINE_LIVE_CAD_CALLS_ENABLED",
     "LEAD_MACHINE_LIVE_TAX_CALLS_ENABLED",
     "LEAD_MACHINE_LIVE_LAND_RECORD_CALLS_ENABLED",
+    "LEAD_MACHINE_LIVE_CASE_DETAIL_CALLS_ENABLED",
     "LEAD_MACHINE_SCHEDULED_LIVE_ENRICHMENT_CALLS_ENABLED",
+    "LEAD_MACHINE_SCHEDULED_LIVE_CASE_DETAIL_CALLS_ENABLED",
 )
 
 _TRUE_VALUES = {"1", "true", "t", "yes", "y", "on"}
@@ -70,7 +72,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--require-scheduled-live",
         action="store_true",
-        help="Treat disabled scheduled live-source/enrichment gates as blockers instead of warnings.",
+        help="Treat disabled scheduled live source/case-detail/enrichment gates as blockers instead of warnings.",
     )
     return parser
 

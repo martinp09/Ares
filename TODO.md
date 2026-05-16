@@ -1,7 +1,7 @@
 ---
 title: "Ares TODO / Handoff"
 status: active
-updated_at: "2026-05-15T22:59:40Z"
+updated_at: "2026-05-15T23:43:02Z"
 repo: "martinp09/Ares"
 local_checkout: "/opt/ares/worktrees/ares-main"
 target_branch: "main"
@@ -13,16 +13,17 @@ implementation_commit: "9c256bf"
 
 ## Current status
 
-The Harris + Montgomery probate autopilot PRD implementation landed at `9c256bf` as an operational no-send system; handoff docs landed at `9f30d2f`, and this env-preflight follow-up supersedes the deploy-gate wording. Trigger schedules default to live public probate source acquisition plus live public CAD/tax/land-record enrichment, and the backend defaults those live lanes on. Ares still requires explicit no-send approval metadata for live source/enrichment runtime requests and keeps every outbound path blocked.
+The Harris + Montgomery probate autopilot PRD implementation landed at `9c256bf` as an operational no-send system; handoff docs landed at `9f30d2f`, env preflight landed at `a859fd2`, and case-detail enrichment finishes the last high-value enrichment gap. Trigger schedules default to live public probate source acquisition, live public case-detail page enrichment, and live public CAD/tax/land-record enrichment. Backend defaults those live intelligence lanes on, but Ares still requires explicit no-send approval metadata for live source/case-detail/enrichment runtime requests and keeps every outbound path blocked.
 
 Latest manual live no-send smoke (`docs/qc/2026-05-15/probate-autopilot-live-operational-prd-execution/live-smoke-output.txt`) completed with Harris + Montgomery counties, `47` live public probate source records, `8` keep-now rows enriched, live CAD/tax/land-record calls attempted, `sla_status=healthy`, `source_health_failed_runs=0`, `no_send=true`, and `provider_sends_enabled=false`.
 
-Post-merge verification on `main` also passed: `uv run pytest -q` => `901 passed`; `npm --prefix trigger run typecheck` => passed.
+Case-detail verification passed: focused case-detail/source/nightly/env/Trigger contracts => `47 passed`; full backend => `916 passed`; Trigger typecheck => passed.
 
 No HubSpot batch writes, Instantly enrollment/sends, SMS/Vapi calls, paid skiptrace, Slack/provider sends, or deploys were executed by this slice.
 
 ## Primary handoff artifacts
 
+- Case-detail enrichment QC: `docs/qc/2026-05-15/probate-case-detail-enrichment/`
 - Env preflight QC: `docs/qc/2026-05-15/probate-autopilot-env-preflight/`
 - Env preflight command: `uv run python scripts/probate_autopilot_env_contract.py --env-file .env --require-scheduled-live`
 - Live operational PRD execution QC: `docs/qc/2026-05-15/probate-autopilot-live-operational-prd-execution/`
@@ -35,12 +36,12 @@ No HubSpot batch writes, Instantly enrollment/sends, SMS/Vapi calls, paid skiptr
 1. Before production no-send deployment, run `uv run python scripts/probate_autopilot_env_contract.py --env-file .env --require-scheduled-live` and configure durable `LEAD_MACHINE_SOURCE_RUNS_STATE_PATH` / `LEAD_MACHINE_ARTIFACT_ROOT`.
 2. After production deployment, monitor the no-send Trigger schedule reports for aggregate source-run/enrichment health.
 3. Keep Instantly enrollment/send, SMS/Vapi dispatch, paid skiptrace, and HubSpot batch mirror writes gated until separately approved.
-4. Add stronger property matching once probate rows carry richer addresses/heir/applicant context.
+4. Measure property-match lift from case-detail-derived party/address/context evidence; current case-detail layer records contact candidates but still does not assert seller authority.
 
 ## Open product follow-ups
 
 - Add Mission Control read/approval endpoints and frontend review page for Ares offer/copy assets and Harris probate campaign launch.
-- Add stronger property matching once probate rows carry richer addresses/heir/applicant context; current live smoke proved live calls but 2026-05-15 keep-now rows still lacked enough property identifiers for CAD matches.
+- Use case-detail-derived party/address/context evidence to improve deterministic property matching; current case-detail layer records contact candidates and keeps seller-authority verification false until separate evidence.
 - Reacher/SMTP-capable email verification cannot run recipient-MX mailbox probes from the current Hetzner VPS while outbound port 25 is blocked; request unblock, move verifier sidecar, or use DNS/MX/disposable-only checks until egress is available.
 - Enrich Harris probate exports with email/phone via Tracerfy only after Martin explicitly approves skiptrace spend.
 - Activate/upgrade the keyed Instantly workspace to a paid plan before real-account campaign sync/enrollment.

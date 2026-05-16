@@ -5,6 +5,7 @@
 - Worktree: `/opt/ares/worktrees/ares-main`
 - Branch: `fix/probate-autopilot-env-preflight`
 - Scope: no-send production deployment preflight + stale handoff cleanup
+- Superseded by: `docs/qc/2026-05-15/probate-case-detail-enrichment/` for case-detail live gate additions
 
 ## Scope
 
@@ -39,8 +40,10 @@ checks:
   - `INSTANTLY_PROVIDER_LIVE_ENROLLMENT_ENABLED=false`
   - `HUBSPOT_PROVIDER_LIVE_WRITES_ENABLED=false`
   - `VAPI_PROVIDER_LIVE_SENDS_ENABLED=false`
-- live intelligence gates are explicit booleans.
-- scheduled live-source/enrichment gates are enabled when `--require-scheduled-live` is used.
+- live intelligence gates are explicit booleans, including the later-added case-detail gates:
+  - `LEAD_MACHINE_LIVE_CASE_DETAIL_CALLS_ENABLED`
+  - `LEAD_MACHINE_SCHEDULED_LIVE_CASE_DETAIL_CALLS_ENABLED`
+- scheduled live source/case-detail/enrichment gates are enabled when `--require-scheduled-live` is used.
 - state path parent and artifact root exist and are writable.
 
 The script intentionally does not create files/directories and does not call external sources/providers.
@@ -104,4 +107,4 @@ Not executed:
 
 - Run the preflight against the real production env file before a deployment/promotion.
 - Configure durable state/artifact directories in the deployment target.
-- Next data-quality PRD gap: case-detail party/event/doc/contact-context enrichment so property matching has better identifiers.
+- Case-detail party/event/doc/contact-candidate enrichment was implemented in the follow-up QC slice; next data-quality work is measuring property-match lift from that context while provider/send gates stay blocked.

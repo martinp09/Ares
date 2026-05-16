@@ -113,6 +113,14 @@ _FIELD_ALIASES: dict[str, tuple[str, ...]] = {
         "situs address",
         "address",
     ),
+    "case_detail_url": (
+        "case_detail_url",
+        "case detail url",
+        "detail_url",
+        "detail url",
+        "case_url",
+        "case url",
+    ),
 }
 
 

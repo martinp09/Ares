@@ -5,6 +5,7 @@
 - Worktree: `/opt/ares/worktrees/ares-main`
 - Branch at execution: `fix/probate-autopilot-enrichment-wiring`; merged to `origin/main` at `9c256bf`
 - Obsidian PRD: `/root/obsidian-vault/03-Experiments/Harris Montgomery Probate Autopilot PRD.md`
+- Superseded by: `docs/qc/2026-05-15/probate-case-detail-enrichment/` for the follow-up case-detail/contact-candidate PRD gap
 
 ## Scope
 
@@ -106,10 +107,12 @@ Not executed:
 
 ## Known data-quality result
 
-The 2026-05-15 live keep-now rows did not carry enough property identifiers for CAD matches, so property match remained unmatched/pending for the 8 enriched rows. That is a data-quality/enrichment-depth follow-up, not a wiring gap: the smoke proved the live CAD/tax/land clients were called and the no-send runtime completed.
+The 2026-05-15 live keep-now rows did not carry enough property identifiers for CAD matches, so property match remained unmatched/pending for the 8 enriched rows. That was a data-quality/enrichment-depth follow-up, not a wiring gap: the smoke proved the live CAD/tax/land clients were called and the no-send runtime completed.
+
+Follow-up status: case-detail party/event/document/contact-candidate enrichment is now implemented in the superseding case-detail QC slice. Remaining quality work is to measure property-match lift from that context while preserving no-send/provider gates.
 
 ## Remaining gates
 
 - Configure durable `LEAD_MACHINE_SOURCE_RUNS_STATE_PATH` and `LEAD_MACHINE_ARTIFACT_ROOT` before production deployment.
-- Add stronger property matching once probate rows carry applicant/heir/property context.
+- Measure deterministic property-match lift from case-detail-derived party/address/context evidence.
 - Keep outbound/provider-send controls blocked until Martin approves exact campaign/recipient/provider scope.

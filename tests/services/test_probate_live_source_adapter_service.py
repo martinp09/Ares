@@ -54,7 +54,7 @@ def test_harris_live_parser_extracts_public_probate_rows_without_html_artifacts(
         """
         <table id="ctl00_ContentPlaceHolder1_ListViewCases">
           <tr>
-            <td><a id="ctl00_ContentPlaceHolder1_ListViewCases_ctrl0_btnSelect">SYN-H-0001</a></td>
+            <td><a id="ctl00_ContentPlaceHolder1_ListViewCases_ctrl0_btnSelect" href="CaseDetail.aspx?CaseID=10001">SYN-H-0001</a></td>
             <td id="ctl00_ContentPlaceHolder1_ListViewCases_ctrl0_Td9">05/14/2026</td>
             <td id="ctl00_ContentPlaceHolder1_ListViewCases_ctrl0_Td17">Open</td>
             <td id="ctl00_ContentPlaceHolder1_ListViewCases_ctrl0_Td8">INDEPENDENT ADMINISTRATION</td>
@@ -74,6 +74,7 @@ def test_harris_live_parser_extracts_public_probate_rows_without_html_artifacts(
             "filing_type": "INDEPENDENT ADMINISTRATION",
             "filing_subtype": "LETTERS TESTAMENTARY",
             "style": "IN THE ESTATE OF: SAMPLE TEST OWNER, DECEASED",
+            "case_detail_url": "https://www.cclerk.hctx.net/Applications/WebSearch/CaseDetail.aspx?CaseID=10001",
             "source_url": "https://www.cclerk.hctx.net/Applications/WebSearch/CourtSearch_R.aspx?CaseType=Probate",
             "raw_live_row": {
                 "case": "SYN-H-0001",
@@ -117,6 +118,7 @@ def test_montgomery_live_parser_filters_to_probate_case_rows():
     assert rows[0]["filing_type"] == "Administration-Heirship-Independent"
     assert rows[0]["status"] == "Active"
     assert rows[0]["style"] == "Estate of: SAMPLE MONTGOMERY OWNER"
+    assert rows[0]["case_detail_url"] == "https://odyssey.mctx.org/County/CaseDetail.aspx?CaseID=2"
     assert "<table" not in str(rows)
 
 

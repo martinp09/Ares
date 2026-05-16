@@ -423,6 +423,13 @@ def test_probate_autopilot_source_rows_create_artifacts_and_keep_now_counts(tmp_
     assert result.morning_brief.sections["source_quality"]["invalid_row_count"] == 1
     assert result.morning_brief.sections["enrichment_backlog"] == {
         "status": "partial",
+        "case_detail_status": "incomplete",
+        "case_detail_completed_count": 0,
+        "case_detail_pending_count": 1,
+        "case_detail_blocked_count": 0,
+        "contact_candidate_count": 0,
+        "primary_contact_candidate_count": 0,
+        "live_case_detail_calls_attempted": False,
         "enriched_count": 1,
         "property_match_completed_count": 0,
         "property_match_pending_count": 1,
@@ -445,6 +452,7 @@ def test_probate_autopilot_source_rows_create_artifacts_and_keep_now_counts(tmp_
     assert [action["action"] for action in result.morning_brief.sections["operator_next_actions"]] == [
         "reconcile_source_count_mismatches",
         "inspect_invalid_source_rows",
+        "complete_case_detail_enrichment",
         "complete_property_tax_title_enrichment",
         "keep_outbound_blocked",
     ]
@@ -521,7 +529,14 @@ def test_probate_autopilot_runs_enrichment_stages_inside_nightly_pull(tmp_path):
     }.issubset(lanes)
     assert result.morning_brief.new_record_count == 1
     assert result.morning_brief.sections["enrichment_backlog"] == {
-        "status": "completed",
+        "status": "partial",
+        "case_detail_status": "incomplete",
+        "case_detail_completed_count": 0,
+        "case_detail_pending_count": 1,
+        "case_detail_blocked_count": 0,
+        "contact_candidate_count": 0,
+        "primary_contact_candidate_count": 0,
+        "live_case_detail_calls_attempted": False,
         "enriched_count": 1,
         "property_match_completed_count": 1,
         "property_match_pending_count": 0,
@@ -542,7 +557,7 @@ def test_probate_autopilot_runs_enrichment_stages_inside_nightly_pull(tmp_path):
         "live_land_record_calls_attempted": False,
     }
     assert [action["action"] for action in result.morning_brief.sections["operator_next_actions"]] == [
-        "review_enriched_probate_queue",
+        "complete_case_detail_enrichment",
         "keep_outbound_blocked",
     ]
     enrichment_artifacts = [
@@ -552,12 +567,116 @@ def test_probate_autopilot_runs_enrichment_stages_inside_nightly_pull(tmp_path):
         if artifact.artifact_type.endswith("_enrichment")
     ]
     assert {artifact.artifact_type for artifact in enrichment_artifacts} == {
+        "case_detail_enrichment",
         "property_match_enrichment",
         "tax_overlay_enrichment",
         "title_friction_enrichment",
     }
     assert all(Path(artifact.path).exists() for artifact in enrichment_artifacts)
     assert "Jane Example" in Path(enrichment_artifacts[0].path).read_text(encoding="utf-8")
+
+
+def test_probate_autopilot_runs_case_detail_enrichment_before_property_stages(tmp_path):
+    service = NightlyLeadMachineService(
+        repository=SourceRunsRepository(),
+        settings=Settings(_env_file=None, lead_machine_artifact_root=str(tmp_path)),
+    )
+
+    result = service.run_nightly_source_pull(
+        NightlySourcePullRequest(
+            business_id="biz",
+            environment="prod",
+            idempotency_key="case-detail-source-0710",
+            metadata={
+                "autopilot": "harris_montgomery_probate",
+                "run_kind": "morning_catchup",
+                "window_end": "2026-05-15T07:10:00+00:00",
+                "county_scope": ["harris"],
+                "source_rows": {
+                    "harris": [
+                        {
+                            "case_number": "543681",
+                            "filing_type": "App for Independent Administration with an Heirship",
+                            "style": "Estate of Jane Detail",
+                            "decedent_name": "Jane Detail",
+                        }
+                    ]
+                },
+                "case_detail_enrichment": {
+                    "case_details_by_case": {
+                        "543681": {
+                            "source_url": "https://example.test/harris/detail/543681",
+                            "parties": [
+                                {"role": "Applicant", "name": "Alex Detail", "address": "100 Contact Rd, Houston, TX"},
+                                {"role": "Decedent", "name": "Jane Detail"},
+                            ],
+                            "events": [{"date": "2026-05-20", "event_type": "Hearing on Application"}],
+                            "documents": [{"document_type": "Application to Determine Heirship", "document_number": "D-1"}],
+                        }
+                    }
+                },
+                "property_tax_title_enrichment": {
+                    "hcad_candidates_by_case": {
+                        "543681": [
+                            {
+                                "acct": "000123400002",
+                                "owner_name": "Jane Detail",
+                                "mailing_address": "100 Contact Rd, Houston, TX",
+                                "property_address": "900 Probate Property St, Houston, TX",
+                            }
+                        ]
+                    },
+                    "tax_overlays_by_account": {
+                        "123400002": {
+                            "status": "tax_overlay_verified_current",
+                            "is_delinquent": False,
+                            "account": "123400002",
+                            "confidence": "high",
+                        }
+                    },
+                },
+            },
+        )
+    )
+
+    lanes = {run.source_lane for run in result.source_runs}
+    assert "harris_probate_case_detail" in lanes
+    assert "harris_hcad_property_match" in lanes
+    assert result.morning_brief.sections["case_detail"] == {
+        "status": "completed",
+        "received_count": 1,
+        "detail_completed_count": 1,
+        "detail_incomplete_count": 0,
+        "detail_blocked_count": 0,
+        "party_count": 2,
+        "event_count": 1,
+        "document_reference_count": 1,
+        "contact_candidate_count": 1,
+        "primary_contact_candidate_count": 1,
+        "attorney_count": 0,
+        "hearing_clue_count": 1,
+        "publication_clue_count": 0,
+        "no_send": True,
+        "provider_sends_enabled": False,
+        "outbound_allowed": False,
+        "live_case_detail_calls_attempted": False,
+    }
+    assert result.morning_brief.sections["enrichment_backlog"]["case_detail_pending_count"] == 0
+    case_detail_run = next(run for run in result.source_runs if run.source_lane == "harris_probate_case_detail")
+    assert case_detail_run.metadata["contact_candidate_count"] == 1
+    assert case_detail_run.metadata["provider_sends_enabled"] is False
+    case_detail_artifact = case_detail_run.artifacts[0]
+    assert case_detail_artifact.artifact_type == "case_detail_enrichment"
+    artifact_payload = Path(case_detail_artifact.path).read_text(encoding="utf-8")
+    assert "Alex Detail" in artifact_payload
+    assert '"is_confirmed_seller": false' in artifact_payload
+    property_artifact = next(
+        artifact
+        for run in result.source_runs
+        for artifact in run.artifacts
+        if artifact.artifact_type == "property_match_enrichment"
+    )
+    assert '"case_detail"' in Path(property_artifact.path).read_text(encoding="utf-8")
 
 
 def test_probate_autopilot_source_rows_detect_source_report_mismatch(service: NightlyLeadMachineService):

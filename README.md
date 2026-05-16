@@ -34,7 +34,7 @@ This repo is the deterministic runtime, policy layer, orchestration surface, and
 - HubSpot contact visibility correction evidence: `docs/qc/2026-05-14/hubspot-contact-visibility-correction/`
 - Operating cadence runbook: `docs/runbooks/agentic-company-operating-cadence.md`
 - Provider sync/recovery runbook: `docs/runbooks/provider-sync-and-recovery.md`
-- Harris + Montgomery probate autopilot is now operational as a no-send system: Trigger schedules default to live public source + public CAD/tax/land-record enrichment, Ares keeps no-send approval/suppression gates, and Instantly/SMS/Vapi/paid skiptrace remain blocked. Latest QC: `docs/qc/2026-05-15/probate-autopilot-live-operational-prd-execution/`. Before any production no-send rollout, run `uv run python scripts/probate_autopilot_env_contract.py --env-file .env --require-scheduled-live` and configure durable `LEAD_MACHINE_SOURCE_RUNS_STATE_PATH` / `LEAD_MACHINE_ARTIFACT_ROOT`.
+- Harris + Montgomery probate autopilot is now operational as a no-send system: Trigger schedules default to live public source + public case-detail party/event/document/contact-candidate enrichment + public CAD/tax/land-record enrichment, Ares keeps no-send approval/suppression gates, case-detail live fetches are restricted to approved public county detail URLs, and Instantly/SMS/Vapi/paid skiptrace remain blocked. Latest QC: `docs/qc/2026-05-15/probate-case-detail-enrichment/`. Before any production no-send rollout, run `uv run python scripts/probate_autopilot_env_contract.py --env-file .env --require-scheduled-live` and configure durable `LEAD_MACHINE_SOURCE_RUNS_STATE_PATH` / `LEAD_MACHINE_ARTIFACT_ROOT`.
 
 ## Initial Direction
 

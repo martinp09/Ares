@@ -28,7 +28,9 @@ def _valid_env(tmp_path: Path) -> dict[str, str]:
         "LEAD_MACHINE_LIVE_CAD_CALLS_ENABLED": "true",
         "LEAD_MACHINE_LIVE_TAX_CALLS_ENABLED": "true",
         "LEAD_MACHINE_LIVE_LAND_RECORD_CALLS_ENABLED": "true",
+        "LEAD_MACHINE_LIVE_CASE_DETAIL_CALLS_ENABLED": "true",
         "LEAD_MACHINE_SCHEDULED_LIVE_ENRICHMENT_CALLS_ENABLED": "true",
+        "LEAD_MACHINE_SCHEDULED_LIVE_CASE_DETAIL_CALLS_ENABLED": "true",
     }
 
 
@@ -153,7 +155,9 @@ def test_env_contract_cli_reads_env_file_without_printing_secret_values(tmp_path
                 "LEAD_MACHINE_LIVE_CAD_CALLS_ENABLED=true",
                 "LEAD_MACHINE_LIVE_TAX_CALLS_ENABLED=true",
                 "LEAD_MACHINE_LIVE_LAND_RECORD_CALLS_ENABLED=true",
+                "LEAD_MACHINE_LIVE_CASE_DETAIL_CALLS_ENABLED=true",
                 "LEAD_MACHINE_SCHEDULED_LIVE_ENRICHMENT_CALLS_ENABLED=true",
+                "LEAD_MACHINE_SCHEDULED_LIVE_CASE_DETAIL_CALLS_ENABLED=true",
                 "HUBSPOT_ACCESS_TOKEN=super-secret-token",
             ]
         ),

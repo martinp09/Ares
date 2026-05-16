@@ -90,6 +90,13 @@ class Settings(BaseSettings):
             "LEAD_MACHINE_LIVE_LAND_RECORD_CALLS_ENABLED",
         ),
     )
+    lead_machine_live_case_detail_calls_enabled: bool = Field(
+        default=True,
+        validation_alias=AliasChoices(
+            "lead_machine_live_case_detail_calls_enabled",
+            "LEAD_MACHINE_LIVE_CASE_DETAIL_CALLS_ENABLED",
+        ),
+    )
     database_url: str | None = None
     site_events_backend: Literal["memory", "supabase"] = "memory"
     runtime_provider_default: Literal["anthropic", "openai_compat", "local"] = "anthropic"

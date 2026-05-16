@@ -29,6 +29,7 @@ from app.services.probate_autopilot_manifest_service import (
     collect_probate_autopilot_keep_now_rows,
     is_probate_autopilot_request,
 )
+from app.services.probate_case_detail_enrichment_service import ProbateCaseDetailEnrichmentService
 from app.services.probate_property_tax_title_enrichment_service import ProbatePropertyTaxTitleEnrichmentService
 from app.services.probate_source_provider_service import ProbateSourceProviderBridgeService
 
@@ -57,10 +58,12 @@ DEFAULT_SOURCE_DEFINITIONS: tuple[dict[str, str], ...] = (
 )
 
 _PROBATE_SOURCE_LANES = {"harris_county_probate", "montgomery_county_probate"}
+_CASE_DETAIL_LANES = {"harris": "harris_probate_case_detail", "montgomery": "montgomery_probate_case_detail"}
 _PROPERTY_MATCH_LANES = {"harris": "harris_hcad_property_match", "montgomery": "montgomery_cad_property_match"}
 _TAX_OVERLAY_LANES = {"harris": "harris_hctax_overlay", "montgomery": "montgomery_act_tax_overlay"}
 _LAND_RECORD_LANES = {"harris": "harris_land_records", "montgomery": "montgomery_land_records"}
 _ENRICHMENT_STAGE_LABELS = {
+    "case_detail": "Case-detail party/event/document enrichment",
     "property_match": "Property/CAD match enrichment",
     "tax_overlay": "Tax delinquency overlay enrichment",
     "title_friction": "Land-record/title-friction enrichment",
@@ -73,11 +76,13 @@ class NightlyLeadMachineService:
         repository: SourceRunsRepository | None = None,
         settings: Settings | None = None,
         source_provider_bridge: ProbateSourceProviderBridgeService | None = None,
+        case_detail_service: ProbateCaseDetailEnrichmentService | None = None,
         enrichment_service: ProbatePropertyTaxTitleEnrichmentService | None = None,
     ) -> None:
         self.repository = repository or source_runs_repository
         self.settings = settings or get_settings()
         self.source_provider_bridge = source_provider_bridge or ProbateSourceProviderBridgeService(settings=self.settings)
+        self.case_detail_service = case_detail_service or ProbateCaseDetailEnrichmentService(settings=self.settings)
         self.enrichment_service = enrichment_service or ProbatePropertyTaxTitleEnrichmentService(settings=self.settings)
 
     def run_nightly_source_pull(self, request: NightlySourcePullRequest) -> NightlySourcePullResponse:
@@ -107,7 +112,19 @@ class NightlyLeadMachineService:
         else:
             manifests = self._default_manifests()
 
-        enrichment_result = self._run_probate_property_tax_title_enrichment(request)
+        case_detail_result = self._run_probate_case_detail_enrichment(request)
+        if case_detail_result is not None:
+            manifests = [
+                *manifests,
+                *self._probate_case_detail_manifests(
+                    request=request,
+                    case_detail_result=case_detail_result,
+                ),
+            ]
+        enrichment_result = self._run_probate_property_tax_title_enrichment(
+            request,
+            keep_now_rows=(case_detail_result or {}).get("records") if case_detail_result is not None else None,
+        )
         if enrichment_result is not None:
             manifests = [
                 *manifests,
@@ -163,9 +180,14 @@ class NightlyLeadMachineService:
             created_runs.append(stored)
 
         brief_metadata = request.metadata
+        if case_detail_result is not None:
+            brief_metadata = {
+                **brief_metadata,
+                "probate_case_detail_enrichment": _safe_case_detail_summary(case_detail_result),
+            }
         if enrichment_result is not None:
             brief_metadata = {
-                **request.metadata,
+                **brief_metadata,
                 "probate_property_tax_title_enrichment": _safe_enrichment_summary(enrichment_result),
             }
         brief = self.build_morning_brief(
@@ -189,11 +211,43 @@ class NightlyLeadMachineService:
             )
         return response
 
-    def _run_probate_property_tax_title_enrichment(
+    def _run_probate_case_detail_enrichment(
         self,
         request: NightlySourcePullRequest,
     ) -> dict[str, Any] | None:
         keep_now_rows = collect_probate_autopilot_keep_now_rows(metadata=request.metadata)
+        if not keep_now_rows:
+            return None
+        case_detail_config = _case_detail_config(request.metadata)
+        return self.case_detail_service.run_enrichment(
+            business_id=request.business_id,
+            environment=request.environment,
+            keep_now_rows=keep_now_rows,
+            case_details_by_case=_mapping_from_enrichment_config(
+                case_detail_config,
+                request.metadata,
+                "case_details_by_case",
+            ),
+            live_case_detail_calls=_bool_from_enrichment_config(
+                case_detail_config,
+                request.metadata,
+                "live_case_detail_calls",
+            ),
+            case_detail_approval=_mapping_from_enrichment_config(
+                case_detail_config,
+                request.metadata,
+                "case_detail_approval",
+            ),
+        )
+
+    def _run_probate_property_tax_title_enrichment(
+        self,
+        request: NightlySourcePullRequest,
+        *,
+        keep_now_rows: list[dict[str, Any]] | None = None,
+    ) -> dict[str, Any] | None:
+        if keep_now_rows is None:
+            keep_now_rows = collect_probate_autopilot_keep_now_rows(metadata=request.metadata)
         if not keep_now_rows:
             return None
         enrichment_config = _enrichment_config(request.metadata)
@@ -233,6 +287,120 @@ class NightlyLeadMachineService:
                 request.metadata,
                 "enrichment_approval",
             ),
+        )
+
+    def _probate_case_detail_manifests(
+        self,
+        *,
+        request: NightlySourcePullRequest,
+        case_detail_result: Mapping[str, Any],
+    ) -> list[SourceRunManifest]:
+        records_by_county: dict[str, list[dict[str, Any]]] = {"harris": [], "montgomery": []}
+        for record in case_detail_result.get("records", []):
+            if not isinstance(record, dict):
+                continue
+            county = _record_county(record)
+            if county in records_by_county:
+                records_by_county[county].append(record)
+
+        run_kind = _metadata_run_kind(request.metadata)
+        window_key = _window_key_from_metadata(request.metadata)
+        manifests: list[SourceRunManifest] = []
+        for county, records in records_by_county.items():
+            if not records:
+                continue
+            summary = _county_case_detail_summary(records, case_detail_result=case_detail_result)
+            lane = _CASE_DETAIL_LANES[county]
+            manifests.append(
+                SourceRunManifest(
+                    source_key=":".join(
+                        [
+                            lane,
+                            run_kind,
+                            window_key,
+                            request.idempotency_key or "no-idempotency-key",
+                        ]
+                    ),
+                    source_label=f"{county.title()} {_ENRICHMENT_STAGE_LABELS['case_detail']}",
+                    source_lane=lane,  # type: ignore[arg-type]
+                    county=county,  # type: ignore[arg-type]
+                    run_kind=run_kind,  # type: ignore[arg-type]
+                    window_start=_parse_metadata_datetime(request.metadata.get("window_start")),
+                    window_end=_parse_metadata_datetime(request.metadata.get("window_end")),
+                    idempotency_key=(f"{request.idempotency_key}:{county}:case_detail" if request.idempotency_key else None),
+                    raw_count=0,
+                    parsed_count=0,
+                    keep_now_count=0,
+                    record_count=0,
+                    artifacts=[
+                        self._case_detail_artifact(
+                            county=county,
+                            run_kind=run_kind,
+                            window_key=window_key,
+                            summary=summary,
+                            records=records,
+                        )
+                    ],
+                    metadata={
+                        "autopilot": "harris_montgomery_probate",
+                        "phase": "phase_3_case_detail_enrichment",
+                        "county": county,
+                        "run_kind": run_kind,
+                        "enrichment_stage": "case_detail",
+                        **summary,
+                        "no_send": True,
+                        "provider_sends_enabled": False,
+                        "outbound_allowed": False,
+                    },
+                )
+            )
+        return manifests
+
+    def _case_detail_artifact(
+        self,
+        *,
+        county: str,
+        run_kind: str,
+        window_key: str,
+        summary: Mapping[str, Any],
+        records: list[dict[str, Any]],
+    ) -> SourceRunArtifact:
+        payload = {
+            "county": county,
+            "run_kind": run_kind,
+            "stage": "case_detail",
+            "summary": dict(summary),
+            "records": records,
+            "no_send": True,
+            "provider_sends_enabled": False,
+            "outbound_allowed": False,
+        }
+        body = json.dumps(payload, sort_keys=True, default=str, indent=2) + "\n"
+        checksum = hashlib.sha256(body.encode("utf-8")).hexdigest()
+        logical_path = (
+            f"/opt/ares/lead-data/probate_autopilot/{county}/{run_kind}/"
+            f"{_safe_path_part(window_key)}/case_detail_enrichment.json"
+        )
+        path = logical_path
+        if self.settings.lead_machine_artifact_root:
+            root = Path(self.settings.lead_machine_artifact_root).expanduser()
+            file_path = (
+                root
+                / "probate_autopilot"
+                / county
+                / run_kind
+                / _safe_path_part(window_key)
+                / "case_detail_enrichment.json"
+            )
+            file_path.parent.mkdir(parents=True, exist_ok=True)
+            file_path.write_text(body, encoding="utf-8")
+            path = str(file_path)
+        return SourceRunArtifact(
+            path=path,
+            artifact_type="case_detail_enrichment",
+            record_count=len(records),
+            checksum=checksum,
+            metadata={"county": county, "run_kind": run_kind, "stage": "case_detail", **dict(summary)},
         )
 
     def _probate_enrichment_manifests(
@@ -389,6 +557,7 @@ class NightlyLeadMachineService:
         enrichment_summary = _safe_enrichment_summary(
             (metadata or {}).get("probate_property_tax_title_enrichment")
         )
+        case_detail_summary = _safe_case_detail_summary((metadata or {}).get("probate_case_detail_enrichment"))
 
         for run in source_runs:
             lane_summary = lane_summaries.setdefault(
@@ -489,6 +658,7 @@ class NightlyLeadMachineService:
             invalid_row_count=invalid_row_count,
             duplicate_case_count=duplicate_case_count,
             keep_now_count=keep_now_total,
+            case_detail_pending_count=_case_detail_pending_count(keep_now_total, case_detail_summary),
             enrichment_pending_count=_enrichment_pending_count(keep_now_total, enrichment_summary),
         )
         sections = {
@@ -534,7 +704,8 @@ class NightlyLeadMachineService:
                 ),
             ),
             "source_anomalies": source_anomalies,
-            "enrichment_backlog": _enrichment_backlog(keep_now_total, enrichment_summary),
+            "case_detail": case_detail_summary,
+            "enrichment_backlog": _enrichment_backlog(keep_now_total, enrichment_summary, case_detail_summary),
             "operator_next_actions": operator_next_actions,
             "blocked_lanes": blocked_lanes,
             "source_count_mismatches": source_count_mismatches,
@@ -912,6 +1083,7 @@ class NightlyLeadMachineService:
         invalid_row_count: int,
         duplicate_case_count: int,
         keep_now_count: int,
+        case_detail_pending_count: int,
         enrichment_pending_count: int,
     ) -> list[dict[str, Any]]:
         actions: list[dict[str, Any]] = []
@@ -948,6 +1120,17 @@ class NightlyLeadMachineService:
                 }
             )
         if keep_now_count:
+            if case_detail_pending_count:
+                actions.append(
+                    {
+                        "priority": "high",
+                        "action": "complete_case_detail_enrichment",
+                        "reason": (
+                            f"{case_detail_pending_count} keep-now probate row(s) still need party, event, "
+                            "document, or contact-candidate evidence"
+                        ),
+                    }
+                )
             if enrichment_pending_count:
                 actions.append(
                     {
@@ -959,7 +1142,7 @@ class NightlyLeadMachineService:
                         ),
                     }
                 )
-            else:
+            elif not case_detail_pending_count:
                 actions.append(
                     {
                         "priority": "normal",
@@ -1004,6 +1187,14 @@ class NightlyLeadMachineService:
         return None
 
 
+def _case_detail_config(metadata: Mapping[str, Any]) -> Mapping[str, Any]:
+    for key in ("case_detail_enrichment", "probate_case_detail_enrichment", "case_detail"):
+        value = metadata.get(key)
+        if isinstance(value, Mapping):
+            return value
+    return {}
+
+
 def _enrichment_config(metadata: Mapping[str, Any]) -> Mapping[str, Any]:
     for key in ("property_tax_title_enrichment", "probate_property_tax_title_enrichment", "enrichment"):
         value = metadata.get(key)
@@ -1030,6 +1221,55 @@ def _bool_from_enrichment_config(enrichment_config: Mapping[str, Any], metadata:
     if key in enrichment_config:
         return enrichment_config.get(key) is True
     return metadata.get(key) is True
+
+
+def _safe_case_detail_summary(value: Any) -> dict[str, Any]:
+    if not isinstance(value, Mapping):
+        return {
+            "status": "not_run",
+            "received_count": 0,
+            "detail_completed_count": 0,
+            "detail_incomplete_count": 0,
+            "detail_blocked_count": 0,
+            "party_count": 0,
+            "event_count": 0,
+            "document_reference_count": 0,
+            "contact_candidate_count": 0,
+            "primary_contact_candidate_count": 0,
+            "attorney_count": 0,
+            "hearing_clue_count": 0,
+            "publication_clue_count": 0,
+            "no_send": True,
+            "provider_sends_enabled": False,
+            "outbound_allowed": False,
+            "live_case_detail_calls_attempted": False,
+        }
+    received_count = _non_negative_int(value.get("received_count"))
+    completed = _non_negative_int(value.get("detail_completed_count"))
+    incomplete = _non_negative_int(value.get("detail_incomplete_count"))
+    blocked = _non_negative_int(value.get("detail_blocked_count"))
+    status = str(value.get("status") or "")
+    if status not in {"not_run", "completed", "partial", "incomplete", "blocked"}:
+        status = _case_detail_status(received_count=received_count, completed=completed, incomplete=incomplete, blocked=blocked)
+    return {
+        "status": status,
+        "received_count": received_count,
+        "detail_completed_count": completed,
+        "detail_incomplete_count": incomplete,
+        "detail_blocked_count": blocked,
+        "party_count": _non_negative_int(value.get("party_count")),
+        "event_count": _non_negative_int(value.get("event_count")),
+        "document_reference_count": _non_negative_int(value.get("document_reference_count")),
+        "contact_candidate_count": _non_negative_int(value.get("contact_candidate_count")),
+        "primary_contact_candidate_count": _non_negative_int(value.get("primary_contact_candidate_count")),
+        "attorney_count": _non_negative_int(value.get("attorney_count")),
+        "hearing_clue_count": _non_negative_int(value.get("hearing_clue_count")),
+        "publication_clue_count": _non_negative_int(value.get("publication_clue_count")),
+        "no_send": value.get("no_send") is not False,
+        "provider_sends_enabled": value.get("provider_sends_enabled") is True,
+        "outbound_allowed": value.get("outbound_allowed") is True,
+        "live_case_detail_calls_attempted": value.get("live_case_detail_calls_attempted") is True,
+    }
 
 
 def _safe_enrichment_summary(value: Any) -> dict[str, Any]:
@@ -1096,10 +1336,25 @@ def _safe_enrichment_summary(value: Any) -> dict[str, Any]:
     }
 
 
-def _enrichment_backlog(keep_now_count: int, enrichment_summary: Mapping[str, Any]) -> dict[str, Any]:
+def _enrichment_backlog(
+    keep_now_count: int,
+    enrichment_summary: Mapping[str, Any],
+    case_detail_summary: Mapping[str, Any],
+) -> dict[str, Any]:
+    case_detail_pending = _case_detail_pending_count(keep_now_count, case_detail_summary)
+    case_detail_fields = {
+        "case_detail_status": case_detail_summary.get("status"),
+        "case_detail_completed_count": _non_negative_int(case_detail_summary.get("detail_completed_count")),
+        "case_detail_pending_count": case_detail_pending,
+        "case_detail_blocked_count": _non_negative_int(case_detail_summary.get("detail_blocked_count")),
+        "contact_candidate_count": _non_negative_int(case_detail_summary.get("contact_candidate_count")),
+        "primary_contact_candidate_count": _non_negative_int(case_detail_summary.get("primary_contact_candidate_count")),
+        "live_case_detail_calls_attempted": case_detail_summary.get("live_case_detail_calls_attempted") is True,
+    }
     if enrichment_summary.get("status") == "not_run":
         return {
             "status": "pending",
+            **case_detail_fields,
             "property_match_pending_count": keep_now_count,
             "tax_overlay_pending_count": keep_now_count,
             "title_friction_pending_count": keep_now_count,
@@ -1107,7 +1362,8 @@ def _enrichment_backlog(keep_now_count: int, enrichment_summary: Mapping[str, An
             "outbound_blocked_until_explicit_approval_count": keep_now_count,
         }
     return {
-        "status": enrichment_summary.get("status"),
+        "status": _combined_enrichment_status(enrichment_summary.get("status"), case_detail_pending),
+        **case_detail_fields,
         "enriched_count": _non_negative_int(enrichment_summary.get("enriched_count")),
         "property_match_completed_count": _non_negative_int(
             enrichment_summary.get("property_match_completed_count")
@@ -1139,6 +1395,21 @@ def _enrichment_backlog(keep_now_count: int, enrichment_summary: Mapping[str, An
     }
 
 
+def _combined_enrichment_status(property_tax_title_status: Any, case_detail_pending: int) -> str:
+    status = str(property_tax_title_status or "not_run")
+    if case_detail_pending and status == "completed":
+        return "partial"
+    return status
+
+
+def _case_detail_pending_count(keep_now_count: int, case_detail_summary: Mapping[str, Any]) -> int:
+    status = case_detail_summary.get("status")
+    if status == "not_run":
+        return keep_now_count
+    completed = _non_negative_int(case_detail_summary.get("detail_completed_count"))
+    return max(0, keep_now_count - completed)
+
+
 def _enrichment_pending_count(keep_now_count: int, enrichment_summary: Mapping[str, Any]) -> int:
     if enrichment_summary.get("status") == "not_run":
         return keep_now_count
@@ -1147,6 +1418,75 @@ def _enrichment_pending_count(keep_now_count: int, enrichment_summary: Mapping[s
         _non_negative_int(enrichment_summary.get("tax_overlay_pending_count")),
         _non_negative_int(enrichment_summary.get("title_friction_pending_count")),
     )
+
+
+def _county_case_detail_summary(
+    records: list[dict[str, Any]],
+    *,
+    case_detail_result: Mapping[str, Any],
+) -> dict[str, Any]:
+    detail_completed = 0
+    detail_incomplete = 0
+    detail_blocked = 0
+    party_count = 0
+    event_count = 0
+    document_reference_count = 0
+    contact_candidate_count = 0
+    primary_contact_candidate_count = 0
+    attorney_count = 0
+    hearing_clue_count = 0
+    publication_clue_count = 0
+    for record in records:
+        detail = record.get("case_detail") if isinstance(record.get("case_detail"), Mapping) else {}
+        status = detail.get("status")
+        if status == "completed":
+            detail_completed += 1
+        elif status == "blocked":
+            detail_blocked += 1
+        else:
+            detail_incomplete += 1
+        party_count += _non_negative_int(detail.get("party_count"))
+        event_count += _non_negative_int(detail.get("event_count"))
+        document_reference_count += _non_negative_int(detail.get("document_reference_count"))
+        contact_candidate_count += _non_negative_int(detail.get("contact_candidate_count"))
+        primary_contact_candidate_count += _non_negative_int(detail.get("primary_contact_candidate_count"))
+        attorney_count += _non_negative_int(detail.get("attorney_count"))
+        hearing_clue_count += _non_negative_int(detail.get("hearing_clue_count"))
+        publication_clue_count += _non_negative_int(detail.get("publication_clue_count"))
+    return {
+        "status": _case_detail_status(
+            received_count=len(records),
+            completed=detail_completed,
+            incomplete=detail_incomplete,
+            blocked=detail_blocked,
+        ),
+        "received_count": len(records),
+        "detail_completed_count": detail_completed,
+        "detail_incomplete_count": detail_incomplete,
+        "detail_blocked_count": detail_blocked,
+        "party_count": party_count,
+        "event_count": event_count,
+        "document_reference_count": document_reference_count,
+        "contact_candidate_count": contact_candidate_count,
+        "primary_contact_candidate_count": primary_contact_candidate_count,
+        "attorney_count": attorney_count,
+        "hearing_clue_count": hearing_clue_count,
+        "publication_clue_count": publication_clue_count,
+        "no_send": True,
+        "provider_sends_enabled": False,
+        "outbound_allowed": False,
+        "live_case_detail_calls_attempted": case_detail_result.get("live_case_detail_calls_attempted") is True,
+    }
+
+
+def _case_detail_status(*, received_count: int, completed: int, incomplete: int, blocked: int) -> str:
+    if received_count == 0:
+        return "not_run"
+    if blocked:
+        return "blocked" if completed == 0 else "partial"
+    if incomplete:
+        return "incomplete" if completed == 0 else "partial"
+    return "completed"
 
 
 def _county_enrichment_summary(

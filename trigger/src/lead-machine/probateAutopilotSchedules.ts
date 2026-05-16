@@ -51,6 +51,7 @@ export function buildProbateAutopilotScheduledPayload(
   const scheduleId = schedule.scheduleId ?? schedule.id ?? slot;
   const liveSourceCalls = envFlag("LEAD_MACHINE_SCHEDULED_LIVE_SOURCE_CALLS_ENABLED", true);
   const liveEnrichmentCalls = envFlag("LEAD_MACHINE_SCHEDULED_LIVE_ENRICHMENT_CALLS_ENABLED", true);
+  const liveCaseDetailCalls = envFlag("LEAD_MACHINE_SCHEDULED_LIVE_CASE_DETAIL_CALLS_ENABLED", true);
   const sourceProviderBridge = liveSourceCalls
     ? {
         mode: "live_source_adapters",
@@ -62,6 +63,15 @@ export function buildProbateAutopilotScheduledPayload(
         approved: true,
         approved_by: "trigger-schedule-env-gate",
         scope: "harris_montgomery_probate_public_sources",
+        no_send: true,
+        provider_sends_enabled: false,
+      }
+    : undefined;
+  const caseDetailApproval = liveCaseDetailCalls
+    ? {
+        approved: true,
+        approved_by: "trigger-schedule-env-gate",
+        scope: "harris_montgomery_probate_public_case_detail_pages",
         no_send: true,
         provider_sends_enabled: false,
       }
@@ -97,6 +107,14 @@ export function buildProbateAutopilotScheduledPayload(
       schedule_type: schedule.type ?? "cron",
       ...(sourceProviderBridge ? { source_provider_bridge: sourceProviderBridge } : {}),
       ...(sourceProviderApproval ? { source_provider_approval: sourceProviderApproval } : {}),
+      ...(caseDetailApproval
+        ? {
+            case_detail_enrichment: {
+              live_case_detail_calls: true,
+              case_detail_approval: caseDetailApproval,
+            },
+          }
+        : {}),
       ...(enrichmentApproval
         ? {
             property_tax_title_enrichment: {

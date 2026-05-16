@@ -266,6 +266,8 @@ export type SourceRunArtifact = {
 export type SourceRunLane =
   | "harris_county_probate"
   | "montgomery_county_probate"
+  | "harris_probate_case_detail"
+  | "montgomery_probate_case_detail"
   | "hcad_estate_of"
   | "hctax_delinquency_overlay"
   | "harris_land_records"
