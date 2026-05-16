@@ -253,7 +253,7 @@
 
 - Added local Task 11 artifacts on `feature/textgrid-sms-agent`: `scripts/smoke/textgrid_sms_reply_agent_smoke.py`, `tests/scripts/test_textgrid_sms_reply_agent_smoke.py`, README smoke/runbook notes, `docs/runbooks/textgrid-sms-reply-agent-activation.md`, and QC report `docs/qc/2026-05-16/textgrid-sms-reply-agent/REPORT.md`.
 - Smoke script posts a Twilio-compatible signed form webhook to `/sms-agent/webhooks/textgrid` without bearer auth, optionally drains `/sms-agent/internal/process-pending` with bearer auth only when `--runtime-api-key` is supplied, and prints sanitized JSON only. It never calls TextGrid directly or mutates provider dashboards.
-- Verification: initial red test caught over-aggressive sanitizer redacting a boolean authorization safety flag; final local checks passed `25 passed` for the requested backend SMS-agent slice, `2 passed` for new smoke-script tests, combined `27 passed`, and `git diff --check`. No live Supabase mutation, TextGrid send, provider dashboard mutation, or deploy.
+- Verification: initial red test caught over-aggressive sanitizer redacting a boolean authorization safety flag; independent QC then caught non-E.164 phone output redaction, fixed with regression coverage. Final local checks passed focused SMS-agent closeout `99 passed`, smoke-script tests `3 passed`, full backend `1030 passed`, Mission Control `83 passed`, Mission Control typecheck/build, Trigger typecheck, and `git diff --check`. No live Supabase mutation, TextGrid send, provider dashboard mutation, or deploy.
 
 ### 2026-05-16 TextGrid SMS Reply Agent Task 9 Blockers
 

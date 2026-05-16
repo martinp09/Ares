@@ -45,3 +45,43 @@ uv run pytest tests/scripts/test_textgrid_sms_reply_agent_smoke.py -q
 git diff --check
 # passed
 ```
+
+Independent QC finding:
+
+```text
+FAIL: phone masking only redacted strings that start with `+`, so valid non-E.164 CLI values could print unredacted.
+```
+
+Fix: the smoke sanitizer now masks whole-string phone-like values with 10+ digits, including `15551234567` and `(346) 772-5914`, while preserving non-phone values such as dates and TextGrid/Twilio message SIDs.
+
+Regression check:
+
+```bash
+uv run pytest tests/scripts/test_textgrid_sms_reply_agent_smoke.py -q
+# 3 passed in 0.01s
+```
+
+Branch-tip closeout:
+
+```bash
+uv run pytest tests/api/test_sms_agent.py tests/services/test_sms_agent_service.py tests/services/test_sms_agent_processing.py tests/services/test_sms_reply_agent_service.py tests/services/test_sms_reply_agent_repository.py tests/services/test_inbound_sms_service.py tests/scripts/test_sms_agent_archive_export.py tests/scripts/test_textgrid_sms_reply_agent_smoke.py tests/db/test_sms_agent_schema.py -q
+# 99 passed in 0.23s
+
+uv run pytest -q
+# 1030 passed in 9.58s
+
+npm --prefix apps/mission-control run build
+# passed
+
+npm --prefix apps/mission-control run test -- --run
+# 25 files passed, 83 tests passed
+
+npm --prefix apps/mission-control run typecheck
+# passed
+
+npm --prefix trigger run typecheck
+# passed
+
+git diff --check
+# passed
+```

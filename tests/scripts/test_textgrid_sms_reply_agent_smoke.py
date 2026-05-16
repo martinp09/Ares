@@ -142,3 +142,19 @@ def test_smoke_calls_process_pending_with_bearer_auth_when_runtime_key_is_provid
         "Bearer runtime-secret",
         '{"limit":3}',
     )
+
+
+def test_sanitize_masks_phone_like_values_without_plus_prefix() -> None:
+    output = smoke._sanitize(
+        {
+            "from": "15551234567",
+            "to": "(346) 772-5914",
+            "date": "2026-05-16",
+            "message_sid": "SM1234567890",
+        }
+    )
+
+    assert output["from"] == "*******4567"
+    assert output["to"] == "******5914"
+    assert output["date"] == "2026-05-16"
+    assert output["message_sid"] == "SM1234567890"

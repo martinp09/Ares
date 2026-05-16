@@ -12,6 +12,7 @@ import base64
 import hashlib
 import hmac
 import json
+import re
 import sys
 import uuid
 from typing import Any, Mapping
@@ -21,6 +22,7 @@ from urllib.parse import urlencode
 
 WEBHOOK_PATH = "/sms-agent/webhooks/textgrid"
 PROCESS_PENDING_PATH = "/sms-agent/internal/process-pending"
+PHONE_LIKE_RE = re.compile(r"^\+?[\d\s().-]+$")
 
 
 def _join_url(base_url: str, path: str) -> str:
@@ -104,9 +106,15 @@ def _post_json(
 
 
 def _mask_phone(value: str) -> str:
-    if not value.startswith("+") or len(value) < 8:
+    candidate = value.strip()
+    digits = "".join(character for character in candidate if character.isdigit())
+    if len(digits) < 10 or not PHONE_LIKE_RE.fullmatch(candidate):
         return value
-    return f"{value[:2]}{'*' * max(len(value) - 6, 0)}{value[-4:]}"
+    if candidate.startswith("+"):
+        country_code = digits[:-10] if len(digits) > 10 else ""
+        prefix = f"+{country_code}" if country_code else "+"
+        return f"{prefix}{'*' * max(len(digits) - len(country_code) - 4, 3)}{digits[-4:]}"
+    return f"{'*' * max(len(digits) - 4, 3)}{digits[-4:]}"
 
 
 def _sanitize(value: Any) -> Any:
