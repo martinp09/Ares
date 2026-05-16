@@ -1,13 +1,13 @@
 # Harris + Montgomery Probate Autopilot — Live No-Send Activation Runbook
 
-- Status: current / operational no-send
-- Updated UTC: 2026-05-16T16:35:00Z
+- Status: current / operational no-send / VPS env preflight healthy
+- Updated UTC: 2026-05-16T15:59:30Z
 - Scope: scheduled public source acquisition, public case-detail party/event/document/contact-candidate enrichment, public CAD/tax/land-record enrichment, scoring inputs, briefing, and qualified-review preparation
 - Hard stop: no Instantly enrollment, no email/SMS/Vapi sends, no paid skiptrace, no HubSpot writes without separate approval gate
 
 ## Operating model
 
-Ares remains the source of truth for source-run lifecycle, dedupe, enrichment state, scoring state, approval/suppression, and mirror/send eligibility. Trigger.dev schedules the no-send runs. Mission Control is the aggregate operator surface. HubSpot is a mirror/operator view only after separate approval. Instantly is delivery only after future explicit campaign approval.
+Ares remains the source of truth for source-run lifecycle, dedupe, enrichment state, scoring state, approval/suppression, and mirror/send eligibility. Trigger.dev is the intended long-term production scheduler, but Trigger cloud deploy is currently blocked by CLI login/auth in this environment. Until Trigger auth is recovered, Hermes no-agent cron job `815e1261ab2e` is the active no-send CT scheduler/watchdog; it reads `/opt/ares/Ares/.env`, runs from `/opt/ares/Ares`, writes durable state/artifacts under `/var/lib/ares/lead-machine`, and keeps all provider/outbound gates false. Mission Control is the aggregate operator surface. HubSpot is a mirror/operator view only after separate approval. Instantly is delivery only after future explicit campaign approval.
 
 Manual experiments and operator-triggered replays must use `source_run_scope=manual`; scheduled Trigger.dev/background runs must use `source_run_scope=autonomous`. Dedupe comparisons are scoped by this field so a manual scrape cannot poison, replay, or suppress the autonomous background queue.
 
@@ -66,7 +66,9 @@ sudo install -d -m 0750 -o <runtime-user> -g <runtime-group> /var/lib/ares/lead-
 # Then set the non-secret controls above plus existing Supabase service credentials in the runtime env manager.
 ```
 
-Activation remains blocked until the same deployed runtime environment that Trigger/API will use passes the preflight with `--require-scheduled-live`.
+Production VPS deployment note: `/opt/ares/Ares/.env` now uses `LEAD_MACHINE_BUSINESS_ID=limitless` and `LEAD_MACHINE_ENVIRONMENT=prod`; read-only tenant resolution verified that `limitless/prod` resolves to business PK `1`.
+
+Future deployment/schedule changes remain blocked until the same deployed runtime environment that Trigger/API will use passes the preflight with `--require-scheduled-live`. Current VPS status: **preflight healthy** as of QC `docs/qc/2026-05-16/probate-production-readiness-wrap/`.
 
 ## Schedule controls
 
@@ -229,13 +231,21 @@ npm --prefix trigger run typecheck
 
 Latest evidence:
 
+- Production readiness wrap QC folder: `docs/qc/2026-05-16/probate-production-readiness-wrap/`
+- Code commit deployed to VPS Docker: `fc99b75 Harden probate production readiness`
+- VPS production env preflight after config: `status=healthy`, `no_send_ok=true`, `live_intelligence_ready=true`, `blockers=[]`; artifact `env-preflight-after-config.json`.
+- `/opt/ares/Ares` is detached at `fc99b75`; `ares-api` and `ares-ui` Docker image labels are `fc99b75`; `ares-api` has `/var/lib/ares/lead-machine` mounted read-write.
+- Production tenant resolution: `limitless/prod` resolves to business PK `1`; artifact `tenant-resolution-output.txt`.
+- Production health smoke: `/health` 200 and UI 200; Mission Control probate health for `limitless/prod` returns `status=no_data` until the first post-deploy autonomous prod brief is created.
+- Trigger cloud deploy status: blocked by Trigger CLI login/auth; artifact `trigger-deploy-output-sanitized.txt`. Trigger remains the intended long-term scheduler after auth recovery.
+- Hermes no-agent cron job `815e1261ab2e` is the active no-send CT scheduler/watchdog until Trigger auth is fixed; the script now reads `/opt/ares/Ares/.env`, runs from `/opt/ares/Ares`, writes durable state/artifacts under `/var/lib/ares/lead-machine`, and keeps outbound/provider gates false.
+- Manual forced Hermes smoke: completed under isolated `prod-manual` with zero current-day rows, `sla_status=healthy`, `no_send_ok=true`, `outbound_allowed=false`, provider side effects all false, and live CAD/tax/land attempted true.
 - Post-adapter live no-send monitor QC folder: `docs/qc/2026-05-16/probate-post-adapter-live-no-send-monitor/`
-- Env contract: blocked for production no-send deployment because durable `LEAD_MACHINE_SOURCE_RUNS_STATE_PATH`, `LEAD_MACHINE_ARTIFACT_ROOT`, `LEAD_MACHINE_BUSINESS_ID`, and `LEAD_MACHINE_ENVIRONMENT` are not configured in the local/live env file used for the check.
 - Same-day 2026-05-16 strict smoke: failed/inconclusive because the valid zero-row day produced no passing summary JSON; treat zero-row source windows as non-errors in runtime but do not count that artifact as a green smoke.
 - Two-day 2026-05-15→2026-05-16 live no-send monitor: `48` source records, `8` keep-now rows, `8` enriched rows, `source_health_failed_runs=0`, `warnings_count=0`, `sla_status=healthy`, `no_send=true`, and `provider_sends_enabled=false`.
 - Harris case-detail monitor correction: live Harris rows currently expose postback-only detail targets, now classified as `case_detail_incomplete_count=8` / `case_detail_blocked_count=0` instead of unsafe blocked URLs. A full postback detail client remains a follow-up if case-detail completion is required from live Harris rows.
-- Focused post-monitor contracts: `69 passed`
-- Full backend: `963 passed`
+- Focused production-readiness contracts: `52 passed`
+- Full backend: `966 passed`
 - Trigger typecheck: passed
 - Supabase source identity adapter QC folder: `docs/qc/2026-05-16/probate-source-identity-supabase-adapter/`
 - Focused identity/nightly/source-file contracts: `43 passed`
@@ -254,11 +264,12 @@ Latest evidence:
 
 ## Operator next actions
 
-1. Configure durable production no-send env and rerun the env preflight until healthy before deployment/schedule activation.
-2. Add a Harris postback case-detail client if live Harris party/event/document detail completion is required; current postback-only rows are safely incomplete, not blocked.
-3. Continue monitoring source-run counts, county coverage, parser warnings, duplicate-prior-run counts, enrichment backlog, and no-send confirmation in the morning brief / Mission Control health panel.
-4. Only after source/enrichment quality is stable, design a separate qualified-only HubSpot mirror approval path.
-5. Do not add Instantly/SMS send controls to this workflow without exact campaign/recipient approval.
+1. Watch the next Hermes no-agent CT window (or Trigger once auth is recovered) for the first post-deploy `limitless/prod` autonomous morning brief; Mission Control currently reports `status=no_data` for prod until that run exists.
+2. Recover Trigger.dev CLI auth and deploy `trigger/` from `fc99b75` or newer; when Trigger is authoritative, pause/retire the Hermes autonomous schedule to avoid duplicate source runs.
+3. Add a Harris postback case-detail client if live Harris party/event/document detail completion is required; current postback-only rows are safely incomplete, not blocked.
+4. Continue monitoring source-run counts, county coverage, parser warnings, duplicate-prior-run counts, enrichment backlog, and no-send confirmation in the morning brief / Mission Control health panel.
+5. Only after source/enrichment quality is stable, design a separate qualified-only HubSpot mirror approval path.
+6. Do not add Instantly/SMS send controls to this workflow without exact campaign/recipient approval.
 
 ## Failure modes
 

@@ -1,0 +1,140 @@
+{
+  "blockers": [],
+  "live_intelligence_gates": [
+    {
+      "message": "enabled for live read-only intelligence",
+      "name": "LEAD_MACHINE_LIVE_SOURCE_CALLS_ENABLED",
+      "parsed": true,
+      "present": true,
+      "status": "healthy"
+    },
+    {
+      "message": "enabled for live read-only intelligence",
+      "name": "LEAD_MACHINE_SCHEDULED_LIVE_SOURCE_CALLS_ENABLED",
+      "parsed": true,
+      "present": true,
+      "status": "healthy"
+    },
+    {
+      "message": "enabled for live read-only intelligence",
+      "name": "LEAD_MACHINE_LIVE_CAD_CALLS_ENABLED",
+      "parsed": true,
+      "present": true,
+      "status": "healthy"
+    },
+    {
+      "message": "enabled for live read-only intelligence",
+      "name": "LEAD_MACHINE_LIVE_TAX_CALLS_ENABLED",
+      "parsed": true,
+      "present": true,
+      "status": "healthy"
+    },
+    {
+      "message": "enabled for live read-only intelligence",
+      "name": "LEAD_MACHINE_LIVE_LAND_RECORD_CALLS_ENABLED",
+      "parsed": true,
+      "present": true,
+      "status": "healthy"
+    },
+    {
+      "message": "enabled for live read-only intelligence",
+      "name": "LEAD_MACHINE_LIVE_CASE_DETAIL_CALLS_ENABLED",
+      "parsed": true,
+      "present": true,
+      "status": "healthy"
+    },
+    {
+      "message": "enabled for live read-only intelligence",
+      "name": "LEAD_MACHINE_SCHEDULED_LIVE_ENRICHMENT_CALLS_ENABLED",
+      "parsed": true,
+      "present": true,
+      "status": "healthy"
+    },
+    {
+      "message": "enabled for live read-only intelligence",
+      "name": "LEAD_MACHINE_SCHEDULED_LIVE_CASE_DETAIL_CALLS_ENABLED",
+      "parsed": true,
+      "present": true,
+      "status": "healthy"
+    }
+  ],
+  "live_intelligence_ready": true,
+  "no_send_ok": true,
+  "outbound_gates": [
+    {
+      "message": "explicitly disabled",
+      "name": "PROVIDER_LIVE_SENDS_ENABLED",
+      "parsed": false,
+      "present": true,
+      "status": "healthy"
+    },
+    {
+      "message": "explicitly disabled",
+      "name": "INSTANTLY_PROVIDER_LIVE_ENROLLMENT_ENABLED",
+      "parsed": false,
+      "present": true,
+      "status": "healthy"
+    },
+    {
+      "message": "explicitly disabled",
+      "name": "HUBSPOT_PROVIDER_LIVE_WRITES_ENABLED",
+      "parsed": false,
+      "present": true,
+      "status": "healthy"
+    },
+    {
+      "message": "explicitly disabled",
+      "name": "VAPI_PROVIDER_LIVE_SENDS_ENABLED",
+      "parsed": false,
+      "present": true,
+      "status": "healthy"
+    }
+  ],
+  "paths": [
+    {
+      "message": "state file path parent exists and is writable; no file was created.",
+      "name": "LEAD_MACHINE_SOURCE_RUNS_STATE_PATH",
+      "path": "/var/lib/ares/lead-machine/source-runs.json",
+      "status": "healthy"
+    },
+    {
+      "message": "artifact root exists and is writable; no artifact was created.",
+      "name": "LEAD_MACHINE_ARTIFACT_ROOT",
+      "path": "/var/lib/ares/lead-machine/artifacts",
+      "status": "healthy"
+    }
+  ],
+  "required": [
+    {
+      "message": "configured",
+      "name": "LEAD_MACHINE_SOURCE_RUNS_STATE_PATH",
+      "present": true,
+      "status": "healthy"
+    },
+    {
+      "message": "configured",
+      "name": "LEAD_MACHINE_ARTIFACT_ROOT",
+      "present": true,
+      "status": "healthy"
+    },
+    {
+      "message": "configured",
+      "name": "LEAD_MACHINE_BUSINESS_ID",
+      "present": true,
+      "status": "healthy"
+    },
+    {
+      "message": "configured",
+      "name": "LEAD_MACHINE_ENVIRONMENT",
+      "present": true,
+      "status": "healthy"
+    }
+  ],
+  "side_effects": {
+    "created_files_or_directories": false,
+    "live_source_calls": false,
+    "provider_mutations": false
+  },
+  "status": "healthy",
+  "warnings": []
+}

@@ -1,7 +1,7 @@
 ---
 title: "Ares TODO / Handoff"
 status: active
-updated_at: "2026-05-16T15:04:38Z"
+updated_at: "2026-05-16T16:03:42Z"
 repo: "martinp09/Ares"
 local_checkout: "/opt/ares/worktrees/ares-main"
 target_branch: "main"
@@ -10,6 +10,7 @@ previous_handoff_commit: "9f30d2f"
 implementation_commit: "9c256bf"
 supabase_migration_commit: "5228ef5"
 supabase_migration_qc_commit: "d0e3fb7"
+production_readiness_commit: "fc99b75"
 supabase_identity_adapter_commit: "6cd2d88"
 ---
 
@@ -19,13 +20,13 @@ supabase_identity_adapter_commit: "6cd2d88"
 
 Back Office Spine v0 landed on `main` at `e898ee0` and the local `feature/back-office-spine-v0` branch was deleted. This slice turns qualified leads into canonical deal records with lane-aware task/document/risk templates, stage transition blockers, fire-list read models, Supabase runtime persistence, and a read-only Mission Control Deal Desk page.
 
-The Harris + Montgomery probate autopilot PRD implementation landed at `9c256bf` as an operational no-send system; handoff docs landed at `9f30d2f`, env preflight landed at `a859fd2`, and case-detail enrichment finished the first no-send case-detail evidence layer. Trigger schedules default to live public probate source acquisition, live public case-detail page enrichment, and live public CAD/tax/land-record enrichment. Backend defaults those live intelligence lanes on, but Ares still requires explicit no-send approval metadata for live source/case-detail/enrichment runtime requests and keeps every outbound path blocked. Dedupe/manual-isolation hardening adds hashed probate source identities, same-scope prior-run dedupe, same-packet duplicate exclusion, `source_run_scope=autonomous` scheduled payloads, isolated manual Hermes runner state, remote Supabase durable identity schema `20260516131500_probate_source_identity_dedupe.sql` applied on 2026-05-16, and a production Supabase identity-ledger adapter used when `LEAD_MACHINE_BACKEND=supabase`; the post-adapter live no-send monitor then found Harris rows expose postback-only detail targets, now safely classified as incomplete (`case_detail_postback_only`) rather than blocked unsafe URLs. QC `docs/qc/2026-05-16/probate-dedupe-runtime-isolation/`, `docs/qc/2026-05-16/probate-source-identity-supabase-migration/`, `docs/qc/2026-05-16/probate-source-identity-supabase-adapter/`, and `docs/qc/2026-05-16/probate-post-adapter-live-no-send-monitor/`.
+The Harris + Montgomery probate autopilot PRD implementation landed at `9c256bf` as an operational no-send system; handoff docs landed at `9f30d2f`, env preflight landed at `a859fd2`, and production readiness/deploy wrap landed at `fc99b75`. VPS `/opt/ares/Ares` is deployed from `fc99b75`, Docker `ares-api` has durable `/var/lib/ares/lead-machine` mounted, and production no-send env preflight is healthy for `limitless/prod` with `LEAD_MACHINE_BACKEND=supabase`, live intelligence gates true, and outbound/provider mutation gates false. Trigger schedules default to live public probate source acquisition, live public case-detail page enrichment, and live public CAD/tax/land-record enrichment, but Trigger cloud deploy is currently blocked by CLI login/auth; until Trigger auth is recovered, Hermes no-agent cron `815e1261ab2e` is the active no-send CT scheduler/watchdog. Backend defaults those live intelligence lanes on, but Ares still requires explicit no-send approval metadata for live source/case-detail/enrichment runtime requests and keeps every outbound path blocked. Dedupe/manual-isolation hardening adds hashed probate source identities, same-scope prior-run dedupe, same-packet duplicate exclusion, `source_run_scope=autonomous` scheduled payloads, isolated manual Hermes runner state, remote Supabase durable identity schema `20260516131500_probate_source_identity_dedupe.sql` applied on 2026-05-16, and a production Supabase identity-ledger adapter used when `LEAD_MACHINE_BACKEND=supabase`; the post-adapter live no-send monitor then found Harris rows expose postback-only detail targets, now safely classified as incomplete (`case_detail_postback_only`) rather than blocked unsafe URLs. QC `docs/qc/2026-05-16/probate-production-readiness-wrap/`, `docs/qc/2026-05-16/probate-dedupe-runtime-isolation/`, `docs/qc/2026-05-16/probate-source-identity-supabase-migration/`, `docs/qc/2026-05-16/probate-source-identity-supabase-adapter/`, and `docs/qc/2026-05-16/probate-post-adapter-live-no-send-monitor/`.
 
 Origin-main hardening cleanup landed on GitHub `main`: `709f714` adds the dynamic Montgomery PublicSearch land-record end date, live no-send smoke case-detail assertion, legacy `/crm/hubspot/*` `operator_approval=true` live-write gate, and CI; `be11aaa` tracks Docker deployment files and Docker CI.
 
-VPS edge/container hardening is complete and deployed from `32a3f57`. `/opt/ares/Ares` is detached at `origin/main`/`32a3f57`; `ares-api` and `ares-ui` are rebuilt/recreated with non-root users, `no-new-privileges`, dropped caps, and loopback-only Docker ports (`127.0.0.1:8000`, `127.0.0.1:8080`). Caddy is bound only to tailnet `100.74.177.6:80`, the runtime bearer lives in root-only `/etc/caddy/ares-runtime.env`, and `ares-edge-firewall.service` drops public `eth0` traffic to Caddy/Supabase dev ports. Post-deploy smoke: direct API `/deals` without auth `401`; tailnet `/health` 200, `/deal-desk` 200, `/deals` 200 in 327ms, `/deals/fire-list` 200 in 73ms, `/mission-control/probate-autopilot/health` 200. QC: `docs/qc/2026-05-16/vps-edge-container-hardening/`.
+VPS edge/container hardening is complete and production probate runtime was advanced to `fc99b75`. `/opt/ares/Ares` is detached at `origin/main`/`fc99b75`; `ares-api` and `ares-ui` are rebuilt/recreated with non-root users, `no-new-privileges`, dropped caps, and loopback-only Docker ports (`127.0.0.1:8000`, `127.0.0.1:8080`). Caddy remains bound only to tailnet `100.74.177.6:80`, the runtime bearer lives in root-only `/etc/caddy/ares-runtime.env`, and `ares-edge-firewall.service` drops public `eth0` traffic to Caddy/Supabase dev ports. `ares-api` now has durable `/var/lib/ares/lead-machine` mounted read-write, production env preflight is healthy for `limitless/prod`, and `/health` / UI local smokes pass. QC: `docs/qc/2026-05-16/vps-edge-container-hardening/` and `docs/qc/2026-05-16/probate-production-readiness-wrap/`.
 
-VPS rebuild on `100.74.177.6` is complete. `/opt/ares/Ares` and `/opt/ares/worktrees/ares-main` are at `be11aaa`; `ares-api` and `ares-ui` images were rebuilt and are running healthy; Caddy backup is `/etc/caddy/Caddyfile.bak.20260516T023712Z`; Caddy routes now include `/crm*`, `/deals*`, `/sms-agent*`, and `/voice*`; Supabase migration `20260516011000_deal_spine_runtime` is applied. Verified through Caddy: `/health` 200, `/crm/hubspot/customization` GET 405, `/deals` 200, `/deals/fire-list` 200, and `/mission-control/probate-autopilot/health` 200.
+Historical VPS rebuild before later hardening: `/opt/ares/Ares` and `/opt/ares/worktrees/ares-main` were at `be11aaa`; `ares-api` and `ares-ui` images were rebuilt and healthy; Caddy backup was `/etc/caddy/Caddyfile.bak.20260516T023712Z`; Caddy routes included `/crm*`, `/deals*`, `/sms-agent*`, and `/voice*`; Supabase migration `20260516011000_deal_spine_runtime` was applied. Later deployment state is `fc99b75` as described above.
 
 Latest manual live no-send smoke (`docs/qc/2026-05-15/probate-autopilot-live-operational-prd-execution/live-smoke-output.txt`) completed with Harris + Montgomery counties, `47` live public probate source records, `8` keep-now rows enriched, live CAD/tax/land-record calls attempted, `sla_status=healthy`, `source_health_failed_runs=0`, `no_send=true`, and `provider_sends_enabled=false`.
 
@@ -49,13 +50,14 @@ Cleanup verification on the `be76288` baseline passed: focused backend => `44 pa
 - Remote Supabase probate source identity migration QC: `docs/qc/2026-05-16/probate-source-identity-supabase-migration/`
 - Supabase probate source identity adapter QC: `docs/qc/2026-05-16/probate-source-identity-supabase-adapter/`
 - Probate no-send activation runbook: `docs/runbooks/harris-montgomery-probate-autopilot-no-send-activation.md`
+- Probate production readiness wrap QC: `docs/qc/2026-05-16/probate-production-readiness-wrap/`
 - HubSpot operating-spine QC index: `docs/qc/2026-05-14/README.md`
 
 ## Immediate next actions
 
-1. Configure durable production no-send env (`LEAD_MACHINE_SOURCE_RUNS_STATE_PATH`, `LEAD_MACHINE_ARTIFACT_ROOT`, `LEAD_MACHINE_BUSINESS_ID`, `LEAD_MACHINE_ENVIRONMENT`, explicit live intelligence gates) and rerun the read-only env contract until healthy before production no-send deployment or schedule activation.
-2. Add a Harris postback case-detail client if live Harris party/event/document detail completion is required; current postback-only rows are safely incomplete, not blocked.
-3. Continue monitoring autonomous scheduled runs for county coverage, duplicate-prior-run counts, Supabase source identity recording, enrichment backlog, and no-send confirmation.
+1. Watch the next Hermes no-agent CT scheduler window (or Trigger after auth recovery) for the first post-deploy `limitless/prod` autonomous morning brief; Mission Control currently reports `status=no_data` for prod until that brief exists.
+2. Recover Trigger.dev CLI auth and deploy `trigger/` from `fc99b75` or newer; once Trigger is authoritative, pause/retire Hermes autonomous scheduling to avoid duplicate source runs.
+3. Add a Harris postback case-detail client if live Harris party/event/document detail completion is required; current postback-only rows are safely incomplete, not blocked.
 4. Keep Instantly enrollment/send, SMS/Vapi dispatch, paid skiptrace, and HubSpot batch mirror writes gated until separately approved.
 5. Monitor the tailnet-only VPS edge and keep `ares-edge-firewall.service` active while Supabase/dev ports remain published by their owning stack.
 

@@ -1,0 +1,10 @@
+$ uv run python - <<'PY'
+from app.core.config import get_settings
+from app.db.lead_machine_supabase import resolve_tenant
+get_settings.cache_clear()
+s = get_settings()
+tenant = resolve_tenant('limitless','prod', settings=s)
+print({'tenant_resolved': True, 'business_pk': tenant.business_pk, 'environment': tenant.environment})
+PY
+
+{'tenant_resolved': True, 'business_pk': 1, 'environment': 'prod'}

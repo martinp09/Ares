@@ -2,8 +2,8 @@
 
 ## Latest probate source identity / no-send monitor
 
-- `probate-production-readiness-wrap/` — final production-readiness wrap for env/deploy/cron/Trigger status, Harris postback source-row hardening, and no-send boundaries. Status: env-gated until deployed runtime preflight is healthy; follow post-deploy evidence in that folder.
-- `probate-post-adapter-live-no-send-monitor/` — latest post-adapter live no-send monitor and Harris case-detail postback classification hardening. Two-day monitor passed with `48` source rows, `8` keep-now rows, no provider sends; env preflight remains blocked until durable production source-run/artifact/business/environment vars are configured.
+- `probate-production-readiness-wrap/` — final production-readiness wrap for env/deploy/cron/Trigger status, Harris postback source-row hardening, and no-send boundaries. Status: VPS runtime deployed at `fc99b75`; production no-send env preflight healthy; Trigger cloud deploy blocked by CLI login/auth; Hermes no-agent cron is active scheduler/watchdog until Trigger auth recovery.
+- `probate-post-adapter-live-no-send-monitor/` — post-adapter live no-send monitor and Harris case-detail postback classification hardening. Two-day monitor passed with `48` source rows, `8` keep-now rows, no provider sends.
 - `probate-source-identity-supabase-adapter/` — production Supabase source identity adapter wiring for `public.probate_source_identities`; superseded monitor follow-up is closed by the post-adapter monitor above.
 - `probate-source-identity-supabase-migration/` — approved remote Supabase migration and schema/RLS/index verification for `public.probate_source_identities`.
 - `probate-dedupe-runtime-isolation/` — hashed source identity dedupe, same-scope duplicate reporting, and autonomous/manual runtime isolation.
