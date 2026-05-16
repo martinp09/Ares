@@ -2,7 +2,8 @@
 
 ## Latest probate source identity / no-send monitor
 
-- `probate-production-readiness-wrap/` — final production-readiness wrap for env/deploy/cron/Trigger status, Harris postback source-row hardening, and no-send boundaries. Status: VPS runtime deployed at `fc99b75`; production no-send env preflight healthy; Trigger cloud deploy blocked by CLI login/auth; Hermes no-agent cron is active scheduler/watchdog until Trigger auth recovery.
+- `trigger-promotion-slack-sms-live/` — Trigger prod scheduler authority promotion from Hermes cron to exactly three Central Time probate lead runs per day; controlled Trigger run completed, Hermes cron paused, Slack `lead_runs`/`hot_leads` delivery verified, SMS/TextGrid processor readiness verified, and provider sends/auto-replies remain gated.
+- `probate-production-readiness-wrap/` — earlier production-readiness wrap for env/deploy/cron/Trigger status, Harris postback source-row hardening, and no-send boundaries. Superseded for current scheduler authority by `trigger-promotion-slack-sms-live/`; its historical status was pre-promotion.
 - `probate-post-adapter-live-no-send-monitor/` — post-adapter live no-send monitor and Harris case-detail postback classification hardening. Two-day monitor passed with `48` source rows, `8` keep-now rows, no provider sends.
 - `probate-source-identity-supabase-adapter/` — production Supabase source identity adapter wiring for `public.probate_source_identities`; superseded monitor follow-up is closed by the post-adapter monitor above.
 - `probate-source-identity-supabase-migration/` — approved remote Supabase migration and schema/RLS/index verification for `public.probate_source_identities`.
@@ -17,4 +18,4 @@
 ## Safety notes
 
 - No QC folder should include raw probate rows, names, case numbers, addresses, emails, phones, raw detail HTML, provider payloads, or secret values.
-- Outbound/provider actions remain separately gated: Instantly enrollment/sends, SMS/Vapi, paid skiptrace, HubSpot writes, Slack/provider sends.
+- Outbound/provider actions remain separately gated: Instantly enrollment/sends, SMS/Vapi auto dispatch, paid skiptrace, HubSpot writes, and campaign/provider sends. Slack operational notifications are live for configured Ares routes.

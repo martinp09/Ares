@@ -1,0 +1,68 @@
+{
+  "slack": {
+    "attempt_count": 2,
+    "generated_at": "2026-05-16T21:05:22Z",
+    "recent": [
+      {
+        "channel_configured": true,
+        "created_at": "2026-05-16T20:59:36.030532+00:00",
+        "deduped": false,
+        "error": null,
+        "has_slack_message_ts": true,
+        "payload_kind": "controlled_hot_leads_channel_test",
+        "route": "hot_leads",
+        "sent_at": "2026-05-16T20:59:37.040552+00:00",
+        "status": "sent"
+      },
+      {
+        "channel_configured": true,
+        "created_at": "2026-05-16T20:58:09.974759+00:00",
+        "deduped": false,
+        "error": null,
+        "has_slack_message_ts": true,
+        "payload_kind": "nightly_lead_machine_source_run_digest",
+        "route": "lead_runs",
+        "sent_at": "2026-05-16T20:58:11.142261+00:00",
+        "status": "sent"
+      }
+    ]
+  },
+  "sms": {
+    "processor_trigger_observed_status": "COMPLETED",
+    "processor_trigger_run_id": "run_cmp8tyk826wnf0vojep91id9s",
+    "provider_status": {
+      "providers": {
+        "email": {
+          "can_send": false,
+          "configured": true,
+          "provider": "resend"
+        },
+        "sms": {
+          "can_send": false,
+          "configured": true,
+          "provider": "textgrid"
+        }
+      },
+      "status": 200
+    },
+    "readiness_note": "TextGrid is configured and inbound/processor routes are live; outbound sends and auto-replies remain intentionally gated off until exact campaign/recipient approval.",
+    "runtime_gates": {
+      "PROVIDER_LIVE_SENDS_ENABLED": "false",
+      "SMS_AGENT_AUTO_REPLIES_ENABLED": "false",
+      "SMS_AGENT_MODE": "draft_only"
+    },
+    "runtime_process_pending": {
+      "body": {
+        "blocked_count": 0,
+        "failed_count": 0,
+        "processed_count": 0,
+        "sent_count": 0
+      },
+      "status": 200
+    },
+    "webhook_unsigned_smoke": {
+      "detail": "Invalid TextGrid webhook signature",
+      "status": 422
+    }
+  }
+}

@@ -1,0 +1,137 @@
+{
+  "base_url": "https://ares.tail485fd9.ts.net",
+  "generated_at": "2026-05-16T21:05:22Z",
+  "latest_brief": {
+    "blocked_count": 0,
+    "generated_at": "2026-05-16T20:58:09.968985Z",
+    "hot_lead_count": 0,
+    "id": "morning_brief_f27f1679d1884a149cf5f3d53fc09f76",
+    "new_record_count": 0,
+    "section_keys": [
+      "approvals",
+      "blocked_lanes",
+      "case_detail",
+      "county_counts",
+      "enrichment_backlog",
+      "keep_now",
+      "lead_temperature",
+      "no_send_confirmation",
+      "operator_next_actions",
+      "sla_health",
+      "source_anomalies",
+      "source_count_mismatches",
+      "source_health",
+      "source_quality",
+      "source_request"
+    ],
+    "status": 200,
+    "warm_lead_count": 0
+  },
+  "probate_health": {
+    "brief_age_hours": 0.122,
+    "generated_at": "2026-05-16T20:58:09.968985Z",
+    "latest_brief_id": "morning_brief_f27f1679d1884a149cf5f3d53fc09f76",
+    "new_record_count": 0,
+    "no_send_ok": true,
+    "outbound_allowed": false,
+    "sla_status": "healthy",
+    "source_run_count": 2,
+    "status": "healthy",
+    "warning_count": 1
+  },
+  "protected_deals_without_bearer": {
+    "body": {
+      "detail": "Unauthorized"
+    },
+    "status": 401
+  },
+  "provider_status": {
+    "providers": {
+      "email": {
+        "can_send": false,
+        "configured": true,
+        "provider": "resend"
+      },
+      "sms": {
+        "can_send": false,
+        "configured": true,
+        "provider": "textgrid"
+      }
+    },
+    "status": 200
+  },
+  "public_health": {
+    "body": {
+      "status": "ok"
+    },
+    "status": 200
+  },
+  "sms_process_pending": {
+    "body": {
+      "blocked_count": 0,
+      "failed_count": 0,
+      "processed_count": 0,
+      "sent_count": 0
+    },
+    "status": 200
+  },
+  "sms_runtime_gates": {
+    "PROVIDER_LIVE_SENDS_ENABLED": "false",
+    "SMS_AGENT_AUTO_REPLIES_ENABLED": "false",
+    "SMS_AGENT_MODE": "draft_only"
+  },
+  "sms_webhook_unsigned_malformed": {
+    "detail": "Invalid TextGrid webhook signature",
+    "status": 422
+  },
+  "source_runs": {
+    "count": 4,
+    "recent": [
+      {
+        "completed_at": "2026-05-16T20:58:09.876064Z",
+        "county": "montgomery",
+        "id": "source_run_21d64f22c1a442e8afcafe90d3833405",
+        "keep_now_count": 0,
+        "record_count": 0,
+        "run_kind": "end_of_day",
+        "source_lane": "montgomery_county_probate",
+        "started_at": "2026-05-16T20:58:09.869466Z",
+        "status": "completed"
+      },
+      {
+        "completed_at": "2026-05-16T20:58:09.786678Z",
+        "county": "harris",
+        "id": "source_run_95b6d863e8034e8e8a5823d211cfc9f1",
+        "keep_now_count": 0,
+        "record_count": 0,
+        "run_kind": "end_of_day",
+        "source_lane": "harris_county_probate",
+        "started_at": "2026-05-16T20:58:09.779603Z",
+        "status": "completed"
+      },
+      {
+        "completed_at": "2026-05-16T17:40:53.029946Z",
+        "county": "montgomery",
+        "id": "source_run_8fe02ae8cf0c4dd2a257f799aa0355b0",
+        "keep_now_count": 0,
+        "record_count": 0,
+        "run_kind": "midday",
+        "source_lane": "montgomery_county_probate",
+        "started_at": "2026-05-16T17:40:53.027203Z",
+        "status": "completed"
+      },
+      {
+        "completed_at": "2026-05-16T17:40:52.895298Z",
+        "county": "harris",
+        "id": "source_run_8a6b242d7a634bde8c156b1838425bbd",
+        "keep_now_count": 0,
+        "record_count": 0,
+        "run_kind": "midday",
+        "source_lane": "harris_county_probate",
+        "started_at": "2026-05-16T17:40:52.893058Z",
+        "status": "completed"
+      }
+    ],
+    "status": 200
+  }
+}

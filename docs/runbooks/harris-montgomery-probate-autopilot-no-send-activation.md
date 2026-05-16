@@ -1,13 +1,13 @@
 # Harris + Montgomery Probate Autopilot — Live No-Send Activation Runbook
 
 - Status: current / operational no-send / VPS env preflight healthy
-- Updated UTC: 2026-05-16T15:59:30Z
+- Updated UTC: 2026-05-16T21:05:22Z
 - Scope: scheduled public source acquisition, public case-detail party/event/document/contact-candidate enrichment, public CAD/tax/land-record enrichment, scoring inputs, briefing, and qualified-review preparation
 - Hard stop: no Instantly enrollment, no email/SMS/Vapi sends, no paid skiptrace, no HubSpot writes without separate approval gate
 
 ## Operating model
 
-Ares remains the source of truth for source-run lifecycle, dedupe, enrichment state, scoring state, approval/suppression, and mirror/send eligibility. Trigger.dev is the intended long-term production scheduler, but Trigger cloud deploy is currently blocked by CLI login/auth in this environment. Until Trigger auth is recovered, Hermes no-agent cron job `815e1261ab2e` is the active no-send CT scheduler/watchdog; it reads `/opt/ares/Ares/.env`, runs from `/opt/ares/Ares`, writes durable state/artifacts under `/var/lib/ares/lead-machine`, and keeps all provider/outbound gates false. Mission Control is the aggregate operator surface. HubSpot is a mirror/operator view only after separate approval. Instantly is delivery only after future explicit campaign approval.
+Ares remains the source of truth for source-run lifecycle, dedupe, enrichment state, scoring state, approval/suppression, and mirror/send eligibility. Trigger.dev is the production scheduler authority after the controlled Trigger no-send promotion on 2026-05-16; Hermes no-agent cron job `815e1261ab2e` is paused and should stay paused unless intentionally rolling back. Trigger prod calls the Funnel runtime at `https://ares.tail485fd9.ts.net`, with `ARES_TRIGGER_SCHEDULES_ENABLED=true`, and keeps all provider/outbound gates false. Mission Control is the aggregate operator surface. HubSpot is a mirror/operator view only after separate approval. Instantly is delivery only after future explicit campaign approval.
 
 Manual experiments and operator-triggered replays must use `source_run_scope=manual`; scheduled Trigger.dev/background runs must use `source_run_scope=autonomous`. Dedupe comparisons are scoped by this field so a manual scrape cannot poison, replay, or suppress the autonomous background queue.
 
@@ -77,8 +77,8 @@ Trigger schedule definitions are in code at:
 - `harris-montgomery-probate-0710-ct`: `10 7 * * *` America/Chicago
 - `harris-montgomery-probate-1240-ct`: `40 12 * * *` America/Chicago
 - `harris-montgomery-probate-1740-ct`: `40 17 * * *` America/Chicago
-- `harris-montgomery-probate-0220-ct`: `20 2 * * *` America/Chicago
-- `harris-montgomery-probate-weekly-sunday-0315-ct`: `15 3 * * 0` America/Chicago
+
+Trigger cloud is intentionally limited to the three operator-facing Central Time lead-run windows above. The retired 02:20 daily reconciliation and Sunday 03:15 weekly reconciliation schedules are not exported by the worker after the Trigger promotion slice, so Trigger does not create extra autonomous source pulls outside the three-times-per-day cadence.
 
 The schedule payload now emits source, case-detail, and property/tax/title enrichment no-send approval metadata by default:
 
@@ -231,14 +231,18 @@ npm --prefix trigger run typecheck
 
 Latest evidence:
 
+- Trigger scheduler promotion + Slack/SMS readiness QC folder: `docs/qc/2026-05-16/trigger-promotion-slack-sms-live/`
+- Trigger prod `20260516.4` is deployed for project `proj_puouljyhwiraonjkpiki`; selected prod env values show `RUNTIME_API_BASE_URL=https://ares.tail485fd9.ts.net`, `ARES_TRIGGER_SCHEDULES_ENABLED=true`, `LEAD_MACHINE_BUSINESS_ID=limitless`, `LEAD_MACHINE_ENVIRONMENT=prod`, and scheduled live source/case-detail/enrichment gates true.
+- Deployed Trigger worker has exactly three Harris/Montgomery probate schedule tasks: `harris-montgomery-probate-0710-ct`, `harris-montgomery-probate-1240-ct`, and `harris-montgomery-probate-1740-ct`; the retired 02:20 daily and Sunday 03:15 weekly reconciliation tasks are absent.
+- Controlled Trigger lead run `run_cmp8tvbii55lq0hmz6qca6n5i` completed and generated latest brief `morning_brief_f27f1679d1884a149cf5f3d53fc09f76`; protected probate health reports `status=healthy`, `no_send_ok=true`, `outbound_allowed=false`.
+- Hermes no-agent cron job `815e1261ab2e` is paused after the controlled Trigger run. Resume it only as an intentional rollback.
+- Slack persisted attempts show `lead_runs` and controlled `hot_leads` notifications sent with Slack message timestamps. SMS/TextGrid provider status is configured, the Trigger SMS processor run `run_cmp8tyk826wnf0vojep91id9s` completed, and runtime gates remain `SMS_AGENT_MODE=draft_only`, `SMS_AGENT_AUTO_REPLIES_ENABLED=false`, `PROVIDER_LIVE_SENDS_ENABLED=false`.
 - Production readiness wrap QC folder: `docs/qc/2026-05-16/probate-production-readiness-wrap/`
-- Code commit deployed to VPS Docker: `fc99b75 Harden probate production readiness`
+- Current code commit deployed to VPS Docker: `61f18de` runtime rebuild commit; later docs/QC commits may be newer.
 - VPS production env preflight after config: `status=healthy`, `no_send_ok=true`, `live_intelligence_ready=true`, `blockers=[]`; artifact `env-preflight-after-config.json`.
-- `/opt/ares/Ares` is detached at `fc99b75`; `ares-api` and `ares-ui` Docker image labels are `fc99b75`; `ares-api` has `/var/lib/ares/lead-machine` mounted read-write.
+- `/opt/ares/Ares` is detached at `61f18de`; `ares-api` and `ares-ui` were rebuilt/recreated from that runtime commit; `ares-api` has `/var/lib/ares/lead-machine` mounted read-write.
 - Production tenant resolution: `limitless/prod` resolves to business PK `1`; artifact `tenant-resolution-output.txt`.
-- Production health smoke: `/health` 200 and UI 200; Mission Control probate health for `limitless/prod` returns `status=no_data` until the first post-deploy autonomous prod brief is created.
-- Trigger cloud deploy status: blocked by Trigger CLI login/auth; artifact `trigger-deploy-output-sanitized.txt`. Trigger remains the intended long-term scheduler after auth recovery.
-- Hermes no-agent cron job `815e1261ab2e` is the active no-send CT scheduler/watchdog until Trigger auth is fixed; the script now reads `/opt/ares/Ares/.env`, runs from `/opt/ares/Ares`, writes durable state/artifacts under `/var/lib/ares/lead-machine`, and keeps outbound/provider gates false.
+- Production health smoke: Funnel `/health` 200, protected routes require bearer, and Mission Control probate health for `limitless/prod` is `status=healthy` after the controlled Trigger run.
 - Manual forced Hermes smoke: completed under isolated `prod-manual` with zero current-day rows, `sla_status=healthy`, `no_send_ok=true`, `outbound_allowed=false`, provider side effects all false, and live CAD/tax/land attempted true.
 - Post-adapter live no-send monitor QC folder: `docs/qc/2026-05-16/probate-post-adapter-live-no-send-monitor/`
 - Same-day 2026-05-16 strict smoke: failed/inconclusive because the valid zero-row day produced no passing summary JSON; treat zero-row source windows as non-errors in runtime but do not count that artifact as a green smoke.

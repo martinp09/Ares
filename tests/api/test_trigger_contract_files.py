@@ -74,8 +74,10 @@ def test_probate_autopilot_schedules_are_no_send_and_ct_cadenced() -> None:
     assert "10 7 * * *" in source
     assert "40 12 * * *" in source
     assert "40 17 * * *" in source
-    assert "20 2 * * *" in source
-    assert "15 3 * * 0" in source
+    assert "20 2 * * *" not in source
+    assert "15 3 * * 0" not in source
+    assert "harris-montgomery-probate-0220-ct" not in source
+    assert "harris-montgomery-probate-weekly-sunday-0315-ct" not in source
     assert "harris_montgomery_probate" in source
     assert 'envFlag("LEAD_MACHINE_SCHEDULED_LIVE_SOURCE_CALLS_ENABLED", true)' in source
     assert 'envFlag("LEAD_MACHINE_SCHEDULED_LIVE_ENRICHMENT_CALLS_ENABLED", true)' in source
@@ -94,8 +96,8 @@ def test_probate_autopilot_schedules_are_no_send_and_ct_cadenced() -> None:
     assert "disabledScheduleResponse" in source
     assert 'case "0710-ct":' in source
     assert "shiftDateKey(end, -1)" in source
-    assert "shiftDateKey(end, -7)" in source
-    assert "shiftDateKey(end, -30)" in source
+    assert "shiftDateKey(end, -7)" not in source
+    assert "shiftDateKey(end, -30)" not in source
     assert "...sourceWindow" in source
     assert "LEAD_MACHINE_BUSINESS_ID" in source
     assert "LEAD_MACHINE_ENVIRONMENT" in source

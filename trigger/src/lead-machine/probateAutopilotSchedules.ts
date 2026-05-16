@@ -15,7 +15,7 @@ type ScheduleContext = {
   type?: string;
 };
 
-type ProbateAutopilotCadence = "daily" | "weekly";
+type ProbateAutopilotCadence = "daily";
 
 function requiredEnv(name: string): string {
   const value = process.env[name];
@@ -45,10 +45,6 @@ function scheduledSourceWindow(slot: string, scheduledAt: Date): { window_start:
   switch (slot) {
     case "0710-ct":
       return { window_start: shiftDateKey(end, -1), window_end: end };
-    case "0220-ct":
-      return { window_start: shiftDateKey(end, -7), window_end: end };
-    case "sunday-0315-ct":
-      return { window_start: shiftDateKey(end, -30), window_end: end };
     default:
       return { window_start: end, window_end: end };
   }
@@ -175,10 +171,6 @@ function slotToRunKind(slot: string): string {
       return "midday";
     case "1740-ct":
       return "end_of_day";
-    case "0220-ct":
-      return "daily_reconciliation";
-    case "sunday-0315-ct":
-      return "weekly_reconciliation";
     default:
       return "manual";
   }
@@ -200,16 +192,4 @@ export const harrisMontgomeryProbate1740Ct = schedules.task({
   id: "harris-montgomery-probate-1740-ct",
   cron: { pattern: "40 17 * * *", timezone },
   run: async (schedule: ScheduleContext) => runProbateAutopilotNoSendSourcePull(schedule, "1740-ct", "daily"),
-});
-
-export const harrisMontgomeryProbate0220Ct = schedules.task({
-  id: "harris-montgomery-probate-0220-ct",
-  cron: { pattern: "20 2 * * *", timezone },
-  run: async (schedule: ScheduleContext) => runProbateAutopilotNoSendSourcePull(schedule, "0220-ct", "daily"),
-});
-
-export const harrisMontgomeryProbateWeeklySunday0315Ct = schedules.task({
-  id: "harris-montgomery-probate-weekly-sunday-0315-ct",
-  cron: { pattern: "15 3 * * 0", timezone },
-  run: async (schedule: ScheduleContext) => runProbateAutopilotNoSendSourcePull(schedule, "sunday-0315-ct", "weekly"),
 });

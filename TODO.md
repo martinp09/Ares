@@ -1,7 +1,7 @@
 ---
 title: "Ares TODO / Handoff"
 status: active
-updated_at: "2026-05-16T20:31:00Z"
+updated_at: "2026-05-16T21:05:22Z"
 repo: "martinp09/Ares"
 local_checkout: "/opt/ares/worktrees/ares-main"
 target_branch: "main"
@@ -20,7 +20,7 @@ supabase_identity_adapter_commit: "6cd2d88"
 
 Back Office Spine v0 landed on `main` at `e898ee0` and the local `feature/back-office-spine-v0` branch was deleted. This slice turns qualified leads into canonical deal records with lane-aware task/document/risk templates, stage transition blockers, fire-list read models, Supabase runtime persistence, and a read-only Mission Control Deal Desk page.
 
-The Harris + Montgomery probate autopilot PRD implementation landed at `9c256bf` as an operational no-send system; handoff docs landed at `9f30d2f`, env preflight landed at `a859fd2`, and production readiness/deploy wrap landed at `fc99b75`. VPS `/opt/ares/Ares` is now deployed from `61f18de` (runtime rebuild commit; later docs commits may be newer); Docker `ares-api` and `ares-ui` were rebuilt/recreated from that commit, Docker `ares-api` has durable `/var/lib/ares/lead-machine` mounted, and production no-send env preflight is healthy for `limitless/prod` with `LEAD_MACHINE_BACKEND=supabase`, live intelligence gates true, and outbound/provider mutation gates false. Trigger schedules default to live public probate source acquisition, live public case-detail page enrichment, and live public CAD/tax/land-record enrichment, but Trigger cloud remains intentionally gated: Hermes Trigger CLI auth is recovered, prod version `20260516.2` is deployed with schedule-level no-op guards, Trigger prod env now points at the current Ares API through Tailscale Funnel `https://ares.tail485fd9.ts.net`, and protected probate health passes with the Trigger runtime key. `ARES_TRIGGER_SCHEDULES_ENABLED=false` remains explicit, so Hermes no-agent cron `815e1261ab2e` remains the active no-send CT scheduler/watchdog until one controlled Trigger no-send run is proven and cron is intentionally paused. Backend defaults those live intelligence lanes on, but Ares still requires explicit no-send approval metadata for live source/case-detail/enrichment runtime requests and keeps every outbound path blocked. Dedupe/manual-isolation hardening adds hashed probate source identities, same-scope prior-run dedupe, same-packet duplicate exclusion, `source_run_scope=autonomous` scheduled payloads, isolated manual Hermes runner state, remote Supabase durable identity schema `20260516131500_probate_source_identity_dedupe.sql` applied on 2026-05-16, and a production Supabase identity-ledger adapter used when `LEAD_MACHINE_BACKEND=supabase`; the post-adapter live no-send monitor then found Harris rows expose postback-only detail targets, now safely classified as incomplete (`case_detail_postback_only`) rather than blocked unsafe URLs. QC includes `docs/qc/2026-05-16/vps-current-main-rebuild-trigger-funnel/`, `docs/qc/2026-05-16/probate-production-readiness-wrap/`, and the existing probate dedupe/source identity artifacts.
+The Harris + Montgomery probate autopilot PRD implementation landed at `9c256bf` as an operational no-send system; handoff docs landed at `9f30d2f`, env preflight landed at `a859fd2`, and production readiness/deploy wrap landed at `fc99b75`. VPS `/opt/ares/Ares` is now deployed from `61f18de` (runtime rebuild commit; later docs commits may be newer); Docker `ares-api` and `ares-ui` were rebuilt/recreated from that commit, Docker `ares-api` has durable `/var/lib/ares/lead-machine` mounted, and production no-send env preflight is healthy for `limitless/prod` with `LEAD_MACHINE_BACKEND=supabase`, live intelligence gates true, and outbound/provider mutation gates false. Trigger schedules default to live public probate source acquisition, live public case-detail page enrichment, and live public CAD/tax/land-record enrichment. Trigger cloud is now promoted: Hermes Trigger CLI auth is recovered, prod version `20260516.4` is deployed, Trigger prod env points at the current Ares API through Tailscale Funnel `https://ares.tail485fd9.ts.net`, `ARES_TRIGGER_SCHEDULES_ENABLED=true`, and deployed probate schedules are exactly `07:10`, `12:40`, and `17:40` America/Chicago. Controlled Trigger lead run `run_cmp8tvbii55lq0hmz6qca6n5i` completed, generated latest brief `morning_brief_f27f1679d1884a149cf5f3d53fc09f76`, posted the lead-run digest to Slack, and protected probate health still reports `healthy/no_send_ok=true/outbound_allowed=false`. Hermes no-agent cron `815e1261ab2e` is paused and should stay paused unless intentionally rolling back Trigger authority. Backend defaults those live intelligence lanes on, but Ares still requires explicit no-send approval metadata for live source/case-detail/enrichment runtime requests and keeps every outbound path blocked. Dedupe/manual-isolation hardening adds hashed probate source identities, same-scope prior-run dedupe, same-packet duplicate exclusion, `source_run_scope=autonomous` scheduled payloads, isolated manual Hermes runner state, remote Supabase durable identity schema `20260516131500_probate_source_identity_dedupe.sql` applied on 2026-05-16, and a production Supabase identity-ledger adapter used when `LEAD_MACHINE_BACKEND=supabase`; the post-adapter live no-send monitor then found Harris rows expose postback-only detail targets, now safely classified as incomplete (`case_detail_postback_only`) rather than blocked unsafe URLs. QC includes `docs/qc/2026-05-16/vps-current-main-rebuild-trigger-funnel/`, `docs/qc/2026-05-16/probate-production-readiness-wrap/`, and the existing probate dedupe/source identity artifacts.
 
 Origin-main hardening cleanup landed on GitHub `main`: `709f714` adds the dynamic Montgomery PublicSearch land-record end date, live no-send smoke case-detail assertion, legacy `/crm/hubspot/*` `operator_approval=true` live-write gate, and CI; `be11aaa` tracks Docker deployment files and Docker CI.
 
@@ -34,7 +34,7 @@ Back Office Spine v0 verification passed pre-merge and post-merge: focused backe
 
 Cleanup verification on the `be76288` baseline passed: focused backend => `44 passed`; full backend => `945 passed`; Mission Control tests => `25 files / 82 tests`; Mission Control typecheck/build => passed; Trigger typecheck => passed; `git diff --check` and smoke/script py-compile => passed. GitHub Actions CI passed on `709f714` and `be11aaa`.
 
-- No HubSpot batch writes, Instantly enrollment/sends, SMS/Vapi calls, paid skiptrace, Slack/provider sends, live smoke, Vercel deploys, or Supabase schema changes were executed by this adapter slice. The only live mutations after approval were the earlier VPS Docker/Caddy rebuild, the existing Supabase deal-spine migration, and the approved Supabase probate source identity migration.
+- Before the Trigger promotion slice, no HubSpot batch writes, Instantly enrollment/sends, SMS/Vapi calls, paid skiptrace, Slack/provider sends, live smoke, Vercel deploys, or Supabase schema changes were executed by the prior adapter slice. The later Trigger promotion slice intentionally posted controlled Slack operational notifications only; no campaign/provider sends were enabled.
 
 ## Primary handoff artifacts
 
@@ -51,16 +51,17 @@ Cleanup verification on the `be76288` baseline passed: focused backend => `44 pa
 - Supabase probate source identity adapter QC: `docs/qc/2026-05-16/probate-source-identity-supabase-adapter/`
 - Probate no-send activation runbook: `docs/runbooks/harris-montgomery-probate-autopilot-no-send-activation.md`
 - Probate production readiness wrap QC: `docs/qc/2026-05-16/probate-production-readiness-wrap/`
+- Trigger scheduler promotion + Slack/SMS readiness QC: `docs/qc/2026-05-16/trigger-promotion-slack-sms-live/`
 - HubSpot operating-spine QC index: `docs/qc/2026-05-14/README.md`
 
 ## Immediate next actions
 
-1. Let one controlled Trigger no-send run execute against `https://ares.tail485fd9.ts.net`; if it proves no duplicate source runs and the expected no-send lifecycle, then set `ARES_TRIGGER_SCHEDULES_ENABLED=true` and pause Hermes cron `815e1261ab2e`.
-2. Watch the next Hermes no-agent CT scheduler window for the next `limitless/prod` autonomous morning brief while Hermes remains authoritative.
+1. Watch the next automatic Trigger CT windows (`07:10`, `12:40`, `17:40` America/Chicago) for the next `limitless/prod` autonomous morning briefs and Slack lead-run digests.
+2. Keep Hermes cron `815e1261ab2e` paused while Trigger remains authoritative; resume it only as an intentional rollback.
 3. Monitor the Funnel API edge (`/health`, protected probate health with bearer, protected routes `401` without bearer) and keep Tailscale Funnel limited to the API loopback proxy.
 4. Add a Harris postback case-detail client if live Harris party/event/document detail completion is required; current postback-only rows are safely incomplete, not blocked.
 5. Keep Instantly enrollment/send, SMS/Vapi dispatch, paid skiptrace, and HubSpot batch mirror writes gated until separately approved.
-6. Monitor the tailnet-only Caddy UI/API edge and keep `ares-edge-firewall.service` active while Supabase/dev ports remain published by their owning stack.
+6. Prepare the marketing launch manifest next: source-approved contacts, suppression/verification, exact copy, exact recipient limits, and approval before Instantly/SMS/email sends.
 
 ## Open product follow-ups
 

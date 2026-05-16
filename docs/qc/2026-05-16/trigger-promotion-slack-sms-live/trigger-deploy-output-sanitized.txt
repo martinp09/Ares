@@ -1,0 +1,13 @@
+Trigger.dev deploy evidence (sanitized)
+
+Command:
+  npx trigger.dev@4.4.0 deploy --env prod --profile default --skip-update-check
+
+Result:
+  Successfully deployed version 20260516.4
+  Version 20260516.4 deployed with 24 detected tasks
+  Deployment URL: https://cloud.trigger.dev/projects/v3/proj_puouljyhwiraonjkpiki/deployments/1svjgiv6
+
+Notes:
+  No Trigger access token, runtime API key, or provider secret is included here.
+  Worker verification is captured in trigger-worker-env-output.json.

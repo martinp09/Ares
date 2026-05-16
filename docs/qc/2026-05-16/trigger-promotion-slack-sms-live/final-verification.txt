@@ -1,0 +1,14 @@
+Trigger promotion final verification — 2026-05-16T21:15:28Z
+
+- Trigger prod worker: 20260516.4.
+- Trigger probate cadence: harris-montgomery-probate-0710-ct, harris-montgomery-probate-1240-ct, harris-montgomery-probate-1740-ct.
+- Retired 02:20/weekly schedules present: false.
+- Trigger schedules enabled: true.
+- Runtime edge: https://ares.tail485fd9.ts.net.
+- Protected no-bearer /deals status: 401.
+- Probate health after controlled run: healthy, no_send_ok=true, outbound_allowed=false.
+- Controlled Trigger lead run: run_cmp8tvbii55lq0hmz6qca6n5i completed; latest brief morning_brief_f27f1679d1884a149cf5f3d53fc09f76 generated with 0 new records and 0 hot leads for that zero-row window.
+- Slack lead_runs/hot_leads: persisted attempts exist with Slack message timestamps.
+- SMS/TextGrid: configured; processor live; unsigned webhook rejected; live sends/auto-replies remain gated off pending exact recipient/campaign approval.
+- Hermes cron 815e1261ab2e: paused; Trigger is scheduler authority unless intentionally rolled back.
+- Focused pytest, Trigger typecheck, and git diff --check passed; see test-output.txt.

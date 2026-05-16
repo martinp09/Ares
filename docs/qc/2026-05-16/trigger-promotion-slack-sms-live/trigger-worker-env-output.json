@@ -1,0 +1,43 @@
+{
+  "controlled_runs": {
+    "lead_run": {
+      "observed_status": "COMPLETED",
+      "run_id": "run_cmp8tvbii55lq0hmz6qca6n5i",
+      "scheduled_time_ct": "2026-05-16T15:57:47.848945-05:00",
+      "task": "harris-montgomery-probate-1740-ct"
+    },
+    "sms_processor": {
+      "observed_status": "COMPLETED",
+      "run_id": "run_cmp8tyk826wnf0vojep91id9s",
+      "task": "sms-agent-process-pending"
+    }
+  },
+  "environment": "prod",
+  "envvars_lookup_status": 200,
+  "probate_schedule_slugs": [
+    "harris-montgomery-probate-0710-ct",
+    "harris-montgomery-probate-1240-ct",
+    "harris-montgomery-probate-1740-ct"
+  ],
+  "project": "proj_puouljyhwiraonjkpiki",
+  "project_env_lookup_status": 200,
+  "retired_reconciliation_schedules_present": false,
+  "selected_env": {
+    "ARES_TRIGGER_SCHEDULES_ENABLED": "true",
+    "HERMES_RUNTIME_API_BASE_URL": "https://ares.tail485fd9.ts.net",
+    "LEAD_MACHINE_BUSINESS_ID": "limitless",
+    "LEAD_MACHINE_ENVIRONMENT": "prod",
+    "LEAD_MACHINE_SCHEDULED_LIVE_CASE_DETAIL_CALLS_ENABLED": "true",
+    "LEAD_MACHINE_SCHEDULED_LIVE_ENRICHMENT_CALLS_ENABLED": "true",
+    "LEAD_MACHINE_SCHEDULED_LIVE_SOURCE_CALLS_ENABLED": "true",
+    "RUNTIME_API_BASE_URL": "https://ares.tail485fd9.ts.net"
+  },
+  "sms_schedule_present": true,
+  "whoami": {
+    "email_domain": "gmail.com",
+    "status": 200
+  },
+  "worker_lookup_status": 200,
+  "worker_task_count": 24,
+  "worker_version": "20260516.4"
+}

@@ -1,0 +1,16 @@
+{
+  "generated_from": "Hermes cronjob list tool output",
+  "scheduler_handoff": {
+    "old_scheduler_job_id": "815e1261ab2e",
+    "old_scheduler_name": "Harris Montgomery probate autopilot no-send CT scheduler",
+    "old_scheduler_script": "ares_probate_autopilot_no_send.py",
+    "old_scheduler_state": "paused",
+    "old_scheduler_enabled": false,
+    "old_scheduler_paused_at": "2026-05-16T15:54:16.509760-05:00",
+    "old_scheduler_last_run_at": "2026-05-16T15:50:55.666172-05:00",
+    "old_scheduler_last_status": "ok",
+    "new_scheduler": "Trigger.dev prod worker 20260516.4",
+    "new_scheduler_authority": true,
+    "rollback_note": "Resume Hermes cron 815e1261ab2e only as an intentional rollback if Trigger scheduler authority is disabled."
+  }
+}
