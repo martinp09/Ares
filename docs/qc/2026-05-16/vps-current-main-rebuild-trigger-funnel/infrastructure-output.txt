@@ -1,0 +1,127 @@
+## date/git live checkout
+exit=0
+```
+2026-05-16T20:25:36Z
+17594bafa6eb6ac1fcdae6b78f107077851f304e
+## HEAD (no branch)
+```
+
+## main worktree status
+exit=0
+```
+17594bafa6eb6ac1fcdae6b78f107077851f304e
+## main...origin/main
+?? docs/qc/2026-05-16/vps-current-main-rebuild-trigger-funnel/
+```
+
+## docker ps
+exit=0
+```
+NAMES                                          IMAGE                                           STATUS                   PORTS
+ares-ui                                        ares-ares-ui                                    Up 9 minutes             127.0.0.1:8080->8080/tcp
+ares-api                                       ares-ares-api                                   Up 9 minutes (healthy)   127.0.0.1:8000->8000/tcp
+```
+
+## docker inspect summary
+exit=0
+```
+{"cap_drop": ["ALL"], "health": "healthy", "name": "ares-api", "ports": {"8000/tcp": [{"HostIp": "127.0.0.1", "HostPort": "8000"}]}, "revision": "17594ba", "security_opt": ["no-new-privileges:true"], "status": "running", "user": "ares"}
+{"cap_drop": ["ALL"], "health": null, "name": "ares-ui", "ports": {"8080/tcp": [{"HostIp": "127.0.0.1", "HostPort": "8080"}]}, "revision": "17594ba", "security_opt": ["no-new-privileges:true"], "status": "running", "user": "101"}
+```
+
+## listeners
+exit=0
+```
+LISTEN 0      4096                     127.0.0.1:8080       0.0.0.0:*
+LISTEN 0      4096                     127.0.0.1:8000       0.0.0.0:*
+LISTEN 0      4096                  100.74.177.6:80         0.0.0.0:*
+LISTEN 0      4096                  100.74.177.6:443        0.0.0.0:*
+LISTEN 0      4096   [fd7a:115c:a1e0::6433:b106]:443           [::]:*
+```
+
+## caddy/firewall state
+exit=0
+```
+active
+active
+```
+
+## caddyfile redacted
+exit=0
+```
+http://{$ARES_TAILNET_IP}:80 {
+	bind {$ARES_TAILNET_IP}
+	encode gzip zstd
+
+	@ares_api path /agent-assets* /agent-installs* /agents* /approvals* /audit* /catalog* /commands* /health /hermes* /lead-machine* /marketing* /memberships* /mission-control* /organizations* /outcomes* /permissions* /rbac* /release-management* /replays* /runs* /sessions* /site-events* /skills* /trigger* /usage* /crm* /deals* /sms-agent* /voice*
+	handle @ares_api {
+		reverse_proxy 127.0.0.1:8000 {
+			header_up Authorization "Bearer <redacted>"
+		}
+	}
+
+	handle {
+		reverse_proxy 127.0.0.1:8080
+	}
+}
+```
+
+## tailscale funnel status
+exit=0
+```
+
+# Funnel on:
+#     - https://<ares-funnel-host>
+
+https://<ares-funnel-host> (Funnel on)
+|-- / proxy http://127.0.0.1:8000
+```
+
+## tailscale serve status json
+exit=0
+```
+{"TCP": {"443": {"HTTPS": true}}, "Web": {"ares.tail485fd9.ts.net:443": {"Handlers": {"/": {"Proxy": "http://127.0.0.1:8000"}}}}}
+```
+
+## trigger env list redacted
+exit=0
+```
+
+Trigger.dev (4.4.0)
+
+┌  Environment Variables
+│
+◒  Checking your account details◐  Checking your account details◓  Checking your account details◑  Checking your account details◒  Checking your account details◐  Checking your account details◇  Retrieved your account details for martinhomeoffers@gmail.com
+│
+◒  Loading environment variables from project◇  Environment variables loaded
+
+ Variable                           Value (hidden)
+ ARES_TRIGGER_SCHEDULES_ENABLED     ******
+ HERMES_RUNTIME_API_BASE_URL        ******
+ HERMES_RUNTIME_API_KEY             ******
+ RUNTIME_API_BASE_URL               ******
+ RUNTIME_API_KEY                    ******
+ OTEL_BATCH_PROCESSING_ENABLED      ******
+ OTEL_SPAN_MAX_EXPORT_BATCH_SIZE    ******
+ OTEL_SPAN_SCHEDULED_DELAY_MILLIS   ******
+ OTEL_SPAN_EXPORT_TIMEOUT_MILLIS    ******
+ OTEL_SPAN_MAX_QUEUE_SIZE           ******
+ OTEL_LOG_MAX_EXPORT_BATCH_SIZE     ******
+ OTEL_LOG_SCHEDULED_DELAY_MILLIS    ******
+ OTEL_LOG_EXPORT_TIMEOUT_MILLIS     ******
+ OTEL_LOG_MAX_QUEUE_SIZE            ******
+ USAGE_HEARTBEAT_INTERVAL_MS        ******
+ USAGE_EVENT_URL                    ******
+ HEARTBEAT_INTERVAL_MS              ******
+
+│
+●  Use --show-values to display the actual values
+│
+└  Found 17 environment variables | Project: proj_puouljyhwiraonjkpiki | Environment: prod
+```
+
+## recent ares-api warnings/errors
+exit=0
+```
+
+```

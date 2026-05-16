@@ -1,0 +1,216 @@
+{
+  "checks": [
+    {
+      "elapsed_ms": 4,
+      "label": "direct_health",
+      "status": 200,
+      "summary": {
+        "status": "ok"
+      }
+    },
+    {
+      "elapsed_ms": 2,
+      "label": "direct_deals_without_bearer",
+      "status": 401,
+      "summary": {
+        "deals_len": null,
+        "detail": "Unauthorized"
+      }
+    },
+    {
+      "elapsed_ms": 590,
+      "label": "direct_deals_with_bearer",
+      "status": 200,
+      "summary": {
+        "deals_len": 0,
+        "detail": null
+      }
+    },
+    {
+      "elapsed_ms": 4,
+      "label": "direct_probate_health",
+      "status": 200,
+      "summary": {
+        "business_id": "limitless",
+        "environment": "prod",
+        "no_send_ok": true,
+        "outbound_allowed": false,
+        "status": "healthy"
+      }
+    },
+    {
+      "elapsed_ms": 107,
+      "label": "sms_process_pending",
+      "status": 200,
+      "summary": {
+        "blocked_count": 0,
+        "failed_count": 0,
+        "processed_count": 0,
+        "sent_count": 0
+      }
+    },
+    {
+      "body_prefix": "<!doctype html>\n<html lang=\"en\">\n  <head>\n    <meta charset=\"UTF-8\" />\n    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\" />\n    <title>Hermes Mission Contro",
+      "elapsed_ms": 1,
+      "label": "ui_loopback_root",
+      "status": 200
+    },
+    {
+      "elapsed_ms": 3,
+      "label": "tailnet_health",
+      "status": 200,
+      "summary": {
+        "status": "ok"
+      }
+    },
+    {
+      "elapsed_ms": 92,
+      "label": "tailnet_deals_auth_injected",
+      "status": 200,
+      "summary": {
+        "deals_len": 0,
+        "detail": null
+      }
+    },
+    {
+      "body_prefix": "<!doctype html>\n<html lang=\"en\">\n  <head>\n    <meta charset=\"UTF-8\" />\n    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\" />\n    <title>Hermes Mission Contro",
+      "elapsed_ms": 2,
+      "label": "tailnet_ui_root",
+      "status": 200
+    },
+    {
+      "elapsed_ms": 31,
+      "label": "funnel_health",
+      "status": 200,
+      "summary": {
+        "status": "ok"
+      }
+    },
+    {
+      "elapsed_ms": 25,
+      "label": "funnel_deals_without_bearer",
+      "status": 401,
+      "summary": {
+        "deals_len": null,
+        "detail": "Unauthorized"
+      }
+    },
+    {
+      "elapsed_ms": 67,
+      "label": "funnel_deals_with_bearer",
+      "status": 200,
+      "summary": {
+        "deals_len": 0,
+        "detail": null
+      }
+    },
+    {
+      "elapsed_ms": 34,
+      "label": "funnel_probate_health",
+      "status": 200,
+      "summary": {
+        "business_id": "limitless",
+        "environment": "prod",
+        "no_send_ok": true,
+        "outbound_allowed": false,
+        "status": "healthy"
+      }
+    },
+    {
+      "elapsed_ms": 75,
+      "label": "supabase_table_sms_agent_jobs",
+      "status": 200,
+      "summary": {
+        "rows_returned": 0
+      }
+    },
+    {
+      "elapsed_ms": 56,
+      "label": "supabase_table_sms_agent_decisions",
+      "status": 200,
+      "summary": {
+        "rows_returned": 0
+      }
+    },
+    {
+      "elapsed_ms": 58,
+      "label": "supabase_table_sms_agent_eval_labels",
+      "status": 200,
+      "summary": {
+        "rows_returned": 0
+      }
+    },
+    {
+      "elapsed_ms": 64,
+      "label": "supabase_table_sms_agent_archives",
+      "status": 200,
+      "summary": {
+        "rows_returned": 0
+      }
+    },
+    {
+      "elapsed_ms": 58,
+      "label": "supabase_table_slack_notifications",
+      "status": 200,
+      "summary": {
+        "rows_returned": 0
+      }
+    },
+    {
+      "elapsed_ms": 56,
+      "label": "supabase_table_probate_source_identities",
+      "status": 200,
+      "summary": {
+        "rows_returned": 0
+      }
+    },
+    {
+      "elapsed_ms": 16,
+      "label": "trigger_env_health",
+      "status": 200,
+      "summary": {
+        "status": "ok"
+      }
+    },
+    {
+      "elapsed_ms": 18,
+      "label": "trigger_env_probate_health",
+      "status": 200,
+      "summary": {
+        "business_id": "limitless",
+        "environment": "prod",
+        "no_send_ok": true,
+        "outbound_allowed": false,
+        "status": "healthy"
+      }
+    }
+  ],
+  "deployed_commit": "17594ba",
+  "generated_at_utc": "2026-05-16T20:25:36Z",
+  "runtime_edges": {
+    "loopback_api": "http://127.0.0.1:8000",
+    "public_funnel_api": "https://ares.tail485fd9.ts.net",
+    "tailnet_caddy": "http://100.74.177.6"
+  },
+  "safety_gates": {
+    "CONTROL_PLANE_BACKEND": "supabase",
+    "HUBSPOT_PROVIDER_LIVE_WRITES_ENABLED": "false",
+    "INSTANTLY_PROVIDER_LIVE_ENROLLMENT_ENABLED": "false",
+    "LEAD_MACHINE_BACKEND": "supabase",
+    "MARKETING_BACKEND": "supabase",
+    "PROVIDER_LIVE_SENDS_ENABLED": "false",
+    "SITE_EVENTS_BACKEND": "supabase",
+    "SLACK_NOTIFICATIONS_ENABLED": "true",
+    "SMS_AGENT_AUTO_REPLIES_ENABLED": "false",
+    "SMS_AGENT_MODE": "draft_only",
+    "VAPI_PROVIDER_LIVE_SENDS_ENABLED": "false"
+  },
+  "trigger": {
+    "environment": "prod",
+    "local_runtime_key_fingerprint": "3ac308fff2e4",
+    "project_ref": "proj_puouljyhwiraonjkpiki",
+    "runtime_base_url": "https://ares.tail485fd9.ts.net",
+    "runtime_key_fingerprint": "3ac308fff2e4",
+    "schedules_enabled": "false"
+  }
+}

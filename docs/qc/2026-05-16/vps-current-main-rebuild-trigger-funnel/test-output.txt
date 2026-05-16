@@ -1,0 +1,7 @@
+# Trigger typecheck after VPS rebuild / Trigger env alignment
+exit=0
+```
+
+> typecheck
+> tsc --noEmit -p tsconfig.json
+```

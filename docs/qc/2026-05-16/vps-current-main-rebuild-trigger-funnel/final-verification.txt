@@ -1,0 +1,24 @@
+# Final Verification
+
+```text
+$ git status --short --branch
+## main...origin/main
+ M CONTEXT.md
+ M TODO.md
+ M memory.md
+?? docs/qc/2026-05-16/vps-current-main-rebuild-trigger-funnel/
+
+$ git diff --check
+# passed with no output
+
+$ npm --prefix trigger run typecheck
+> typecheck
+> tsc --noEmit -p tsconfig.json
+
+$ python smoke-output.json summary
+smoke_checks 21
+failed_unexpected []
+expected_401 ['direct_deals_without_bearer', 'funnel_deals_without_bearer']
+trigger_base https://ares.tail485fd9.ts.net
+trigger_schedules_enabled false
+```
