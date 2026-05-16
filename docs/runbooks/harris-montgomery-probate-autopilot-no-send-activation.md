@@ -1,13 +1,15 @@
 # Harris + Montgomery Probate Autopilot — Live No-Send Activation Runbook
 
 - Status: current / operational no-send
-- Updated UTC: 2026-05-15T23:43:02Z
+- Updated UTC: 2026-05-16T13:10:45Z
 - Scope: scheduled public source acquisition, public case-detail party/event/document/contact-candidate enrichment, public CAD/tax/land-record enrichment, scoring inputs, briefing, and qualified-review preparation
 - Hard stop: no Instantly enrollment, no email/SMS/Vapi sends, no paid skiptrace, no HubSpot writes without separate approval gate
 
 ## Operating model
 
 Ares remains the source of truth for source-run lifecycle, dedupe, enrichment state, scoring state, approval/suppression, and mirror/send eligibility. Trigger.dev schedules the no-send runs. Mission Control is the aggregate operator surface. HubSpot is a mirror/operator view only after separate approval. Instantly is delivery only after future explicit campaign approval.
+
+Manual experiments and operator-triggered replays must use `source_run_scope=manual`; scheduled Trigger.dev/background runs must use `source_run_scope=autonomous`. Dedupe comparisons are scoped by this field so a manual scrape cannot poison, replay, or suppress the autonomous background queue.
 
 ## Operational environment defaults
 
@@ -69,6 +71,7 @@ The schedule payload now emits source, case-detail, and property/tax/title enric
       "mode": "live_source_adapters",
       "expected_counties": ["harris", "montgomery"]
     },
+    "source_run_scope": "autonomous",
     "source_provider_approval": {
       "approved": true,
       "approved_by": "trigger-schedule-env-gate",
@@ -103,6 +106,18 @@ The schedule payload now emits source, case-detail, and property/tax/title enric
 ```
 
 Backend runtime calls still reject before live work if approval metadata is missing, if no-send constraints are false, if public case-detail URLs are outside the approved county allowlist, or if outbound provider-send flags are true.
+
+## Dedupe and manual/autonomous isolation
+
+Current runtime guardrails:
+
+- Source identity is `probate_case_sha256:{sha256("probate_case:{county}:{normalized_case_number}")}` using version `county_case_sha256_v1`; raw case numbers stay in internal source artifacts, while dedupe summaries can use aggregate counts.
+- Before building source-run manifests, the nightly service loads prior completed probate source runs for the same `business_id`, `environment`, and `source_run_scope`.
+- `record_count` and `keep_now_count` for the run only include new unique rows. Rows seen in prior same-scope source runs are written to `duplicate_prior_run_rows` artifacts and counted in `source_quality.duplicate_prior_run_count` / `source_quality.deduped_existing_record_count`.
+- Duplicate rows inside the same source packet are written to `duplicate_current_run_rows` and counted in `source_quality.duplicate_current_run_count`.
+- Trigger.dev schedule payloads set `source_run_scope=autonomous`.
+- Forced/manual Hermes runner executions use a separate manual ledger path and `LEAD_MACHINE_ENVIRONMENT=<environment>-manual`, plus `source_run_scope=manual`, so manual experiments cannot mutate autonomous source-run state or suppress autonomous records.
+- Supabase migration `20260516131500_probate_source_identity_dedupe.sql` defines `public.probate_source_identities` with unique `(business_id, environment, source_run_scope, county, source_identity_key)` for the durable control-plane version of the same boundary.
 
 ## Live source adapter behavior
 
@@ -195,6 +210,11 @@ npm --prefix trigger run typecheck
 
 Latest evidence:
 
+- Dedupe/manual-isolation hardening QC folder: `docs/qc/2026-05-16/probate-dedupe-runtime-isolation/`
+- Local autonomous ledger comparison, latest two dates: 2026-05-15 had 39 Harris / 8 Montgomery source identities; 2026-05-16 had 0 Harris / 0 Montgomery source identities; overlap count was 0 for both counties, with no raw PII printed.
+- Dedupe/runtime/schema focused contracts: `36 passed`
+- Backend db+services suite: `466 passed`
+- Trigger typecheck: passed
 - Case-detail QC folder: `docs/qc/2026-05-15/probate-case-detail-enrichment/`
 - Focused case-detail/source/nightly/env/Trigger contracts: `47 passed`
 - Full backend: `916 passed`

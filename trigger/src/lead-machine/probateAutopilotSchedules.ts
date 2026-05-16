@@ -118,6 +118,7 @@ export function buildProbateAutopilotScheduledPayload(
       county_scope: ["harris", "montgomery"],
       no_send: true,
       provider_sends_enabled: false,
+      source_run_scope: "autonomous",
       run_kind: slotToRunKind(slot),
       slot,
       cadence,

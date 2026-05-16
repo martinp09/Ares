@@ -212,3 +212,106 @@ def test_source_file_payload_marks_missing_expected_county_in_brief(tmp_path):
     assert result.morning_brief.sections["sla_health"]["status"] == "blocked"
     assert result.morning_brief.sections["sla_health"]["missing_counties"] == ["montgomery"]
     assert result.morning_brief.sections["source_anomalies"][0]["type"] == "missing_expected_county"
+
+
+def _probate_autopilot_request(*, rows, idempotency_key, run_kind="midday", scope="autonomous"):
+    return NightlySourcePullRequest(
+        business_id="biz",
+        environment="prod",
+        idempotency_key=idempotency_key,
+        metadata={
+            "autopilot": "harris_montgomery_probate",
+            "county_scope": ["harris"],
+            "expected_counties": ["harris"],
+            "source_rows": {"harris": rows},
+            "run_kind": run_kind,
+            "source_run_scope": scope,
+            "window_start": "2026-05-15T00:00:00+00:00",
+            "window_end": "2026-05-15T23:59:59+00:00",
+            "no_send": True,
+            "provider_sends_enabled": False,
+        },
+    )
+
+
+def _probate_service(tmp_path):
+    return NightlyLeadMachineService(
+        repository=SourceRunsRepository(state_path=tmp_path / "source-runs.json"),
+        settings=Settings(lead_machine_artifact_root=str(tmp_path / "artifacts")),
+    )
+
+
+def test_probate_autopilot_dedupes_source_rows_seen_in_prior_autonomous_run(tmp_path):
+    service = _probate_service(tmp_path)
+    first = service.run_nightly_source_pull(
+        _probate_autopilot_request(
+            idempotency_key="autonomous-first",
+            rows=[
+                {"case_number": "H-100", "filing_type": "Independent Administration", "style": "Estate of A"},
+                {"case_number": "H-200", "filing_type": "Independent Administration", "style": "Estate of B"},
+            ],
+        )
+    )
+    assert first.morning_brief.new_record_count >= 2
+
+    second = service.run_nightly_source_pull(
+        _probate_autopilot_request(
+            idempotency_key="autonomous-second",
+            rows=[
+                {"case_number": "H-100", "filing_type": "Independent Administration", "style": "Estate of A duplicate"},
+                {"case_number": "H-300", "filing_type": "Independent Administration", "style": "Estate of C"},
+            ],
+        )
+    )
+
+    source_run = next(run for run in second.source_runs if run.source_lane == "harris_county_probate")
+    assert source_run.parsed_count == 2
+    assert source_run.record_count == 1
+    assert source_run.metadata["duplicate_prior_run_count"] == 1
+    assert source_run.metadata["new_unique_record_count"] == 1
+    assert second.morning_brief.sections["source_quality"]["duplicate_prior_run_count"] == 1
+    assert second.morning_brief.sections["source_quality"]["deduped_existing_record_count"] == 1
+    assert any(artifact.artifact_type == "duplicate_prior_run_rows" for artifact in source_run.artifacts)
+
+
+def test_probate_autopilot_dedupes_repeated_rows_inside_same_source_packet(tmp_path):
+    service = _probate_service(tmp_path)
+    result = service.run_nightly_source_pull(
+        _probate_autopilot_request(
+            idempotency_key="autonomous-current-packet-dupe",
+            rows=[
+                {"case_number": "H-400", "filing_type": "Independent Administration", "style": "Estate of D"},
+                {"case_number": "h 400", "filing_type": "Independent Administration", "style": "Estate of D duplicate"},
+            ],
+        )
+    )
+
+    source_run = next(run for run in result.source_runs if run.source_lane == "harris_county_probate")
+    assert source_run.parsed_count == 2
+    assert source_run.record_count == 1
+    assert source_run.metadata["duplicate_current_run_count"] == 1
+    assert result.morning_brief.sections["source_quality"]["duplicate_current_run_count"] == 1
+
+
+def test_probate_autopilot_manual_scope_does_not_pollute_autonomous_dedupe(tmp_path):
+    service = _probate_service(tmp_path)
+    service.run_nightly_source_pull(
+        _probate_autopilot_request(
+            idempotency_key="manual-first",
+            scope="manual",
+            run_kind="manual",
+            rows=[{"case_number": "H-500", "filing_type": "Independent Administration", "style": "Estate of Manual"}],
+        )
+    )
+
+    autonomous = service.run_nightly_source_pull(
+        _probate_autopilot_request(
+            idempotency_key="autonomous-after-manual",
+            rows=[{"case_number": "H-500", "filing_type": "Independent Administration", "style": "Estate of Autonomous"}],
+        )
+    )
+
+    source_run = next(run for run in autonomous.source_runs if run.source_lane == "harris_county_probate")
+    assert source_run.record_count == 1
+    assert source_run.metadata["duplicate_prior_run_count"] == 0
+    assert autonomous.morning_brief.sections["source_request"]["source_run_scope"] == "autonomous"

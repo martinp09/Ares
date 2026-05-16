@@ -5,7 +5,7 @@ import json
 import re
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Iterable, Mapping
+from typing import Any, Iterable, Mapping, Sequence
 
 from app.models.source_runs import SourceCounty, SourceRunArtifact, SourceRunKind, SourceRunManifest
 from app.services.harris_probate_intake_service import HarrisProbateIntakeService
@@ -101,8 +101,24 @@ def collect_probate_autopilot_keep_now_rows(*, metadata: dict[str, Any]) -> list
     keep_now_rows: list[dict[str, Any]] = []
     for county in counties:
         normalized_rows, _invalid_rows = _normalize_source_rows(rows_by_county.get(county, []), county=county)
-        keep_now_rows.extend(row for row in normalized_rows if row.get("keep_now") is True)
+        deduped_rows, _duplicate_current_rows, _duplicate_prior_rows = _dedupe_normalized_rows(
+            normalized_rows,
+            county=county,
+            metadata=metadata,
+        )
+        keep_now_rows.extend(row for row in deduped_rows if row.get("keep_now") is True)
     return keep_now_rows
+
+
+def probate_source_identity_key(row: Mapping[str, Any], *, county: SourceCounty) -> str | None:
+    case_number = _first_text(row, "case_number", "cause_number", "case_no", "case", "caseNumber")
+    if not case_number:
+        return None
+    normalized_case = re.sub(r"[^A-Z0-9]+", "", case_number.upper())
+    if not normalized_case:
+        return None
+    digest = hashlib.sha256(f"probate_case:{county}:{normalized_case}".encode("utf-8")).hexdigest()
+    return f"probate_case_sha256:{digest}"
 
 
 def _build_placeholder_manifest(
@@ -160,6 +176,8 @@ def _build_placeholder_manifest(
             **_NO_SEND_METADATA,
             **_source_provider_bridge_metadata(metadata),
             "live_source_adapter_status": "deferred",
+            "source_run_scope": metadata.get("source_run_scope"),
+            "source_identity_version": metadata.get("source_identity_version"),
             "window_start": window_start.isoformat() if window_start else None,
             "window_end": window_end.isoformat() if window_end else None,
         },
@@ -179,13 +197,21 @@ def _build_row_manifest(
 ) -> SourceRunManifest:
     lane = _COUNTY_PROBATE_LANES[county]
     normalized_rows, invalid_rows = _normalize_source_rows(rows, county=county)
-    keep_now_rows = [row for row in normalized_rows if row["keep_now"]]
+    new_unique_rows, duplicate_current_rows, duplicate_prior_rows = _dedupe_normalized_rows(
+        normalized_rows,
+        county=county,
+        metadata=metadata,
+    )
+    keep_now_rows = [row for row in new_unique_rows if row["keep_now"]]
     duplicate_case_numbers = _duplicate_case_numbers(normalized_rows)
     duplicate_case_count = sum(count - 1 for count in duplicate_case_numbers.values())
+    duplicate_prior_run_count = len(duplicate_prior_rows)
+    duplicate_current_run_count = len(duplicate_current_rows)
     county_record_counts = _county_counts(metadata.get("record_counts"), county)
     raw_count = len(rows)
     parsed_count = len(normalized_rows)
     keep_now_count = len(keep_now_rows)
+    new_unique_record_count = len(new_unique_rows)
     source_reported_count = county_record_counts.get("source_reported_count", raw_count)
     warnings = []
     if invalid_rows:
@@ -197,6 +223,14 @@ def _build_row_manifest(
     if duplicate_case_count:
         warnings.append(
             f"{county} probate source packet contains {duplicate_case_count} duplicate case row(s); review duplicate_case_numbers before enrichment"
+        )
+    if duplicate_prior_run_count:
+        warnings.append(
+            f"{county} probate source packet contains {duplicate_prior_run_count} row(s) already seen in prior source runs; excluded from new-record counts and enrichment"
+        )
+    if duplicate_current_run_count:
+        warnings.append(
+            f"{county} probate source packet contains {duplicate_current_run_count} repeat row(s) after the first in this run; excluded from new-record counts and enrichment"
         )
 
     window_key = _window_key(window_start, window_end)
@@ -214,7 +248,7 @@ def _build_row_manifest(
             run_kind=run_kind,
             window_key=window_key,
             artifact_type="normalized_source_rows",
-            records=normalized_rows,
+            records=new_unique_rows,
             artifact_root=artifact_root,
         ),
         _artifact_for_records(
@@ -252,6 +286,28 @@ def _build_row_manifest(
                 artifact_root=artifact_root,
             )
         )
+    if duplicate_prior_rows:
+        artifacts.append(
+            _artifact_for_records(
+                county=county,
+                run_kind=run_kind,
+                window_key=window_key,
+                artifact_type="duplicate_prior_run_rows",
+                records=duplicate_prior_rows,
+                artifact_root=artifact_root,
+            )
+        )
+    if duplicate_current_rows:
+        artifacts.append(
+            _artifact_for_records(
+                county=county,
+                run_kind=run_kind,
+                window_key=window_key,
+                artifact_type="duplicate_current_run_rows",
+                records=duplicate_current_rows,
+                artifact_root=artifact_root,
+            )
+        )
 
     return SourceRunManifest(
         source_key=f"{lane}:{run_kind}:{window_key}",
@@ -266,7 +322,7 @@ def _build_row_manifest(
         raw_count=raw_count,
         parsed_count=parsed_count,
         keep_now_count=keep_now_count,
-        record_count=parsed_count,
+        record_count=new_unique_record_count,
         warnings=warnings,
         artifacts=artifacts,
         metadata={
@@ -277,9 +333,14 @@ def _build_row_manifest(
             **_NO_SEND_METADATA,
             **_source_provider_bridge_metadata(metadata),
             "live_source_adapter_status": "file_drop_or_external_adapter",
+            "source_run_scope": metadata.get("source_run_scope"),
+            "source_identity_version": metadata.get("source_identity_version"),
             "source_uri": _source_uri(metadata, county),
             "invalid_row_count": len(invalid_rows),
             "duplicate_case_count": duplicate_case_count,
+            "duplicate_prior_run_count": duplicate_prior_run_count,
+            "duplicate_current_run_count": duplicate_current_run_count,
+            "new_unique_record_count": new_unique_record_count,
             "duplicate_case_numbers": duplicate_case_numbers,
             "window_start": window_start.isoformat() if window_start else None,
             "window_end": window_end.isoformat() if window_end else None,
@@ -317,10 +378,51 @@ def _normalize_source_rows(rows: Iterable[Mapping[str, Any]], *, county: SourceC
                 "decedent_name": record.decedent_name,
                 "keep_now": record.keep_now,
                 "county": county,
+                "source_identity_key": probate_source_identity_key({"case_number": record.case_number}, county=county),
+                "source_identity_version": "county_case_sha256_v1",
                 "raw": payload,
             }
         )
     return normalized_rows, invalid_rows
+
+
+def _dedupe_normalized_rows(
+    rows: list[dict[str, Any]],
+    *,
+    county: SourceCounty,
+    metadata: Mapping[str, Any],
+) -> tuple[list[dict[str, Any]], list[dict[str, Any]], list[dict[str, Any]]]:
+    existing_keys = _existing_source_identity_keys(metadata, county)
+    seen_current: set[str] = set()
+    new_unique_rows: list[dict[str, Any]] = []
+    duplicate_current_rows: list[dict[str, Any]] = []
+    duplicate_prior_rows: list[dict[str, Any]] = []
+    for row in rows:
+        identity_key = row.get("source_identity_key")
+        if not isinstance(identity_key, str) or not identity_key:
+            identity_key = probate_source_identity_key(row, county=county)
+        if not identity_key:
+            new_unique_rows.append(row)
+            continue
+        if identity_key in existing_keys:
+            duplicate_prior_rows.append({**row, "dedupe_status": "duplicate_prior_run"})
+            continue
+        if identity_key in seen_current:
+            duplicate_current_rows.append({**row, "dedupe_status": "duplicate_current_run"})
+            continue
+        seen_current.add(identity_key)
+        new_unique_rows.append({**row, "dedupe_status": "new_unique"})
+    return new_unique_rows, duplicate_current_rows, duplicate_prior_rows
+
+
+def _existing_source_identity_keys(metadata: Mapping[str, Any], county: SourceCounty) -> set[str]:
+    existing = metadata.get("existing_source_identity_keys_by_county")
+    if not isinstance(existing, Mapping):
+        return set()
+    values = existing.get(county)
+    if not isinstance(values, list):
+        return set()
+    return {str(value) for value in values if str(value).strip()}
 
 
 def _artifact_for_records(
@@ -329,7 +431,7 @@ def _artifact_for_records(
     run_kind: SourceRunKind,
     window_key: str,
     artifact_type: str,
-    records: list[Mapping[str, Any]],
+    records: Sequence[Mapping[str, Any]],
     artifact_root: str | Path | None,
 ) -> SourceRunArtifact:
     body = _jsonl(records)
@@ -351,7 +453,7 @@ def _artifact_for_records(
     )
 
 
-def _jsonl(records: list[Mapping[str, Any]]) -> str:
+def _jsonl(records: Sequence[Mapping[str, Any]]) -> str:
     return "".join(json.dumps(record, sort_keys=True, default=str) + "\n" for record in records)
 
 
