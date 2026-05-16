@@ -11,7 +11,7 @@ def _job_create(
     *,
     provider_webhook_id: str = "wh_1",
     message_id: str = "msg_1",
-    contact_id: str = "lead_1",
+    contact_id: str = "ctc_1",
     metadata: dict | None = None,
 ) -> SmsAgentJobCreate:
     return SmsAgentJobCreate(

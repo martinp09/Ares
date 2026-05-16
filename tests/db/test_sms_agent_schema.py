@@ -37,6 +37,9 @@ def test_sms_agent_migration_defines_core_constraints_indexes_and_trigger() -> N
     assert "where provider_webhook_id is not null or message_id is not null or payload_hash is not null" in sql
     assert "create index if not exists sms_agent_jobs_pending_idx" in sql
     assert "create index if not exists sms_agent_decisions_job_idx" in sql
+    assert "create unique index if not exists sms_agent_decisions_operator_send_request_unique_idx" in sql
+    assert "on public.sms_agent_decisions (business_id, environment, (metadata->>'parent_decision_id'))" in sql
+    assert "where action = 'operator_send_requested' and metadata->>'parent_decision_id' is not null" in sql
     assert "create index if not exists sms_agent_eval_labels_decision_idx" in sql
     assert "drop trigger if exists sms_agent_jobs_touch_updated_at" in sql
     assert "create trigger sms_agent_jobs_touch_updated_at" in sql

@@ -249,6 +249,11 @@
 
 ## Change Log
 
+### 2026-05-16 TextGrid SMS Reply Agent Task 9 Blockers
+
+- Fixed remaining local Task 9 blockers on `feature/textgrid-sms-agent`: SMS agent Supabase job/decision contact serialization now uses marketing contact ids (`ctc_*`), approval is restricted to original `draft_only` decisions, duplicate operator-send requests are claimed through `record_operator_send_request`, API duplicate conflicts return `409`, and the migration adds `sms_agent_decisions_operator_send_request_unique_idx` for one `operator_send_requested` marker per parent decision.
+- Verification: targeted red contracts were added first; final focused backend slice passed `75 passed` with `uv run pytest tests/services/test_sms_agent_service.py tests/api/test_sms_agent.py tests/services/test_sms_reply_agent_repository.py tests/services/test_sms_agent_processing.py tests/services/test_inbound_sms_service.py tests/db/test_sms_agent_schema.py -q`; `git diff --check` passed. No commit, Supabase remote mutation, provider send, provider dashboard change, or deploy.
+
 ### 2026-05-16 TextGrid SMS Reply Agent Planning
 
 - Opened isolated worktree `/Users/solomartin/Projects/Ares/.worktrees/feature-textgrid-sms-agent` on `feature/textgrid-sms-agent` from current `origin/main`.

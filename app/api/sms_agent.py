@@ -6,7 +6,11 @@ from urllib.parse import parse_qs
 
 from fastapi import APIRouter, Body, Depends, Header, HTTPException, Request, Response, status
 
+from app.db.sms_agent import SmsAgentSendRequestConflict
 from app.models.sms_agent import (
+    SmsAgentApproveSendRequest,
+    SmsAgentEvalLabelRecord,
+    SmsAgentEvalLabelRequest,
     SmsAgentProcessPendingRequest,
     SmsAgentProcessPendingResponse,
     SmsAgentSendRequest,
@@ -30,6 +34,34 @@ def send_sms_agent_message(
 ) -> SmsAgentSendResponse:
     try:
         return service.send_message(request)
+    except RuntimeError as exc:
+        raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=str(exc)) from exc
+
+
+@router.post("/decisions/{decision_id}/labels", response_model=SmsAgentEvalLabelRecord)
+def record_sms_agent_eval_label(
+    decision_id: str,
+    request: SmsAgentEvalLabelRequest,
+    service: SmsAgentService = Depends(sms_agent_service_dependency),
+) -> SmsAgentEvalLabelRecord:
+    try:
+        return service.record_eval_label(decision_id, request)
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(exc)) from exc
+
+
+@router.post("/decisions/{decision_id}/approve-send", response_model=SmsAgentSendResponse)
+def approve_sms_agent_send(
+    decision_id: str,
+    request: SmsAgentApproveSendRequest,
+    service: SmsAgentService = Depends(sms_agent_service_dependency),
+) -> SmsAgentSendResponse:
+    try:
+        return service.approve_send(decision_id, request)
+    except SmsAgentSendRequestConflict as exc:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(exc)) from exc
     except RuntimeError as exc:
         raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=str(exc)) from exc
 

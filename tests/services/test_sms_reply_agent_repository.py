@@ -1,11 +1,14 @@
+from io import BytesIO
+from urllib.error import HTTPError
+
 import pytest
 from pydantic import ValidationError
 
 from app.core.config import Settings
 from app.db.client import InMemoryControlPlaneClient, InMemoryControlPlaneStore
 from app.db.lead_machine_supabase import LeadMachineTenant
-from app.db.sms_agent import SmsAgentRepository
-from app.models.sms_agent import SmsAgentJobCreate, SmsAgentReplyDecisionCreate
+from app.db.sms_agent import SmsAgentRepository, SmsAgentSendRequestConflict
+from app.models.sms_agent import SmsAgentEvalLabelRequest, SmsAgentJobCreate, SmsAgentReplyDecisionCreate
 
 
 def _job_create(
@@ -15,7 +18,7 @@ def _job_create(
     provider_webhook_id: str | None = "wh_1",
     message_id: str | None = "msg_1",
     conversation_id: str | None = "cnv_1",
-    contact_id: str | None = "lead_1",
+    contact_id: str | None = "ctc_1",
     from_number: str = "+15551234567",
     to_number: str = "+13467725914",
     payload_hash: str | None = None,
@@ -40,7 +43,7 @@ def _decision_create(
     job_id: str,
     message_id: str | None = "msg_1",
     conversation_id: str | None = "cnv_1",
-    contact_id: str | None = "lead_1",
+    contact_id: str | None = "ctc_1",
 ) -> SmsAgentReplyDecisionCreate:
     return SmsAgentReplyDecisionCreate(
         business_id=business_id,
@@ -82,7 +85,7 @@ def test_sms_agent_repository_does_not_dedupe_jobs_without_durable_identity() ->
             message_id=None,
             payload_hash=None,
             conversation_id="cnv_1",
-            contact_id="lead_1",
+            contact_id="ctc_1",
             from_number="+15551234567",
         )
     )
@@ -92,7 +95,7 @@ def test_sms_agent_repository_does_not_dedupe_jobs_without_durable_identity() ->
             message_id=None,
             payload_hash=None,
             conversation_id="cnv_2",
-            contact_id="lead_2",
+            contact_id="ctc_2",
             from_number="+15557654321",
         )
     )
@@ -173,6 +176,53 @@ def test_sms_agent_repository_lists_decisions_and_marks_failed() -> None:
     assert failed.locked_until is None
 
 
+def test_sms_agent_repository_reclaims_retryable_failed_jobs() -> None:
+    client = InMemoryControlPlaneClient(InMemoryControlPlaneStore())
+    repo = SmsAgentRepository(client=client)
+    job = repo.enqueue_job(_job_create())
+    repo.mark_failed(job.id, retryable=True, error_message="provider unavailable")
+
+    claimed = repo.claim_pending(limit=10, lock_seconds=120)
+
+    assert [entry.id for entry in claimed] == [job.id]
+    assert claimed[0].status == "processing"
+    assert claimed[0].attempt_count == 1
+
+
+def test_sms_agent_repository_records_eval_label_from_decision_tenant() -> None:
+    client = InMemoryControlPlaneClient(InMemoryControlPlaneStore())
+    repo = SmsAgentRepository(client=client)
+    job = repo.enqueue_job(_job_create())
+    decision = repo.record_decision(_decision_create(job_id=job.id))
+
+    label = repo.record_eval_label(
+        decision.id,
+        SmsAgentEvalLabelRequest(
+            label="correct",
+            reviewer="operator",
+            notes="approved draft",
+            metadata={"source": "review_queue"},
+        ),
+    )
+
+    assert label.id.startswith("smslbl_")
+    assert label.decision_id == decision.id
+    assert label.business_id == decision.business_id
+    assert label.environment == decision.environment
+    assert label.label == "correct"
+    assert label.reviewer == "operator"
+    assert repo.list_eval_labels(decision.id) == [label]
+    assert repo.list_eval_labels("smsdec_missing") == []
+
+
+def test_sms_agent_repository_rejects_eval_label_for_missing_decision() -> None:
+    client = InMemoryControlPlaneClient(InMemoryControlPlaneStore())
+    repo = SmsAgentRepository(client=client)
+
+    with pytest.raises(ValueError, match="SMS agent decision does not exist"):
+        repo.record_eval_label("smsdec_missing", SmsAgentEvalLabelRequest(label="incorrect"))
+
+
 def test_sms_agent_repository_rejects_decision_for_wrong_tenant_job() -> None:
     client = InMemoryControlPlaneClient(InMemoryControlPlaneStore())
     repo = SmsAgentRepository(client=client)
@@ -212,9 +262,10 @@ def test_sms_agent_supabase_claim_rechecks_pending_and_unlocked_guard(monkeypatc
     assert len(patch_calls) == 1
     assert patch_calls[0]["params"] == {
         "id": "eq.7",
-        "status": "eq.pending",
+        "status": "in.(pending,failed_retryable)",
         "or": fetch_calls[0]["params"]["or"],
     }
+    assert fetch_calls[0]["params"]["status"] == "in.(pending,failed_retryable)"
 
 
 def test_sms_agent_supabase_enqueue_without_durable_identity_skips_existing_lookup(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -259,6 +310,114 @@ def test_sms_agent_supabase_enqueue_without_durable_identity_skips_existing_look
     assert job.id == "smsjob_9"
     assert fetch_calls == []
     assert insert_calls[0]["table"] == "sms_agent_jobs"
+
+
+def test_sms_agent_supabase_job_contact_id_serializes_and_hydrates_ctc_prefix() -> None:
+    payload = SmsAgentRepository._job_payload_for_supabase(
+        _job_create(contact_id="ctc_7"),
+        business_pk=1,
+        environment="dev",
+    )
+    record = SmsAgentRepository._job_from_supabase(
+        {
+            **payload,
+            "id": 9,
+            "status": "pending",
+            "attempt_count": 0,
+            "metadata": {},
+            "created_at": "2026-05-16T09:00:00+00:00",
+            "updated_at": "2026-05-16T09:00:00+00:00",
+        }
+    )
+
+    assert payload["contact_id"] == 7
+    assert record.contact_id == "ctc_7"
+
+
+def test_sms_agent_supabase_decision_contact_id_serializes_and_hydrates_ctc_prefix() -> None:
+    payload = SmsAgentRepository._decision_payload_for_supabase(
+        _decision_create(job_id="smsjob_5", contact_id="ctc_7"),
+        business_pk=1,
+        environment="dev",
+    )
+    record = SmsAgentRepository._decision_from_supabase(
+        {
+            **payload,
+            "id": 11,
+            "metadata": {},
+            "created_at": "2026-05-16T09:00:00+00:00",
+        }
+    )
+
+    assert payload["contact_id"] == 7
+    assert record.contact_id == "ctc_7"
+
+
+def test_sms_agent_repository_operator_send_request_claim_conflicts_before_second_insert() -> None:
+    client = InMemoryControlPlaneClient(InMemoryControlPlaneStore())
+    repo = SmsAgentRepository(client=client)
+    job = repo.enqueue_job(_job_create())
+    decision = repo.record_decision(_decision_create(job_id=job.id))
+    create = _decision_create(job_id=job.id)
+    marker_create = create.model_copy(
+        update={
+            "action": "operator_send_requested",
+            "policy_reason": "Operator send requested",
+            "provider_kind": "operator",
+            "metadata": {"parent_decision_id": decision.id, "operator_approval": True},
+        }
+    )
+
+    first = repo.record_operator_send_request(marker_create)
+    with pytest.raises(SmsAgentSendRequestConflict, match="SMS send already requested"):
+        repo.record_operator_send_request(marker_create)
+
+    decisions = repo.list_decisions()
+    assert [entry.action for entry in decisions] == ["draft_only", "operator_send_requested"]
+    assert first.metadata["parent_decision_id"] == decision.id
+
+
+def test_sms_agent_supabase_operator_send_request_maps_duplicate_insert_to_conflict(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def fake_resolve_tenant(business_id: str, environment: str, *, settings: Settings | None = None) -> LeadMachineTenant:
+        return LeadMachineTenant(business_pk=1, environment=environment)
+
+    def fake_fetch_rows(table: str, *, params: dict[str, str], settings: Settings | None = None) -> list[dict]:
+        return [{"id": 5}]
+
+    def fake_insert_rows(
+        table: str,
+        rows: list[dict],
+        *,
+        select: str | None = None,
+        prefer: str = "return=representation",
+        settings: Settings | None = None,
+    ) -> list[dict]:
+        raise HTTPError(
+            url="https://example.supabase.co/rest/v1/sms_agent_decisions",
+            code=409,
+            msg="Conflict",
+            hdrs=None,
+            fp=BytesIO(b'{"code":"23505","message":"duplicate key value violates unique constraint"}'),
+        )
+
+    monkeypatch.setattr("app.db.sms_agent.resolve_tenant", fake_resolve_tenant)
+    monkeypatch.setattr("app.db.sms_agent.fetch_rows", fake_fetch_rows)
+    monkeypatch.setattr("app.db.sms_agent.insert_rows", fake_insert_rows)
+
+    repo = SmsAgentRepository(settings=Settings(lead_machine_backend="supabase"), force_memory=False)
+    marker_create = _decision_create(job_id="smsjob_5").model_copy(
+        update={
+            "action": "operator_send_requested",
+            "policy_reason": "Operator send requested",
+            "provider_kind": "operator",
+            "metadata": {"parent_decision_id": "smsdec_1", "operator_approval": True},
+        }
+    )
+
+    with pytest.raises(SmsAgentSendRequestConflict, match="SMS send already requested"):
+        repo.record_operator_send_request(marker_create)
 
 
 def test_sms_agent_supabase_mark_completed_preserves_existing_decision(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -493,6 +652,93 @@ def test_sms_agent_supabase_record_decision_verifies_job_tenant(monkeypatch: pyt
         }
     ]
     assert insert_calls == []
+
+
+def test_sms_agent_supabase_record_eval_label_verifies_decision_and_inserts_with_decision_tenant(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    fetch_calls: list[dict] = []
+    insert_calls: list[dict] = []
+
+    def fake_fetch_rows(table: str, *, params: dict[str, str], settings: Settings | None = None) -> list[dict]:
+        fetch_calls.append({"table": table, "params": params, "settings": settings})
+        return [{"id": 7, "business_id": 1, "environment": "dev"}]
+
+    def fake_insert_rows(
+        table: str,
+        rows: list[dict],
+        *,
+        select: str | None = None,
+        prefer: str = "return=representation",
+        settings: Settings | None = None,
+    ) -> list[dict]:
+        insert_calls.append({"table": table, "rows": rows, "select": select, "prefer": prefer, "settings": settings})
+        return [
+            {
+                **rows[0],
+                "id": 11,
+                "created_at": "2026-05-16T09:00:00+00:00",
+            }
+        ]
+
+    monkeypatch.setattr("app.db.sms_agent.fetch_rows", fake_fetch_rows)
+    monkeypatch.setattr("app.db.sms_agent.insert_rows", fake_insert_rows)
+
+    repo = SmsAgentRepository(settings=Settings(lead_machine_backend="supabase"), force_memory=False)
+    label = repo.record_eval_label(
+        "smsdec_7",
+        SmsAgentEvalLabelRequest(label="correct", reviewer="operator", metadata={"source": "review_queue"}),
+    )
+
+    assert label.id == "smslbl_11"
+    assert fetch_calls == [
+        {
+            "table": "sms_agent_decisions",
+            "params": {
+                "select": "id,business_id,environment",
+                "id": "eq.7",
+                "limit": "1",
+            },
+            "settings": repo.settings,
+        }
+    ]
+    assert insert_calls[0]["table"] == "sms_agent_eval_labels"
+    assert insert_calls[0]["rows"] == [
+        {
+            "business_id": 1,
+            "environment": "dev",
+            "decision_id": 7,
+            "label": "correct",
+            "reviewer": "operator",
+            "notes": None,
+            "metadata": {"source": "review_queue"},
+        }
+    ]
+
+
+def test_sms_agent_supabase_list_eval_labels_filters_decision_and_orders(monkeypatch: pytest.MonkeyPatch) -> None:
+    fetch_calls: list[dict] = []
+
+    def fake_fetch_rows(table: str, *, params: dict[str, str], settings: Settings | None = None) -> list[dict]:
+        fetch_calls.append({"table": table, "params": params, "settings": settings})
+        return []
+
+    monkeypatch.setattr("app.db.sms_agent.fetch_rows", fake_fetch_rows)
+
+    repo = SmsAgentRepository(settings=Settings(lead_machine_backend="supabase"), force_memory=False)
+
+    assert repo.list_eval_labels("smsdec_7") == []
+    assert fetch_calls == [
+        {
+            "table": "sms_agent_eval_labels",
+            "params": {
+                "select": "*",
+                "order": "created_at.asc,id.asc",
+                "decision_id": "eq.7",
+            },
+            "settings": repo.settings,
+        }
+    ]
 
 
 def test_sms_agent_reply_decision_rejects_string_confidence() -> None:

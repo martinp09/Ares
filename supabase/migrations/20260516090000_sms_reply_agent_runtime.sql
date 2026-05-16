@@ -106,6 +106,9 @@ create index if not exists sms_agent_jobs_pending_idx
   on public.sms_agent_jobs (business_id, environment, status, locked_until, created_at);
 create index if not exists sms_agent_decisions_job_idx
   on public.sms_agent_decisions (business_id, environment, job_id, created_at desc);
+create unique index if not exists sms_agent_decisions_operator_send_request_unique_idx
+  on public.sms_agent_decisions (business_id, environment, (metadata->>'parent_decision_id'))
+  where action = 'operator_send_requested' and metadata->>'parent_decision_id' is not null;
 create index if not exists sms_agent_eval_labels_decision_idx
   on public.sms_agent_eval_labels (business_id, environment, decision_id, created_at desc);
 

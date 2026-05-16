@@ -61,6 +61,30 @@ class SmsAgentProcessPendingResponse(BaseModel):
     failed_count: int
 
 
+class SmsAgentEvalLabelRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid", strict=True)
+
+    label: str = Field(min_length=1)
+    reviewer: str | None = Field(default=None, min_length=1)
+    notes: str | None = Field(default=None, min_length=1)
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class SmsAgentEvalLabelRecord(SmsAgentEvalLabelRequest):
+    id: str = Field(min_length=1)
+    decision_id: str = Field(min_length=1)
+    business_id: str = Field(min_length=1)
+    environment: str = Field(min_length=1)
+    created_at: datetime
+
+
+class SmsAgentApproveSendRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid", strict=True)
+
+    operator_approval: bool = False
+    edited_body: str | None = Field(default=None, min_length=1)
+
+
 class SmsAgentJobCreate(BaseModel):
     model_config = ConfigDict(extra="forbid", strict=True)
 

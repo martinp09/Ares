@@ -5,13 +5,18 @@ from typing import TYPE_CHECKING, Any, Callable
 import httpx
 
 from app.core.config import Settings, get_settings
+from app.db.contacts import ContactsRepository
 from app.db.conversations import ConversationsRepository
 from app.db.messages import MessagesRepository
 from app.db.sms_agent import SmsAgentRepository
 from app.models.sms_agent import (
+    SmsAgentApproveSendRequest,
+    SmsAgentEvalLabelRecord,
+    SmsAgentEvalLabelRequest,
     SmsAgentJobCreate,
     SmsAgentJobRecord,
     SmsAgentReplyDecisionCreate,
+    SmsAgentReplyDecisionRecord,
     SmsAgentSendRequest,
     SmsAgentSendResponse,
 )
@@ -72,12 +77,14 @@ class SmsAgentService:
         *,
         settings: Settings | None = None,
         conversations: ConversationsRepository | None = None,
+        contacts: ContactsRepository | None = None,
         messages: MessagesRepository | None = None,
         sms_agent_repository: SmsAgentRepository | None = None,
         request_sender: RequestSender | None = None,
     ) -> None:
         self.settings = settings or get_settings()
         self.conversations = conversations or ConversationsRepository(settings=self.settings)
+        self.contacts = contacts or ContactsRepository(settings=self.settings)
         self.messages = messages or MessagesRepository(settings=self.settings)
         self.sms_agent_repository = sms_agent_repository or SmsAgentRepository(settings=self.settings)
         self.request_sender = request_sender or self._send_textgrid_request
@@ -108,10 +115,194 @@ class SmsAgentService:
                 metadata={
                     "external_id": event.external_id,
                     "body_preview": event.body[:160],
+                    "sms_consent": lead.sms_consent,
                 },
             )
         )
         return job.id
+
+    def record_eval_label(
+        self,
+        decision_id: str,
+        request: SmsAgentEvalLabelRequest,
+    ) -> SmsAgentEvalLabelRecord:
+        return self.sms_agent_repository.record_eval_label(decision_id, request)
+
+    def approve_send(
+        self,
+        decision_id: str,
+        request: SmsAgentApproveSendRequest,
+    ) -> SmsAgentSendResponse:
+        if request.operator_approval is not True:
+            raise ValueError("operator_approval is required")
+        decision = self.sms_agent_repository.get_decision(decision_id)
+        if decision is None:
+            raise ValueError("SMS agent decision does not exist")
+        if decision.action != "draft_only":
+            raise ValueError("Only draft_only SMS agent decisions can be approved")
+        job = self.sms_agent_repository.get_job(decision.job_id)
+        if job is None:
+            raise ValueError("SMS agent job does not exist")
+        if not decision.contact_id or not decision.contact_id.startswith("ctc_"):
+            raise ValueError("resolved contact is required")
+        body = request.edited_body or decision.suggested_body
+        if not body or not body.strip():
+            raise ValueError("SMS body is required")
+        contact = self.contacts.get_lead(decision.contact_id)
+        if contact is None:
+            raise ValueError("resolved contact is required")
+        contact_phone = normalize_phone_number(contact.phone)
+        reply_phone = normalize_phone_number(job.from_number)
+        if (
+            contact.business_id != decision.business_id
+            or contact.environment != decision.environment
+            or contact_phone != reply_phone
+        ):
+            raise ValueError("resolved contact is required")
+        if contact.sms_consent is not True:
+            raise ValueError("SMS consent is required")
+        sent_body = body.strip()
+        send_request = SmsAgentSendRequest(
+            business_id=decision.business_id,
+            environment=decision.environment,
+            contact_id=decision.contact_id,
+            conversation_id=decision.conversation_id or job.conversation_id,
+            to=job.from_number,
+            body=sent_body,
+            sms_consent_confirmed=True,
+            dry_run_only=False,
+            metadata={
+                "sms_agent_job_id": job.id,
+                "sms_agent_decision_id": decision.id,
+                "operator_approval": True,
+            },
+        )
+
+        follow_ups = self._operator_send_follow_ups(decision)
+        existing_response = self._stored_operator_send_response(follow_ups)
+        if existing_response is not None:
+            return existing_response
+
+        self._preflight_live_send(send_request)
+        self._record_operator_send_follow_up(
+            decision=decision,
+            job=job,
+            action="operator_send_requested",
+            sent_body=sent_body,
+            policy_reason="Operator send requested",
+            metadata={"operator_approval": True},
+        )
+
+        try:
+            response = self.send_message(send_request)
+        except Exception as exc:
+            self._record_operator_send_follow_up(
+                decision=decision,
+                job=job,
+                action="operator_send_failed",
+                sent_body=sent_body,
+                policy_reason="Operator approved send failed",
+                metadata={
+                    "operator_approval": True,
+                    "error_message": str(exc),
+                },
+            )
+            raise
+
+        self._record_operator_send_follow_up(
+            decision=decision,
+            job=job,
+            action="operator_approved_send",
+            sent_body=sent_body,
+            policy_reason="Operator approved send",
+            conversation_id=response.conversation_id or decision.conversation_id or job.conversation_id,
+            metadata={
+                "operator_approval": True,
+                "response": response.model_dump(mode="json"),
+            },
+        )
+        return response
+
+    def _preflight_live_send(self, request: SmsAgentSendRequest) -> None:
+        if request.dry_run_only or not self.settings.provider_live_sends_enabled:
+            return
+        self._require_textgrid_config()
+        if not request.contact_id:
+            raise RuntimeError("contact_id is required for live SMS sends")
+        if not request.sms_consent_confirmed:
+            raise RuntimeError("sms_consent_confirmed is required for live SMS sends")
+        provider_thread_id = request.conversation_id or normalize_phone_number(request.to)
+        self.conversations.get_or_create(
+            business_id=request.business_id,
+            environment=request.environment,
+            contact_id=request.contact_id,
+            channel="sms",
+            provider_thread_id=provider_thread_id,
+        )
+
+    def _operator_send_follow_ups(
+        self,
+        decision: SmsAgentReplyDecisionRecord,
+    ) -> list[SmsAgentReplyDecisionRecord]:
+        decisions = self.sms_agent_repository.list_decisions(
+            business_id=decision.business_id,
+            environment=decision.environment,
+        )
+        return [
+            follow_up
+            for follow_up in decisions
+            if follow_up.job_id == decision.job_id and follow_up.metadata.get("parent_decision_id") == decision.id
+        ]
+
+    @staticmethod
+    def _stored_operator_send_response(
+        follow_ups: list[SmsAgentReplyDecisionRecord],
+    ) -> SmsAgentSendResponse | None:
+        for follow_up in reversed(follow_ups):
+            if follow_up.action != "operator_approved_send":
+                continue
+            response = follow_up.metadata.get("response")
+            if isinstance(response, dict):
+                return SmsAgentSendResponse.model_validate(response)
+        return None
+
+    def _record_operator_send_follow_up(
+        self,
+        *,
+        decision: SmsAgentReplyDecisionRecord,
+        job: SmsAgentJobRecord,
+        action: str,
+        sent_body: str,
+        policy_reason: str,
+        metadata: dict[str, Any],
+        conversation_id: str | None = None,
+    ) -> SmsAgentReplyDecisionRecord:
+        create = SmsAgentReplyDecisionCreate(
+            business_id=decision.business_id,
+            environment=decision.environment,
+            job_id=job.id,
+            message_id=decision.message_id or job.message_id,
+            conversation_id=conversation_id or decision.conversation_id or job.conversation_id,
+            contact_id=decision.contact_id,
+            intent=decision.intent,
+            source_lane=decision.source_lane,
+            temperature=decision.temperature,
+            urgency=decision.urgency,
+            action=action,
+            suggested_body=sent_body,
+            confidence=decision.confidence,
+            policy_reason=policy_reason,
+            prompt_version=decision.prompt_version,
+            provider_kind="operator",
+            metadata={
+                "parent_decision_id": decision.id,
+                "sent_body": sent_body,
+                **metadata,
+            },
+        )
+        if action == "operator_send_requested":
+            return self.sms_agent_repository.record_operator_send_request(create)
+        return self.sms_agent_repository.record_decision(create)
 
     def process_pending(self, limit: int | None = None) -> dict[str, int]:
         batch_limit = limit or self.settings.sms_agent_process_batch_size

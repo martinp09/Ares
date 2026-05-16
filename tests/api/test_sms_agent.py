@@ -1,7 +1,10 @@
+from datetime import UTC, datetime
+
 from fastapi.testclient import TestClient
 
 from app.main import app
-from app.models.sms_agent import SmsAgentSendResponse
+from app.db.sms_agent import SmsAgentSendRequestConflict
+from app.models.sms_agent import SmsAgentEvalLabelRecord, SmsAgentSendResponse
 
 AUTH_HEADERS = {"Authorization": "Bearer dev-runtime-key"}
 
@@ -23,6 +26,188 @@ def test_sms_agent_process_pending_requires_runtime_auth() -> None:
     response = client.post("/sms-agent/internal/process-pending", json={"limit": 10})
 
     assert response.status_code == 401
+
+
+def test_sms_agent_decision_labels_require_runtime_auth() -> None:
+    client = TestClient(app)
+
+    response = client.post(
+        "/sms-agent/decisions/smsdec_1/labels",
+        json={"label": "correct", "reviewer": "operator"},
+    )
+
+    assert response.status_code == 401
+
+
+def test_sms_agent_decision_labels_route_to_service() -> None:
+    class StubSmsAgentService:
+        def __init__(self) -> None:
+            self.calls = []
+
+        def record_eval_label(self, decision_id, request):
+            self.calls.append((decision_id, request))
+            return SmsAgentEvalLabelRecord(
+                id="smslbl_1",
+                decision_id=decision_id,
+                business_id="limitless",
+                environment="dev",
+                label=request.label,
+                reviewer=request.reviewer,
+                notes=request.notes,
+                metadata=request.metadata,
+                created_at=datetime(2026, 5, 16, 9, 0, tzinfo=UTC),
+            )
+
+    from app.api import sms_agent as sms_agent_api
+
+    stub = StubSmsAgentService()
+    app.dependency_overrides[sms_agent_api.sms_agent_service_dependency] = lambda: stub
+    client = TestClient(app)
+
+    try:
+        response = client.post(
+            "/sms-agent/decisions/smsdec_1/labels",
+            json={
+                "label": "correct",
+                "reviewer": "operator",
+                "notes": "approved phrasing",
+                "metadata": {"source": "review_queue"},
+            },
+            headers=AUTH_HEADERS,
+        )
+    finally:
+        app.dependency_overrides.pop(sms_agent_api.sms_agent_service_dependency, None)
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "id": "smslbl_1",
+        "decision_id": "smsdec_1",
+        "business_id": "limitless",
+        "environment": "dev",
+        "label": "correct",
+        "reviewer": "operator",
+        "notes": "approved phrasing",
+        "metadata": {"source": "review_queue"},
+        "created_at": "2026-05-16T09:00:00Z",
+    }
+    assert stub.calls[0][0] == "smsdec_1"
+    assert stub.calls[0][1].label == "correct"
+
+
+def test_sms_agent_approve_send_requires_runtime_auth() -> None:
+    client = TestClient(app)
+
+    response = client.post(
+        "/sms-agent/decisions/smsdec_1/approve-send",
+        json={"operator_approval": True},
+    )
+
+    assert response.status_code == 401
+
+
+def test_sms_agent_approve_send_rejects_missing_operator_approval_without_send() -> None:
+    class StubSmsAgentService:
+        def __init__(self) -> None:
+            self.sent = []
+
+        def approve_send(self, decision_id, request):
+            if request.operator_approval is not True:
+                raise ValueError("operator_approval is required")
+            self.sent.append((decision_id, request))
+
+    from app.api import sms_agent as sms_agent_api
+
+    stub = StubSmsAgentService()
+    app.dependency_overrides[sms_agent_api.sms_agent_service_dependency] = lambda: stub
+    client = TestClient(app)
+
+    try:
+        response = client.post(
+            "/sms-agent/decisions/smsdec_1/approve-send",
+            json={"operator_approval": False},
+            headers=AUTH_HEADERS,
+        )
+    finally:
+        app.dependency_overrides.pop(sms_agent_api.sms_agent_service_dependency, None)
+
+    assert response.status_code == 422
+    assert response.json() == {"detail": "operator_approval is required"}
+    assert stub.sent == []
+
+
+def test_sms_agent_approve_send_routes_to_service() -> None:
+    class StubSmsAgentService:
+        def __init__(self) -> None:
+            self.calls = []
+
+        def approve_send(self, decision_id, request):
+            self.calls.append((decision_id, request))
+            return SmsAgentSendResponse(
+                status="queued",
+                to="+15551234567",
+                from_identity="+13467725914",
+                message_id="msg_1",
+                conversation_id="cnv_1",
+                provider_message_id="SM123",
+                dry_run=False,
+                log_status="logged",
+            )
+
+    from app.api import sms_agent as sms_agent_api
+
+    stub = StubSmsAgentService()
+    app.dependency_overrides[sms_agent_api.sms_agent_service_dependency] = lambda: stub
+    client = TestClient(app)
+
+    try:
+        response = client.post(
+            "/sms-agent/decisions/smsdec_1/approve-send",
+            json={"operator_approval": True, "edited_body": "Thanks. I will follow up shortly."},
+            headers=AUTH_HEADERS,
+        )
+    finally:
+        app.dependency_overrides.pop(sms_agent_api.sms_agent_service_dependency, None)
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "channel": "sms",
+        "provider": "textgrid",
+        "status": "queued",
+        "to": "+15551234567",
+        "from_identity": "+13467725914",
+        "message_id": "msg_1",
+        "conversation_id": "cnv_1",
+        "provider_message_id": "SM123",
+        "dry_run": False,
+        "log_status": "logged",
+        "error_message": None,
+    }
+    assert stub.calls[0][0] == "smsdec_1"
+    assert stub.calls[0][1].operator_approval is True
+    assert stub.calls[0][1].edited_body == "Thanks. I will follow up shortly."
+
+
+def test_sms_agent_approve_send_maps_duplicate_claim_to_conflict() -> None:
+    class StubSmsAgentService:
+        def approve_send(self, decision_id, request):
+            raise SmsAgentSendRequestConflict("SMS send already requested")
+
+    from app.api import sms_agent as sms_agent_api
+
+    app.dependency_overrides[sms_agent_api.sms_agent_service_dependency] = lambda: StubSmsAgentService()
+    client = TestClient(app)
+
+    try:
+        response = client.post(
+            "/sms-agent/decisions/smsdec_1/approve-send",
+            json={"operator_approval": True},
+            headers=AUTH_HEADERS,
+        )
+    finally:
+        app.dependency_overrides.pop(sms_agent_api.sms_agent_service_dependency, None)
+
+    assert response.status_code == 409
+    assert response.json() == {"detail": "SMS send already requested"}
 
 
 def test_sms_agent_process_pending_accepts_empty_body_with_runtime_auth() -> None:

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime, timedelta
 from typing import Any
+from urllib.error import HTTPError
 
 from app.core.config import Settings, get_settings
 from app.db.client import ControlPlaneClient, get_control_plane_client, utc_now
@@ -16,11 +17,17 @@ from app.db.lead_machine_supabase import (
 )
 from app.models.commands import generate_id, generate_stable_id
 from app.models.sms_agent import (
+    SmsAgentEvalLabelRecord,
+    SmsAgentEvalLabelRequest,
     SmsAgentJobCreate,
     SmsAgentJobRecord,
     SmsAgentReplyDecisionCreate,
     SmsAgentReplyDecisionRecord,
 )
+
+
+class SmsAgentSendRequestConflict(RuntimeError):
+    pass
 
 
 class SmsAgentRepository:
@@ -81,7 +88,7 @@ class SmsAgentRepository:
             candidates: list[SmsAgentJobRecord] = []
             for stored_job in store.sms_agent_jobs.values():
                 job = SmsAgentJobRecord.model_validate(stored_job)
-                if job.status == "pending" and (job.locked_until is None or job.locked_until <= now):
+                if job.status in {"pending", "failed_retryable"} and (job.locked_until is None or job.locked_until <= now):
                     candidates.append(job)
             candidates.sort(key=lambda job: (job.created_at or now, job.id))
             claimed: list[SmsAgentJobRecord] = []
@@ -126,6 +133,53 @@ class SmsAgentRepository:
             store.sms_agent_decisions[decision_id] = record
             return record
 
+    def record_operator_send_request(self, create: SmsAgentReplyDecisionCreate) -> SmsAgentReplyDecisionRecord:
+        if create.action != "operator_send_requested":
+            raise ValueError("operator_send_requested action is required")
+        parent_decision_id = create.metadata.get("parent_decision_id")
+        if not isinstance(parent_decision_id, str) or not parent_decision_id.strip():
+            raise ValueError("parent_decision_id is required")
+        if lead_machine_backend_enabled(self.settings) and not self._force_memory:
+            try:
+                return self._record_decision_in_supabase(create)
+            except Exception as exc:
+                if self._is_duplicate_send_request_error(exc):
+                    raise SmsAgentSendRequestConflict("SMS send already requested") from exc
+                raise
+        now = utc_now()
+        with self.client.transaction() as store:
+            for existing in store.sms_agent_decisions.values():
+                decision = SmsAgentReplyDecisionRecord.model_validate(existing)
+                if (
+                    decision.business_id == create.business_id
+                    and decision.environment == create.environment
+                    and decision.action == "operator_send_requested"
+                    and decision.metadata.get("parent_decision_id") == parent_decision_id
+                ):
+                    raise SmsAgentSendRequestConflict("SMS send already requested")
+            job = store.sms_agent_jobs.get(create.job_id)
+            if job is None:
+                raise ValueError("SMS agent job does not exist for tenant")
+            job_record = SmsAgentJobRecord.model_validate(job)
+            if job_record.business_id != create.business_id or job_record.environment != create.environment:
+                raise ValueError("SMS agent job does not exist for tenant")
+            decision_id = generate_stable_id(
+                "smsdec",
+                create.business_id,
+                create.environment,
+                create.job_id,
+                str(len(store.sms_agent_decisions) + 1),
+            )
+            record = SmsAgentReplyDecisionRecord.model_validate(
+                {
+                    **create.model_dump(),
+                    "id": decision_id,
+                    "created_at": now,
+                }
+            )
+            store.sms_agent_decisions[decision_id] = record
+            return record
+
     def list_decisions(
         self,
         business_id: str | None = None,
@@ -144,6 +198,69 @@ class SmsAgentRepository:
             decisions = [decision for decision in decisions if decision.environment == environment]
         decisions.sort(key=lambda decision: (decision.created_at or datetime.min, decision.id))
         return decisions
+
+    def get_decision(self, decision_id: str) -> SmsAgentReplyDecisionRecord | None:
+        if lead_machine_backend_enabled(self.settings) and not self._force_memory:
+            row_id = row_id_from_external_id(decision_id, "smsdec")
+            if row_id is None:
+                return None
+            rows = fetch_rows(
+                "sms_agent_decisions",
+                params={"select": "*", "id": f"eq.{row_id}", "limit": "1"},
+                settings=self.settings,
+            )
+            return self._decision_from_supabase(rows[0]) if rows else None
+        with self.client.transaction() as store:
+            decision = store.sms_agent_decisions.get(decision_id)
+            return SmsAgentReplyDecisionRecord.model_validate(decision) if decision is not None else None
+
+    def record_eval_label(
+        self,
+        decision_id: str,
+        request: SmsAgentEvalLabelRequest,
+    ) -> SmsAgentEvalLabelRecord:
+        if lead_machine_backend_enabled(self.settings) and not self._force_memory:
+            return self._record_eval_label_in_supabase(decision_id, request)
+        now = utc_now()
+        with self.client.transaction() as store:
+            decision = store.sms_agent_decisions.get(decision_id)
+            if decision is None:
+                raise ValueError("SMS agent decision does not exist")
+            decision_record = SmsAgentReplyDecisionRecord.model_validate(decision)
+            label_id = generate_stable_id(
+                "smslbl",
+                decision_id,
+                request.label,
+                request.reviewer or "",
+                request.notes or "",
+                str(len(store.sms_agent_eval_labels) + 1),
+            )
+            record = SmsAgentEvalLabelRecord.model_validate(
+                {
+                    **request.model_dump(),
+                    "id": label_id,
+                    "decision_id": decision_record.id,
+                    "business_id": decision_record.business_id,
+                    "environment": decision_record.environment,
+                    "created_at": now,
+                }
+            )
+            store.sms_agent_eval_labels[label_id] = record
+            store.sms_agent_eval_label_keys[(decision_id, label_id)] = label_id
+            return record
+
+    def list_eval_labels(self, decision_id: str | None = None) -> list[SmsAgentEvalLabelRecord]:
+        if lead_machine_backend_enabled(self.settings) and not self._force_memory:
+            return self._list_eval_labels_in_supabase(decision_id=decision_id)
+        with self.client.transaction() as store:
+            labels = [
+                SmsAgentEvalLabelRecord.model_validate(label)
+                for label in store.sms_agent_eval_labels.values()
+            ]
+        if decision_id is not None:
+            labels = [label for label in labels if label.decision_id == decision_id]
+        labels.sort(key=lambda label: (label.created_at, label.id))
+        return labels
 
     def mark_completed(self, job_id: str, *, decision_id: str | None = None) -> SmsAgentJobRecord | None:
         if lead_machine_backend_enabled(self.settings) and not self._force_memory:
@@ -259,7 +376,7 @@ class SmsAgentRepository:
             "sms_agent_jobs",
             params={
                 "select": "*",
-                "status": "eq.pending",
+                "status": "in.(pending,failed_retryable)",
                 "or": unlocked_filter,
                 "order": "created_at.asc,id.asc",
                 "limit": str(limit),
@@ -273,7 +390,7 @@ class SmsAgentRepository:
                 "sms_agent_jobs",
                 params={
                     "id": f"eq.{row['id']}",
-                    "status": "eq.pending",
+                    "status": "in.(pending,failed_retryable)",
                     "or": unlocked_filter,
                 },
                 row={
@@ -337,6 +454,54 @@ class SmsAgentRepository:
         rows = fetch_rows("sms_agent_decisions", params=params, settings=self.settings)
         return [self._decision_from_supabase(row) for row in rows]
 
+    def _record_eval_label_in_supabase(
+        self,
+        decision_id: str,
+        request: SmsAgentEvalLabelRequest,
+    ) -> SmsAgentEvalLabelRecord:
+        decision_row_id = row_id_from_external_id(decision_id, "smsdec")
+        if decision_row_id is None:
+            raise ValueError("SMS agent decision does not exist")
+        decisions = fetch_rows(
+            "sms_agent_decisions",
+            params={
+                "select": "id,business_id,environment",
+                "id": f"eq.{decision_row_id}",
+                "limit": "1",
+            },
+            settings=self.settings,
+        )
+        if not decisions:
+            raise ValueError("SMS agent decision does not exist")
+        decision = decisions[0]
+        row = insert_rows(
+            "sms_agent_eval_labels",
+            [
+                self._eval_label_payload_for_supabase(
+                    request,
+                    business_pk=int(decision["business_id"]),
+                    environment=str(decision["environment"]),
+                    decision_row_id=int(decision["id"]),
+                )
+            ],
+            select="*",
+            settings=self.settings,
+        )[0]
+        return self._eval_label_from_supabase(row)
+
+    def _list_eval_labels_in_supabase(self, *, decision_id: str | None = None) -> list[SmsAgentEvalLabelRecord]:
+        params = {
+            "select": "*",
+            "order": "created_at.asc,id.asc",
+        }
+        if decision_id is not None:
+            decision_row_id = row_id_from_external_id(decision_id, "smsdec")
+            if decision_row_id is None:
+                return []
+            params["decision_id"] = f"eq.{decision_row_id}"
+        rows = fetch_rows("sms_agent_eval_labels", params=params, settings=self.settings)
+        return [self._eval_label_from_supabase(row) for row in rows]
+
     def _mark_completed_in_supabase(self, job_id: str, *, decision_id: str | None = None) -> SmsAgentJobRecord | None:
         row_id = row_id_from_external_id(job_id, "smsjob")
         if row_id is None:
@@ -397,7 +562,7 @@ class SmsAgentRepository:
         payload["provider_webhook_id"] = row_id_from_external_id(create.provider_webhook_id, "wh")
         payload["message_id"] = row_id_from_external_id(create.message_id, "msg")
         payload["conversation_id"] = row_id_from_external_id(create.conversation_id, "cnv")
-        payload["contact_id"] = row_id_from_external_id(create.contact_id, "lead")
+        payload["contact_id"] = row_id_from_external_id(create.contact_id, "ctc")
         return payload
 
     @staticmethod
@@ -408,7 +573,21 @@ class SmsAgentRepository:
         payload["job_id"] = row_id_from_external_id(create.job_id, "smsjob")
         payload["message_id"] = row_id_from_external_id(create.message_id, "msg")
         payload["conversation_id"] = row_id_from_external_id(create.conversation_id, "cnv")
-        payload["contact_id"] = row_id_from_external_id(create.contact_id, "lead")
+        payload["contact_id"] = row_id_from_external_id(create.contact_id, "ctc")
+        return payload
+
+    @staticmethod
+    def _eval_label_payload_for_supabase(
+        request: SmsAgentEvalLabelRequest,
+        *,
+        business_pk: int,
+        environment: str,
+        decision_row_id: int,
+    ) -> dict[str, Any]:
+        payload = request.model_dump(mode="json")
+        payload["business_id"] = business_pk
+        payload["environment"] = environment
+        payload["decision_id"] = decision_row_id
         return payload
 
     @staticmethod
@@ -424,7 +603,7 @@ class SmsAgentRepository:
         if row.get("conversation_id") is not None:
             payload["conversation_id"] = external_id("cnv", row["conversation_id"])
         if row.get("contact_id") is not None:
-            payload["contact_id"] = external_id("lead", row["contact_id"])
+            payload["contact_id"] = external_id("ctc", row["contact_id"])
         if row.get("decision_id") is not None:
             payload["decision_id"] = external_id("smsdec", row["decision_id"])
         payload["deduped"] = deduped or bool(row.get("deduped"))
@@ -443,11 +622,23 @@ class SmsAgentRepository:
         if row.get("conversation_id") is not None:
             payload["conversation_id"] = external_id("cnv", row["conversation_id"])
         if row.get("contact_id") is not None:
-            payload["contact_id"] = external_id("lead", row["contact_id"])
+            payload["contact_id"] = external_id("ctc", row["contact_id"])
         if isinstance(payload.get("confidence"), str):
             payload["confidence"] = float(payload["confidence"])
         SmsAgentRepository._normalize_datetime_fields(payload, ("created_at",))
         return SmsAgentReplyDecisionRecord.model_validate(payload)
+
+    @staticmethod
+    def _eval_label_from_supabase(row: dict[str, Any]) -> SmsAgentEvalLabelRecord:
+        payload = {key: value for key, value in dict(row).items() if key in SmsAgentEvalLabelRecord.model_fields}
+        payload["id"] = external_id("smslbl", row["id"])
+        payload["business_id"] = str(row["business_id"])
+        payload["environment"] = str(row["environment"])
+        payload["decision_id"] = external_id("smsdec", row["decision_id"])
+        if payload.get("metadata") is None:
+            payload["metadata"] = {}
+        SmsAgentRepository._normalize_datetime_fields(payload, ("created_at",))
+        return SmsAgentEvalLabelRecord.model_validate(payload)
 
     @staticmethod
     def _normalize_datetime_fields(payload: dict[str, Any], fields: tuple[str, ...]) -> None:
@@ -455,3 +646,22 @@ class SmsAgentRepository:
             value = payload.get(field)
             if isinstance(value, str):
                 payload[field] = datetime.fromisoformat(value.replace("Z", "+00:00"))
+
+    @staticmethod
+    def _is_duplicate_send_request_error(exc: Exception) -> bool:
+        if isinstance(exc, HTTPError):
+            if exc.code == 409:
+                return True
+            try:
+                body = exc.read().decode("utf-8", errors="ignore")
+            except Exception:
+                body = ""
+            return "23505" in body or "duplicate key" in body.lower()
+        status_code = getattr(exc, "status_code", None)
+        if status_code == 409:
+            return True
+        response = getattr(exc, "response", None)
+        if getattr(response, "status_code", None) == 409:
+            return True
+        text = str(exc)
+        return "23505" in text or "duplicate key" in text.lower()
