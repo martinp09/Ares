@@ -85,6 +85,7 @@ class HubSpotCustomizationRequest(BaseModel):
     business_id: str = "limitless"
     environment: str = "prod"
     dry_run_only: bool = True
+    operator_approval: bool = False
     include_properties: bool = True
     include_deal_pipeline: bool = True
 
@@ -94,6 +95,7 @@ class HubSpotRecordSyncRequest(BaseModel):
 
     record: CrmRecord
     dry_run_only: bool = True
+    operator_approval: bool = False
     create_contact: bool = True
     create_deal: bool = True
     deal_name: str | None = None

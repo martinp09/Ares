@@ -5,6 +5,7 @@ import json
 import re
 import urllib.parse
 import urllib.request
+from datetime import date
 from html.parser import HTMLParser
 from typing import Any, Mapping
 
@@ -24,6 +25,7 @@ MONTGOMERY_ACT_INDEX_URL = "https://actweb.acttax.com/act_webdev/montgomery/inde
 MONTGOMERY_ACT_SHOWLIST_URL = "https://actweb.acttax.com/act_webdev/montgomery/showlist.jsp"
 MONTGOMERY_ACT_DETAIL_URL = "https://actweb.acttax.com/act_webdev/montgomery/showdetail2.jsp"
 MONTGOMERY_PUBLICSEARCH_RESULTS_URL = "https://montgomery.tx.publicsearch.us/results"
+MONTGOMERY_PUBLICSEARCH_RECORD_START_DATE = "16000101"
 
 _USER_AGENT = "Mozilla/5.0 (compatible; AresProbateAutopilot/1.0; +https://github.com/martinp09/Ares)"
 
@@ -335,7 +337,7 @@ class MontgomeryPublicSearchLandRecordClient:
         params = {
             "department": "RP",
             "keywordSearch": "false",
-            "recordedDateRange": "16000101,20260515",
+            "recordedDateRange": _montgomery_publicsearch_recorded_date_range(),
             "searchOcrText": "false",
             "searchType": "quickSearch",
             "searchValue": name,
@@ -356,6 +358,11 @@ class MontgomeryPublicSearchLandRecordClient:
                 "live_calls_attempted": True,
             }
         ]
+
+
+def _montgomery_publicsearch_recorded_date_range(*, as_of: date | None = None) -> str:
+    end_date = (as_of or date.today()).strftime("%Y%m%d")
+    return f"{MONTGOMERY_PUBLICSEARCH_RECORD_START_DATE},{end_date}"
 
 
 class _FormDefaultsParser(HTMLParser):

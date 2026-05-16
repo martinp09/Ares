@@ -80,6 +80,16 @@ def _build_request(args: argparse.Namespace) -> NightlySourcePullRequest:
                     "provider_sends_enabled": False,
                 },
             },
+            "case_detail_enrichment": {
+                "live_case_detail_calls": True,
+                "case_detail_approval": {
+                    "approved": True,
+                    "approved_by": "probate_autopilot_live_no_send_smoke",
+                    "scope": "harris_montgomery_public_case_detail_pages",
+                    "no_send": True,
+                    "provider_sends_enabled": False,
+                },
+            },
         },
     )
 
@@ -98,6 +108,7 @@ def run_smoke(args: argparse.Namespace) -> dict[str, Any]:
             lead_machine_live_cad_calls_enabled=True,
             lead_machine_live_tax_calls_enabled=True,
             lead_machine_live_land_record_calls_enabled=True,
+            lead_machine_live_case_detail_calls_enabled=True,
             instantly_provider_live_enrollment_enabled=False,
             provider_live_sends_enabled=False,
         )
@@ -136,7 +147,11 @@ def run_smoke(args: argparse.Namespace) -> dict[str, Any]:
             "live_cad_calls_attempted": enrichment.get("live_cad_calls_attempted"),
             "live_tax_calls_attempted": enrichment.get("live_tax_calls_attempted"),
             "live_land_record_calls_attempted": enrichment.get("live_land_record_calls_attempted"),
+            "live_case_detail_calls_attempted": enrichment.get("live_case_detail_calls_attempted"),
             "enriched_count": enrichment.get("enriched_count"),
+            "case_detail_status": enrichment.get("case_detail_status"),
+            "case_detail_completed_count": enrichment.get("case_detail_completed_count"),
+            "case_detail_pending_count": enrichment.get("case_detail_pending_count"),
             "property_match_unmatched_count": enrichment.get("property_match_unmatched_count"),
             "tax_overlay_ambiguous_count": enrichment.get("tax_overlay_ambiguous_count"),
             "title_friction_review_count": enrichment.get("title_friction_review_count"),
@@ -152,6 +167,7 @@ def run_smoke(args: argparse.Namespace) -> dict[str, Any]:
             result["live_cad_calls_attempted"],
             result["live_tax_calls_attempted"],
             result["live_land_record_calls_attempted"],
+            result["live_case_detail_calls_attempted"],
             result["no_send"],
         ]
         if not all(value is True for value in required_true):

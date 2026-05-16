@@ -1,7 +1,7 @@
 ---
 title: "Ares TODO / Handoff"
 status: active
-updated_at: "2026-05-16T01:31:08Z"
+updated_at: "2026-05-16T02:15:00Z"
 repo: "martinp09/Ares"
 local_checkout: "/opt/ares/worktrees/ares-main"
 target_branch: "main"
@@ -18,11 +18,17 @@ Back Office Spine v0 landed on `main` at `e898ee0` and the local `feature/back-o
 
 The Harris + Montgomery probate autopilot PRD implementation landed at `9c256bf` as an operational no-send system; handoff docs landed at `9f30d2f`, env preflight landed at `a859fd2`, and case-detail enrichment finished the last high-value probate enrichment gap. Trigger schedules default to live public probate source acquisition, live public case-detail page enrichment, and live public CAD/tax/land-record enrichment. Backend defaults those live intelligence lanes on, but Ares still requires explicit no-send approval metadata for live source/case-detail/enrichment runtime requests and keeps every outbound path blocked.
 
+Origin-main hardening cleanup is active on `fix/origin-main-hardening-cleanup` in `/tmp/ares-hardening-cleanup`: Montgomery PublicSearch land-record windows now end on the current day instead of a frozen date, the reusable live no-send smoke asserts live case-detail calls, legacy `/crm/hubspot/*` live writes require `operator_approval=true`, and `.github/workflows/ci.yml` runs backend, Mission Control, Trigger, and whitespace gates.
+
+Read-only VPS inspection on `100.74.177.6` found the live runtime is Docker/Caddy based: `/opt/ares/docker-compose.yml` builds `ares-api` and `ares-ui` from `/opt/ares/Ares`, Caddy routes API paths to `127.0.0.1:8000` and UI fallback to `127.0.0.1:8080`, and the running API image was built before the current probate/HubSpot routes. After the other workflow finished, `/opt/ares/Ares` is detached at `be76288` and `/opt/ares/worktrees/ares-main` is clean `main` at `be76288`; the Docker images still have 2026-04-27 timestamps and were not rebuilt. No server mutation or deploy was executed.
+
 Latest manual live no-send smoke (`docs/qc/2026-05-15/probate-autopilot-live-operational-prd-execution/live-smoke-output.txt`) completed with Harris + Montgomery counties, `47` live public probate source records, `8` keep-now rows enriched, live CAD/tax/land-record calls attempted, `sla_status=healthy`, `source_health_failed_runs=0`, `no_send=true`, and `provider_sends_enabled=false`.
 
 Back Office Spine v0 verification passed pre-merge and post-merge: focused backend/deal/Supabase contracts => `26 passed`; full backend => `942 passed`; Mission Control => `25 files / 82 tests`; Mission Control typecheck/build => passed; Trigger typecheck => passed; `git diff --check` => passed; browser spot-check rendered Deal Desk with no console errors.
 
-No HubSpot batch writes, Instantly enrollment/sends, SMS/Vapi calls, paid skiptrace, Slack/provider sends, production deploys, or provider mutations were executed by this slice.
+Cleanup verification on the `be76288` baseline passed: focused backend => `44 passed`; full backend => `945 passed`; Mission Control tests => `25 files / 82 tests`; Mission Control typecheck/build => passed; Trigger typecheck => passed; `git diff --check` and smoke/script py-compile => passed.
+
+No HubSpot batch writes, Instantly enrollment/sends, SMS/Vapi calls, paid skiptrace, Slack/provider sends, live smoke, production deploys, or provider mutations were executed by this cleanup.
 
 ## Primary handoff artifacts
 
@@ -42,6 +48,7 @@ No HubSpot batch writes, Instantly enrollment/sends, SMS/Vapi calls, paid skiptr
 2. After production deployment, monitor the no-send Trigger schedule reports for aggregate source-run/enrichment health.
 3. Keep Instantly enrollment/send, SMS/Vapi dispatch, paid skiptrace, and HubSpot batch mirror writes gated until separately approved.
 4. Measure property-match lift from case-detail-derived party/address/context evidence; current case-detail layer records contact candidates but still does not assert seller authority.
+5. Before VPS deployment, rebuild intentionally from the clean `be76288` deployment tree or a reviewed successor; current live Docker images still predate current-main routes.
 
 ## Open product follow-ups
 
@@ -67,9 +74,11 @@ No HubSpot batch writes, Instantly enrollment/sends, SMS/Vapi calls, paid skiptr
 
 ```bash
 uv run pytest -q
-npm --prefix apps/mission-control test -- --run
+npm --prefix apps/mission-control ci
+npm --prefix apps/mission-control run test -- --run
 npm --prefix apps/mission-control run typecheck
 npm --prefix apps/mission-control run build
+npm --prefix trigger ci
 npm --prefix trigger run typecheck
 git diff --check
 git diff --cached --check

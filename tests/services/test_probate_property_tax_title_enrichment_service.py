@@ -1,6 +1,8 @@
 from app.core.config import Settings
 from app.domains.ares.models import AresCounty
+from app.models.probate_leads import ProbateLeadRecord
 from app.services import probate_live_enrichment_clients
+from app.services.probate_live_enrichment_clients import MontgomeryPublicSearchLandRecordClient
 from app.services.probate_property_tax_title_enrichment_service import ProbatePropertyTaxTitleEnrichmentService
 from app.services.tax_overlay_service import TaxOverlayResult, TaxOverlayStatus
 
@@ -328,3 +330,37 @@ def test_property_tax_title_enrichment_uses_default_registered_public_clients(mo
     assert result["live_tax_calls_attempted"] is True
     assert result["live_land_record_calls_attempted"] is True
     assert result["records"][0]["tax_delinquent"] is True
+
+
+def test_montgomery_publicsearch_land_record_date_range_uses_current_day(monkeypatch) -> None:
+    requested_urls = []
+
+    class FixedDate:
+        @classmethod
+        def today(cls):
+            from datetime import date
+
+            return date(2026, 5, 16)
+
+    def fake_request_text(opener, url, **kwargs):
+        requested_urls.append(url)
+        return "<html></html>"
+
+    monkeypatch.setattr(probate_live_enrichment_clients, "date", FixedDate)
+    monkeypatch.setattr(probate_live_enrichment_clients, "_request_text", fake_request_text)
+
+    record = ProbateLeadRecord(
+        case_number="2026-10001",
+        filing_type="APP TO DETERMINE HEIRSHIP",
+        decedent_name="Jane Example",
+        estate_name="Estate of Jane Example",
+    )
+
+    rows = MontgomeryPublicSearchLandRecordClient().fetch_land_records(
+        record=record,
+        source_row={"county": "montgomery", "case_number": "2026-10001", "decedent_name": "Jane Example"},
+    )
+
+    assert rows[0]["live_calls_attempted"] is True
+    assert requested_urls
+    assert "recordedDateRange=16000101%2C20260516" in requested_urls[0]

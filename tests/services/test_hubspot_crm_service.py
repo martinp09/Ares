@@ -93,7 +93,7 @@ def test_hubspot_customization_live_gate_applies_properties_and_pipeline() -> No
         hubspot_client=fake,  # type: ignore[arg-type]
     )
 
-    response = service.configure_crm(HubSpotCustomizationRequest(dry_run_only=False))
+    response = service.configure_crm(HubSpotCustomizationRequest(dry_run_only=False, operator_approval=True))
 
     assert response.dry_run is False
     assert response.status == "applied"
@@ -122,6 +122,27 @@ def test_hubspot_customization_missing_hubspot_gate_stays_dry_run_without_provid
     assert fake.calls == []
 
 
+def test_hubspot_customization_live_gate_requires_operator_approval_before_provider_calls() -> None:
+    fake = FakeHubSpotClient()
+    service = HubSpotCrmService(
+        settings=Settings(
+            _env_file=None,
+            provider_live_sends_enabled=True,
+            hubspot_provider_live_writes_enabled=True,
+            hubspot_access_token="hubspot_test_token",
+        ),
+        hubspot_client=fake,  # type: ignore[arg-type]
+    )
+
+    try:
+        service.configure_crm(HubSpotCustomizationRequest(dry_run_only=False))
+    except RuntimeError as exc:
+        assert "operator_approval=true" in str(exc)
+    else:
+        raise AssertionError("Expected missing operator approval to raise")
+    assert fake.calls == []
+
+
 def test_hubspot_customization_live_gate_requires_token_before_provider_calls() -> None:
     fake = FakeHubSpotClient()
     service = HubSpotCrmService(
@@ -135,7 +156,7 @@ def test_hubspot_customization_live_gate_requires_token_before_provider_calls() 
     )
 
     try:
-        service.configure_crm(HubSpotCustomizationRequest(dry_run_only=False))
+        service.configure_crm(HubSpotCustomizationRequest(dry_run_only=False, operator_approval=True))
     except RuntimeError as exc:
         assert "HUBSPOT_ACCESS_TOKEN or HUBSPOT_PERSONAL_KEY" in str(exc)
     else:
@@ -179,7 +200,7 @@ def test_hubspot_record_sync_live_gate_upserts_contact_by_phone_and_deal_by_ares
         hubspot_client=fake,  # type: ignore[arg-type]
     )
 
-    response = service.sync_record(HubSpotRecordSyncRequest(record=_record(), dry_run_only=False))
+    response = service.sync_record(HubSpotRecordSyncRequest(record=_record(), dry_run_only=False, operator_approval=True))
 
     assert response.dry_run is False
     assert response.status == "synced"
@@ -191,6 +212,29 @@ def test_hubspot_record_sync_live_gate_upserts_contact_by_phone_and_deal_by_ares
     assert fake.calls[1][2]["lookup_property"] == "ares_external_key"
     assert fake.calls[1][2]["properties"]["pipeline"] == "pipeline_ares"
     assert fake.calls[1][2]["properties"]["dealstage"] == "needs_skiptrace"
+
+
+def test_hubspot_record_sync_live_gate_requires_operator_approval_before_provider_calls() -> None:
+    fake = FakeHubSpotClient()
+    service = HubSpotCrmService(
+        settings=Settings(
+            _env_file=None,
+            provider_live_sends_enabled=True,
+            hubspot_provider_live_writes_enabled=True,
+            hubspot_access_token="hubspot_test_token",
+            hubspot_default_pipeline_id="pipeline_ares",
+            hubspot_default_deal_stage_id="needs_skiptrace",
+        ),
+        hubspot_client=fake,  # type: ignore[arg-type]
+    )
+
+    try:
+        service.sync_record(HubSpotRecordSyncRequest(record=_record(), dry_run_only=False))
+    except RuntimeError as exc:
+        assert "operator_approval=true" in str(exc)
+    else:
+        raise AssertionError("Expected missing operator approval to raise")
+    assert fake.calls == []
 
 
 def test_ares_hubspot_pipeline_keeps_skiptrace_and_title_review_stages_separate() -> None:

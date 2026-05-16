@@ -79,6 +79,7 @@ class HubSpotCrmService:
         request_payload: dict[str, Any] = {
             "business_id": request.business_id,
             "environment": request.environment,
+            "operator_approval": request.operator_approval,
             "properties": [definition.model_dump() for definition in property_defs],
             "deal_pipeline": pipeline_spec.model_dump() if pipeline_spec else None,
             "hubspot_docs_reference": {
@@ -101,6 +102,7 @@ class HubSpotCrmService:
                     "The developer key is not used for CRM bearer requests; use a private-app/personal access token in HUBSPOT_ACCESS_TOKEN or HUBSPOT_PERSONAL_KEY.",
                 ],
             )
+        self._require_operator_approval(request.operator_approval)
         if missing:
             raise RuntimeError(f"Missing HubSpot live config: {', '.join(missing)}")
 
@@ -130,6 +132,7 @@ class HubSpotCrmService:
                 "note": "Ares prepares contact/deal payloads first; live association IDs are a follow-up gate after portal schema is confirmed.",
             },
             "metadata": {"ares_hubspot_sync": True, **request.metadata},
+            "operator_approval": request.operator_approval,
         }
         missing = self._missing_live_config()
         dry_run = request.dry_run_only or not self._live_writes_enabled()
@@ -142,6 +145,7 @@ class HubSpotCrmService:
                 missing_config=missing,
                 notes=["Dry-run only: no HubSpot contact, deal, or association was changed."],
             )
+        self._require_operator_approval(request.operator_approval)
         if missing:
             raise RuntimeError(f"Missing HubSpot live config: {', '.join(missing)}")
 
@@ -182,6 +186,11 @@ class HubSpotCrmService:
         if not self.settings.hubspot_provider_live_writes_enabled:
             missing.append("HUBSPOT_PROVIDER_LIVE_WRITES_ENABLED=true")
         return missing
+
+    @staticmethod
+    def _require_operator_approval(operator_approval: bool) -> None:
+        if operator_approval is not True:
+            raise RuntimeError("HubSpot live writes require operator_approval=true")
 
 
 def build_ares_hubspot_property_definitions() -> list[HubSpotPropertyDefinition]:
