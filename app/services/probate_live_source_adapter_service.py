@@ -337,7 +337,7 @@ def _looks_like_montgomery_results_page(html_text: str) -> bool:
 
 def _parse_harris_probate_rows(html_text: str) -> list[dict[str, Any]]:
     pattern = re.compile(
-        r"<a(?P<attrs_before>[^>]*)btnSelect(?P<attrs_after>[^>]*)>\s*(?P<case>[^<]+)\s*</a>.*?"
+        r"<a(?P<attrs>[^>]*)>\s*(?P<case>[^<]+)\s*</a>.*?"
         r"ListViewCases_ctrl(?P<idx>\d+)_Td9[^>]*>(?P<file_date>.*?)</td>.*?"
         r"ListViewCases_ctrl(?P=idx)_Td17[^>]*>(?P<status>.*?)</td>.*?"
         r"ListViewCases_ctrl(?P=idx)_Td8[^>]*>(?P<filing_type>.*?)</td>.*?"
@@ -348,8 +348,8 @@ def _parse_harris_probate_rows(html_text: str) -> list[dict[str, Any]]:
     rows: list[dict[str, Any]] = []
     for match in pattern.finditer(html_text):
         row = {key: _cell_text(match.group(key)) for key in ("case", "file_date", "status", "filing_type", "filing_subtype", "style")}
-        attrs = f"{match.group('attrs_before') or ''} {match.group('attrs_after') or ''}"
-        href_match = re.search(r"href=[\"'](?P<href>[^\"']+)[\"']", attrs, re.IGNORECASE)
+        attrs = match.group("attrs") or ""
+        href_match = re.search(r"href=(?P<quote>[\"'])(?P<href>.*?)(?P=quote)", attrs, re.IGNORECASE)
         href = html.unescape(href_match.group("href") if href_match else "").strip()
         rows.append(
             {
@@ -360,7 +360,7 @@ def _parse_harris_probate_rows(html_text: str) -> list[dict[str, Any]]:
                 "filing_type": row["filing_type"],
                 "filing_subtype": row["filing_subtype"],
                 "style": row["style"],
-                **({"case_detail_url": urllib.parse.urljoin(HARRIS_PROBATE_SEARCH_URL, href)} if href else {}),
+                **_case_detail_link_fields(HARRIS_PROBATE_SEARCH_URL, href),
                 "source_url": HARRIS_PROBATE_SEARCH_URL,
                 "raw_live_row": row,
             }
@@ -368,12 +368,25 @@ def _parse_harris_probate_rows(html_text: str) -> list[dict[str, Any]]:
     return rows
 
 
+def _case_detail_link_fields(base_url: str, href: str) -> dict[str, str]:
+    value = html.unescape(href or "").strip()
+    if not value:
+        return {}
+    postback_match = re.search(r"__doPostBack\(['\"](?P<target>[^'\"]+)['\"]\s*,", value, re.IGNORECASE)
+    if postback_match:
+        return {
+            "case_detail_postback_target": postback_match.group("target"),
+            "case_detail_source_url": base_url,
+        }
+    return {"case_detail_url": urllib.parse.urljoin(base_url, value)}
+
+
 def _parse_montgomery_probate_rows(html_text: str) -> list[dict[str, Any]]:
     rows: list[dict[str, Any]] = []
     for row_html in re.findall(r"<tr[^>]*>.*?</tr>", html_text, re.IGNORECASE | re.DOTALL):
         if "CaseDetail.aspx" not in row_html:
             continue
-        href_match = re.search(r"href=[\"'](?P<href>[^\"']*CaseDetail\.aspx[^\"']*)[\"']", row_html, re.IGNORECASE)
+        href_match = re.search(r"href=(?P<quote>[\"'])(?P<href>.*?CaseDetail\.aspx.*?)(?P=quote)", row_html, re.IGNORECASE)
         cells = [_cell_text(cell) for cell in re.findall(r"<t[dh][^>]*>(.*?)</t[dh]>", row_html, re.IGNORECASE | re.DOTALL)]
         cells = [cell for cell in cells if cell or len(cells) >= 5]
         if len(cells) < 5:
@@ -396,7 +409,7 @@ def _parse_montgomery_probate_rows(html_text: str) -> list[dict[str, Any]]:
                 "status": status,
                 "filing_type": filing_type,
                 "style": style,
-                **({"case_detail_url": urllib.parse.urljoin(MONTGOMERY_ODYSSEY_SEARCH_URL, href)} if href else {}),
+                **_case_detail_link_fields(MONTGOMERY_ODYSSEY_SEARCH_URL, href),
                 "source_url": MONTGOMERY_ODYSSEY_SEARCH_URL,
                 "raw_live_row": {
                     "case_number": case_number,

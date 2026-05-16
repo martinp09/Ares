@@ -11,9 +11,13 @@ from app.core.config import Settings, get_settings
 
 CASE_DETAIL_ENRICHMENT_VERSION = "probate_case_detail_enrichment_v1"
 _PRIMARY_CONTACT_CAP = 2
+_HARRIS_CASE_DETAIL_PATHS = (
+    "/applications/websearch/casedetail.aspx",
+    "/applications/websearch/courtcasedetail.aspx",
+)
 _ALLOWED_CASE_DETAIL_HOSTS = {
-    "www.cclerk.hctx.net": ("/applications/websearch/casedetail.aspx",),
-    "cclerk.hctx.net": ("/applications/websearch/casedetail.aspx",),
+    "www.cclerk.hctx.net": _HARRIS_CASE_DETAIL_PATHS,
+    "cclerk.hctx.net": _HARRIS_CASE_DETAIL_PATHS,
     "odyssey.mctx.org": ("/county/casedetail.aspx",),
 }
 
@@ -164,6 +168,12 @@ class ProbateCaseDetailEnrichmentService:
     def _fetch_live_case_detail(self, source_row: Mapping[str, Any]) -> Mapping[str, Any] | None:
         url = _case_detail_url(source_row)
         if not url:
+            if _text_or_none(source_row.get("case_detail_postback_target")):
+                return {
+                    "status": "incomplete",
+                    "incomplete_reason": "case_detail_postback_only",
+                    "warnings": ["case_detail_postback_only"],
+                }
             return {
                 "status": "incomplete",
                 "incomplete_reason": "case_detail_url_missing",

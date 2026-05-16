@@ -184,6 +184,41 @@ def test_case_detail_enrichment_blocks_unapproved_live_detail_urls_before_client
     assert result["records"][0]["case_detail"]["warnings"] == ["case_detail_url_not_allowed"]
 
 
+def test_case_detail_enrichment_marks_harris_postback_links_incomplete_not_blocked():
+    client = FakeCaseDetailClient()
+    service = ProbateCaseDetailEnrichmentService(
+        settings=Settings(lead_machine_live_case_detail_calls_enabled=True),
+        case_detail_client=client,
+    )
+
+    result = service.run_enrichment(
+        business_id="limitless",
+        environment="test",
+        keep_now_rows=[
+            {
+                "county": "harris",
+                "case_number": "2026-H-10007",
+                "filing_type": "Independent Administration",
+                "case_detail_postback_target": "ctl00$ContentPlaceHolder1$ListViewCases$ctrl0$btnSelect",
+                "keep_now": True,
+            }
+        ],
+        live_case_detail_calls=True,
+        case_detail_approval={
+            "approved": True,
+            "approved_by": "operator",
+            "no_send": True,
+            "provider_sends_enabled": False,
+        },
+    )
+
+    assert client.calls == []
+    assert result["detail_blocked_count"] == 0
+    assert result["detail_incomplete_count"] == 1
+    assert result["records"][0]["case_detail"]["status"] == "incomplete"
+    assert result["records"][0]["case_detail"]["warnings"] == ["case_detail_postback_only"]
+
+
 def test_case_detail_enrichment_uses_live_client_with_explicit_no_send_approval():
     client = FakeCaseDetailClient()
     service = ProbateCaseDetailEnrichmentService(
@@ -216,3 +251,36 @@ def test_case_detail_enrichment_uses_live_client_with_explicit_no_send_approval(
     assert result["live_case_detail_calls_attempted"] is True
     assert result["detail_completed_count"] == 1
     assert result["records"][0]["case_detail"]["status"] == "completed"
+
+
+def test_case_detail_enrichment_allows_harris_court_case_detail_urls():
+    client = FakeCaseDetailClient()
+    service = ProbateCaseDetailEnrichmentService(
+        settings=Settings(lead_machine_live_case_detail_calls_enabled=True),
+        case_detail_client=client,
+    )
+
+    result = service.run_enrichment(
+        business_id="limitless",
+        environment="test",
+        keep_now_rows=[
+            {
+                "county": "harris",
+                "case_number": "2026-H-10006",
+                "filing_type": "Independent Administration",
+                "case_detail_url": "https://www.cclerk.hctx.net/Applications/WebSearch/CourtCaseDetail.aspx?ID=10006",
+                "keep_now": True,
+            }
+        ],
+        live_case_detail_calls=True,
+        case_detail_approval={
+            "approved": True,
+            "approved_by": "operator",
+            "no_send": True,
+            "provider_sends_enabled": False,
+        },
+    )
+
+    assert client.calls == ["2026-H-10006"]
+    assert result["detail_completed_count"] == 1
+    assert result["detail_blocked_count"] == 0

@@ -1,13 +1,16 @@
 ---
 title: "Ares TODO / Handoff"
 status: active
-updated_at: "2026-05-16T14:13:00Z"
+updated_at: "2026-05-16T15:04:38Z"
 repo: "martinp09/Ares"
 local_checkout: "/opt/ares/worktrees/ares-main"
 target_branch: "main"
 back_office_spine_commit: "e898ee0"
 previous_handoff_commit: "9f30d2f"
 implementation_commit: "9c256bf"
+supabase_migration_commit: "5228ef5"
+supabase_migration_qc_commit: "d0e3fb7"
+supabase_identity_adapter_commit: "6cd2d88"
 ---
 
 # Ares TODO / Handoff
@@ -16,7 +19,7 @@ implementation_commit: "9c256bf"
 
 Back Office Spine v0 landed on `main` at `e898ee0` and the local `feature/back-office-spine-v0` branch was deleted. This slice turns qualified leads into canonical deal records with lane-aware task/document/risk templates, stage transition blockers, fire-list read models, Supabase runtime persistence, and a read-only Mission Control Deal Desk page.
 
-The Harris + Montgomery probate autopilot PRD implementation landed at `9c256bf` as an operational no-send system; handoff docs landed at `9f30d2f`, env preflight landed at `a859fd2`, and case-detail enrichment finished the last high-value probate enrichment gap. Trigger schedules default to live public probate source acquisition, live public case-detail page enrichment, and live public CAD/tax/land-record enrichment. Backend defaults those live intelligence lanes on, but Ares still requires explicit no-send approval metadata for live source/case-detail/enrichment runtime requests and keeps every outbound path blocked. Dedupe/manual-isolation hardening adds hashed probate source identities, same-scope prior-run dedupe, same-packet duplicate exclusion, `source_run_scope=autonomous` scheduled payloads, isolated manual Hermes runner state, remote Supabase durable identity schema `20260516131500_probate_source_identity_dedupe.sql` applied on 2026-05-16, and a production Supabase identity-ledger adapter used when `LEAD_MACHINE_BACKEND=supabase`; QC `docs/qc/2026-05-16/probate-dedupe-runtime-isolation/`, `docs/qc/2026-05-16/probate-source-identity-supabase-migration/`, and `docs/qc/2026-05-16/probate-source-identity-supabase-adapter/`.
+The Harris + Montgomery probate autopilot PRD implementation landed at `9c256bf` as an operational no-send system; handoff docs landed at `9f30d2f`, env preflight landed at `a859fd2`, and case-detail enrichment finished the first no-send case-detail evidence layer. Trigger schedules default to live public probate source acquisition, live public case-detail page enrichment, and live public CAD/tax/land-record enrichment. Backend defaults those live intelligence lanes on, but Ares still requires explicit no-send approval metadata for live source/case-detail/enrichment runtime requests and keeps every outbound path blocked. Dedupe/manual-isolation hardening adds hashed probate source identities, same-scope prior-run dedupe, same-packet duplicate exclusion, `source_run_scope=autonomous` scheduled payloads, isolated manual Hermes runner state, remote Supabase durable identity schema `20260516131500_probate_source_identity_dedupe.sql` applied on 2026-05-16, and a production Supabase identity-ledger adapter used when `LEAD_MACHINE_BACKEND=supabase`; the post-adapter live no-send monitor then found Harris rows expose postback-only detail targets, now safely classified as incomplete (`case_detail_postback_only`) rather than blocked unsafe URLs. QC `docs/qc/2026-05-16/probate-dedupe-runtime-isolation/`, `docs/qc/2026-05-16/probate-source-identity-supabase-migration/`, `docs/qc/2026-05-16/probate-source-identity-supabase-adapter/`, and `docs/qc/2026-05-16/probate-post-adapter-live-no-send-monitor/`.
 
 Origin-main hardening cleanup landed on GitHub `main`: `709f714` adds the dynamic Montgomery PublicSearch land-record end date, live no-send smoke case-detail assertion, legacy `/crm/hubspot/*` `operator_approval=true` live-write gate, and CI; `be11aaa` tracks Docker deployment files and Docker CI.
 
@@ -50,10 +53,10 @@ Cleanup verification on the `be76288` baseline passed: focused backend => `44 pa
 
 ## Immediate next actions
 
-1. Monitor the next non-empty no-send probate scheduler run after the 2026-05-16 dedupe/isolation hardening. The durable source identity table is now applied and wired through the Supabase source identity adapter, while current local autonomous ledger comparison has 2026-05-15 Harris `39` / Montgomery `8` source identities and 2026-05-16 `0` / `0`, so there are no today-vs-yesterday duplicate scraped identities yet; future non-empty runs should show `duplicate_prior_run_count` when overlap exists.
-2. Before production no-send deployment, run `uv run python scripts/probate_autopilot_env_contract.py --env-file .env --require-scheduled-live` and configure durable `LEAD_MACHINE_SOURCE_RUNS_STATE_PATH` / `LEAD_MACHINE_ARTIFACT_ROOT`.
-3. Keep Instantly enrollment/send, SMS/Vapi dispatch, paid skiptrace, and HubSpot batch mirror writes gated until separately approved.
-4. Measure property-match lift from case-detail-derived party/address/context evidence; current case-detail layer records contact candidates but still does not assert seller authority.
+1. Configure durable production no-send env (`LEAD_MACHINE_SOURCE_RUNS_STATE_PATH`, `LEAD_MACHINE_ARTIFACT_ROOT`, `LEAD_MACHINE_BUSINESS_ID`, `LEAD_MACHINE_ENVIRONMENT`, explicit live intelligence gates) and rerun the read-only env contract until healthy before production no-send deployment or schedule activation.
+2. Add a Harris postback case-detail client if live Harris party/event/document detail completion is required; current postback-only rows are safely incomplete, not blocked.
+3. Continue monitoring autonomous scheduled runs for county coverage, duplicate-prior-run counts, Supabase source identity recording, enrichment backlog, and no-send confirmation.
+4. Keep Instantly enrollment/send, SMS/Vapi dispatch, paid skiptrace, and HubSpot batch mirror writes gated until separately approved.
 5. Monitor the tailnet-only VPS edge and keep `ares-edge-firewall.service` active while Supabase/dev ports remain published by their owning stack.
 
 ## Open product follow-ups

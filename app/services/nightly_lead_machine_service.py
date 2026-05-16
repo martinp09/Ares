@@ -1475,6 +1475,7 @@ def _enrichment_backlog(
         "case_detail_completed_count": _non_negative_int(case_detail_summary.get("detail_completed_count")),
         "case_detail_pending_count": case_detail_pending,
         "case_detail_blocked_count": _non_negative_int(case_detail_summary.get("detail_blocked_count")),
+        "case_detail_incomplete_count": _non_negative_int(case_detail_summary.get("detail_incomplete_count")),
         "contact_candidate_count": _non_negative_int(case_detail_summary.get("contact_candidate_count")),
         "primary_contact_candidate_count": _non_negative_int(case_detail_summary.get("primary_contact_candidate_count")),
         "live_case_detail_calls_attempted": case_detail_summary.get("live_case_detail_calls_attempted") is True,

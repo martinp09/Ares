@@ -1,7 +1,7 @@
 # Harris + Montgomery Probate Autopilot — Live No-Send Activation Runbook
 
 - Status: current / operational no-send
-- Updated UTC: 2026-05-16T13:10:45Z
+- Updated UTC: 2026-05-16T15:04:38Z
 - Scope: scheduled public source acquisition, public case-detail party/event/document/contact-candidate enrichment, public CAD/tax/land-record enrichment, scoring inputs, briefing, and qualified-review preparation
 - Hard stop: no Instantly enrollment, no email/SMS/Vapi sends, no paid skiptrace, no HubSpot writes without separate approval gate
 
@@ -212,9 +212,16 @@ npm --prefix trigger run typecheck
 
 Latest evidence:
 
+- Post-adapter live no-send monitor QC folder: `docs/qc/2026-05-16/probate-post-adapter-live-no-send-monitor/`
+- Env contract: blocked for production no-send deployment because durable `LEAD_MACHINE_SOURCE_RUNS_STATE_PATH`, `LEAD_MACHINE_ARTIFACT_ROOT`, `LEAD_MACHINE_BUSINESS_ID`, and `LEAD_MACHINE_ENVIRONMENT` are not configured in the local/live env file used for the check.
+- Same-day 2026-05-16 strict smoke: failed/inconclusive because the valid zero-row day produced no passing summary JSON; treat zero-row source windows as non-errors in runtime but do not count that artifact as a green smoke.
+- Two-day 2026-05-15→2026-05-16 live no-send monitor: `48` source records, `8` keep-now rows, `8` enriched rows, `source_health_failed_runs=0`, `warnings_count=0`, `sla_status=healthy`, `no_send=true`, and `provider_sends_enabled=false`.
+- Harris case-detail monitor correction: live Harris rows currently expose postback-only detail targets, now classified as `case_detail_incomplete_count=8` / `case_detail_blocked_count=0` instead of unsafe blocked URLs. A full postback detail client remains a follow-up if case-detail completion is required from live Harris rows.
+- Focused post-monitor contracts: `69 passed`
+- Full backend: `963 passed`
+- Trigger typecheck: passed
 - Supabase source identity adapter QC folder: `docs/qc/2026-05-16/probate-source-identity-supabase-adapter/`
 - Focused identity/nightly/source-file contracts: `43 passed`
-- Backend db+services suite: `470 passed`
 - Full backend: `961 passed`
 - Trigger typecheck: passed
 - Dedupe/manual-isolation hardening QC folder: `docs/qc/2026-05-16/probate-dedupe-runtime-isolation/`
@@ -230,10 +237,11 @@ Latest evidence:
 
 ## Operator next actions
 
-1. Before deploying a build that includes this preflight, run the env preflight and configure durable state/artifact paths.
-2. Monitor source-run counts, county coverage, parser warnings, enrichment backlog, and no-send confirmation in the morning brief / Mission Control health panel.
-3. Only after source/enrichment quality is stable, design a separate qualified-only HubSpot mirror approval path.
-4. Do not add Instantly/SMS send controls to this workflow without exact campaign/recipient approval.
+1. Configure durable production no-send env and rerun the env preflight until healthy before deployment/schedule activation.
+2. Add a Harris postback case-detail client if live Harris party/event/document detail completion is required; current postback-only rows are safely incomplete, not blocked.
+3. Continue monitoring source-run counts, county coverage, parser warnings, duplicate-prior-run counts, enrichment backlog, and no-send confirmation in the morning brief / Mission Control health panel.
+4. Only after source/enrichment quality is stable, design a separate qualified-only HubSpot mirror approval path.
+5. Do not add Instantly/SMS send controls to this workflow without exact campaign/recipient approval.
 
 ## Failure modes
 
@@ -241,6 +249,7 @@ Latest evidence:
 - Missing case-detail approval: case-detail enrichment records blocked/incomplete rows before live detail-page calls.
 - Missing enrichment approval: enrichment rejects before live CAD/tax/land work.
 - Disallowed case-detail URL: live case-detail fetch is blocked unless the HTTPS URL matches the approved Harris/Montgomery public case-detail allowlist.
+- Harris postback-only case-detail link: live source rows preserve the postback target and case-detail enrichment marks the row incomplete with `case_detail_postback_only`; a dedicated postback client is required before those rows can complete party/event/document extraction.
 - Montgomery Odyssey shape/session drift: source adapter retries bounded sessions, then raises parser/source error instead of silently publishing zero-row success.
 - Parser count mismatch: source run records warnings and surfaces aggregate mismatch counts.
 - Property identifiers missing from probate rows: case-detail-derived parties/addresses/context are available for downstream matching, but property match remains pending/unmatched until deterministic CAD confidence clears.

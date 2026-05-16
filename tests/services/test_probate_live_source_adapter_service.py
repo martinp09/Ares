@@ -56,7 +56,7 @@ def test_harris_live_parser_extracts_public_probate_rows_without_html_artifacts(
         """
         <table id="ctl00_ContentPlaceHolder1_ListViewCases">
           <tr>
-            <td><a id="ctl00_ContentPlaceHolder1_ListViewCases_ctrl0_btnSelect" href="CaseDetail.aspx?CaseID=10001">SYN-H-0001</a></td>
+            <td><a id="ctl00_ContentPlaceHolder1_ListViewCases_ctrl0_btnSelect" href="javascript:__doPostBack('ctl00$ContentPlaceHolder1$ListViewCases$ctrl0$btnSelect','')">SYN-H-0001</a></td>
             <td id="ctl00_ContentPlaceHolder1_ListViewCases_ctrl0_Td9">05/14/2026</td>
             <td id="ctl00_ContentPlaceHolder1_ListViewCases_ctrl0_Td17">Open</td>
             <td id="ctl00_ContentPlaceHolder1_ListViewCases_ctrl0_Td8">INDEPENDENT ADMINISTRATION</td>
@@ -76,7 +76,8 @@ def test_harris_live_parser_extracts_public_probate_rows_without_html_artifacts(
             "filing_type": "INDEPENDENT ADMINISTRATION",
             "filing_subtype": "LETTERS TESTAMENTARY",
             "style": "IN THE ESTATE OF: SAMPLE TEST OWNER, DECEASED",
-            "case_detail_url": "https://www.cclerk.hctx.net/Applications/WebSearch/CaseDetail.aspx?CaseID=10001",
+            "case_detail_postback_target": "ctl00$ContentPlaceHolder1$ListViewCases$ctrl0$btnSelect",
+            "case_detail_source_url": "https://www.cclerk.hctx.net/Applications/WebSearch/CourtSearch_R.aspx?CaseType=Probate",
             "source_url": "https://www.cclerk.hctx.net/Applications/WebSearch/CourtSearch_R.aspx?CaseType=Probate",
             "raw_live_row": {
                 "case": "SYN-H-0001",

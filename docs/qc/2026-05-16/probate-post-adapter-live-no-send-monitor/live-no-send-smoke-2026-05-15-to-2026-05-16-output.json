@@ -1,0 +1,39 @@
+{
+  "artifact_root": "/tmp/ares-probate-autopilot-live-smoke-278mih1s",
+  "business_id": "limitless",
+  "case_detail_completed_count": 0,
+  "case_detail_pending_count": 8,
+  "case_detail_status": "blocked",
+  "counties": [
+    "harris",
+    "montgomery"
+  ],
+  "enriched_count": 8,
+  "enrichment_status": "partial",
+  "environment": "live-smoke",
+  "idempotency_key": "probate-autopilot-live-no-send-smoke:2026-05-15T00:00:00+00:00:2026-05-16T23:59:59.999999+00:00:harris",
+  "keep_now_count": 8,
+  "live_cad_calls_attempted": true,
+  "live_case_detail_calls_attempted": true,
+  "live_land_record_calls_attempted": true,
+  "live_source_calls_enabled": true,
+  "live_tax_calls_attempted": true,
+  "no_send": true,
+  "operator_actions": [
+    "complete_case_detail_enrichment",
+    "complete_property_tax_title_enrichment",
+    "keep_outbound_blocked"
+  ],
+  "property_match_unmatched_count": 8,
+  "provider_sends_enabled": false,
+  "sla_status": "healthy",
+  "source_health_completed_runs": 6,
+  "source_health_failed_runs": 0,
+  "source_record_count": 48,
+  "source_run_count": 6,
+  "status": "completed",
+  "tax_overlay_ambiguous_count": 2,
+  "title_friction_review_count": 8,
+  "warnings_count": 0,
+  "would_call_external_sources": true
+}

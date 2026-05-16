@@ -67,4 +67,8 @@ Both were fixed before final verification: remote read/write failures now degrad
 
 ## Remaining operator follow-up
 
-Monitor the next non-empty autonomous no-send probate scheduler run. Expected behavior: rows whose source identity already exists in `public.probate_source_identities` for the same `business_id + environment + source_run_scope + county` should be counted as prior-run duplicates and excluded from new-record/enrichment counts, while manual isolated Hermes runs remain separate.
+Superseded by post-adapter monitor QC: `docs/qc/2026-05-16/probate-post-adapter-live-no-send-monitor/`.
+
+The first non-empty live no-send monitor after adapter wiring completed on a two-day window with `48` source rows and `8` keep-now rows; provider sends remained blocked (`no_send=true`, `provider_sends_enabled=false`). The monitor also found and corrected a Harris case-detail classification gap: live rows can expose postback-only detail targets, now recorded as incomplete (`case_detail_postback_only`) instead of unsafe blocked URLs.
+
+Remaining follow-up: configure durable production env so the read-only preflight passes, then continue monitoring autonomous scheduled runs for same-scope duplicate counts and Supabase identity-ledger recording.
