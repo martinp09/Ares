@@ -1,4 +1,5 @@
 import json
+from typing import Any
 
 import pytest
 
@@ -7,6 +8,7 @@ from app.db.client import InMemoryControlPlaneClient, InMemoryControlPlaneStore
 from app.db.provider_links import ProviderLinksRepository
 from app.models.calls import VoiceOutboundCallRequest
 from app.models.providers import ProviderTransportError
+from app.models.slack_notifications import SlackNotificationAttempt, SlackNotificationRoute
 from app.services.vapi_call_service import VapiCallService
 
 
@@ -34,6 +36,28 @@ class FakeVapiClient:
         if self.exc:
             raise self.exc
         return self.response
+
+
+class StubSlackNotifier:
+    def __init__(self) -> None:
+        self.calls: list[dict[str, Any]] = []
+
+    def notify(self, **kwargs: Any) -> SlackNotificationAttempt:
+        self.calls.append(kwargs)
+        return SlackNotificationAttempt(
+            business_id=kwargs["business_id"],
+            environment=kwargs["environment"],
+            route=kwargs["route"],
+            dedupe_key=kwargs["dedupe_key"],
+            channel_id="C-SMS-CALLS",
+            status="sent",
+            slack_message_ts="1715788800.000300",
+            payload=kwargs.get("payload") or {},
+        )
+
+
+def slack_visible_text(call: dict[str, Any]) -> str:
+    return f"{call['text']}\n{json.dumps(call['blocks'])}"
 
 
 def settings(**overrides):
@@ -317,6 +341,237 @@ def test_webhook_accepts_when_signatures_not_required() -> None:
     assert result["provider_call_id"] == "call_123"
 
 
+def test_webhook_accepts_and_notifies_sms_calls() -> None:
+    notifier = StubSlackNotifier()
+    service = VapiCallService(settings=settings(), slack_notifier=notifier)
+
+    result = service.handle_webhook(
+        {
+            "type": "call-ended",
+            "timestamp": "2026-05-16T01:00:00Z",
+            "call": {
+                "id": "call_123",
+                "status": "ended",
+                "customer": {"number": "+15551234567", "name": "Maya Parker"},
+            },
+            "metadata": {"business_id": "limitless", "environment": "dev"},
+        },
+        {},
+    )
+
+    assert result["accepted"] is True
+    assert len(notifier.calls) == 1
+    call = notifier.calls[0]
+    assert call["route"] == SlackNotificationRoute.SMS_CALLS
+    assert call["business_id"] == "limitless"
+    assert call["environment"] == "dev"
+    assert call["dedupe_key"] == f"call:{result['idempotency_key']}"
+    visible_text = slack_visible_text(call)
+    assert "business=limitless" in visible_text
+    assert "env=dev" in visible_text
+    assert "route=sms_calls" in visible_text
+    assert f"dedupe={call['dedupe_key']}" in visible_text
+    assert "call_123" in visible_text
+    assert "call-ended" in visible_text
+    assert "ended" in visible_text
+    assert "+15551234567" in visible_text
+    assert "Maya Parker" in visible_text
+    assert "unverified_accepted" in visible_text
+    assert "Review Vapi call event and continue the operator workflow." in visible_text
+    assert result["notification"] == {
+        "route": "sms_calls",
+        "status": "sent",
+        "deduped": False,
+        "channel_id": "C-SMS-CALLS",
+        "dedupe_key": call["dedupe_key"],
+        "slack_message_ts": "1715788800.000300",
+        "error_message": None,
+    }
+
+
+def test_webhook_accepted_unrelated_event_does_not_notify() -> None:
+    notifier = StubSlackNotifier()
+    service = VapiCallService(settings=settings(), slack_notifier=notifier)
+
+    result = service.handle_webhook(
+        {
+            "type": "assistant-request",
+            "call": {"id": "call_123", "status": "queued"},
+            "message": {"type": "assistant-request"},
+            "metadata": {"business_id": "limitless", "environment": "dev"},
+        },
+        {},
+    )
+
+    assert result["accepted"] is True
+    assert result["event_type"] == "assistant-request"
+    assert result["notification"] is None
+    assert notifier.calls == []
+
+
+@pytest.mark.parametrize("status", ["scheduled", "queued", "ringing", "in-progress", "forwarding"])
+def test_webhook_docs_routine_status_update_does_not_notify(status: str) -> None:
+    notifier = StubSlackNotifier()
+    service = VapiCallService(settings=settings(), slack_notifier=notifier)
+
+    result = service.handle_webhook(
+        {
+            "message": {
+                "type": "status-update",
+                "status": status,
+                "call": {"id": f"call_{status}_123", "status": status},
+            },
+            "metadata": {"business_id": "limitless", "environment": "dev"},
+        },
+        {},
+    )
+
+    assert result["accepted"] is True
+    assert result["event_type"] == "status-update"
+    assert result["provider_call_id"] == f"call_{status}_123"
+    assert result["status"] == status
+    assert result["notification"] is None
+    assert notifier.calls == []
+
+
+def test_webhook_docs_status_update_ended_notifies() -> None:
+    notifier = StubSlackNotifier()
+    service = VapiCallService(settings=settings(), slack_notifier=notifier)
+
+    result = service.handle_webhook(
+        {
+            "message": {
+                "type": "status-update",
+                "status": "ended",
+                "call": {"id": "call_ended_123", "status": "ended"},
+            },
+            "metadata": {"business_id": "limitless", "environment": "dev"},
+        },
+        {},
+    )
+
+    assert result["notification"] is not None
+    visible_text = slack_visible_text(notifier.calls[0])
+    assert "status-update" in visible_text
+    assert "ended" in visible_text
+    assert "call_ended_123" in visible_text
+
+
+def test_webhook_call_ended_notification_includes_summary_transcript_and_recording() -> None:
+    notifier = StubSlackNotifier()
+    service = VapiCallService(settings=settings(), slack_notifier=notifier)
+
+    service.handle_webhook(
+        {
+            "type": "call-ended",
+            "call": {"id": "call_123", "status": "ended", "recordingUrl": "https://recordings.test/call_123.mp3"},
+            "analysis": {"summary": "Seller asked for callback tomorrow afternoon."},
+            "artifact": {
+                "transcript": "Seller asked for callback. " + ("Long transcript sentence. " * 80),
+            },
+            "metadata": {"business_id": "limitless", "environment": "dev"},
+        },
+        {},
+    )
+
+    visible_text = slack_visible_text(notifier.calls[0])
+    assert "Seller asked for callback" in visible_text
+    assert "https://recordings.test/call_123.mp3" in visible_text
+    assert "Transcript:" in visible_text
+    assert len(notifier.calls[0]["text"]) < 1400
+
+
+def test_webhook_docs_end_of_call_report_notification_includes_call_context() -> None:
+    notifier = StubSlackNotifier()
+    service = VapiCallService(settings=settings(), slack_notifier=notifier)
+
+    result = service.handle_webhook(
+        {
+            "message": {
+                "type": "end-of-call-report",
+                "call": {
+                    "id": "call_docs_123",
+                    "status": "ended",
+                    "customer": {"number": "+15551234567", "name": "Maya Parker"},
+                },
+                "analysis": {"summary": "Seller asked for callback tomorrow afternoon."},
+                "artifact": {
+                    "transcript": "Seller asked for callback. " + ("Long transcript sentence. " * 80),
+                    "recording": {"stereoUrl": "https://recordings.test/docs-call.mp3"},
+                },
+            },
+            "metadata": {"business_id": "limitless", "environment": "dev"},
+        },
+        {},
+    )
+
+    assert result["notification"] is not None
+    visible_text = slack_visible_text(notifier.calls[0])
+    assert "call_docs_123" in visible_text
+    assert "Seller asked for callback" in visible_text
+    assert "Long transcript sentence" in visible_text
+    assert "https://recordings.test/docs-call.mp3" in visible_text
+    assert "payload" not in visible_text.lower()
+    assert len(notifier.calls[0]["text"]) < 1400
+
+
+def test_webhook_docs_end_of_call_report_notification_includes_nested_mono_recording() -> None:
+    notifier = StubSlackNotifier()
+    service = VapiCallService(settings=settings(), slack_notifier=notifier)
+
+    result = service.handle_webhook(
+        {
+            "message": {
+                "type": "end-of-call-report",
+                "call": {"id": "call_docs_456", "status": "ended"},
+                "analysis": {"summary": "Seller left a voicemail."},
+                "artifact": {
+                    "transcript": "Seller left a voicemail.",
+                    "recording": {
+                        "mono": {"combinedUrl": "https://recordings.test/docs-call-mono.mp3"},
+                    },
+                },
+            },
+            "metadata": {"business_id": "limitless", "environment": "dev"},
+        },
+        {},
+    )
+
+    assert result["notification"] is not None
+    visible_text = slack_visible_text(notifier.calls[0])
+    assert "Seller left a voicemail" in visible_text
+    assert "https://recordings.test/docs-call-mono.mp3" in visible_text
+    assert "payload" not in visible_text.lower()
+
+
+def test_webhook_handoff_tool_result_notifies_with_context() -> None:
+    notifier = StubSlackNotifier()
+    service = VapiCallService(settings=settings(), slack_notifier=notifier)
+
+    result = service.handle_webhook(
+        {
+            "type": "tool-calls",
+            "call": {"id": "call_123", "status": "in-progress"},
+            "message": {
+                "type": "tool-calls",
+                "toolCalls": [
+                    {
+                        "function": {"name": "handoff_to_operator"},
+                        "result": "Human handoff requested because seller wants a live operator review.",
+                    }
+                ],
+            },
+            "metadata": {"business_id": "limitless", "environment": "dev"},
+        },
+        {},
+    )
+
+    assert result["notification"] is not None
+    visible_text = slack_visible_text(notifier.calls[0])
+    assert "handoff_to_operator" in visible_text
+    assert "Human handoff requested" in visible_text
+
+
 def test_webhook_rejects_missing_or_wrong_secret_when_required() -> None:
     service = VapiCallService(settings=settings(provider_webhook_signatures_required=True, vapi_webhook_secret="expected"))
 
@@ -328,3 +583,43 @@ def test_webhook_rejects_missing_or_wrong_secret_when_required() -> None:
     assert wrong["accepted"] is False
     assert good["accepted"] is True
     assert good["trust_status"] == "verified_secret"
+
+
+def test_webhook_rejected_bad_secret_does_not_notify() -> None:
+    notifier = StubSlackNotifier()
+    service = VapiCallService(
+        settings=settings(provider_webhook_signatures_required=True, vapi_webhook_secret="expected"),
+        slack_notifier=notifier,
+    )
+
+    result = service.handle_webhook({"type": "call-ended", "call": {"id": "call_123"}}, {"X-Vapi-Secret": "wrong"})
+
+    assert result["accepted"] is False
+    assert result["notification"] is None
+    assert notifier.calls == []
+
+
+def test_webhook_notification_escapes_call_user_fields() -> None:
+    notifier = StubSlackNotifier()
+    service = VapiCallService(settings=settings(), slack_notifier=notifier)
+
+    service.handle_webhook(
+        {
+            "type": "call-ended",
+            "call": {
+                "id": "call_<bad>",
+                "status": "ended",
+                "customer": {"number": "+1555<bad>", "name": "<!channel> <https://bad.test|owner>"},
+            },
+            "metadata": {"business_id": "limitless", "environment": "dev"},
+        },
+        {},
+    )
+
+    visible_text = slack_visible_text(notifier.calls[0])
+    assert "<!channel>" not in visible_text
+    assert "<https://bad.test|owner>" not in visible_text
+    assert "call_<bad>" not in visible_text
+    assert "&lt;!channel&gt;" in visible_text
+    assert "&lt;https://bad.test|owner&gt;" in visible_text
+    assert "call_&lt;bad&gt;" in visible_text

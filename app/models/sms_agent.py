@@ -44,6 +44,8 @@ class SmsAgentWebhookResponse(BaseModel):
     action: str
     message_id: str | None = None
     task_id: str | None = None
+    job_id: str | None = None
+    notification: dict[str, Any] | None = None
 
 
 class SmsAgentProcessPendingRequest(BaseModel):

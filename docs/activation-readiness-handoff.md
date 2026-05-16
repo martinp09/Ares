@@ -57,11 +57,18 @@ RESEND_REPLY_TO_EMAIL=<reply-to-email>
 Slack:
 
 ```bash
+SLACK_NOTIFICATIONS_ENABLED=true
 SLACK_BOT_TOKEN=<xoxb-token>
-SLACK_CHANNEL_INTAKE=<channel-id>
-# Optional fallback / ops channels
-SLACK_CHANNEL_LEADS=<channel-id>
+SLACK_CHANNEL_LEAD_RUNS=<channel-id>
+SLACK_CHANNEL_HOT_LEADS=<channel-id>
+SLACK_CHANNEL_INSTANTLY_REPLIES=<channel-id>
+SLACK_CHANNEL_LEASE_OPTION_INBOUND=<channel-id>
+SLACK_CHANNEL_SMS_CALLS=<channel-id>
+# Optional ops/error channel
 SLACK_CHANNEL_ERRORS=<channel-id>
+# Legacy compatibility fallback only, not preferred for activation
+SLACK_CHANNEL_LEADS=<channel-id>
+SLACK_CHANNEL_INTAKE=<channel-id>
 ```
 
 Cal.com / Trigger:
@@ -148,7 +155,7 @@ After loading `/opt/ares/Ares/.env` with `--derive-local-defaults`, the locally 
 - `PROVIDER_LIVE_SENDS_ENABLED=false` remains the safe default until the final approved live smoke.
 - `RESEND_FROM_EMAIL` is present but misparsed by env-file readiness when the display-name sender is unquoted. Use quoted verified sender syntax: `RESEND_FROM_EMAIL="Limitless Home Solutions <hello@send.limitleshome.com>"`, plus `RESEND_REPLY_TO_EMAIL=hello@send.limitleshome.com`.
 - `SLACK_BOT_TOKEN` is missing.
-- `SLACK_CHANNEL_INTAKE` or `SLACK_CHANNEL_LEADS` is missing.
+- Route-specific Slack notification channels are missing: `SLACK_CHANNEL_LEAD_RUNS`, `SLACK_CHANNEL_HOT_LEADS`, `SLACK_CHANNEL_INSTANTLY_REPLIES`, `SLACK_CHANNEL_LEASE_OPTION_INBOUND`, and `SLACK_CHANNEL_SMS_CALLS`. Values must be Slack channel IDs; legacy `SLACK_CHANNEL_LEADS` and `SLACK_CHANNEL_INTAKE` are compatibility fallbacks only.
 - `CAL_WEBHOOK_SECRET` is missing and must match the external Cal.com webhook configuration.
 - Hosted Ares still returned `401 Unauthorized` for protected Mission Control routes with the local runtime key, so Vercel/production env access is required to verify or update the deployed `RUNTIME_API_KEY`/landing envs.
 
@@ -159,4 +166,4 @@ Do not claim SMS/email/Slack delivery until the provider route response proves a
 - TextGrid: account balance blocker cleared after funding, but an initially `queued` message can later fail as `Blocked by Textgrid Content Filter`; poll TextGrid status or consume callbacks before claiming delivery.
 - TextGrid SMS copy: keep intake SMS confirmation-only/no booking link; the landing page handles the Cal.com redirect and email can carry the booking-link fallback.
 - Resend: API key and verified sending domain `send.limitleshome.com` are present; set the display-name sender as a quoted env value (`RESEND_FROM_EMAIL="Limitless Home Solutions <hello@send.limitleshome.com>"`) and add `RESEND_REPLY_TO_EMAIL=hello@send.limitleshome.com` before live email smoke.
-- Slack: bot token/channel not present.
+- Slack: bot token and route-specific channel IDs are not present.

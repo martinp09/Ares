@@ -154,3 +154,40 @@ npm --prefix trigger run typecheck
 git diff --check
 # passed
 ```
+
+Final post-Slack-routing reconciliation:
+
+GitHub `origin/main` moved again to `f6add17` after Slack notification routing was merged and deployed. This branch was merged with that head and the conflict resolution preserved both sides:
+
+- public signed TextGrid webhook ingest remains unauthenticated by runtime bearer auth and still accepts `X-TextGrid-Signature` plus Twilio-compatible `X-Twilio-Signature`;
+- inbound SMS still enqueues a reply-agent job for resolved leads and does not enqueue jobs for unresolved/deduped webhooks;
+- the webhook response now uses the current JSON response model and preserves Slack notification summaries from `origin/main`;
+- runtime `/sms-agent` send, label, approve-send, and protected process-pending endpoints remain behind runtime auth;
+- `NightlyLeadMachineService` keeps the source-runs persistence guard while also retaining Slack notification imports and behavior from `origin/main`.
+
+Post-merge verification:
+
+```bash
+uv run pytest tests/api/test_sms_agent.py tests/services/test_inbound_sms_service.py tests/services/test_sms_agent_service.py tests/services/test_sms_agent_processing.py tests/services/test_sms_reply_agent_service.py tests/services/test_sms_reply_agent_repository.py tests/scripts/test_textgrid_sms_reply_agent_smoke.py tests/scripts/test_sms_agent_archive_export.py tests/db/test_sms_agent_schema.py tests/api/test_runtime_config_contract.py tests/api/test_trigger_contract_files.py tests/services/test_nightly_lead_machine_service.py tests/api/test_nightly_lead_machine.py tests/services/test_slack_notification_service.py tests/db/test_slack_notifications_repository.py tests/scripts/test_slack_notification_readiness.py -q
+# 200 passed in 0.74s
+
+uv run pytest -q
+# 1135 passed in 9.87s
+
+npm --prefix apps/mission-control run test -- --run
+# 25 files passed, 83 tests passed
+
+npm --prefix apps/mission-control run typecheck
+# passed
+
+npm --prefix apps/mission-control run build
+# passed
+
+npm --prefix trigger run typecheck
+# passed
+
+git diff --check
+# passed
+```
+
+No live Supabase mutation, TextGrid send, provider dashboard mutation, deploy, Slack post, or outbound provider send was made during the TextGrid branch reconciliation.

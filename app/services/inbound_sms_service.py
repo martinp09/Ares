@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+import hashlib
 import json
 from typing import Any, Callable, Literal, Protocol
 from urllib import request
@@ -18,9 +19,11 @@ from app.db.sms_agent import SmsAgentRepository
 from app.db.tasks import TasksRepository
 from app.models.lead_events import LeadEventRecord, ProviderWebhookReceiptRecord
 from app.models.marketing_leads import MarketingLeadRecord
+from app.models.slack_notifications import SlackNotificationAttempt, SlackNotificationRoute
 from app.models.tasks import TaskPriority, TaskRecord, TaskStatus, TaskType
 from app.providers.resend import build_send_email_request
 from app.providers.textgrid import build_outbound_sms_request, normalize_incoming_webhook, verify_webhook_signature
+from app.services.slack_notification_service import slack_notification_service
 from app.services.sms_agent_service import SmsAgentService
 
 
@@ -430,6 +433,7 @@ class InboundSmsService:
         message_logging_hook: MessageLoggingHook | None = None,
         lead_events_repository: LeadEventsRepository | None = None,
         sms_agent_service: SmsAgentService | None = None,
+        slack_notifier: Any | None = None,
     ) -> None:
         self.settings = settings or get_settings()
         self.textgrid_adapter = textgrid_adapter or _DefaultTextgridWebhookAdapter(self.settings)
@@ -494,6 +498,7 @@ class InboundSmsService:
                 force_memory=repo_force_memory,
             ),
         )
+        self.slack_notifier = slack_notifier or slack_notification_service
 
     def handle_textgrid_webhook(
         self,
@@ -501,7 +506,7 @@ class InboundSmsService:
         *,
         signature: str | None,
         request_url: str | None = None,
-    ) -> dict[str, str]:
+    ) -> dict[str, Any]:
         if not self.textgrid_adapter.verify_signature(payload, signature=signature, request_url=request_url):
             raise ValueError("Invalid TextGrid webhook signature")
         event = self.textgrid_adapter.normalize(payload)
@@ -513,7 +518,7 @@ class InboundSmsService:
                 payload=payload,
             )
             self.webhook_receipts.mark_processed(receipt_id)
-            return {"status": "processed", "event_type": event.event_type, "action": "ignore"}
+            return {"status": "processed", "event_type": event.event_type, "action": "ignore", "notification": None}
         resolved = self._resolve_inbound_lead(event)
         should_record_receipt = (
             not lead_machine_backend_enabled(self.settings)
@@ -531,6 +536,7 @@ class InboundSmsService:
                     "event_type": event.event_type,
                     "action": self._decide_action(event),
                     "job_id": "",
+                    "notification": None,
                 }
         if resolved.lead is not None:
             self._append_inbound_message(
@@ -557,7 +563,13 @@ class InboundSmsService:
             )
         if receipt_id is not None:
             self.webhook_receipts.mark_processed(receipt_id)
-        response = {"status": "processed", "event_type": event.event_type, "action": action}
+        notification = self._notify_inbound_sms(event=event, resolved=resolved, action=action, receipt_id=receipt_id)
+        response = {
+            "status": "processed",
+            "event_type": event.event_type,
+            "action": action,
+            "notification": notification,
+        }
         if event.event_type == "inbound":
             response["job_id"] = job_id or ""
         return response
@@ -779,6 +791,46 @@ class InboundSmsService:
             dedupe_key=dedupe_key,
         )
 
+    def _notify_inbound_sms(
+        self,
+        *,
+        event: NormalizedSmsEvent,
+        resolved: ResolvedInboundLead,
+        action: SmsAction,
+        receipt_id: str | None,
+    ) -> dict[str, Any]:
+        dedupe_key = _sms_notification_dedupe_key(event=event, receipt_id=receipt_id)
+        payload = _sms_notification_payload(
+            event=event,
+            resolved=resolved,
+            action=action,
+            route=SlackNotificationRoute.SMS_CALLS,
+            dedupe_key=dedupe_key,
+        )
+        text = _sms_notification_text(payload)
+        blocks = _sms_notification_blocks(text=text, payload=payload)
+        try:
+            attempt = self.slack_notifier.notify(
+                route=SlackNotificationRoute.SMS_CALLS,
+                business_id=str(payload["business_id"]),
+                environment=str(payload["environment"]),
+                dedupe_key=dedupe_key,
+                text=text,
+                blocks=blocks,
+                payload=payload,
+            )
+        except Exception as exc:  # noqa: BLE001
+            return {
+                "route": SlackNotificationRoute.SMS_CALLS.value,
+                "status": "failed",
+                "deduped": False,
+                "channel_id": None,
+                "dedupe_key": dedupe_key,
+                "slack_message_ts": None,
+                "error_message": str(exc),
+            }
+        return _notification_summary(attempt, route=SlackNotificationRoute.SMS_CALLS, dedupe_key=dedupe_key)
+
     @staticmethod
     def _extract_provider_thread_id(metadata: dict[str, Any]) -> str | None:
         for key in ("provider_thread_id", "thread_id", "conversation_id"):
@@ -802,6 +854,171 @@ class InboundSmsService:
         if "call me" in body or "agent" in body:
             return "pause"
         return "qualify"
+
+
+def _sms_notification_dedupe_key(*, event: NormalizedSmsEvent, receipt_id: str | None) -> str:
+    if receipt_id:
+        return f"sms:{receipt_id}"
+    if event.external_id:
+        return f"sms:{event.external_id}"
+    digest = hashlib.sha256(
+        "|".join([event.from_number, event.to_number, event.body.strip().casefold()]).encode("utf-8")
+    ).hexdigest()[:24]
+    return f"sms:{digest}"
+
+
+def _sms_notification_payload(
+    *,
+    event: NormalizedSmsEvent,
+    resolved: ResolvedInboundLead,
+    action: SmsAction,
+    route: SlackNotificationRoute,
+    dedupe_key: str,
+) -> dict[str, Any]:
+    metadata = dict(event.metadata or {})
+    lead = resolved.lead
+    business_id = lead.business_id if lead is not None else str(metadata.get("business_id") or "unknown")
+    environment = lead.environment if lead is not None else str(metadata.get("environment") or "unknown")
+    reason = None
+    if resolved.ambiguous:
+        reason = "ambiguous_match"
+    elif resolved.unresolved:
+        reason = "unmatched_inbound"
+    return {
+        "business_id": business_id,
+        "environment": environment,
+        "route": route.value,
+        "dedupe_key": dedupe_key,
+        "event_type": event.event_type,
+        "external_id": event.external_id,
+        "from_number": event.from_number,
+        "to_number": event.to_number,
+        "body": event.body,
+        "lead_id": lead.id if lead is not None else None,
+        "lead_name": _marketing_lead_display_name(lead),
+        "property_address": lead.property_address if lead is not None else None,
+        "provider_thread_id": resolved.provider_thread_id,
+        "action": action,
+        "ambiguity_unmatched_reason": reason,
+        "thread_matched": resolved.thread_matched,
+        "next_action": _sms_next_action(action=action, reason=reason),
+    }
+
+
+def _sms_notification_text(payload: dict[str, Any]) -> str:
+    parts = [
+        _notification_context(payload),
+        (
+            f"Inbound SMS from {_field_value(payload.get('from_number'))} "
+            f"to {_field_value(payload.get('to_number'))}"
+        ),
+        f"Action: {_field_value(payload.get('action'))}",
+    ]
+    if payload.get("lead_id") or payload.get("lead_name") or payload.get("property_address"):
+        parts.append(
+            "Lead: "
+            + " / ".join(
+                value
+                for value in (
+                    _escape_slack_mrkdwn(payload.get("lead_id")),
+                    _escape_slack_mrkdwn(payload.get("lead_name")),
+                    _escape_slack_mrkdwn(payload.get("property_address")),
+                )
+                if value
+            )
+        )
+    if payload.get("ambiguity_unmatched_reason"):
+        parts.append(f"Reason: {_field_value(payload.get('ambiguity_unmatched_reason'))}")
+    body = str(payload.get("body") or "").strip()
+    if body:
+        parts.append(f"Body: {_escape_slack_mrkdwn(_truncate(body, 300))}")
+    parts.append(f"Next action: {_field_value(payload.get('next_action'))}")
+    return " | ".join(parts)
+
+
+def _sms_notification_blocks(*, text: str, payload: dict[str, Any]) -> list[dict[str, Any]]:
+    fields = [
+        f"*Route*\n{_field_value(payload.get('route'))}",
+        f"*Action*\n{_field_value(payload.get('action'))}",
+        f"*From / To*\n{_field_value(payload.get('from_number'))}\n{_field_value(payload.get('to_number'))}",
+        f"*Lead*\n{_field_value(payload.get('lead_id'))}\n{_field_value(payload.get('lead_name'))}",
+        f"*Property*\n{_field_value(payload.get('property_address'))}",
+        f"*Reason*\n{_field_value(payload.get('ambiguity_unmatched_reason'))}",
+        f"*Next action*\n{_field_value(payload.get('next_action'))}",
+    ]
+    return [
+        {"type": "section", "text": {"type": "mrkdwn", "text": text[:3000]}},
+        {"type": "context", "elements": [{"type": "mrkdwn", "text": _notification_context(payload)}]},
+        {"type": "section", "fields": [{"type": "mrkdwn", "text": field} for field in fields]},
+        {
+            "type": "section",
+            "text": {"type": "mrkdwn", "text": f"*Body*\n{_escape_slack_mrkdwn(_truncate(str(payload.get('body') or ''), 1200))}"},
+        },
+    ]
+
+
+def _sms_next_action(*, action: SmsAction, reason: str | None) -> str:
+    if reason:
+        return "Review unmatched inbound SMS and link it to the correct lead before replying."
+    if action == "stop":
+        return "Confirm sequence stop and avoid further automated SMS."
+    if action == "pause":
+        return "Review SMS reply and continue the operator workflow."
+    return "Review SMS reply and continue the operator workflow."
+
+
+def _notification_summary(
+    attempt: SlackNotificationAttempt | dict[str, Any],
+    *,
+    route: SlackNotificationRoute,
+    dedupe_key: str,
+) -> dict[str, Any]:
+    payload = attempt.model_dump(mode="json") if isinstance(attempt, SlackNotificationAttempt) else dict(attempt)
+    raw_route = payload.get("route")
+    return {
+        "route": raw_route.value if isinstance(raw_route, SlackNotificationRoute) else str(raw_route or route.value),
+        "status": str(payload.get("status") or "failed"),
+        "deduped": payload.get("deduped") is True,
+        "channel_id": payload.get("channel_id"),
+        "dedupe_key": str(payload.get("dedupe_key") or dedupe_key),
+        "slack_message_ts": payload.get("slack_message_ts"),
+        "error_message": payload.get("error_message"),
+    }
+
+
+def _marketing_lead_display_name(lead: MarketingLeadRecord | None) -> str | None:
+    if lead is None:
+        return None
+    name = " ".join(part for part in (lead.first_name, lead.last_name) if part)
+    return name or None
+
+
+def _notification_context(payload: dict[str, Any]) -> str:
+    return " ".join(
+        [
+            f"business={_escape_slack_mrkdwn(payload.get('business_id'))}",
+            f"env={_escape_slack_mrkdwn(payload.get('environment'))}",
+            f"route={_escape_slack_mrkdwn(payload.get('route'))}",
+            f"dedupe={_escape_slack_mrkdwn(payload.get('dedupe_key'))}",
+        ]
+    )
+
+
+def _field_value(value: Any) -> str:
+    text = _escape_slack_mrkdwn(value)
+    return text or "-"
+
+
+def _truncate(value: str, max_length: int) -> str:
+    text = " ".join(value.split())
+    if len(text) <= max_length:
+        return text
+    return f"{text[: max_length - 3]}..."
+
+
+def _escape_slack_mrkdwn(value: Any) -> str:
+    text = str(value or "").strip()
+    return text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
 
 
 def _default_request_sender(outbound_request: dict[str, Any]) -> Any:

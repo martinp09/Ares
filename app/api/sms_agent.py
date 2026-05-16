@@ -4,7 +4,9 @@ import inspect
 from typing import Any
 from urllib.parse import parse_qs
 
-from fastapi import APIRouter, Body, Depends, Header, HTTPException, Request, Response, status
+from fastapi import APIRouter, Body, Depends, Header, HTTPException, Request, status
+from fastapi.responses import JSONResponse
+from pydantic import BaseModel
 
 from app.db.sms_agent import SmsAgentSendRequestConflict
 from app.models.sms_agent import (
@@ -15,6 +17,7 @@ from app.models.sms_agent import (
     SmsAgentProcessPendingResponse,
     SmsAgentSendRequest,
     SmsAgentSendResponse,
+    SmsAgentWebhookResponse,
 )
 from app.services.inbound_sms_service import inbound_sms_service
 from app.services.sms_agent_service import SmsAgentService
@@ -25,6 +28,13 @@ public_router = APIRouter(prefix="/sms-agent", tags=["sms-agent"])
 
 def sms_agent_service_dependency() -> SmsAgentService:
     return SmsAgentService()
+
+
+def _webhook_response_content(response: BaseModel) -> dict[str, Any]:
+    content = response.model_dump(mode="json")
+    if content.get("notification") is None:
+        content.pop("notification", None)
+    return content
 
 
 @router.post("/messages", response_model=SmsAgentSendResponse, status_code=status.HTTP_201_CREATED)
@@ -79,7 +89,7 @@ async def handle_textgrid_sms_agent_webhook(
     request: Request,
     x_textgrid_signature: str | None = Header(default=None),
     x_twilio_signature: str | None = Header(default=None),
-) -> Response:
+) -> JSONResponse:
     raw_body = await request.body()
     content_type = request.headers.get("content-type", "")
     if content_type.startswith("application/x-www-form-urlencoded"):
@@ -117,8 +127,4 @@ async def handle_textgrid_sms_agent_webhook(
         result = handler(payload, **kwargs)
     except ValueError as exc:
         raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(exc)) from exc
-    return Response(
-        "<Response></Response>",
-        media_type="application/xml",
-        headers={"X-Ares-Sms-Agent-Status": str(result.get("status") or "processed")},
-    )
+    return JSONResponse(content=_webhook_response_content(SmsAgentWebhookResponse(**result)))

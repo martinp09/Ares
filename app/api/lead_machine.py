@@ -4,6 +4,7 @@ from datetime import date, datetime
 from typing import Any, Literal
 
 from fastapi import APIRouter, Header, HTTPException, Query, Request, status
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from app.core.config import get_settings
@@ -196,6 +197,14 @@ class InstantlyWebhookResponse(BaseModel):
     suppression_id: str | None = None
     membership_id: str | None = None
     task_id: str | None = None
+    notification: dict[str, Any] | None = None
+
+
+def _webhook_response_content(response: BaseModel) -> dict[str, Any]:
+    content = response.model_dump(mode="json")
+    if content.get("notification") is None:
+        content.pop("notification", None)
+    return content
 
 
 class InstantlyWebhookRequest(BaseModel):
@@ -419,7 +428,7 @@ async def ingest_instantly_webhook(
     business_id: str | None = Query(default=None, min_length=1),
     environment: str | None = Query(default=None, min_length=1),
     x_instantly_signature: str | None = Header(default=None),
-) -> InstantlyWebhookResponse:
+) -> JSONResponse:
     settings = get_settings()
     raw_body = await request.body()
     if isinstance(body, InstantlyWebhookRequest):
@@ -463,7 +472,7 @@ async def ingest_instantly_webhook(
         trusted=trusted,
         trust_reason=str(trust_reason),
     )
-    return InstantlyWebhookResponse(**result)
+    return JSONResponse(content=_webhook_response_content(InstantlyWebhookResponse(**result)))
 
 
 @router.post("/internal/nightly-source-pull", response_model=NightlySourcePullResponse)
