@@ -98,8 +98,19 @@ Current implementation notes:
 - Mission Control UI now follows the approved dark industrial terminal / pixel CRT style system
 - site-event ingestion is append-only and non-blocking at the API layer
 - Production wiring is live for Supabase-backed runtime state, Trigger callbacks, Instantly reply webhooks, TextGrid SMS/status callbacks, Cal.com booking callbacks, and Resend email smoke. Evidence is in `docs/rollout-evidence/production-2026-04-25.json`.
-- Lease-options landing-page contact intake is owned by Ares through `POST /marketing/leads`; the endpoint preserves seller-fit fields, consent metadata, and attribution from the public form, returns booking/side-effect status, and keeps seller-facing SMS/email plus Trigger reminder side effects gated by `PROVIDER_LIVE_SENDS_ENABLED`. Slack intake alerts are server-side and safely skipped until `PROVIDER_LIVE_SENDS_ENABLED=true` plus `SLACK_BOT_TOKEN` and an intake/lead channel are configured.
+- Lease-options landing-page contact intake is owned by Ares through `POST /marketing/leads`; the endpoint preserves seller-fit fields, consent metadata, and attribution from the public form, returns booking/side-effect status, and keeps seller-facing SMS/email plus Trigger reminder side effects gated by `PROVIDER_LIVE_SENDS_ENABLED`. Route Slack operator notifications are independent from prospect-facing send gates and are gated by `SLACK_NOTIFICATIONS_ENABLED`.
 - Activation readiness handoff: `docs/activation-readiness-handoff.md`; non-secret gate report: `python scripts/activation_readiness.py --json`. When reusing the existing local VPS env without copying secrets, run `python scripts/activation_readiness.py --json --env-file /opt/ares/Ares/.env --runtime-url https://production-readiness-afternoon.vercel.app --derive-local-defaults`.
+
+### Slack operator notifications
+
+Slack notifications are disabled by default and independent from prospect-facing send gates. Set `SLACK_NOTIFICATIONS_ENABLED=true`, invite the Ares Slack bot to each target channel, and configure `SLACK_CHANNEL_LEAD_RUNS`, `SLACK_CHANNEL_HOT_LEADS`, `SLACK_CHANNEL_INSTANTLY_REPLIES`, `SLACK_CHANNEL_LEASE_OPTION_INBOUND`, and `SLACK_CHANNEL_SMS_CALLS`.
+
+Run the no-post readiness check before any live Slack smoke:
+
+```bash
+uv run python scripts/slack_notification_readiness.py --json
+uv run python scripts/slack_notification_readiness.py --json --render-sample --route hot_leads
+```
 
 ## Landing Page Intake Contract
 
@@ -132,7 +143,7 @@ Current side effects:
 
 - `confirmation_sms`: TextGrid confirmation-only copy with STOP language and no booking link when `sms_consent=true`, TextGrid config exists, and `PROVIDER_LIVE_SENDS_ENABLED=true`.
 - `confirmation_email`: Resend confirmation with the booking link fallback when Resend config exists and `PROVIDER_LIVE_SENDS_ENABLED=true`.
-- `operator_slack_notification`: Slack `chat.postMessage` operator alert with lead/booking context when `PROVIDER_LIVE_SENDS_ENABLED=true` and `SLACK_BOT_TOKEN` plus `SLACK_CHANNEL_INTAKE` or `SLACK_CHANNEL_LEADS` are configured; otherwise skipped safely.
+- `operator_slack_notification`: Slack `chat.postMessage` operator alert with lead/booking context when `SLACK_NOTIFICATIONS_ENABLED=true`, `SLACK_BOT_TOKEN`, and the route channel are configured; otherwise skipped safely.
 - `trigger_non_booker_check`: delayed Trigger follow-up check when Trigger config exists and `PROVIDER_LIVE_SENDS_ENABLED=true`.
 
 Appointment reminder flow:
@@ -157,8 +168,14 @@ TEXTGRID_WEBHOOK_SECRET=<textgrid-webhook-secret>
 RESEND_API_KEY=<set only for confirmation/reminder email readiness>
 RESEND_FROM_EMAIL=<verified-sender>
 RESEND_REPLY_TO_EMAIL=<reply-to-email>
-SLACK_BOT_TOKEN=<set when Slack intake alerts are ready>
-SLACK_CHANNEL_INTAKE=<slack-channel-id>
+SLACK_NOTIFICATIONS_ENABLED=false
+SLACK_BOT_TOKEN=<set when Slack operator notifications are ready>
+SLACK_CHANNEL_LEAD_RUNS=<slack-channel-id>
+SLACK_CHANNEL_HOT_LEADS=<slack-channel-id>
+SLACK_CHANNEL_INSTANTLY_REPLIES=<slack-channel-id>
+SLACK_CHANNEL_LEASE_OPTION_INBOUND=<slack-channel-id>
+SLACK_CHANNEL_SMS_CALLS=<slack-channel-id>
+SLACK_CHANNEL_ERRORS=<optional-slack-channel-id>
 TRIGGER_SECRET_KEY=<trigger-secret-key>
 TRIGGER_NON_BOOKER_CHECK_TASK_ID=marketing-check-submitted-lead-booking
 TRIGGER_APPOINTMENT_REMINDER_TASK_ID=marketing-send-appointment-reminder
@@ -245,6 +262,7 @@ Live VPS rules:
 
 - Activation gates: `python scripts/activation_readiness.py --json`
   - Existing local VPS env without copying secrets: `python scripts/activation_readiness.py --json --env-file /opt/ares/Ares/.env --runtime-url https://production-readiness-afternoon.vercel.app --derive-local-defaults`
+- Slack operator notification gates: `uv run python scripts/slack_notification_readiness.py --json`
 - Provider request shape: `python scripts/smoke_provider_readiness.py`
 - Python: `uv run pytest -q`
 - Lead machine smoke: `uv run python scripts/smoke/lead_machine_smoke.py`

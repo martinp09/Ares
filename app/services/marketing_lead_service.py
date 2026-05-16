@@ -14,13 +14,16 @@ from app.db.contacts import ContactsRepository
 from app.db.messages import MessagesRepository
 from app.db.tasks import TasksRepository
 from app.models.marketing_leads import LeadUpsertRequest
+from app.models.slack_notifications import SlackNotificationAttempt, SlackNotificationRoute
 from app.models.tasks import TaskPriority, TaskRecord, TaskStatus, TaskType
 from app.services.providers.resend import send_test_email as send_resend_email
+from app.services.slack_notification_service import SlackNotificationService
 from app.providers.textgrid import build_outbound_sms_request
 
 _DEFAULT_TRIGGER_API_URL = "https://api.trigger.dev"
 _DEFAULT_NON_BOOKER_CHECK_TASK_ID = "marketing-check-submitted-lead-booking"
 _DEFAULT_NON_BOOKER_CHECK_DELAY = "5m"
+_SLACK_DELIVERY_PENDING = "slack_delivery_pending"
 
 
 @dataclass(slots=True)
@@ -64,7 +67,26 @@ class EmailGateway(Protocol):
 
 
 class OperatorNotifier(Protocol):
-    def notify_new_lead(self, payload: LeadIntakePayload, *, lead_id: str, booking_url: str) -> str | None: ...
+    def notify_new_lead(
+        self,
+        payload: LeadIntakePayload,
+        *,
+        lead_id: str,
+        booking_url: str,
+    ) -> SlackNotificationAttempt | str | None: ...
+
+
+class SlackNotifier(Protocol):
+    def notify(
+        self,
+        route: SlackNotificationRoute | str,
+        business_id: str,
+        environment: str,
+        dedupe_key: str,
+        text: str,
+        blocks: list[dict[str, Any]],
+        payload: dict[str, Any] | None = None,
+    ) -> SlackNotificationAttempt: ...
 
 
 class BookingLinkProvider(Protocol):
@@ -144,7 +166,13 @@ class _NoopEmailGateway:
 
 
 class _NoopOperatorNotifier:
-    def notify_new_lead(self, payload: LeadIntakePayload, *, lead_id: str, booking_url: str) -> str | None:
+    def notify_new_lead(
+        self,
+        payload: LeadIntakePayload,
+        *,
+        lead_id: str,
+        booking_url: str,
+    ) -> SlackNotificationAttempt | str | None:
         return None
 
 
@@ -203,61 +231,37 @@ class _ConfiguredResendEmailGateway:
         )
 
 
-class _ConfiguredSlackOperatorNotifier:
+class _SharedSlackOperatorNotifier:
     def __init__(
         self,
         *,
-        token: str,
-        channel: str,
-        request_sender: RequestSender,
+        slack_notifier: SlackNotifier,
     ) -> None:
-        self.token = token
-        self.channel = channel
-        self.request_sender = request_sender
+        self.slack_notifier = slack_notifier
 
-    def notify_new_lead(self, payload: LeadIntakePayload, *, lead_id: str, booking_url: str) -> str | None:
-        last_name = f" {payload.last_name}" if payload.last_name else ""
-        lead_name = f"{payload.first_name}{last_name}"
-        text = f"New lease-option lead: {lead_name} — {payload.property_address}"
-        fields = [
-            {"type": "mrkdwn", "text": f"*Lead:*\n{lead_name}"},
-            {"type": "mrkdwn", "text": f"*Phone:*\n{payload.phone}"},
-            {"type": "mrkdwn", "text": f"*Email:*\n{payload.email or 'not provided'}"},
-            {"type": "mrkdwn", "text": f"*Timeline:*\n{payload.timeline_to_sell or 'not provided'}"},
-            {"type": "mrkdwn", "text": f"*Asking goal:*\n{payload.asking_price_goal or 'not provided'}"},
-            {"type": "mrkdwn", "text": f"*LP variant:*\n{payload.lp_var or 'not provided'}"},
-        ]
-        provider_response = self.request_sender(
-            {
-                "endpoint": "https://slack.com/api/chat.postMessage",
-                "headers": {
-                    "Authorization": f"Bearer {self.token}",
-                    "Content-Type": "application/json",
-                    "Accept": "application/json",
-                },
-                "payload": {
-                    "channel": self.channel,
-                    "text": text,
-                    "unfurl_links": False,
-                    "unfurl_media": False,
-                    "blocks": [
-                        {"type": "header", "text": {"type": "plain_text", "text": "New lease-option lead"}},
-                        {"type": "section", "fields": fields},
-                        {"type": "section", "text": {"type": "mrkdwn", "text": f"*Property:*\n{payload.property_address}"}},
-                        {"type": "section", "text": {"type": "mrkdwn", "text": f"*Booking link:* {booking_url}"}},
-                        {"type": "context", "elements": [{"type": "mrkdwn", "text": f"lead_id={lead_id} • source={payload.utm_source or 'unknown'}"}]},
-                    ],
-                },
-            }
+    def notify_new_lead(
+        self,
+        payload: LeadIntakePayload,
+        *,
+        lead_id: str,
+        booking_url: str,
+    ) -> SlackNotificationAttempt:
+        dedupe_key = f"lease-option:{lead_id}"
+        message = _build_lease_option_slack_message(
+            payload=payload,
+            lead_id=lead_id,
+            booking_url=booking_url,
+            dedupe_key=dedupe_key,
         )
-        if isinstance(provider_response, dict) and provider_response.get("ok") is False:
-            raise RuntimeError(str(provider_response.get("error") or "Slack notification failed"))
-        if isinstance(provider_response, dict):
-            channel = provider_response.get("channel")
-            ts = provider_response.get("ts")
-            if channel and ts:
-                return f"{channel}:{ts}"
-        return _extract_provider_message_id(provider_response)
+        return self.slack_notifier.notify(
+            route=SlackNotificationRoute.LEASE_OPTION_INBOUND,
+            business_id=payload.business_id,
+            environment=payload.environment,
+            dedupe_key=dedupe_key,
+            text=message["text"],
+            blocks=message["blocks"],
+            payload=message["payload"],
+        )
 
 
 class _DefaultBookingLinkProvider:
@@ -427,6 +431,82 @@ def _build_confirmation_message(payload: LeadIntakePayload, *, booking_url: str 
     return f"Thanks {payload.first_name}, we got your lease-option request and will follow up shortly. Reply STOP to opt out."
 
 
+_SLACK_MRKDWN_ESCAPES = {
+    "&": "&amp;",
+    "<": "&lt;",
+    ">": "&gt;",
+    "*": r"\*",
+    "_": r"\_",
+    "~": r"\~",
+    "`": r"\`",
+}
+
+
+def _escape_slack_mrkdwn(value: str | None) -> str:
+    text = value if value else "not provided"
+    return "".join(_SLACK_MRKDWN_ESCAPES.get(char, char) for char in text)
+
+
+def _build_lease_option_slack_message(
+    *,
+    payload: LeadIntakePayload,
+    lead_id: str,
+    booking_url: str,
+    dedupe_key: str,
+) -> dict[str, Any]:
+    route = SlackNotificationRoute.LEASE_OPTION_INBOUND.value
+    lead_name = " ".join(part for part in [payload.first_name, payload.last_name] if part)
+    next_action = "Call or text the seller within 5 minutes, then update the lead record."
+    utm_fields = [
+        f"source={payload.utm_source or 'not provided'}",
+        f"medium={payload.utm_medium or 'not provided'}",
+        f"campaign={payload.utm_campaign or 'not provided'}",
+        f"term={payload.utm_term or 'not provided'}",
+        f"content={payload.utm_content or 'not provided'}",
+    ]
+    source_summary = " | ".join(utm_fields)
+    field_values = [
+        ("Business", payload.business_id, True),
+        ("Environment", payload.environment, True),
+        ("Route", route, False),
+        ("Dedupe key", dedupe_key, False),
+        ("Lead", lead_name, True),
+        ("Phone", payload.phone, True),
+        ("Email", payload.email, True),
+        ("Property", payload.property_address, True),
+        ("Timeline", payload.timeline_to_sell, True),
+        ("Asking goal", payload.asking_price_goal, True),
+        ("LP variant", payload.lp_var, True),
+        ("Source / UTM", source_summary, True),
+        ("Booking URL", booking_url, True),
+        ("Next action", next_action, False),
+    ]
+    fields = [
+        {"type": "mrkdwn", "text": f"*{label}:*\n{_escape_slack_mrkdwn(value) if escape else value}"}
+        for label, value, escape in field_values
+    ]
+    text = (
+        "New lease-option lead: "
+        f"{_escape_slack_mrkdwn(lead_name)} - "
+        f"{_escape_slack_mrkdwn(payload.property_address)}"
+    )
+    return {
+        "text": text,
+        "blocks": [
+            {"type": "header", "text": {"type": "plain_text", "text": "New lease-option inbound lead"}},
+            {"type": "section", "fields": fields[:10]},
+            {"type": "section", "fields": fields[10:]},
+        ],
+        "payload": {
+            "lead_id": lead_id,
+            "route": route,
+            "dedupe_key": dedupe_key,
+            "booking_url": booking_url,
+            "next_action": next_action,
+        },
+    }
+
+
 def _default_request_sender(outbound_request: dict[str, Any]) -> None:
     headers = {
         str(key): str(value)
@@ -467,6 +547,7 @@ class MarketingLeadService:
         sms_gateway: SmsGateway | None = None,
         email_gateway: EmailGateway | None = None,
         operator_notifier: OperatorNotifier | None = None,
+        slack_notifier: SlackNotifier | None = None,
         booking_link_provider: BookingLinkProvider | None = None,
         trigger_scheduler: TriggerScheduler | None = None,
         request_sender: RequestSender | None = None,
@@ -491,7 +572,8 @@ class MarketingLeadService:
         )
         self.operator_notifier = operator_notifier or self._build_operator_notifier(
             active_settings,
-            request_sender=active_request_sender,
+            slack_notifier=slack_notifier
+            or SlackNotificationService(settings=active_settings, request_sender=active_request_sender),
         )
         self.booking_link_provider = booking_link_provider or self._build_booking_link_provider(active_settings)
         self.trigger_scheduler = trigger_scheduler or _build_default_trigger_scheduler(active_settings)
@@ -567,7 +649,7 @@ class MarketingLeadService:
         lead_id: str,
         name: str,
         skipped: bool,
-        send: Callable[[], str | None],
+        send: Callable[[], SlackNotificationAttempt | str | None],
         channel: str | None = None,
         provider: str | None = None,
         body: str | None = None,
@@ -575,7 +657,7 @@ class MarketingLeadService:
         if skipped:
             return SideEffectStatus(name=name, status="skipped", error_message=None)
         try:
-            external_message_id = send()
+            result = send()
         except Exception as exc:
             error_message = str(exc)
             self.side_effect_recorder.record_failure(
@@ -585,6 +667,24 @@ class MarketingLeadService:
                 error_message=error_message,
             )
             return SideEffectStatus(name=name, status="failed", error_message=error_message)
+        external_message_id: str | None = None
+        if isinstance(result, SlackNotificationAttempt):
+            external_message_id = result.slack_message_ts
+            if result.status == "skipped":
+                return SideEffectStatus(name=name, status="skipped", error_message=result.error_message)
+            if result.deduped and result.error_message == _SLACK_DELIVERY_PENDING:
+                return SideEffectStatus(name=name, status="queued", error_message=None)
+            if result.status == "failed":
+                error_message = result.error_message or "Slack notification failed"
+                self.side_effect_recorder.record_failure(
+                    payload=payload,
+                    lead_id=lead_id,
+                    side_effect=name,
+                    error_message=error_message,
+                )
+                return SideEffectStatus(name=name, status="failed", error_message=error_message)
+        else:
+            external_message_id = result
         if channel is not None and provider is not None and body is not None:
             self.side_effect_recorder.record_outbound(
                 payload=payload,
@@ -629,17 +729,10 @@ class MarketingLeadService:
         return _NoopEmailGateway()
 
     @staticmethod
-    def _build_operator_notifier(settings: Settings, *, request_sender: RequestSender) -> OperatorNotifier:
-        if not settings.provider_live_sends_enabled:
+    def _build_operator_notifier(settings: Settings, *, slack_notifier: SlackNotifier) -> OperatorNotifier:
+        if not settings.slack_notifications_enabled:
             return _NoopOperatorNotifier()
-        channel = settings.slack_channel_intake or settings.slack_channel_leads
-        if settings.slack_bot_token and channel:
-            return _ConfiguredSlackOperatorNotifier(
-                token=settings.slack_bot_token,
-                channel=channel,
-                request_sender=request_sender,
-            )
-        return _NoopOperatorNotifier()
+        return _SharedSlackOperatorNotifier(slack_notifier=slack_notifier)
 
     @staticmethod
     def _build_booking_link_provider(settings: Settings) -> BookingLinkProvider:

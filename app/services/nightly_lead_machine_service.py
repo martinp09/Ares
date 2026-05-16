@@ -10,6 +10,7 @@ from typing import Any, Mapping
 from app.core.config import Settings, get_settings
 from app.db.probate_source_identities import ProbateSourceIdentityRepository
 from app.db.source_runs import SourceRunsRepository, source_runs_repository
+from app.models.slack_notifications import SlackNotificationAttempt, SlackNotificationRoute
 from app.models.source_runs import (
     MorningBrief,
     MorningBriefRequest,
@@ -34,6 +35,7 @@ from app.services.probate_autopilot_manifest_service import (
 from app.services.probate_case_detail_enrichment_service import ProbateCaseDetailEnrichmentService
 from app.services.probate_property_tax_title_enrichment_service import ProbatePropertyTaxTitleEnrichmentService
 from app.services.probate_source_provider_service import ProbateSourceProviderBridgeService
+from app.services.slack_notification_service import slack_notification_service
 
 
 DEFAULT_SOURCE_DEFINITIONS: tuple[dict[str, str], ...] = (
@@ -70,6 +72,9 @@ _ENRICHMENT_STAGE_LABELS = {
     "tax_overlay": "Tax delinquency overlay enrichment",
     "title_friction": "Land-record/title-friction enrichment",
 }
+_HOT_LEAD_VISIBLE_LIMIT = 10
+_PHONE_KEYS = ("phone", "phone_number", "primary_phone", "mobile", "mobile_phone", "contact_phone")
+_EMAIL_KEYS = ("email", "email_address", "primary_email", "contact_email")
 
 
 class NightlyLeadMachineService:
@@ -81,6 +86,7 @@ class NightlyLeadMachineService:
         case_detail_service: ProbateCaseDetailEnrichmentService | None = None,
         enrichment_service: ProbatePropertyTaxTitleEnrichmentService | None = None,
         source_identity_repository: ProbateSourceIdentityRepository | None = None,
+        slack_notifier: Any | None = None,
     ) -> None:
         self.repository = repository or source_runs_repository
         self.settings = settings or get_settings()
@@ -88,6 +94,7 @@ class NightlyLeadMachineService:
         self.case_detail_service = case_detail_service or ProbateCaseDetailEnrichmentService(settings=self.settings)
         self.enrichment_service = enrichment_service or ProbatePropertyTaxTitleEnrichmentService(settings=self.settings)
         self.source_identity_repository = source_identity_repository or ProbateSourceIdentityRepository(settings=self.settings)
+        self.slack_notifier = slack_notifier or slack_notification_service
 
     def run_nightly_source_pull(self, request: NightlySourcePullRequest) -> NightlySourcePullResponse:
         if request.live_source_calls:
@@ -205,12 +212,20 @@ class NightlyLeadMachineService:
             metadata=brief_metadata,
         )
         self.repository.save_brief(brief)
+        notifications = self._send_source_pull_notifications(
+            request=request,
+            source_runs=created_runs,
+            brief=brief,
+            response_warnings=response_warnings,
+            enrichment_result=enrichment_result,
+        )
         response = NightlySourcePullResponse(
             would_call_external_sources=would_call_external_sources,
             live_source_calls_enabled=would_call_external_sources,
             source_runs=created_runs,
             morning_brief=brief,
             warnings=response_warnings + brief.warnings,
+            notifications=notifications,
         )
         if request.idempotency_key:
             return self.repository.save_nightly_response_for_idempotency_key(
@@ -326,6 +341,164 @@ class NightlyLeadMachineService:
                     if identity_key:
                         keys_by_county.setdefault(county, set()).add(identity_key)
         return keys_by_county, remote_identity_warning
+
+    def _send_source_pull_notifications(
+        self,
+        *,
+        request: NightlySourcePullRequest,
+        source_runs: list[SourceRun],
+        brief: MorningBrief,
+        response_warnings: list[str],
+        enrichment_result: Mapping[str, Any] | None,
+    ) -> list[dict[str, Any]]:
+        hot_records = _hot_records_from_enrichment(enrichment_result)
+        notifications = [
+            self._notify_lead_run_digest(
+                request=request,
+                source_runs=source_runs,
+                brief=brief,
+                response_warnings=response_warnings,
+                hot_records=hot_records,
+            )
+        ]
+        if hot_records:
+            notifications.append(
+                self._notify_hot_leads_digest(
+                    request=request,
+                    source_runs=source_runs,
+                    hot_records=hot_records,
+                )
+            )
+        return notifications
+
+    def _notify_lead_run_digest(
+        self,
+        *,
+        request: NightlySourcePullRequest,
+        source_runs: list[SourceRun],
+        brief: MorningBrief,
+        response_warnings: list[str],
+        hot_records: list[dict[str, Any]],
+    ) -> dict[str, Any]:
+        dedupe_key = _source_pull_dedupe_key(request=request, source_runs=source_runs)
+        source_summary = _source_summary_from_brief(brief)
+        run_counts = {
+            "total": len(source_runs),
+            "completed": sum(1 for run in source_runs if run.status == SourceRunStatus.COMPLETED),
+            "failed": sum(1 for run in source_runs if run.status == SourceRunStatus.FAILED),
+        }
+        payload = {
+            "kind": "nightly_lead_machine_source_run_digest",
+            "business_id": request.business_id,
+            "environment": request.environment,
+            "run_id": request.run_id,
+            "command_id": request.command_id,
+            "trigger_run_id": request.trigger_run_id,
+            "idempotency_key": request.idempotency_key,
+            "run_counts": run_counts,
+            "new_record_count": brief.new_record_count,
+            "hot_lead_count": max(brief.hot_lead_count, len(hot_records)),
+            "warm_lead_count": brief.warm_lead_count,
+            "warnings": list(dict.fromkeys([*response_warnings, *brief.warnings]))[:10],
+            "source_summary": source_summary,
+            "no_send": True,
+            "provider_sends_enabled": False,
+        }
+        text = (
+            f"Lead-machine source run digest: {run_counts['completed']}/{run_counts['total']} completed, "
+            f"{brief.new_record_count} new records, {payload['hot_lead_count']} hot leads."
+        )
+        blocks = _lead_run_digest_blocks(text=text, payload=payload)
+        return self._notify_and_summarize(
+            route=SlackNotificationRoute.LEAD_RUNS,
+            business_id=request.business_id,
+            environment=request.environment,
+            dedupe_key=dedupe_key,
+            text=text,
+            blocks=blocks,
+            payload=payload,
+        )
+
+    def _notify_hot_leads_digest(
+        self,
+        *,
+        request: NightlySourcePullRequest,
+        source_runs: list[SourceRun],
+        hot_records: list[dict[str, Any]],
+    ) -> dict[str, Any]:
+        hot_leads = [_hot_lead_payload(record) for record in hot_records]
+        visible_hot_leads = hot_leads[:_HOT_LEAD_VISIBLE_LIMIT]
+        remaining_count = max(0, len(hot_leads) - len(visible_hot_leads))
+        base_key = _source_pull_dedupe_key(request=request, source_runs=source_runs)
+        dedupe_key = f"{base_key}:hot-leads"
+        payload = {
+            "kind": "nightly_lead_machine_hot_leads",
+            "business_id": request.business_id,
+            "environment": request.environment,
+            "run_id": request.run_id,
+            "command_id": request.command_id,
+            "trigger_run_id": request.trigger_run_id,
+            "idempotency_key": request.idempotency_key,
+            "hot_leads": visible_hot_leads,
+            "total_hot_lead_count": len(hot_leads),
+            "visible_hot_lead_count": len(visible_hot_leads),
+            "remaining_count": remaining_count,
+            "next_action": "Review enriched probate lead before any outreach approval.",
+            "no_send": True,
+            "provider_sends_enabled": False,
+        }
+        text = (
+            f"Hot probate lead digest: {len(hot_leads)} hot lead(s), showing {len(visible_hot_leads)}"
+            + (f"; {remaining_count} additional hidden by cap." if remaining_count else ".")
+        )
+        blocks = _hot_leads_digest_blocks(
+            text=text,
+            hot_leads=visible_hot_leads,
+            remaining_count=remaining_count,
+            next_action=str(payload["next_action"]),
+        )
+        return self._notify_and_summarize(
+            route=SlackNotificationRoute.HOT_LEADS,
+            business_id=request.business_id,
+            environment=request.environment,
+            dedupe_key=dedupe_key,
+            text=text,
+            blocks=blocks,
+            payload=payload,
+        )
+
+    def _notify_and_summarize(
+        self,
+        *,
+        route: SlackNotificationRoute,
+        business_id: str,
+        environment: str,
+        dedupe_key: str,
+        text: str,
+        blocks: list[dict[str, Any]],
+        payload: dict[str, Any],
+    ) -> dict[str, Any]:
+        try:
+            attempt = self.slack_notifier.notify(
+                route=route,
+                business_id=business_id,
+                environment=environment,
+                dedupe_key=dedupe_key,
+                text=text,
+                blocks=blocks,
+                payload=payload,
+            )
+        except Exception as exc:
+            return {
+                "route": route.value,
+                "status": "failed",
+                "deduped": False,
+                "channel_id": None,
+                "dedupe_key": dedupe_key,
+                "slack_message_ts": None,
+                "error_message": str(exc),
+            }
+        return _notification_summary(attempt, route=route, dedupe_key=dedupe_key)
 
     def _run_probate_case_detail_enrichment(
         self,
@@ -1776,6 +1949,237 @@ def _brief_would_call_live_sources(metadata: Mapping[str, Any], source_runs: lis
     if _metadata_would_call_live_sources(metadata):
         return True
     return any(run.metadata.get("would_call_external_sources") is True for run in source_runs)
+
+
+def _source_pull_dedupe_key(*, request: NightlySourcePullRequest, source_runs: list[SourceRun]) -> str:
+    if request.idempotency_key:
+        return f"nightly-source-pull:{request.idempotency_key}"
+    run_ids = sorted(run.id for run in source_runs)
+    digest = hashlib.sha256("|".join(run_ids).encode("utf-8")).hexdigest()[:24]
+    return f"nightly-source-pull:runs:{digest}"
+
+
+def _source_summary_from_brief(brief: MorningBrief) -> dict[str, Any]:
+    source_health = brief.sections.get("source_health") if isinstance(brief.sections.get("source_health"), Mapping) else {}
+    lanes = source_health.get("lanes") if isinstance(source_health.get("lanes"), list) else []
+    county_counts = brief.sections.get("county_counts") if isinstance(brief.sections.get("county_counts"), list) else []
+    return {
+        "lanes": [
+            {
+                "source_lane": item.get("source_lane"),
+                "run_count": _non_negative_int(item.get("run_count")),
+                "record_count": _non_negative_int(item.get("record_count")),
+                "failed_count": _non_negative_int(item.get("failed_count")),
+            }
+            for item in lanes
+            if isinstance(item, Mapping)
+        ],
+        "counties": [
+            {
+                "county": item.get("county"),
+                "run_count": _non_negative_int(item.get("run_count")),
+                "record_count": _non_negative_int(item.get("record_count")),
+            }
+            for item in county_counts
+            if isinstance(item, Mapping)
+        ],
+    }
+
+
+def _hot_records_from_enrichment(enrichment_result: Mapping[str, Any] | None) -> list[dict[str, Any]]:
+    if not isinstance(enrichment_result, Mapping):
+        return []
+    records = enrichment_result.get("records")
+    if not isinstance(records, list):
+        return []
+    hot_records = [
+        dict(record)
+        for record in records
+        if isinstance(record, Mapping) and _is_hot_record(record)
+    ]
+    return sorted(hot_records, key=lambda record: _lead_score(record.get("lead_score")), reverse=True)
+
+
+def _hot_lead_payload(record: Mapping[str, Any]) -> dict[str, Any]:
+    source_row = _mapping_path(record, "raw_payload", "source_row")
+    contact_candidates = _contact_candidates(record, source_row)
+    return {
+        "score": _lead_score(record.get("lead_score")),
+        "case_number": _text_or_none(record.get("case_number")),
+        "property_address": _text_or_none(record.get("property_address")),
+        "owner_name": _text_or_none(record.get("owner_name")),
+        "decedent_name": _text_or_none(record.get("decedent_name")),
+        "contact_hint": _contact_hint(contact_candidates),
+        "phone": _contact_value(record, source_row, contact_candidates, keys=_PHONE_KEYS),
+        "email": _contact_value(record, source_row, contact_candidates, keys=_EMAIL_KEYS),
+    }
+
+
+def _notification_summary(
+    attempt: SlackNotificationAttempt | Mapping[str, Any],
+    *,
+    route: SlackNotificationRoute,
+    dedupe_key: str,
+) -> dict[str, Any]:
+    payload = attempt.model_dump(mode="json") if isinstance(attempt, SlackNotificationAttempt) else dict(attempt)
+    raw_route = payload.get("route")
+    return {
+        "route": raw_route.value if isinstance(raw_route, SlackNotificationRoute) else str(raw_route or route.value),
+        "status": str(payload.get("status") or "failed"),
+        "deduped": payload.get("deduped") is True,
+        "channel_id": payload.get("channel_id"),
+        "dedupe_key": str(payload.get("dedupe_key") or dedupe_key),
+        "slack_message_ts": payload.get("slack_message_ts"),
+        "error_message": payload.get("error_message"),
+    }
+
+
+def _lead_run_digest_blocks(*, text: str, payload: Mapping[str, Any]) -> list[dict[str, Any]]:
+    source_summary = payload.get("source_summary") if isinstance(payload.get("source_summary"), Mapping) else {}
+    warnings = payload.get("warnings") if isinstance(payload.get("warnings"), list) else []
+    blocks = [
+        _section_block(text),
+        _section_block(
+            " | ".join(
+                [
+                    f"Failed: {_mapping_path(payload, 'run_counts').get('failed', 0)}",
+                    f"Warm: {payload.get('warm_lead_count', 0)}",
+                    f"Warnings: {len(warnings)}",
+                ]
+            )
+        ),
+        _section_block(f"*Lane summary*\n{_format_source_summary_items(source_summary.get('lanes'), key='source_lane')}"),
+        _section_block(f"*County summary*\n{_format_source_summary_items(source_summary.get('counties'), key='county')}"),
+    ]
+    if warnings:
+        blocks.append(_section_block("*Warnings*\n" + "\n".join(f"- {warning}" for warning in warnings[:10])))
+    return blocks
+
+
+def _hot_leads_digest_blocks(
+    *,
+    text: str,
+    hot_leads: list[dict[str, Any]],
+    remaining_count: int,
+    next_action: str,
+) -> list[dict[str, Any]]:
+    lead_lines = [_hot_lead_line(lead) for lead in hot_leads]
+    if remaining_count:
+        lead_lines.append(f"{remaining_count} additional hot lead(s) hidden by Slack digest cap.")
+    return [
+        _section_block(text),
+        _section_block("*Hot leads*\n" + "\n".join(lead_lines)),
+        _section_block(f"Next action: {next_action}"),
+    ]
+
+
+def _hot_lead_line(lead: Mapping[str, Any]) -> str:
+    parts = [
+        f"Case {lead.get('case_number') or 'unknown'}: score {lead.get('score')}",
+        f"Property: {lead.get('property_address') or 'unknown'}",
+        f"Owner: {lead.get('owner_name') or 'unknown'}",
+        f"Decedent: {lead.get('decedent_name') or 'unknown'}",
+        f"Contact: {lead.get('contact_hint') or 'unknown'}",
+    ]
+    if lead.get("phone"):
+        parts.append(f"Phone: {lead['phone']}")
+    if lead.get("email"):
+        parts.append(f"Email: {lead['email']}")
+    return " | ".join(parts)
+
+
+def _format_source_summary_items(items: Any, *, key: str) -> str:
+    if not isinstance(items, list):
+        return "none"
+    lines = []
+    for item in items[:10]:
+        if not isinstance(item, Mapping):
+            continue
+        label = item.get(key) or "unknown"
+        lines.append(
+            f"{label}: {_non_negative_int(item.get('record_count'))} records, "
+            f"{_non_negative_int(item.get('run_count'))} runs"
+        )
+    return "\n".join(lines) if lines else "none"
+
+
+def _section_block(text: str) -> dict[str, Any]:
+    return {"type": "section", "text": {"type": "mrkdwn", "text": text[:3000]}}
+
+
+def _mapping_path(value: Mapping[str, Any], *keys: str) -> dict[str, Any]:
+    current: Any = value
+    for key in keys:
+        if not isinstance(current, Mapping):
+            return {}
+        current = current.get(key)
+    return dict(current) if isinstance(current, Mapping) else {}
+
+
+def _lead_score(value: Any) -> float:
+    if isinstance(value, bool):
+        return 0.0
+    if isinstance(value, (int, float)):
+        return float(value)
+    try:
+        return float(str(value))
+    except (TypeError, ValueError):
+        return 0.0
+
+
+def _is_hot_record(record: Mapping[str, Any]) -> bool:
+    if _lead_score(record.get("lead_score")) >= 70:
+        return True
+    return str(record.get("temperature") or record.get("lead_temperature") or "").strip().lower() == "hot"
+
+
+def _text_or_none(value: Any) -> str | None:
+    if value is None:
+        return None
+    text = str(value).strip()
+    return text or None
+
+
+def _contact_candidates(record: Mapping[str, Any], source_row: Mapping[str, Any]) -> list[Mapping[str, Any]]:
+    candidates: list[Mapping[str, Any]] = []
+    for container in (record, source_row):
+        for key in ("contact_candidates", "all_contact_candidate_evidence", "contacts"):
+            value = container.get(key)
+            if isinstance(value, list):
+                candidates.extend(item for item in value if isinstance(item, Mapping))
+    return candidates
+
+
+def _contact_value(
+    record: Mapping[str, Any],
+    source_row: Mapping[str, Any],
+    contact_candidates: list[Mapping[str, Any]],
+    *,
+    keys: tuple[str, ...],
+) -> str | None:
+    for container in (record, source_row, *contact_candidates):
+        for key in keys:
+            text = _text_or_none(container.get(key))
+            if text:
+                return text
+    return None
+
+
+def _contact_hint(contact_candidates: Any) -> str | None:
+    if not isinstance(contact_candidates, list):
+        return None
+    for candidate in contact_candidates:
+        if not isinstance(candidate, Mapping):
+            continue
+        for key in ("name", "full_name", "contact_name"):
+            text = _text_or_none(candidate.get(key))
+            if text:
+                return text
+    return None
+
+
+def _safe_dedupe_part(value: Any) -> str:
+    return _safe_path_part(value).lower()
 
 
 nightly_lead_machine_service = NightlyLeadMachineService()

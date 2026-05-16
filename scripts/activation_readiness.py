@@ -91,6 +91,58 @@ def _gate(*, configured: bool, blockers: list[str], warnings: list[str] | None =
     }
 
 
+SLACK_ROUTE_CHANNELS = {
+    "lead_runs": {
+        "preferred_env_var": "SLACK_CHANNEL_LEAD_RUNS",
+        "setting": "slack_channel_lead_runs",
+        "fallback_env_vars": ["SLACK_CHANNEL_LEADS"],
+    },
+    "hot_leads": {
+        "preferred_env_var": "SLACK_CHANNEL_HOT_LEADS",
+        "setting": "slack_channel_hot_leads",
+        "fallback_env_vars": [],
+    },
+    "instantly_replies": {
+        "preferred_env_var": "SLACK_CHANNEL_INSTANTLY_REPLIES",
+        "setting": "slack_channel_instantly_replies",
+        "fallback_env_vars": [],
+    },
+    "lease_option_inbound": {
+        "preferred_env_var": "SLACK_CHANNEL_LEASE_OPTION_INBOUND",
+        "setting": "slack_channel_lease_option_inbound",
+        "fallback_env_vars": ["SLACK_CHANNEL_INTAKE"],
+    },
+    "sms_calls": {
+        "preferred_env_var": "SLACK_CHANNEL_SMS_CALLS",
+        "setting": "slack_channel_sms_calls",
+        "fallback_env_vars": [],
+    },
+}
+SLACK_LEGACY_CHANNELS = {
+    "SLACK_CHANNEL_INTAKE": "slack_channel_intake",
+    "SLACK_CHANNEL_LEADS": "slack_channel_leads",
+}
+
+
+def _slack_route_channel_report(settings: Settings) -> dict[str, Any]:
+    return {
+        route: {
+            "present": _present(getattr(settings, config["setting"])),
+            "preferred": True,
+            "preferred_env_var": config["preferred_env_var"],
+            "fallback_env_vars": list(config["fallback_env_vars"]),
+        }
+        for route, config in SLACK_ROUTE_CHANNELS.items()
+    }
+
+
+def _slack_legacy_channel_report(settings: Settings) -> dict[str, Any]:
+    return {
+        env_var: {"present": _present(getattr(settings, setting)), "preferred": False}
+        for env_var, setting in SLACK_LEGACY_CHANNELS.items()
+    }
+
+
 def _load_env_file(path: Path) -> dict[str, str]:
     values: dict[str, str] = {}
     for raw_line in path.read_text(encoding="utf-8").splitlines():
@@ -134,7 +186,7 @@ def build_activation_environment(
     runtime_url: str | None = None,
     derive_local_defaults: bool = False,
 ) -> dict[str, str]:
-    merged = dict(base_environ or os.environ)
+    merged = dict(os.environ if base_environ is None else base_environ)
     for env_file in env_files:
         merged.update(_load_env_file(env_file))
 
@@ -254,16 +306,23 @@ def activation_readiness(
         reply_to_present=_present(active_settings.resend_reply_to_email),
     )
 
-    slack_channel_ready = _present(active_settings.slack_channel_intake) or _present(active_settings.slack_channel_leads)
+    slack_route_channels = _slack_route_channel_report(active_settings)
+    slack_legacy_channels = _slack_legacy_channel_report(active_settings)
     slack_blockers = []
+    if not active_settings.slack_notifications_enabled:
+        slack_blockers.append("SLACK_NOTIFICATIONS_ENABLED=true is required")
     if not _present(active_settings.slack_bot_token):
         slack_blockers.append("SLACK_BOT_TOKEN is missing")
-    if not slack_channel_ready:
-        slack_blockers.append("SLACK_CHANNEL_INTAKE or SLACK_CHANNEL_LEADS is missing")
+    for route_report in slack_route_channels.values():
+        if not route_report["present"]:
+            slack_blockers.append(f"{route_report['preferred_env_var']} is missing")
     slack_gate = _gate(
         configured=not slack_blockers,
         blockers=slack_blockers,
+        slack_notifications_enabled=active_settings.slack_notifications_enabled,
         bot_token=_secret_status(active_settings.slack_bot_token),
+        route_channels=slack_route_channels,
+        legacy_channels=slack_legacy_channels,
         intake_channel_present=_present(active_settings.slack_channel_intake),
         leads_channel_present=_present(active_settings.slack_channel_leads),
         errors_channel_present=_present(active_settings.slack_channel_errors),
@@ -375,7 +434,9 @@ def main(argv: list[str] | None = None) -> int:
         help="Derive safe local activation defaults from loaded envs without copying secrets into a new file.",
     )
     args = parser.parse_args(argv)
+    base_environ = {} if args.env_file else os.environ
     environ = build_activation_environment(
+        base_environ=base_environ,
         env_files=tuple(args.env_file),
         runtime_url=args.runtime_url,
         derive_local_defaults=args.derive_local_defaults,

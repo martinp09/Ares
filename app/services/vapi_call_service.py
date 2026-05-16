@@ -8,11 +8,55 @@ from app.db.client import utc_now
 from app.db.provider_links import ProviderLinksRepository
 from app.models.calls import VoiceOutboundCallRequest
 from app.models.provider_links import ProviderObjectLink
+from app.models.slack_notifications import SlackNotificationAttempt, SlackNotificationRoute
 from app.providers.vapi import (
     VapiClient,
     normalize_vapi_webhook_payload,
     verify_vapi_webhook_secret,
 )
+from app.services.slack_notification_service import slack_notification_service
+
+_VAPI_OPERATOR_EVENT_TYPES = {
+    "incoming",
+    "call-ended",
+    "end-of-call-report",
+    "handoff",
+    "human-handoff",
+    "operator-handoff",
+}
+_VAPI_END_REPORT_SIGNALS = {"call-ended", "end-of-call-report"}
+_VAPI_OPERATOR_STATUS_TOKENS = {
+    "ended",
+    "failed",
+    "failure",
+    "error",
+    "errored",
+    "no-answer",
+    "noanswer",
+    "busy",
+    "canceled",
+    "cancelled",
+    "cancel",
+    "cancellation",
+    "timeout",
+    "timed-out",
+}
+_VAPI_HANDOFF_SIGNAL_MARKERS = (
+    "handoff",
+    "hand-off",
+    "human-handoff",
+    "human handoff",
+    "transfer-to-human",
+    "transfer to human",
+    "operator-review",
+    "operator review",
+    "needs-operator",
+    "needs operator",
+    "live-operator",
+    "live operator",
+)
+_VAPI_TEXT_SNIPPET_LIMIT = 280
+_VAPI_CONTEXT_SNIPPET_LIMIT = 220
 
 
 class VapiCallService:
@@ -22,10 +66,12 @@ class VapiCallService:
         settings: Settings | None = None,
         client: Any | None = None,
         provider_links: ProviderLinksRepository | None = None,
+        slack_notifier: Any | None = None,
     ) -> None:
         self.settings = settings or get_settings()
         self.client = client
         self.provider_links = provider_links
+        self.slack_notifier = slack_notifier or slack_notification_service
 
     def list_assistants_preview(self) -> dict[str, Any]:
         warnings = ["Phase 6 list route is config-only; no Vapi provider call was made."]
@@ -173,12 +219,19 @@ class VapiCallService:
                     "idempotency_key": None,
                     "trust_status": "rejected_bad_secret",
                     "status": None,
+                    "notification": None,
                 }
             trust_status = "verified_secret"
         else:
             trust_status = "unverified_accepted"
         normalized = normalize_vapi_webhook_payload(payload)
         idempotency_key = self._idempotency_key(normalized)
+        notification = self._notify_webhook(
+            payload=payload,
+            normalized=normalized,
+            idempotency_key=idempotency_key,
+            trust_status=trust_status,
+        )
         return {
             "accepted": True,
             "event_type": normalized.get("event_type"),
@@ -186,7 +239,50 @@ class VapiCallService:
             "idempotency_key": idempotency_key,
             "trust_status": trust_status,
             "status": normalized.get("status"),
+            "notification": notification,
         }
+
+    def _notify_webhook(
+        self,
+        *,
+        payload: Mapping[str, Any],
+        normalized: Mapping[str, Any],
+        idempotency_key: str,
+        trust_status: str,
+    ) -> dict[str, Any] | None:
+        if not _vapi_webhook_should_notify(payload=payload, normalized=normalized):
+            return None
+        dedupe_key = f"call:{idempotency_key}"
+        notification_payload = _vapi_notification_payload(
+            payload=payload,
+            normalized=normalized,
+            route=SlackNotificationRoute.SMS_CALLS,
+            dedupe_key=dedupe_key,
+            trust_status=trust_status,
+        )
+        text = _vapi_notification_text(notification_payload)
+        blocks = _vapi_notification_blocks(text=text, payload=notification_payload)
+        try:
+            attempt = self.slack_notifier.notify(
+                route=SlackNotificationRoute.SMS_CALLS,
+                business_id=str(notification_payload["business_id"]),
+                environment=str(notification_payload["environment"]),
+                dedupe_key=dedupe_key,
+                text=text,
+                blocks=blocks,
+                payload=notification_payload,
+            )
+        except Exception as exc:  # noqa: BLE001
+            return {
+                "route": SlackNotificationRoute.SMS_CALLS.value,
+                "status": "failed",
+                "deduped": False,
+                "channel_id": None,
+                "dedupe_key": dedupe_key,
+                "slack_message_ts": None,
+                "error_message": str(exc),
+            }
+        return _notification_summary(attempt, route=SlackNotificationRoute.SMS_CALLS, dedupe_key=dedupe_key)
 
     def _require_dispatch_preflight(self, request: VoiceOutboundCallRequest) -> None:
         if not request.operator_approval:
@@ -308,3 +404,263 @@ class VapiCallService:
     ) -> str:
         _ = (exc, request, payload)
         return "Vapi provider dispatch failed."
+
+
+def _vapi_notification_payload(
+    *,
+    payload: Mapping[str, Any],
+    normalized: Mapping[str, Any],
+    route: SlackNotificationRoute,
+    dedupe_key: str,
+    trust_status: str,
+) -> dict[str, Any]:
+    metadata = _mapping_value(payload, "metadata")
+    call = _mapping_value(payload, "call")
+    message = _mapping_value(payload, "message")
+    message_call = _mapping_value(message, "call")
+    customer = (
+        _mapping_value(call, "customer")
+        or _mapping_value(message_call, "customer")
+        or _mapping_value(payload, "customer")
+        or _mapping_value(message, "customer")
+    )
+    business_id = str(
+        metadata.get("business_id")
+        or call.get("business_id")
+        or message_call.get("business_id")
+        or message.get("business_id")
+        or "unknown"
+    )
+    environment = str(
+        metadata.get("environment")
+        or call.get("environment")
+        or message_call.get("environment")
+        or message.get("environment")
+        or "unknown"
+    )
+    handoff_context = _vapi_signal_context(payload, markers=_VAPI_HANDOFF_SIGNAL_MARKERS)
+    tool_result_context = _vapi_tool_result_context(payload)
+    return {
+        "business_id": business_id,
+        "environment": environment,
+        "route": route.value,
+        "dedupe_key": dedupe_key,
+        "provider_call_id": normalized.get("provider_call_id"),
+        "event_type": normalized.get("event_type"),
+        "status": normalized.get("status"),
+        "customer_number": _first_text(
+            customer.get("number"),
+            customer.get("phoneNumber"),
+            customer.get("phone_number"),
+            call.get("customerNumber"),
+            message_call.get("customerNumber"),
+            payload.get("customerNumber"),
+        ),
+        "customer_name": _first_text(
+            customer.get("name"),
+            customer.get("customerName"),
+            call.get("customerName"),
+            message_call.get("customerName"),
+            payload.get("customerName"),
+        ),
+        "summary": _snippet(normalized.get("summary"), limit=_VAPI_TEXT_SNIPPET_LIMIT),
+        "transcript": _snippet(normalized.get("transcript"), limit=_VAPI_TEXT_SNIPPET_LIMIT),
+        "recording_url": _snippet(normalized.get("recording_url"), limit=_VAPI_CONTEXT_SNIPPET_LIMIT),
+        "handoff_context": handoff_context,
+        "tool_result_context": tool_result_context,
+        "trust_status": trust_status,
+        "next_action": "Review Vapi call event and continue the operator workflow.",
+    }
+
+
+def _vapi_notification_text(payload: Mapping[str, Any]) -> str:
+    parts = [
+        _notification_context(payload),
+        (
+            f"Vapi {_field_value(payload.get('event_type'))} "
+            f"for call {_field_value(payload.get('provider_call_id'))}"
+        ),
+        f"Status: {_field_value(payload.get('status'))}",
+        f"Customer: {_field_value(payload.get('customer_number'))} / {_field_value(payload.get('customer_name'))}",
+        f"Trust: {_field_value(payload.get('trust_status'))}",
+    ]
+    for label, key in (
+        ("Summary", "summary"),
+        ("Transcript", "transcript"),
+        ("Recording", "recording_url"),
+        ("Handoff", "handoff_context"),
+        ("Tool result", "tool_result_context"),
+    ):
+        if payload.get(key):
+            parts.append(f"{label}: {_field_value(payload.get(key))}")
+    parts.append(f"Next action: {_field_value(payload.get('next_action'))}")
+    return " | ".join(parts)
+
+
+def _vapi_notification_blocks(*, text: str, payload: Mapping[str, Any]) -> list[dict[str, Any]]:
+    fields = [
+        f"*Provider call*\n{_field_value(payload.get('provider_call_id'))}",
+        f"*Event / Status*\n{_field_value(payload.get('event_type'))}\n{_field_value(payload.get('status'))}",
+        f"*Customer*\n{_field_value(payload.get('customer_name'))}\n{_field_value(payload.get('customer_number'))}",
+        f"*Trust*\n{_field_value(payload.get('trust_status'))}",
+        f"*Next action*\n{_field_value(payload.get('next_action'))}",
+    ]
+    for label, key in (
+        ("Summary", "summary"),
+        ("Transcript", "transcript"),
+        ("Recording", "recording_url"),
+        ("Handoff", "handoff_context"),
+        ("Tool result", "tool_result_context"),
+    ):
+        if payload.get(key):
+            fields.append(f"*{label}*\n{_field_value(payload.get(key))}")
+    return [
+        {"type": "section", "text": {"type": "mrkdwn", "text": text[:3000]}},
+        {"type": "context", "elements": [{"type": "mrkdwn", "text": _notification_context(payload)}]},
+        {"type": "section", "fields": [{"type": "mrkdwn", "text": field} for field in fields]},
+    ]
+
+
+def _notification_summary(
+    attempt: SlackNotificationAttempt | Mapping[str, Any],
+    *,
+    route: SlackNotificationRoute,
+    dedupe_key: str,
+) -> dict[str, Any]:
+    payload = attempt.model_dump(mode="json") if isinstance(attempt, SlackNotificationAttempt) else dict(attempt)
+    raw_route = payload.get("route")
+    return {
+        "route": raw_route.value if isinstance(raw_route, SlackNotificationRoute) else str(raw_route or route.value),
+        "status": str(payload.get("status") or "failed"),
+        "deduped": payload.get("deduped") is True,
+        "channel_id": payload.get("channel_id"),
+        "dedupe_key": str(payload.get("dedupe_key") or dedupe_key),
+        "slack_message_ts": payload.get("slack_message_ts"),
+        "error_message": payload.get("error_message"),
+    }
+
+
+def _notification_context(payload: Mapping[str, Any]) -> str:
+    return " ".join(
+        [
+            f"business={_escape_slack_mrkdwn(payload.get('business_id'))}",
+            f"env={_escape_slack_mrkdwn(payload.get('environment'))}",
+            f"route={_escape_slack_mrkdwn(payload.get('route'))}",
+            f"dedupe={_escape_slack_mrkdwn(payload.get('dedupe_key'))}",
+        ]
+    )
+
+
+def _field_value(value: Any) -> str:
+    text = _escape_slack_mrkdwn(value)
+    return text or "-"
+
+
+def _escape_slack_mrkdwn(value: Any) -> str:
+    text = str(value or "").strip()
+    return text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+
+
+def _mapping_value(mapping: Mapping[str, Any], key: str) -> Mapping[str, Any]:
+    value = mapping.get(key)
+    return value if isinstance(value, Mapping) else {}
+
+
+def _first_text(*values: Any) -> str | None:
+    for value in values:
+        if value not in (None, ""):
+            return str(value)
+    return None
+
+
+def _vapi_webhook_should_notify(*, payload: Mapping[str, Any], normalized: Mapping[str, Any]) -> bool:
+    event_type = _event_token(normalized.get("event_type"))
+    if event_type in _VAPI_OPERATOR_EVENT_TYPES:
+        return True
+    if _event_token(normalized.get("status")) in _VAPI_OPERATOR_STATUS_TOKENS:
+        return True
+    if _vapi_payload_has_end_report_signal(payload):
+        return True
+    return bool(_vapi_signal_context(payload, markers=_VAPI_HANDOFF_SIGNAL_MARKERS) or _vapi_tool_result_context(payload))
+
+
+def _vapi_payload_has_end_report_signal(payload: Mapping[str, Any]) -> bool:
+    for mapping in _walk_mappings(payload):
+        for key in ("type", "event", "event_type", "messageType", "message_type"):
+            if _event_token(mapping.get(key)) in _VAPI_END_REPORT_SIGNALS:
+                return True
+    return False
+
+
+def _vapi_signal_context(payload: Mapping[str, Any], *, markers: tuple[str, ...]) -> str | None:
+    for value in _walk_values(payload):
+        text = str(value)
+        token = _event_token(text)
+        if any(marker in token or marker in text.casefold() for marker in markers):
+            return _snippet(text, limit=_VAPI_CONTEXT_SNIPPET_LIMIT)
+    return None
+
+
+def _vapi_tool_result_context(payload: Mapping[str, Any]) -> str | None:
+    contexts: list[str] = []
+    for mapping in _walk_mappings(payload):
+        function = _mapping_value(mapping, "function")
+        tool_name = _first_text(
+            function.get("name"),
+            mapping.get("name"),
+            mapping.get("toolName"),
+            mapping.get("tool_name"),
+            mapping.get("type"),
+        )
+        result = _first_text(mapping.get("result"), mapping.get("output"), mapping.get("response"), mapping.get("content"))
+        if tool_name and (result or _has_tool_shape(mapping)):
+            context = tool_name if not result else f"{tool_name}: {result}"
+            contexts.append(_snippet(context, limit=_VAPI_CONTEXT_SNIPPET_LIMIT))
+        if len(contexts) >= 2:
+            break
+    return "; ".join(context for context in contexts if context) or None
+
+
+def _has_tool_shape(mapping: Mapping[str, Any]) -> bool:
+    return any(key in mapping for key in ("toolCallId", "toolCall", "toolCalls", "tool_call_id", "tool_call", "tool_calls", "function"))
+
+
+def _walk_mappings(value: Any) -> list[Mapping[str, Any]]:
+    if isinstance(value, Mapping):
+        mappings = [value]
+        for child in value.values():
+            mappings.extend(_walk_mappings(child))
+        return mappings
+    if isinstance(value, list | tuple):
+        mappings: list[Mapping[str, Any]] = []
+        for child in value:
+            mappings.extend(_walk_mappings(child))
+        return mappings
+    return []
+
+
+def _walk_values(value: Any) -> list[Any]:
+    if isinstance(value, Mapping):
+        values = list(value.keys())
+        for child in value.values():
+            values.extend(_walk_values(child))
+        return values
+    if isinstance(value, list | tuple):
+        values: list[Any] = []
+        for child in value:
+            values.extend(_walk_values(child))
+        return values
+    return [value]
+
+
+def _event_token(value: Any) -> str:
+    return str(value or "").strip().casefold().replace("_", "-").replace(".", "-").replace(" ", "-")
+
+
+def _snippet(value: Any, *, limit: int) -> str | None:
+    text = " ".join(str(value or "").split())
+    if not text:
+        return None
+    if len(text) <= limit:
+        return text
+    return f"{text[: max(0, limit - 3)].rstrip()}..."

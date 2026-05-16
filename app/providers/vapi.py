@@ -237,8 +237,13 @@ def verify_vapi_webhook_secret(expected: str | None, provided: str | None) -> bo
 def normalize_vapi_webhook_payload(payload: Mapping[str, Any]) -> dict[str, Any]:
     message = payload.get("message") if isinstance(payload.get("message"), Mapping) else {}
     call = payload.get("call") if isinstance(payload.get("call"), Mapping) else {}
+    message_call = message.get("call") if isinstance(message.get("call"), Mapping) else {}
     artifact = payload.get("artifact") if isinstance(payload.get("artifact"), Mapping) else {}
+    message_artifact = message.get("artifact") if isinstance(message.get("artifact"), Mapping) else {}
     analysis = payload.get("analysis") if isinstance(payload.get("analysis"), Mapping) else {}
+    message_analysis = message.get("analysis") if isinstance(message.get("analysis"), Mapping) else {}
+    artifact_recording = artifact.get("recording") if isinstance(artifact.get("recording"), Mapping) else {}
+    message_artifact_recording = message_artifact.get("recording") if isinstance(message_artifact.get("recording"), Mapping) else {}
 
     event_type = str(payload.get("type") or payload.get("event") or message.get("type") or "vapi.webhook").strip()
     provider_call_id = _first_present(
@@ -246,18 +251,53 @@ def normalize_vapi_webhook_payload(payload: Mapping[str, Any]) -> dict[str, Any]
         payload.get("call_id"),
         call.get("id"),
         call.get("callId"),
+        message_call.get("id"),
+        message_call.get("callId"),
         message.get("callId"),
         message.get("call_id"),
     )
-    status = _first_present(payload.get("status"), call.get("status"), message.get("status"), message.get("endedReason"))
-    transcript = _first_present(payload.get("transcript"), artifact.get("transcript"), call.get("transcript"), message.get("transcript"))
-    summary = _first_present(payload.get("summary"), analysis.get("summary"), artifact.get("summary"), message.get("summary"))
+    status = _first_present(
+        payload.get("status"),
+        call.get("status"),
+        message_call.get("status"),
+        message.get("status"),
+        message.get("endedReason"),
+    )
+    transcript = _first_present(
+        payload.get("transcript"),
+        artifact.get("transcript"),
+        message_artifact.get("transcript"),
+        call.get("transcript"),
+        message_call.get("transcript"),
+        message.get("transcript"),
+    )
+    summary = _first_present(
+        payload.get("summary"),
+        analysis.get("summary"),
+        message_analysis.get("summary"),
+        artifact.get("summary"),
+        message_artifact.get("summary"),
+        message.get("summary"),
+    )
     recording_url = _first_present(
         payload.get("recordingUrl"),
         payload.get("recording_url"),
+        message.get("recordingUrl"),
+        message.get("recording_url"),
+        message.get("stereoRecordingUrl"),
+        message.get("stereo_recording_url"),
+        message.get("videoUrl"),
+        message.get("video_url"),
         artifact.get("recordingUrl"),
         artifact.get("recording_url"),
+        message_artifact.get("recordingUrl"),
+        message_artifact.get("recording_url"),
+        _recording_url_from_recording(artifact_recording),
+        _recording_url_from_recording(message_artifact_recording),
         call.get("recordingUrl"),
+        call.get("recording_url"),
+        message_call.get("recordingUrl"),
+        message_call.get("recording_url"),
     )
     timestamp = _first_present(payload.get("timestamp"), payload.get("createdAt"), message.get("timestamp"), message.get("createdAt"))
     message_id = _first_present(payload.get("id"), payload.get("messageId"), message.get("id"), message.get("messageId"))
@@ -292,3 +332,37 @@ def _first_present(*values: Any) -> Any:
         if value not in (None, ""):
             return value
     return None
+
+
+def _recording_url_from_recording(recording: Mapping[str, Any]) -> Any:
+    nested_mono = recording.get("mono") if isinstance(recording.get("mono"), Mapping) else {}
+    nested_stereo = recording.get("stereo") if isinstance(recording.get("stereo"), Mapping) else {}
+    nested_video = recording.get("video") if isinstance(recording.get("video"), Mapping) else {}
+    return _first_present(
+        recording.get("url"),
+        recording.get("recordingUrl"),
+        recording.get("recording_url"),
+        recording.get("stereoUrl"),
+        recording.get("stereoRecordingUrl"),
+        recording.get("stereo_recording_url"),
+        recording.get("videoUrl"),
+        recording.get("videoRecordingUrl"),
+        recording.get("video_recording_url"),
+        recording.get("combinedUrl"),
+        recording.get("combined_url"),
+        nested_mono.get("combinedUrl"),
+        nested_mono.get("combined_url"),
+        nested_mono.get("url"),
+        nested_mono.get("recordingUrl"),
+        nested_mono.get("recording_url"),
+        nested_stereo.get("combinedUrl"),
+        nested_stereo.get("combined_url"),
+        nested_stereo.get("url"),
+        nested_stereo.get("recordingUrl"),
+        nested_stereo.get("recording_url"),
+        nested_video.get("combinedUrl"),
+        nested_video.get("combined_url"),
+        nested_video.get("url"),
+        nested_video.get("recordingUrl"),
+        nested_video.get("recording_url"),
+    )

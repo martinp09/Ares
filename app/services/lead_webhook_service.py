@@ -11,13 +11,24 @@ from app.db.client import utc_now
 from app.models.campaigns import CampaignRecord, CampaignStatus
 from app.models.lead_events import LeadEventRecord, ProviderWebhookReceiptRecord
 from app.models.leads import LeadInterestStatus, LeadLifecycleStatus, LeadRecord, LeadSource
+from app.models.slack_notifications import SlackNotificationAttempt, SlackNotificationRoute
 from app.providers.instantly import normalize_webhook_payload
 from app.services.campaign_lifecycle_service import CampaignLifecycleService
 from app.services.lead_sequence_runner import LeadSequenceRunner
 from app.services.lead_suppression_service import LeadSuppressionService
+from app.services.slack_notification_service import slack_notification_service
 from app.services.lead_task_service import LeadTaskService
 from app.services.opportunity_service import OpportunityService
 from app.models.opportunities import OpportunitySourceLane
+
+
+INSTANTLY_OPERATOR_SLACK_EVENT_TYPES = {
+    "lead.reply.received",
+    "lead.reply.auto_received",
+    "lead.status.interested",
+    "lead.status.not_interested",
+    "lead.suppressed.unsubscribe",
+}
 
 
 class LeadWebhookService:
@@ -34,6 +45,7 @@ class LeadWebhookService:
         task_service: LeadTaskService | None = None,
         campaign_lifecycle_service: CampaignLifecycleService | None = None,
         opportunity_service: OpportunityService | None = None,
+        slack_notifier: Any | None = None,
     ) -> None:
         self.leads_repository = leads_repository or LeadsRepository()
         self.lead_events_repository = lead_events_repository or LeadEventsRepository()
@@ -45,6 +57,7 @@ class LeadWebhookService:
         self.task_service = task_service or LeadTaskService()
         self.campaign_lifecycle_service = campaign_lifecycle_service or CampaignLifecycleService(self.campaigns_repository)
         self.opportunity_service = opportunity_service or OpportunityService()
+        self.slack_notifier = slack_notifier or slack_notification_service
 
     def handle_instantly_webhook(
         self,
@@ -71,7 +84,7 @@ class LeadWebhookService:
             )
         )
         if receipt.deduped:
-            return {"status": "duplicate", "receipt_id": receipt.id, "event_id": receipt.lead_event_id}
+            return {"status": "duplicate", "receipt_id": receipt.id, "event_id": receipt.lead_event_id, "notification": None}
 
         lead = self._resolve_lead(business_id=business_id, environment=environment, normalized=normalized)
         campaign = self._resolve_campaign(business_id=business_id, environment=environment, normalized=normalized)
@@ -98,7 +111,7 @@ class LeadWebhookService:
         )
         if event.deduped:
             self.provider_webhooks_repository.mark_processed(receipt.id, lead_event_id=event.id)
-            return {"status": "duplicate", "receipt_id": receipt.id, "event_id": event.id}
+            return {"status": "duplicate", "receipt_id": receipt.id, "event_id": event.id, "notification": None}
 
         updated_campaign = self._apply_event_to_campaign(campaign, event)
         resolved_campaign = updated_campaign or campaign
@@ -127,6 +140,12 @@ class LeadWebhookService:
             event=event,
         )
         self.provider_webhooks_repository.mark_processed(receipt.id, lead_event_id=event.id)
+        notification = self._notify_instantly_operator_event(
+            lead=updated_lead,
+            campaign=resolved_campaign,
+            event=event,
+            task_id=task.id if task is not None else None,
+        )
         return {
             "status": "processed",
             "receipt_id": receipt.id,
@@ -135,7 +154,55 @@ class LeadWebhookService:
             "suppression_id": suppression.id if suppression is not None else None,
             "membership_id": membership.id if membership is not None else None,
             "task_id": task.id if task is not None else None,
+            "notification": notification,
         }
+
+    def _notify_instantly_operator_event(
+        self,
+        *,
+        lead: LeadRecord,
+        campaign: CampaignRecord | None,
+        event: LeadEventRecord,
+        task_id: str | None,
+    ) -> dict[str, Any] | None:
+        if event.event_type not in INSTANTLY_OPERATOR_SLACK_EVENT_TYPES:
+            return None
+        dedupe_key = f"instantly:{event.id or event.idempotency_key}"
+        payload = _instantly_notification_payload(
+            lead=lead,
+            campaign=campaign,
+            event=event,
+            task_id=task_id,
+            route=SlackNotificationRoute.INSTANTLY_REPLIES,
+            dedupe_key=dedupe_key,
+        )
+        text = _instantly_notification_text(payload)
+        blocks = _instantly_notification_blocks(text=text, payload=payload)
+        try:
+            attempt = self.slack_notifier.notify(
+                route=SlackNotificationRoute.INSTANTLY_REPLIES,
+                business_id=event.business_id,
+                environment=event.environment,
+                dedupe_key=dedupe_key,
+                text=text,
+                blocks=blocks,
+                payload=payload,
+            )
+        except Exception as exc:
+            return {
+                "route": SlackNotificationRoute.INSTANTLY_REPLIES.value,
+                "status": "failed",
+                "deduped": False,
+                "channel_id": None,
+                "dedupe_key": dedupe_key,
+                "slack_message_ts": None,
+                "error_message": str(exc),
+            }
+        return _notification_summary(
+            attempt,
+            route=SlackNotificationRoute.INSTANTLY_REPLIES,
+            dedupe_key=dedupe_key,
+        )
 
     def _resolve_lead(self, *, business_id: str, environment: str, normalized: Mapping[str, Any]) -> LeadRecord:
         lead_email = str(normalized.get("lead_email") or "").strip()
@@ -371,6 +438,154 @@ class LeadWebhookService:
                 "last_event_type": event.event_type,
             },
         )
+
+
+def _instantly_notification_payload(
+    *,
+    lead: LeadRecord,
+    campaign: CampaignRecord | None,
+    event: LeadEventRecord,
+    task_id: str | None,
+    route: SlackNotificationRoute,
+    dedupe_key: str,
+) -> dict[str, Any]:
+    campaign_id = campaign.provider_campaign_id if campaign is not None else event.campaign_id
+    campaign_name = campaign.name if campaign is not None else event.metadata.get("campaign_name")
+    reply_text = _first_text(
+        event.payload,
+        event.metadata,
+        keys=("reply_text", "reply_snippet", "snippet", "message", "body", "text", "reply_html", "email_text"),
+    )
+    return {
+        "business_id": event.business_id,
+        "environment": event.environment,
+        "route": route.value,
+        "dedupe_key": dedupe_key,
+        "event_type": event.event_type,
+        "event_id": event.id,
+        "lead_id": lead.id,
+        "lead_email": lead.email,
+        "lead_name": _lead_display_name(lead),
+        "campaign_id": campaign_id,
+        "campaign_name": campaign_name,
+        "reply_text": reply_text,
+        "task_id": task_id,
+        "next_action": "Review reply and decide next operator action",
+    }
+
+
+def _instantly_notification_text(payload: Mapping[str, Any]) -> str:
+    context = _instantly_notification_context(payload)
+    lead_bits = [_escape_slack_mrkdwn(payload.get("lead_email")), _escape_slack_mrkdwn(payload.get("lead_name"))]
+    lead_label = " / ".join(bit for bit in lead_bits if bit) or "unknown lead"
+    campaign_bits = [_escape_slack_mrkdwn(payload.get("campaign_name")), _escape_slack_mrkdwn(payload.get("campaign_id"))]
+    campaign_label = " / ".join(bit for bit in campaign_bits if bit) or "unknown campaign"
+    reply_text = str(payload.get("reply_text") or "").strip()
+    task_id = _escape_slack_mrkdwn(payload.get("task_id"))
+    parts = [
+        context,
+        f"Instantly {_escape_slack_mrkdwn(payload['event_type'])} for {lead_label}",
+        f"Campaign: {campaign_label}",
+    ]
+    if reply_text:
+        parts.append(f"Reply: {_escape_slack_mrkdwn(_truncate(reply_text, 300))}")
+    if task_id:
+        parts.append(f"Task: {task_id}")
+    parts.append(f"Next action: {_escape_slack_mrkdwn(payload['next_action'])}")
+    return " | ".join(parts)
+
+
+def _instantly_notification_blocks(*, text: str, payload: Mapping[str, Any]) -> list[dict[str, Any]]:
+    fields = [
+        f"*Event*\n{_escape_slack_mrkdwn(payload['event_type'])}",
+        f"*Lead*\n{_field_value(payload.get('lead_name'))}\n{_field_value(payload.get('lead_email'))}",
+        f"*Campaign*\n{_field_value(payload.get('campaign_name'))}\n{_field_value(payload.get('campaign_id'))}",
+        f"*Task*\n{_field_value(payload.get('task_id'))}",
+        f"*Next action*\n{_escape_slack_mrkdwn(payload['next_action'])}",
+    ]
+    blocks: list[dict[str, Any]] = [
+        {"type": "section", "text": {"type": "mrkdwn", "text": text}},
+        {
+            "type": "context",
+            "elements": [{"type": "mrkdwn", "text": _instantly_notification_context(payload)}],
+        },
+        {
+            "type": "section",
+            "fields": [{"type": "mrkdwn", "text": field} for field in fields],
+        },
+    ]
+    if payload.get("reply_text"):
+        blocks.append(
+            {
+                "type": "section",
+                "text": {"type": "mrkdwn", "text": f"*Reply*\n{_escape_slack_mrkdwn(_truncate(str(payload['reply_text']), 1200))}"},
+            }
+        )
+    return blocks
+
+
+def _instantly_notification_context(payload: Mapping[str, Any]) -> str:
+    return " ".join(
+        [
+            f"business={_escape_slack_mrkdwn(payload.get('business_id'))}",
+            f"env={_escape_slack_mrkdwn(payload.get('environment'))}",
+            f"route={_escape_slack_mrkdwn(payload.get('route'))}",
+            f"dedupe={_escape_slack_mrkdwn(payload.get('dedupe_key'))}",
+        ]
+    )
+
+
+def _notification_summary(
+    attempt: SlackNotificationAttempt | Mapping[str, Any],
+    *,
+    route: SlackNotificationRoute,
+    dedupe_key: str,
+) -> dict[str, Any]:
+    payload = attempt.model_dump(mode="json") if isinstance(attempt, SlackNotificationAttempt) else dict(attempt)
+    raw_route = payload.get("route")
+    return {
+        "route": raw_route.value if isinstance(raw_route, SlackNotificationRoute) else str(raw_route or route.value),
+        "status": str(payload.get("status") or "failed"),
+        "deduped": payload.get("deduped") is True,
+        "channel_id": payload.get("channel_id"),
+        "dedupe_key": str(payload.get("dedupe_key") or dedupe_key),
+        "slack_message_ts": payload.get("slack_message_ts"),
+        "error_message": payload.get("error_message"),
+    }
+
+
+def _lead_display_name(lead: LeadRecord) -> str | None:
+    name = " ".join(part for part in (lead.first_name, lead.last_name) if part)
+    return name or lead.company_name
+
+
+def _first_text(*mappings: Mapping[str, Any], keys: tuple[str, ...]) -> str | None:
+    for mapping in mappings:
+        for key in keys:
+            value = mapping.get(key)
+            if value is None:
+                continue
+            text = str(value).strip()
+            if text:
+                return text
+    return None
+
+
+def _field_value(value: Any) -> str:
+    text = _escape_slack_mrkdwn(value)
+    return text or "-"
+
+
+def _truncate(value: str, max_length: int) -> str:
+    text = " ".join(value.split())
+    if len(text) <= max_length:
+        return text
+    return f"{text[: max_length - 3]}..."
+
+
+def _escape_slack_mrkdwn(value: Any) -> str:
+    text = str(value or "").strip()
+    return text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
 
 
 lead_webhook_service = LeadWebhookService()

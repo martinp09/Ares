@@ -1,17 +1,143 @@
 from pathlib import Path
+from typing import Any
 
 import pytest
 
 from app.core.config import Settings
 from app.db.source_runs import SourceRunsPersistenceError, SourceRunsRepository
+from app.models.slack_notifications import SlackNotificationAttempt
 from app.models.source_runs import MorningBriefRequest, NightlySourcePullRequest, SourceRunArtifact, SourceRunManifest, SourceRunStatus
 from app.services.nightly_lead_machine_service import NightlyLeadMachineService
 from app.services.probate_autopilot_manifest_service import probate_source_identity_key
 
 
+class StubSlackNotifier:
+    def __init__(self) -> None:
+        self.calls: list[dict[str, Any]] = []
+
+    def notify(self, **kwargs: Any) -> SlackNotificationAttempt:
+        self.calls.append(kwargs)
+        return SlackNotificationAttempt(
+            business_id=kwargs["business_id"],
+            environment=kwargs["environment"],
+            route=kwargs["route"],
+            dedupe_key=kwargs["dedupe_key"],
+            channel_id=f"C-{kwargs['route']}",
+            status="sent",
+            slack_message_ts=f"ts-{len(self.calls)}",
+            payload=kwargs.get("payload") or {},
+        )
+
+
+class StubEnrichmentService:
+    def __init__(self, result: dict[str, Any]) -> None:
+        self.result = result
+
+    def run_enrichment(self, **_kwargs: Any) -> dict[str, Any]:
+        return self.result
+
+
+def _visible_block_text(call: dict[str, Any]) -> str:
+    parts: list[str] = []
+    for block in call["blocks"]:
+        text = block.get("text") if isinstance(block, dict) else None
+        if isinstance(text, dict):
+            parts.append(str(text.get("text") or ""))
+        fields = block.get("fields") if isinstance(block, dict) else None
+        if isinstance(fields, list):
+            for field in fields:
+                if isinstance(field, dict):
+                    parts.append(str(field.get("text") or ""))
+    return "\n".join(parts)
+
+
+@pytest.fixture(autouse=True)
+def stub_default_slack_notifier(monkeypatch: pytest.MonkeyPatch) -> StubSlackNotifier:
+    stub = StubSlackNotifier()
+    monkeypatch.setattr("app.services.nightly_lead_machine_service.slack_notification_service", stub)
+    return stub
+
+
 @pytest.fixture
 def service() -> NightlyLeadMachineService:
     return NightlyLeadMachineService(repository=SourceRunsRepository())
+
+
+def _hot_enrichment_payload(idempotency_key: str = "slack-hot-run", hot_count: int = 1) -> NightlySourcePullRequest:
+    source_rows = []
+    case_details_by_case: dict[str, Any] = {}
+    hcad_candidates_by_case: dict[str, Any] = {}
+    tax_overlays_by_account: dict[str, Any] = {}
+    land_record_rows_by_case: dict[str, Any] = {}
+    for index in range(hot_count):
+        case_number = f"5437{index:02d}"
+        decedent_name = "Jane Hot" if index == 0 else f"Jane Hot {index}"
+        owner_name = decedent_name
+        mailing_address = f"{100 + index} Contact Rd, Houston, TX"
+        property_address = (
+            "900 Probate Property St, Houston, TX"
+            if index == 0
+            else f"{900 + index} Probate Property St, Houston, TX"
+        )
+        account = f"1234000{index + 3:03d}"
+        source_rows.append(
+            {
+                "case_number": case_number,
+                "filing_type": "APP TO DETERMINE HEIRSHIP",
+                "style": f"Estate of {decedent_name}",
+                "decedent_name": decedent_name,
+                "owner_name": owner_name,
+                "mailing_address": mailing_address,
+                "property_address": property_address,
+            }
+        )
+        case_details_by_case[case_number] = {
+            "parties": [
+                {"role": "Applicant", "name": "Alex Hot", "address": mailing_address},
+                {"role": "Decedent", "name": decedent_name},
+            ],
+        }
+        hcad_candidates_by_case[case_number] = [
+            {
+                "acct": f"000{account}",
+                "owner_name": owner_name,
+                "mailing_address": mailing_address,
+                "property_address": property_address,
+            }
+        ]
+        tax_overlays_by_account[account] = {
+            "status": "tax_overlay_verified_delinquent",
+            "is_delinquent": True,
+            "amount_owed": 5250,
+            "account": account,
+            "confidence": "high",
+        }
+        land_record_rows_by_case[case_number] = [
+            {
+                "instrument_number": f"RP-2026-{index + 1}",
+                "instrument_type": "Affidavit of Heirship",
+                "grantor": decedent_name,
+                "grantee": "Hot Heirs",
+            }
+        ]
+    return NightlySourcePullRequest(
+        business_id="biz",
+        environment="prod",
+        idempotency_key=idempotency_key,
+        metadata={
+            "autopilot": "harris_montgomery_probate",
+            "run_kind": "morning_catchup",
+            "window_end": "2026-05-15T07:10:00+00:00",
+            "county_scope": ["harris"],
+            "source_rows": {"harris": source_rows},
+            "case_detail_enrichment": {"case_details_by_case": case_details_by_case},
+            "property_tax_title_enrichment": {
+                "hcad_candidates_by_case": hcad_candidates_by_case,
+                "tax_overlays_by_account": tax_overlays_by_account,
+                "land_record_rows_by_case": land_record_rows_by_case,
+            },
+        },
+    )
 
 
 def test_manifest_backed_run_creates_source_runs_artifacts_and_brief(service: NightlyLeadMachineService):
@@ -50,6 +176,278 @@ def test_manifest_backed_run_creates_source_runs_artifacts_and_brief(service: Ni
     assert result.morning_brief.hot_lead_count == 1
     assert result.morning_brief.warm_lead_count == 2
     assert result.morning_brief.approval_required_count == 1
+
+
+def test_default_service_fixture_uses_stubbed_slack_notifier(stub_default_slack_notifier: StubSlackNotifier):
+    service = NightlyLeadMachineService(repository=SourceRunsRepository())
+
+    result = service.run_nightly_source_pull(
+        NightlySourcePullRequest(
+            business_id="biz",
+            environment="test",
+            source_runs=[
+                SourceRunManifest(
+                    source_key="safe-default",
+                    source_label="Safe default",
+                    source_lane="harris_county_probate",
+                    record_count=1,
+                )
+            ],
+        )
+    )
+
+    assert [call["route"] for call in stub_default_slack_notifier.calls] == ["lead_runs"]
+    assert result.notifications[0]["channel_id"] == "C-lead_runs"
+
+
+def test_nightly_source_pull_posts_lead_run_digest_and_hot_lead_notification():
+    notifier = StubSlackNotifier()
+    service = NightlyLeadMachineService(repository=SourceRunsRepository(), slack_notifier=notifier)
+
+    result = service.run_nightly_source_pull(_hot_enrichment_payload())
+
+    assert [call["route"] for call in notifier.calls] == ["lead_runs", "hot_leads"]
+    assert [notice["route"] for notice in result.notifications] == ["lead_runs", "hot_leads"]
+    assert all(notice["status"] == "sent" for notice in result.notifications)
+    lead_digest = notifier.calls[0]["payload"]
+    assert lead_digest["run_counts"]["total"] == len(result.source_runs)
+    assert lead_digest["run_counts"]["failed"] == 0
+    assert lead_digest["new_record_count"] == 1
+    assert lead_digest["hot_lead_count"] == 1
+    assert lead_digest["warm_lead_count"] == 0
+    assert lead_digest["source_summary"]["counties"] == [{"county": "harris", "run_count": 5, "record_count": 1}]
+    lead_blocks = _visible_block_text(notifier.calls[0])
+    assert "Lane summary" in lead_blocks
+    assert "harris_county_probate" in lead_blocks
+    assert "County summary" in lead_blocks
+    assert "harris: 1 records" in lead_blocks
+    hot_payload = notifier.calls[1]["payload"]
+    assert hot_payload["hot_leads"][0]["score"] >= 70
+    assert hot_payload["hot_leads"][0]["case_number"] == "543700"
+    assert hot_payload["hot_leads"][0]["property_address"] == "900 Probate Property St, Houston, TX"
+    assert hot_payload["hot_leads"][0]["owner_name"] == "Jane Hot"
+    assert hot_payload["hot_leads"][0]["decedent_name"] == "Jane Hot"
+    assert hot_payload["hot_leads"][0]["contact_hint"] == "Alex Hot"
+    assert hot_payload["next_action"] == "Review enriched probate lead before any outreach approval."
+    hot_blocks = _visible_block_text(notifier.calls[1])
+    assert "Decedent: Jane Hot" in hot_blocks
+    assert "Next action: Review enriched probate lead before any outreach approval." in hot_blocks
+
+
+def test_temperature_hot_record_with_low_score_still_posts_hot_leads_notification():
+    notifier = StubSlackNotifier()
+    service = NightlyLeadMachineService(
+        repository=SourceRunsRepository(),
+        slack_notifier=notifier,
+        enrichment_service=StubEnrichmentService(
+            {
+                "records": [
+                    {
+                        "case_number": "TEMP-HOT-1",
+                        "filing_type": "Small Estate",
+                        "lead_score": 30,
+                        "temperature": "hot",
+                        "county": "harris",
+                        "owner_name": "Low Score Owner",
+                        "decedent_name": "Low Score Decedent",
+                        "property_address": "1 Low Score St, Houston, TX",
+                        "raw_payload": {"source_row": {"county": "harris"}},
+                    }
+                ]
+            }
+        ),
+    )
+
+    result = service.run_nightly_source_pull(
+        NightlySourcePullRequest(
+            business_id="biz",
+            environment="prod",
+            idempotency_key="temperature-hot-low-score",
+            metadata={
+                "autopilot": "harris_montgomery_probate",
+                "county_scope": ["harris"],
+                "source_rows": {
+                    "harris": [
+                        {
+                            "case_number": "TEMP-HOT-1",
+                            "filing_type": "APP TO DETERMINE HEIRSHIP",
+                            "style": "Estate of Low Score Decedent",
+                        }
+                    ]
+                },
+            },
+        )
+    )
+
+    assert [call["route"] for call in notifier.calls] == ["lead_runs", "hot_leads"]
+    assert [notice["route"] for notice in result.notifications] == ["lead_runs", "hot_leads"]
+    assert notifier.calls[1]["payload"]["hot_leads"][0]["case_number"] == "TEMP-HOT-1"
+
+
+def test_hot_lead_payload_and_visible_blocks_include_phone_and_email():
+    notifier = StubSlackNotifier()
+    service = NightlyLeadMachineService(
+        repository=SourceRunsRepository(),
+        slack_notifier=notifier,
+        enrichment_service=StubEnrichmentService(
+            {
+                "records": [
+                    {
+                        "case_number": "CONTACT-HOT-1",
+                        "filing_type": "APP TO DETERMINE HEIRSHIP",
+                        "lead_score": 92,
+                        "county": "harris",
+                        "owner_name": "Contact Owner",
+                        "decedent_name": "Contact Decedent",
+                        "property_address": "2 Contact St, Houston, TX",
+                        "phone": "+17135550123",
+                        "raw_payload": {
+                            "source_row": {
+                                "county": "harris",
+                                "email": "source-owner@example.com",
+                                "contact_candidates": [
+                                    {
+                                        "name": "Contact Applicant",
+                                        "phone": "+17135559876",
+                                        "email": "candidate@example.com",
+                                    }
+                                ],
+                            }
+                        },
+                    }
+                ]
+            }
+        ),
+    )
+
+    service.run_nightly_source_pull(
+        NightlySourcePullRequest(
+            business_id="biz",
+            environment="prod",
+            idempotency_key="contact-hot-run",
+            metadata={
+                "autopilot": "harris_montgomery_probate",
+                "county_scope": ["harris"],
+                "source_rows": {
+                    "harris": [
+                        {
+                            "case_number": "CONTACT-HOT-1",
+                            "filing_type": "APP TO DETERMINE HEIRSHIP",
+                            "style": "Estate of Contact Decedent",
+                        }
+                    ]
+                },
+            },
+        )
+    )
+
+    hot_lead = notifier.calls[1]["payload"]["hot_leads"][0]
+    assert hot_lead["phone"] == "+17135550123"
+    assert hot_lead["email"] == "source-owner@example.com"
+    assert hot_lead["contact_hint"] == "Contact Applicant"
+    visible = _visible_block_text(notifier.calls[1])
+    assert "Phone: +17135550123" in visible
+    assert "Email: source-owner@example.com" in visible
+
+
+def test_lead_run_digest_visible_blocks_include_warning_details():
+    notifier = StubSlackNotifier()
+    service = NightlyLeadMachineService(repository=SourceRunsRepository(), slack_notifier=notifier)
+
+    service.run_nightly_source_pull(
+        NightlySourcePullRequest(
+            business_id="biz",
+            environment="prod",
+            source_runs=[
+                SourceRunManifest(
+                    source_key="harris-warning",
+                    source_label="Harris warning",
+                    source_lane="harris_county_probate",
+                    county="harris",
+                    record_count=2,
+                    warnings=["harris parse warning"],
+                ),
+                SourceRunManifest(
+                    source_key="montgomery-warning",
+                    source_label="Montgomery warning",
+                    source_lane="montgomery_county_probate",
+                    county="montgomery",
+                    record_count=3,
+                ),
+            ],
+        )
+    )
+
+    visible = _visible_block_text(notifier.calls[0])
+    assert "Lane summary" in visible
+    assert "harris_county_probate: 2 records" in visible
+    assert "montgomery_county_probate: 3 records" in visible
+    assert "County summary" in visible
+    assert "harris: 2 records" in visible
+    assert "montgomery: 3 records" in visible
+    assert "Warnings" in visible
+    assert "harris parse warning" in visible
+
+
+def test_hot_lead_digest_caps_visible_rows_and_reports_remaining_count():
+    notifier = StubSlackNotifier()
+    service = NightlyLeadMachineService(repository=SourceRunsRepository(), slack_notifier=notifier)
+
+    result = service.run_nightly_source_pull(_hot_enrichment_payload(idempotency_key="slack-hot-capped-run", hot_count=12))
+
+    assert [call["route"] for call in notifier.calls] == ["lead_runs", "hot_leads"]
+    assert [notice["route"] for notice in result.notifications] == ["lead_runs", "hot_leads"]
+    hot_payload = notifier.calls[1]["payload"]
+    assert hot_payload["total_hot_lead_count"] == 12
+    assert len(hot_payload["hot_leads"]) == 10
+    assert hot_payload["remaining_count"] == 2
+    visible = _visible_block_text(notifier.calls[1])
+    assert visible.count("Case ") == 10
+    assert "2 additional hot lead(s) hidden by Slack digest cap." in visible
+
+
+def test_nightly_source_pull_idempotency_replay_does_not_post_slack_notifications():
+    notifier = StubSlackNotifier()
+    service = NightlyLeadMachineService(repository=SourceRunsRepository(), slack_notifier=notifier)
+    request = _hot_enrichment_payload(idempotency_key="slack-idempotent-run")
+
+    first = service.run_nightly_source_pull(request)
+    second = service.run_nightly_source_pull(request)
+
+    assert [call["route"] for call in notifier.calls] == ["lead_runs", "hot_leads"]
+    assert [notice["route"] for notice in first.notifications] == ["lead_runs", "hot_leads"]
+    assert second.duplicate is True
+    assert second.replayed is True
+    assert [notice["route"] for notice in second.notifications] == ["lead_runs", "hot_leads"]
+
+
+def test_nightly_source_pull_without_hot_records_posts_digest_only():
+    notifier = StubSlackNotifier()
+    service = NightlyLeadMachineService(repository=SourceRunsRepository(), slack_notifier=notifier)
+
+    result = service.run_nightly_source_pull(
+        NightlySourcePullRequest(
+            business_id="biz",
+            environment="prod",
+            idempotency_key="slack-no-hot-run",
+            metadata={
+                "autopilot": "harris_montgomery_probate",
+                "county_scope": ["harris"],
+                "source_rows": {
+                    "harris": [
+                        {
+                            "case_number": "543701",
+                            "filing_type": "Small Estate",
+                            "style": "Estate of Warm Only",
+                        }
+                    ]
+                },
+            },
+        )
+    )
+
+    assert [call["route"] for call in notifier.calls] == ["lead_runs"]
+    assert [notice["route"] for notice in result.notifications] == ["lead_runs"]
 
 
 def test_tenant_scoping(service: NightlyLeadMachineService):
