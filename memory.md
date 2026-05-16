@@ -38,6 +38,8 @@
 
 ## Current Direction
 
+- `/Users/solomartin/Projects/Ares/.worktrees/feature-textgrid-sms-agent` is on `feature/textgrid-sms-agent` for the TextGrid SMS reply-agent planning slice. Source docs: `docs/superpowers/specs/2026-05-16-textgrid-sms-reply-agent-design.md`, `docs/superpowers/plans/2026-05-16-textgrid-sms-reply-agent-implementation-plan.md`, and `docs/mission-control-wiki/concepts/textgrid-sms-reply-agent.md`.
+- TextGrid SMS reply-agent design decision: extend the existing `/sms-agent` scaffold rather than create a parallel SMS runtime; webhook ingest should enqueue jobs and return immediately; Trigger.dev should drain protected processing; Supabase remains the hot operational source of truth; Obsidian/JSONL is a redacted cold archive/eval corpus, not live source of truth; automatic replies remain disabled until both global provider sends and `SMS_AGENT_AUTO_REPLIES_ENABLED` are explicitly approved.
 - `/root/Ares-inspect` is on `main`; lease-option intake confirmation SMS/email, Slack intake scaffold, appointment reminders, and env-file activation readiness are merged. Current activation docs/tooling: `docs/activation-readiness-handoff.md` and `scripts/activation_readiness.py`.
 - `/opt/ares/worktrees/ares-main` on `main` includes the merged HubSpot CRM customization scaffold: dry-run-first `/crm/hubspot/customization` and `/crm/hubspot/records/sync`, Ares-prefixed contact/deal properties, an acquisition pipeline proposal, and live-write gates requiring both `PROVIDER_LIVE_SENDS_ENABLED=true` and `HUBSPOT_PROVIDER_LIVE_WRITES_ENABLED=true`. A targeted live apply on 2026-05-13 was blocked before mutation because the recovered pasted personal key returned HTTP `401`.
 - `/opt/ares/worktrees/sms-email-vapi-agent-scaffold` on `feature/sms-email-vapi-agent-scaffold` adds the first generic communication-agent substrate: `POST /sms-agent/messages`, `POST /sms-agent/webhooks/textgrid`, `POST /voice/assistants`, `POST /voice/phone-numbers`, `POST /voice/calls/outbound`, and `POST /voice/vapi/webhook`. SMS live sends require `contact_id` + `sms_consent_confirmed=true`; Vapi provider actions require both the global live-send gate and `VAPI_PROVIDER_LIVE_SENDS_ENABLED=true`.
@@ -220,6 +222,7 @@
 
 ## Open Work
 
+1. Implement `docs/superpowers/plans/2026-05-16-textgrid-sms-reply-agent-implementation-plan.md`: public signed TextGrid inbound webhook, SMS-agent job/decision tables, deterministic classifier, draft-only default, Mission Control review surface, Trigger processor, redacted Obsidian/JSONL archive export, and owned-number smoke. Keep live auto replies disabled until explicitly approved.
 1. Before any production no-send deployment, run `uv run python scripts/probate_autopilot_env_contract.py --env-file .env --require-scheduled-live`; configure durable `LEAD_MACHINE_SOURCE_RUNS_STATE_PATH` / `LEAD_MACHINE_ARTIFACT_ROOT`; keep scheduled live source/case-detail/enrichment gates explicit and provider mutation gates false.
 2. Keep HubSpot batch writes, Instantly enrollment/send, SMS/Vapi dispatch, paid skiptrace, Slack/provider sends, and deploy as separate explicit approval gates.
 3. Measure property-match lift from case-detail-derived party/address/context evidence; contact candidates are not confirmed sellers and seller authority remains unverified until separate evidence.
@@ -245,6 +248,12 @@
 - `TasksRepository` now treats `lead_machine_backend=supabase` as a Supabase-backed task path so title-packet review tasks persist with lead-machine records.
 
 ## Change Log
+
+### 2026-05-16 TextGrid SMS Reply Agent Planning
+
+- Opened isolated worktree `/Users/solomartin/Projects/Ares/.worktrees/feature-textgrid-sms-agent` on `feature/textgrid-sms-agent` from current `origin/main`.
+- Added Superpowers design/spec plan for an always-on TextGrid SMS reply agent that reuses existing `/sms-agent`, TextGrid, message/conversation, Mission Control, Trigger.dev, and provider patterns.
+- Planning decision: Supabase stores hot operational truth and compact decisions; Obsidian/JSONL stores redacted cold eval archives only. No production envs, Supabase remote state, provider dashboards, sends, or runtime code changed in this planning slice.
 
 ### 2026-05-16 Back Office Spine v0 Main Merge
 

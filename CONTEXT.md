@@ -2,14 +2,17 @@
 
 ## Stable Facts
 - Repo: `martinp09/Ares`
-- Current working checkout: `/opt/ares/worktrees/ares-main`
+- Current working checkout: `/Users/solomartin/Projects/Ares/.worktrees/feature-textgrid-sms-agent`
 - Release branch: `main`
+- Active planning branch: `feature/textgrid-sms-agent`
 - Runtime production URL: `https://production-readiness-afternoon.vercel.app`
 - Mission Control URL: `https://mission-control-g8un1ly0w-martins-projects-9600e79e.vercel.app`
 - Supabase project ref: `awmsrjeawcxndfnggoxw`
 - Trigger project: `proj_puouljyhwiraonjkpiki`
 
 ## Current Scope
+- TextGrid SMS reply-agent planning branch is open. Spec: `docs/superpowers/specs/2026-05-16-textgrid-sms-reply-agent-design.md`; implementation plan: `docs/superpowers/plans/2026-05-16-textgrid-sms-reply-agent-implementation-plan.md`; concept note: `docs/mission-control-wiki/concepts/textgrid-sms-reply-agent.md`.
+- Current decision: extend the existing `/sms-agent` scaffold into an always-on reply processor; Supabase stays the hot source of truth, while Obsidian/JSONL is a redacted cold eval archive, not the live runtime store.
 - Back Office Spine v0 landed on `main` at `e898ee0` and the feature branch was deleted: canonical deal records, promotion from leads, lane-template tasks/document requirements/risk flags, stage blockers, fire-list read model, Supabase runtime persistence tables, and Mission Control Deal Desk read-only skeleton.
 - The deal spine remains no-send: deal promotion rejects `no_send=false`, `provider_sends_enabled=false` by default, fire-list provider gate items are operator-review only, and the UI adds no send/enroll/provider action buttons.
 - Origin-main hardening cleanup landed on GitHub `main`: `709f714` hardens runtime gates/CI and `be11aaa` tracks Docker deployment files.
@@ -26,6 +29,7 @@
 4. Profile/control-plane-cache live deal endpoints before heavy operator use; after migration they are correct but hydrate Supabase in roughly 10-11s on the VPS.
 
 ## Recent Change
+- 2026-05-16: Opened `feature/textgrid-sms-agent` from current `origin/main` and added Superpowers SMS reply-agent spec/plan docs. No production envs, Supabase, provider dashboards, sends, or runtime code were changed.
 - 2026-05-16: Back Office Spine v0 landed on `main` at `e898ee0` and the local `feature/back-office-spine-v0` branch was deleted. Post-merge verification on `main`: full backend `942 passed`, Mission Control `25 files / 82 tests`, Mission Control typecheck/build passed, Trigger typecheck passed, `git diff --check` passed.
 - 2026-05-16: Back Office Spine v0 implementation added canonical deal models/repository/services/API, Supabase runtime migration/persistence hydration, Mission Control Deal Desk read-only client/page, stricter no-send promotion invariant, stage document blockers, and QC at `docs/qc/2026-05-16/back-office-spine-v0/`. Pre-merge verification: focused backend `26 passed`, full backend `942 passed`, Mission Control `25 files / 82 tests`, Mission Control typecheck/build passed, Trigger typecheck passed, `git diff --check` passed, browser spot-check passed with no console errors.
 - 2026-05-16: Hardening cleanup pushed to GitHub `main`: `709f714` adds the dynamic Montgomery PublicSearch land-record end date, live no-send smoke case-detail assertion, HubSpot CRM `operator_approval=true` live-write gate, and CI; `be11aaa` tracks Docker deployment files and Docker CI.
