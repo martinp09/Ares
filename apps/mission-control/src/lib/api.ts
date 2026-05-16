@@ -299,6 +299,16 @@ export interface ThreadEntry {
   status: string;
 }
 
+export interface SmsAgentDecision {
+  intent?: string | null;
+  action?: string | null;
+  sourceLane?: string | null;
+  suggestedBody?: string | null;
+  temperature?: string | number | null;
+  urgency?: string | null;
+  policyReason?: string | null;
+}
+
 export interface SelectedThread {
   conversationId: string;
   leadName: string;
@@ -315,6 +325,7 @@ export interface SelectedThread {
   manualCallDueAt?: string;
   recentReplyPreview?: string | null;
   replyNeedsReview?: boolean;
+  smsAgent?: SmsAgentDecision | null;
   messages: ThreadEntry[];
 }
 
@@ -1071,6 +1082,7 @@ interface InboxThreadDetailPayload {
   reply_needs_review?: boolean;
   contact?: InboxContactPayload;
   messages?: InboxMessagePayload[];
+  sms_agent?: JsonRecord | null;
   context?: JsonRecord;
 }
 
@@ -2175,6 +2187,25 @@ function mapThreadFromSummary(
   };
 }
 
+function mapSmsAgentDecision(value: unknown): SmsAgentDecision | null {
+  if (!isRecord(value)) {
+    return null;
+  }
+
+  return {
+    intent: asNullableString(value.intent),
+    action: asNullableString(value.action),
+    sourceLane: asNullableString(value.source_lane) ?? asNullableString(value.sourceLane),
+    suggestedBody: asNullableString(value.suggested_body) ?? asNullableString(value.suggestedBody),
+    temperature:
+      typeof value.temperature === "number" || typeof value.temperature === "string"
+        ? value.temperature
+        : null,
+    urgency: asNullableString(value.urgency),
+    policyReason: asNullableString(value.policy_reason) ?? asNullableString(value.policyReason),
+  };
+}
+
 function mapThreadDetail(detail: InboxThreadDetailPayload): SelectedThread {
   const context = isRecord(detail.context) ? detail.context : {};
   const displayName = asString(detail.contact?.display_name, "Unknown contact");
@@ -2203,6 +2234,7 @@ function mapThreadDetail(detail: InboxThreadDetailPayload): SelectedThread {
     manualCallDueAt: asString(detail.manual_call_due_at, ""),
     recentReplyPreview: asNullableString(detail.recent_reply_preview),
     replyNeedsReview: asBoolean(detail.reply_needs_review),
+    smsAgent: mapSmsAgentDecision(detail.sms_agent),
     messages: asArray<InboxMessagePayload>(detail.messages).map((message, index) => ({
       id: asString(message.id, `${asString(detail.thread_id)}-message-${index}`),
       author:

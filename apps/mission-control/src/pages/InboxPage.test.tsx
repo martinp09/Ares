@@ -24,4 +24,61 @@ describe("InboxPage", () => {
     expect(screen.getByLabelText("inbox-thread-placeholder")).toBeInTheDocument();
     expect(screen.getByText("Select a thread to inspect context.")).toBeInTheDocument();
   });
+
+  it("renders SMS-agent decision review details with disabled placeholder actions", () => {
+    const data: InboxData = {
+      selectedConversationId: "thread-sms-agent-1",
+      conversations: [
+        {
+          id: "thread-sms-agent-1",
+          leadName: "Interested Owner",
+          channel: "sms",
+          stage: "Review",
+          owner: "TextGrid",
+          unreadCount: 1,
+          lastMessage: "Yes, I am interested.",
+          lastActivityAt: "2026-05-16T10:01:00Z",
+          sequenceState: "active",
+        },
+      ],
+      threadsById: {
+        "thread-sms-agent-1": {
+          conversationId: "thread-sms-agent-1",
+          leadName: "Interested Owner",
+          company: "+15550001000",
+          phone: "+15550001000",
+          stage: "Review",
+          nextBestAction: "Review SMS-agent draft.",
+          tags: ["sms", "open"],
+          notes: [],
+          smsAgent: {
+            intent: "interested",
+            sourceLane: "outbound_probate",
+            action: "draft_only",
+            suggestedBody: "Thanks. I will have a human review and follow up.",
+          },
+          messages: [
+            {
+              id: "message-1",
+              author: "Interested Owner",
+              direction: "inbound",
+              body: "Yes, I am interested.",
+              timestamp: "2026-05-16T10:01:00Z",
+              status: "message",
+            },
+          ],
+        },
+      },
+    };
+
+    render(<InboxPage data={data} selectedConversationId="thread-sms-agent-1" {...handlers} />);
+
+    expect(screen.getByText("interested")).toBeInTheDocument();
+    expect(screen.getByText("outbound_probate")).toBeInTheDocument();
+    expect(screen.getByText(/human review and follow up/i)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Approve send" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Edit" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Suppress" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Assign callback" })).toBeDisabled();
+  });
 });

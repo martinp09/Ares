@@ -320,6 +320,50 @@ def test_get_agents_omits_stale_release_posture_when_active_revision_moves_witho
     assert response.agents[0].release is None
 
 
+def test_get_inbox_includes_sms_agent_decision_summary() -> None:
+    client = InMemoryControlPlaneClient(InMemoryControlPlaneStore())
+    service = MissionControlService(client=client)
+    base_time = datetime(2026, 5, 16, 10, 0, tzinfo=UTC)
+    thread = MissionControlThreadRecord(
+        business_id="limitless",
+        environment="dev",
+        channel="sms",
+        status="open",
+        unread_count=1,
+        contact=MissionControlContactRecord(display_name="Interested Owner", phone="+15550001000"),
+        messages=[
+            MissionControlMessageRecord(
+                direction="inbound",
+                channel="sms",
+                body="Yes, I am interested.",
+                created_at=base_time + timedelta(minutes=1),
+            )
+        ],
+        context={
+            "reply_needs_review": True,
+            "sms_agent": {
+                "intent": "interested",
+                "source_lane": "outbound_probate",
+                "action": "draft_only",
+            },
+        },
+        created_at=base_time,
+        updated_at=base_time + timedelta(minutes=2),
+    )
+    service.upsert_thread_projection(thread)
+
+    response = service.get_inbox(
+        business_id="limitless",
+        environment="dev",
+        selected_thread_id=thread.id,
+    )
+
+    assert response.selected_thread is not None
+    assert response.selected_thread.sms_agent is not None
+    assert response.selected_thread.sms_agent["intent"] == "interested"
+    assert response.selected_thread.sms_agent["action"] == "draft_only"
+
+
 
 def test_mission_control_task_actions_update_threads_leads_and_tasks() -> None:
     client = InMemoryControlPlaneClient(InMemoryControlPlaneStore())

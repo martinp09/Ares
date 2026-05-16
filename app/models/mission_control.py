@@ -826,6 +826,7 @@ class MissionControlThreadDetail(BaseModel):
     reply_needs_review: bool = False
     contact: MissionControlContactRecord
     messages: list[MissionControlMessageRecord] = Field(default_factory=list)
+    sms_agent: dict[str, object] | None = None
     context: dict[str, Any] = Field(default_factory=dict)
 
 

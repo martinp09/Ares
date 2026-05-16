@@ -18,6 +18,7 @@ export function ConversationThread({ thread, onSendSmsTest, onSendEmailTest }: C
   const [emailResult, setEmailResult] = useState<OutboundSendResponse | null>(null);
   const [isSendingSms, setIsSendingSms] = useState(false);
   const [isSendingEmail, setIsSendingEmail] = useState(false);
+  const smsAgent = thread.smsAgent;
 
   const hasSmsTarget = useMemo(() => smsTo.trim().length > 0, [smsTo]);
   const hasEmailTarget = useMemo(() => emailTo.trim().length > 0, [emailTo]);
@@ -83,6 +84,38 @@ export function ConversationThread({ thread, onSendSmsTest, onSendEmailTest }: C
           </article>
         ))}
       </div>
+
+      {smsAgent ? (
+        <section className="panel-stack" aria-label="SMS-agent decision review">
+          <div className="section-heading">
+            <h3>SMS-agent review</h3>
+            <span>{smsAgent.action ?? "review"}</span>
+          </div>
+          <div className="list-card__row list-card__row--muted">
+            <span>{smsAgent.intent ?? "unknown intent"}</span>
+            <span>{smsAgent.sourceLane ?? "unknown lane"}</span>
+            {smsAgent.urgency ? <span>{smsAgent.urgency}</span> : null}
+          </div>
+          {smsAgent.suggestedBody ? <p className="list-card__body">{smsAgent.suggestedBody}</p> : null}
+          {smsAgent.policyReason ? (
+            <p className="list-card__body list-card__body--muted">{smsAgent.policyReason}</p>
+          ) : null}
+          <div className="list-card__row">
+            <button className="button--ghost" disabled type="button">
+              Approve send
+            </button>
+            <button className="button--ghost" disabled type="button">
+              Edit
+            </button>
+            <button className="button--ghost" disabled type="button">
+              Suppress
+            </button>
+            <button className="button--ghost" disabled type="button">
+              Assign callback
+            </button>
+          </div>
+        </section>
+      ) : null}
 
       <section className="panel-stack">
         <div className="section-heading">

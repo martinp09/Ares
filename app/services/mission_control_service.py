@@ -2365,6 +2365,8 @@ class MissionControlService:
         approvals_by_id: dict[str, object],
     ) -> MissionControlThreadDetail:
         context = deepcopy(thread.context)
+        sms_agent_context = thread.context.get("sms_agent")
+        sms_agent = deepcopy(sms_agent_context) if isinstance(sms_agent_context, dict) else None
         if thread.related_run_id is not None:
             run = runs_by_id.get(thread.related_run_id)
             if run is not None:
@@ -2392,6 +2394,7 @@ class MissionControlService:
             reply_needs_review=bool(thread.context.get("reply_needs_review")),
             contact=thread.contact,
             messages=sorted(thread.messages, key=lambda message: message.created_at),
+            sms_agent=sms_agent,
             context=context,
         )
 
