@@ -18,7 +18,7 @@ Back Office Spine v0 landed on `main` at `e898ee0` and the local `feature/back-o
 
 The Harris + Montgomery probate autopilot PRD implementation landed at `9c256bf` as an operational no-send system; handoff docs landed at `9f30d2f`, env preflight landed at `a859fd2`, and case-detail enrichment finished the last high-value probate enrichment gap. Trigger schedules default to live public probate source acquisition, live public case-detail page enrichment, and live public CAD/tax/land-record enrichment. Backend defaults those live intelligence lanes on, but Ares still requires explicit no-send approval metadata for live source/case-detail/enrichment runtime requests and keeps every outbound path blocked.
 
-Origin-main hardening cleanup is active on `fix/origin-main-hardening-cleanup` in `/tmp/ares-hardening-cleanup`: Montgomery PublicSearch land-record windows now end on the current day instead of a frozen date, the reusable live no-send smoke asserts live case-detail calls, legacy `/crm/hubspot/*` live writes require `operator_approval=true`, and `.github/workflows/ci.yml` runs backend, Mission Control, Trigger, and whitespace gates.
+Origin-main hardening cleanup is active on `fix/origin-main-hardening-cleanup` in `/tmp/ares-hardening-cleanup`: Montgomery PublicSearch land-record windows now end on the current day instead of a frozen date, the reusable live no-send smoke asserts live case-detail calls, legacy `/crm/hubspot/*` live writes require `operator_approval=true`, Docker deployment files are tracked, and `.github/workflows/ci.yml` runs backend, Mission Control, Trigger, Docker image, and whitespace gates.
 
 Read-only VPS inspection on `100.74.177.6` found the live runtime is Docker/Caddy based: `/opt/ares/docker-compose.yml` builds `ares-api` and `ares-ui` from `/opt/ares/Ares`, Caddy routes API paths to `127.0.0.1:8000` and UI fallback to `127.0.0.1:8080`, and the running API image was built before the current probate/HubSpot routes. After the other workflow finished, `/opt/ares/Ares` is detached at `be76288` and `/opt/ares/worktrees/ares-main` is clean `main` at `be76288`; the Docker images still have 2026-04-27 timestamps and were not rebuilt. No server mutation or deploy was executed.
 
@@ -48,7 +48,7 @@ No HubSpot batch writes, Instantly enrollment/sends, SMS/Vapi calls, paid skiptr
 2. After production deployment, monitor the no-send Trigger schedule reports for aggregate source-run/enrichment health.
 3. Keep Instantly enrollment/send, SMS/Vapi dispatch, paid skiptrace, and HubSpot batch mirror writes gated until separately approved.
 4. Measure property-match lift from case-detail-derived party/address/context evidence; current case-detail layer records contact candidates but still does not assert seller authority.
-5. Before VPS deployment, rebuild intentionally from the clean `be76288` deployment tree or a reviewed successor; current live Docker images still predate current-main routes.
+5. Before VPS deployment, rebuild intentionally from current GitHub `main`; Dockerfiles are now tracked so the VPS compose build should not depend on untracked deployment artifacts.
 
 ## Open product follow-ups
 
