@@ -24,6 +24,7 @@ from app.db.probate_leads import ProbateLeadsRepository
 from app.db.provider_webhooks import ProviderWebhooksRepository
 from app.db.runs import RunsRepository
 from app.db.sessions import SessionsRepository
+from app.db.sms_agent import SmsAgentRepository
 from app.db.suppression import SuppressionRepository
 from app.db.tasks import TasksRepository
 from app.db.title_packets import TitlePacketsRepository
@@ -50,6 +51,7 @@ __all__ = [
     "ProviderWebhooksRepository",
     "RunsRepository",
     "SessionsRepository",
+    "SmsAgentRepository",
     "SuppressionRepository",
     "SupabaseControlPlaneClient",
     "TasksRepository",
