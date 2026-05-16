@@ -1,0 +1,63 @@
+# Test Output
+
+```bash
+git -C /opt/ares/worktrees/ares-main merge --ff-only origin/main
+# Updating f6add17..b74d495
+# Fast-forward successful
+
+trigger.dev whoami --profile default
+# Account resolved: martinhomeoffers@gmail.com
+# Org: Limitless Home Solutions
+# Project: proj_puouljyhwiraonjkpiki / Central command
+
+npm --prefix trigger run typecheck
+# > typecheck
+# > tsc --noEmit -p tsconfig.json
+# exit 0
+
+trigger.dev env list --env prod --profile default
+# Found 16 environment variables for project proj_puouljyhwiraonjkpiki / prod
+# HERMES_RUNTIME_API_BASE_URL and HERMES_RUNTIME_API_KEY present; values hidden
+
+trigger.dev deploy --config trigger.config.ts --env prod --profile default --skip-update-check --dry-run
+# Successfully built code
+# Dry run complete
+
+trigger.dev deploy --config trigger.config.ts --env prod --profile default --skip-update-check
+# Successfully deployed version 20260516.1 with 25 detected tasks
+
+# Runtime target check using Trigger prod env values:
+GET https://production-readiness-afternoon.vercel.app/health
+# HTTP 200 {"status":"ok"}
+
+GET https://production-readiness-afternoon.vercel.app/mission-control/probate-autopilot/health?business_id=limitless&environment=prod
+# HTTP 404 Not Found
+
+# Live VPS protected health using local runtime key, value not printed:
+GET http://100.74.177.6/mission-control/probate-autopilot/health?business_id=limitless&environment=prod
+# HTTP 200
+# {"business_id":"limitless","environment":"prod","no_send_ok":true,"outbound_allowed":false,"status":"healthy"}
+
+cronjob pause 815e1261ab2e
+# paused briefly after Trigger 20260516.1 deploy
+
+cronjob resume 815e1261ab2e
+# resumed after stale Trigger runtime target was found
+
+uv run pytest tests/api/test_trigger_contract_files.py -q
+# 6 passed in 0.05s
+
+npm --prefix trigger run typecheck
+# > typecheck
+# > tsc --noEmit -p tsconfig.json
+# exit 0
+
+git diff --check
+# exit 0
+
+trigger.dev deploy --config trigger.config.ts --env prod --profile default --skip-update-check
+# Successfully deployed version 20260516.2 with 25 detected tasks
+
+trigger.dev env get ARES_TRIGGER_SCHEDULES_ENABLED --env prod --profile default
+# Environment variable not found; schedule gate defaults to false/no-op
+```

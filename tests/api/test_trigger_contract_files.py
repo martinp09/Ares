@@ -58,6 +58,8 @@ def test_trigger_exposes_sms_reply_agent_processor_contract() -> None:
     assert '"*/1 * * * *"' in task_source
     assert '"America/Chicago"' in task_source
     assert "SMS_AGENT_PROCESS_BATCH_SIZE" in task_source
+    assert "triggerSchedulesEnabled" in task_source
+    assert "disabledScheduleResponse" in task_source
     assert '"/sms-agent/internal/process-pending"' in task_source
     assert "processed_count" in task_source
     assert "sent_count" in task_source
@@ -88,6 +90,8 @@ def test_probate_autopilot_schedules_are_no_send_and_ct_cadenced() -> None:
     assert "no_send: true" in source
     assert "provider_sends_enabled: false" in source
     assert "scheduledSourceWindow(slot, scheduledAt)" in source
+    assert "triggerSchedulesEnabled" in source
+    assert "disabledScheduleResponse" in source
     assert 'case "0710-ct":' in source
     assert "shiftDateKey(end, -1)" in source
     assert "shiftDateKey(end, -7)" in source

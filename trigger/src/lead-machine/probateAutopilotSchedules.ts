@@ -1,5 +1,6 @@
 import { schedules } from "@trigger.dev/sdk";
 
+import { disabledScheduleResponse, triggerSchedulesEnabled, type TriggerScheduleSkipResponse } from "../shared/scheduleGate";
 import { invokeLeadMachineRuntimeApi } from "./runtimeClient";
 import { type NightlySourcePullPayload, type NightlySourcePullResponse } from "./runtime";
 
@@ -155,7 +156,11 @@ async function runProbateAutopilotNoSendSourcePull(
   schedule: ScheduleContext,
   slot: string,
   cadence: ProbateAutopilotCadence
-): Promise<NightlySourcePullResponse> {
+): Promise<NightlySourcePullResponse | TriggerScheduleSkipResponse> {
+  if (!triggerSchedulesEnabled()) {
+    return disabledScheduleResponse(`harris-montgomery-probate:${slot}`);
+  }
+
   return await invokeLeadMachineRuntimeApi<NightlySourcePullResponse, NightlySourcePullPayload>(
     "nightlySourcePull",
     buildProbateAutopilotScheduledPayload(schedule, slot, cadence)

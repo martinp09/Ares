@@ -1,12 +1,15 @@
 import { schedules } from "@trigger.dev/sdk";
 import { invokeRuntimeApi } from "../shared/runtimeApi";
+import { disabledScheduleResponse, triggerSchedulesEnabled, type TriggerScheduleSkipResponse } from "../shared/scheduleGate";
 
-export type SmsReplyAgentProcessResponse = {
-  processed_count: number;
-  sent_count: number;
-  blocked_count: number;
-  failed_count: number;
-};
+export type SmsReplyAgentProcessResponse =
+  | {
+      processed_count: number;
+      sent_count: number;
+      blocked_count: number;
+      failed_count: number;
+    }
+  | TriggerScheduleSkipResponse;
 
 export const smsReplyAgentProcessor = schedules.task({
   id: "sms-agent-process-pending",
@@ -15,6 +18,10 @@ export const smsReplyAgentProcessor = schedules.task({
     timezone: "America/Chicago",
   },
   run: async () => {
+    if (!triggerSchedulesEnabled()) {
+      return disabledScheduleResponse("sms-agent-process-pending");
+    }
+
     const limit = Number(process.env.SMS_AGENT_PROCESS_BATCH_SIZE ?? "25");
 
     return await invokeRuntimeApi<SmsReplyAgentProcessResponse, { limit: number }>(
