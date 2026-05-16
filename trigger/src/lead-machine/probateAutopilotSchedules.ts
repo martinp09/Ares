@@ -33,6 +33,26 @@ function ctDateKey(date: Date): string {
   return date.toLocaleDateString("en-CA", { timeZone: timezone });
 }
 
+function shiftDateKey(dateKey: string, days: number): string {
+  const date = new Date(`${dateKey}T12:00:00.000Z`);
+  date.setUTCDate(date.getUTCDate() + days);
+  return date.toISOString().slice(0, 10);
+}
+
+function scheduledSourceWindow(slot: string, scheduledAt: Date): { window_start: string; window_end: string } {
+  const end = ctDateKey(scheduledAt);
+  switch (slot) {
+    case "0710-ct":
+      return { window_start: shiftDateKey(end, -1), window_end: end };
+    case "0220-ct":
+      return { window_start: shiftDateKey(end, -7), window_end: end };
+    case "sunday-0315-ct":
+      return { window_start: shiftDateKey(end, -30), window_end: end };
+    default:
+      return { window_start: end, window_end: end };
+  }
+}
+
 function envFlag(name: string, defaultValue = false): boolean {
   const raw = process.env[name];
   if (raw === undefined) {
@@ -49,6 +69,7 @@ export function buildProbateAutopilotScheduledPayload(
   const scheduledAt = scheduledDate(schedule);
   const scheduleTimezone = schedule.timezone ?? timezone;
   const scheduleId = schedule.scheduleId ?? schedule.id ?? slot;
+  const sourceWindow = scheduledSourceWindow(slot, scheduledAt);
   const liveSourceCalls = envFlag("LEAD_MACHINE_SCHEDULED_LIVE_SOURCE_CALLS_ENABLED", true);
   const liveEnrichmentCalls = envFlag("LEAD_MACHINE_SCHEDULED_LIVE_ENRICHMENT_CALLS_ENABLED", true);
   const liveCaseDetailCalls = envFlag("LEAD_MACHINE_SCHEDULED_LIVE_CASE_DETAIL_CALLS_ENABLED", true);
@@ -97,11 +118,12 @@ export function buildProbateAutopilotScheduledPayload(
       county_scope: ["harris", "montgomery"],
       no_send: true,
       provider_sends_enabled: false,
+      source_run_scope: "autonomous",
       run_kind: slotToRunKind(slot),
       slot,
       cadence,
       scheduled_at: scheduledAt.toISOString(),
-      window_end: scheduledAt.toISOString(),
+      ...sourceWindow,
       schedule_id: scheduleId,
       schedule_timezone: scheduleTimezone,
       schedule_type: schedule.type ?? "cron",

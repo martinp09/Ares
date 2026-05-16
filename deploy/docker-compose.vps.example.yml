@@ -1,0 +1,50 @@
+# VPS-local compose example for Ares.
+# Keep app containers bound to loopback; expose the operator UI/API through the
+# tailnet-only Caddy edge proxy instead of publishing these directly.
+
+services:
+  ares-api:
+    build:
+      context: /opt/ares/Ares
+      dockerfile: Dockerfile.api
+      args:
+        VCS_REF: ${ARES_GIT_SHA:-unknown}
+        BUILD_DATE: ${ARES_BUILD_DATE:-unknown}
+    container_name: ares-api
+    restart: unless-stopped
+    env_file:
+      - /opt/ares/Ares/.env
+    environment:
+      RUNTIME_API_BASE_URL: http://ares-api:8000
+      HERMES_RUNTIME_API_BASE_URL: http://ares-api:8000
+    ports:
+      - "127.0.0.1:8000:8000"
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:8000/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+
+  ares-ui:
+    build:
+      context: /opt/ares/Ares
+      dockerfile: Dockerfile.ui
+      args:
+        VCS_REF: ${ARES_GIT_SHA:-unknown}
+        BUILD_DATE: ${ARES_BUILD_DATE:-unknown}
+    container_name: ares-ui
+    restart: unless-stopped
+    depends_on:
+      ares-api:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:8080:8080"
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL

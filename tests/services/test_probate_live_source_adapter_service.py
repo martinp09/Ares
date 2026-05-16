@@ -1,11 +1,14 @@
 import pytest
 
+from app.services.probate_source_adapter_service import probate_source_adapter_service
 from app.services.probate_live_source_adapter_service import (
     MONTGOMERY_ODYSSEY_DEFAULT_URL,
     MONTGOMERY_ODYSSEY_LOGIN_URL,
     MONTGOMERY_ODYSSEY_SEARCH_URL,
     MontgomeryCountyProbateLiveAdapter,
     ProbateLiveSourceAdapterService,
+    _looks_like_harris_results_page,
+    _looks_like_montgomery_results_page,
     _parse_harris_probate_rows,
     _parse_montgomery_probate_rows,
     _prepare_montgomery_date_filed_probate_form,
@@ -54,7 +57,7 @@ def test_harris_live_parser_extracts_public_probate_rows_without_html_artifacts(
         """
         <table id="ctl00_ContentPlaceHolder1_ListViewCases">
           <tr>
-            <td><a id="ctl00_ContentPlaceHolder1_ListViewCases_ctrl0_btnSelect" href="CaseDetail.aspx?CaseID=10001">SYN-H-0001</a></td>
+            <td><a id="ctl00_ContentPlaceHolder1_ListViewCases_ctrl0_btnSelect" href="javascript:__doPostBack('ctl00$ContentPlaceHolder1$ListViewCases$ctrl0$btnSelect','')">SYN-H-0001</a></td>
             <td id="ctl00_ContentPlaceHolder1_ListViewCases_ctrl0_Td9">05/14/2026</td>
             <td id="ctl00_ContentPlaceHolder1_ListViewCases_ctrl0_Td17">Open</td>
             <td id="ctl00_ContentPlaceHolder1_ListViewCases_ctrl0_Td8">INDEPENDENT ADMINISTRATION</td>
@@ -74,7 +77,8 @@ def test_harris_live_parser_extracts_public_probate_rows_without_html_artifacts(
             "filing_type": "INDEPENDENT ADMINISTRATION",
             "filing_subtype": "LETTERS TESTAMENTARY",
             "style": "IN THE ESTATE OF: SAMPLE TEST OWNER, DECEASED",
-            "case_detail_url": "https://www.cclerk.hctx.net/Applications/WebSearch/CaseDetail.aspx?CaseID=10001",
+            "case_detail_postback_target": "ctl00$ContentPlaceHolder1$ListViewCases$ctrl0$btnSelect",
+            "case_detail_source_url": "https://www.cclerk.hctx.net/Applications/WebSearch/CourtSearch_R.aspx?CaseType=Probate",
             "source_url": "https://www.cclerk.hctx.net/Applications/WebSearch/CourtSearch_R.aspx?CaseType=Probate",
             "raw_live_row": {
                 "case": "SYN-H-0001",
@@ -87,6 +91,58 @@ def test_harris_live_parser_extracts_public_probate_rows_without_html_artifacts(
         }
     ]
     assert "<table" not in str(rows)
+
+
+def test_harris_live_parser_uses_same_row_postback_target_not_page_loginstatus():
+    rows = _parse_harris_probate_rows(
+        """
+        <a id="ctl00_LoginStatus1" href="javascript:__doPostBack('ctl00$LoginStatus1$ctl00','')">Login</a>
+        <table id="ctl00_ContentPlaceHolder1_ListViewCases">
+          <tr>
+            <td><a id="ctl00_ContentPlaceHolder1_ListViewCases_ctrl0_btnSelect" href="javascript:__doPostBack('ctl00$ContentPlaceHolder1$ListViewCases$ctrl0$btnSelect','')">SYN-H-0002</a></td>
+            <td id="ctl00_ContentPlaceHolder1_ListViewCases_ctrl0_Td9">05/15/2026</td>
+            <td id="ctl00_ContentPlaceHolder1_ListViewCases_ctrl0_Td17">Open</td>
+            <td id="ctl00_ContentPlaceHolder1_ListViewCases_ctrl0_Td8">MUNIMENT OF TITLE</td>
+            <td id="ctl00_ContentPlaceHolder1_ListViewCases_ctrl0_Td7">LETTERS TESTAMENTARY</td>
+            <td id="ctl00_ContentPlaceHolder1_ListViewCases_ctrl0_TdStyle">IN THE ESTATE OF: SAMPLE TWO, DECEASED</td>
+          </tr>
+        </table>
+        """
+    )
+
+    assert len(rows) == 1
+    assert rows[0]["case_number"] == "SYN-H-0002"
+    assert rows[0]["case_detail_postback_target"] == "ctl00$ContentPlaceHolder1$ListViewCases$ctrl0$btnSelect"
+
+
+def test_probate_source_adapter_preserves_harris_postback_fields_top_level():
+    normalized = probate_source_adapter_service.normalize_row(
+        {
+            "case_number": "SYN-H-0003",
+            "file_date": "05/15/2026",
+            "style": "IN THE ESTATE OF: SAMPLE THREE, DECEASED",
+            "case_detail_postback_target": "ctl00$ContentPlaceHolder1$ListViewCases$ctrl2$btnSelect",
+            "case_detail_source_url": "https://www.cclerk.hctx.net/Applications/WebSearch/CourtSearch_R.aspx?CaseType=Probate",
+        },
+        county="harris",
+        source_uri="https://www.cclerk.hctx.net/Applications/WebSearch/CourtSearch_R.aspx?CaseType=Probate",
+        row_index=1,
+    )
+
+    assert normalized["case_detail_postback_target"] == "ctl00$ContentPlaceHolder1$ListViewCases$ctrl2$btnSelect"
+    assert normalized["case_detail_source_url"] == "https://www.cclerk.hctx.net/Applications/WebSearch/CourtSearch_R.aspx?CaseType=Probate"
+    assert normalized["raw_export_row"]["case_detail_postback_target"] == "ctl00$ContentPlaceHolder1$ListViewCases$ctrl2$btnSelect"
+
+
+def test_harris_results_page_accepts_zero_row_search_results():
+    zero_results = """
+    <table id="ctl00_ContentPlaceHolder1_ListViewCases">
+    </table>
+    <input id="ctl00_ContentPlaceHolder1_txtDateFrom" value="05/16/2026" />
+    """
+
+    assert _looks_like_harris_results_page(zero_results)
+    assert _parse_harris_probate_rows(zero_results) == []
 
 
 def test_montgomery_live_parser_filters_to_probate_case_rows():
@@ -120,6 +176,18 @@ def test_montgomery_live_parser_filters_to_probate_case_rows():
     assert rows[0]["style"] == "Estate of: SAMPLE MONTGOMERY OWNER"
     assert rows[0]["case_detail_url"] == "https://odyssey.mctx.org/County/CaseDetail.aspx?CaseID=2"
     assert "<table" not in str(rows)
+
+
+def test_montgomery_results_page_accepts_zero_record_count_without_case_links():
+    zero_results = """
+    <table><tr><td>Record Count:</td><td>0</td></tr></table>
+    <table>
+      <tr><th>Case Number</th><th>Citation Number</th><th>Style/Defendant Info</th><th>Filed/Location</th><th>Type/Status</th></tr>
+    </table>
+    """
+
+    assert _looks_like_montgomery_results_page(zero_results)
+    assert _parse_montgomery_probate_rows(zero_results) == []
 
 
 def test_montgomery_date_filed_probate_form_posts_probate_category_only():

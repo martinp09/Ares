@@ -1,0 +1,36 @@
+$ docker compose -f /opt/ares/docker-compose.yml ps
+NAME       IMAGE           COMMAND                  SERVICE    CREATED          STATUS                    PORTS
+ares-api   ares-ares-api   "uvicorn app.main:ap…"   ares-api   22 seconds ago   Up 21 seconds (healthy)   127.0.0.1:8000->8000/tcp
+ares-ui    ares-ares-ui    "/docker-entrypoint.…"   ares-ui    21 seconds ago   Up 15 seconds             127.0.0.1:8080->8080/tcp
+
+$ curl -fsS http://127.0.0.1:8000/health
+{"status":"ok"}
+$ curl -fsSI http://127.0.0.1:8080/ | head -n 1
+HTTP/1.1 200 OK
+
+$ docker inspect labels/mounts
+api_revision=fc99b75
+ui_revision=fc99b75
+mount=/var/lib/ares/lead-machine -> /var/lib/ares/lead-machine true
+
+
+$ docker exec ares-api env presence summary
+
+$ docker exec -i ares-api python - <<PY  # sanitized env presence
+LEAD_MACHINE_BACKEND=supabase
+LEAD_MACHINE_SOURCE_RUNS_STATE_PATH=set
+LEAD_MACHINE_ARTIFACT_ROOT=set
+LEAD_MACHINE_BUSINESS_ID=set
+LEAD_MACHINE_ENVIRONMENT=prod
+PROVIDER_LIVE_SENDS_ENABLED=false
+INSTANTLY_PROVIDER_LIVE_ENROLLMENT_ENABLED=false
+HUBSPOT_PROVIDER_LIVE_WRITES_ENABLED=false
+VAPI_PROVIDER_LIVE_SENDS_ENABLED=false
+LEAD_MACHINE_LIVE_SOURCE_CALLS_ENABLED=true
+LEAD_MACHINE_SCHEDULED_LIVE_SOURCE_CALLS_ENABLED=true
+LEAD_MACHINE_LIVE_CAD_CALLS_ENABLED=true
+LEAD_MACHINE_LIVE_TAX_CALLS_ENABLED=true
+LEAD_MACHINE_LIVE_LAND_RECORD_CALLS_ENABLED=true
+LEAD_MACHINE_LIVE_CASE_DETAIL_CALLS_ENABLED=true
+LEAD_MACHINE_SCHEDULED_LIVE_ENRICHMENT_CALLS_ENABLED=true
+LEAD_MACHINE_SCHEDULED_LIVE_CASE_DETAIL_CALLS_ENABLED=true

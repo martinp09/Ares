@@ -1,0 +1,209 @@
+{
+  "blockers": [
+    {
+      "message": "LEAD_MACHINE_SOURCE_RUNS_STATE_PATH must be configured before production no-send autopilot deployment.",
+      "name": "LEAD_MACHINE_SOURCE_RUNS_STATE_PATH",
+      "present": false,
+      "status": "blocked"
+    },
+    {
+      "message": "LEAD_MACHINE_ARTIFACT_ROOT must be configured before production no-send autopilot deployment.",
+      "name": "LEAD_MACHINE_ARTIFACT_ROOT",
+      "present": false,
+      "status": "blocked"
+    },
+    {
+      "message": "LEAD_MACHINE_BUSINESS_ID must be configured before production no-send autopilot deployment.",
+      "name": "LEAD_MACHINE_BUSINESS_ID",
+      "present": false,
+      "status": "blocked"
+    },
+    {
+      "message": "LEAD_MACHINE_ENVIRONMENT must be configured before production no-send autopilot deployment.",
+      "name": "LEAD_MACHINE_ENVIRONMENT",
+      "present": false,
+      "status": "blocked"
+    }
+  ],
+  "live_intelligence_gates": [
+    {
+      "message": "LEAD_MACHINE_LIVE_SOURCE_CALLS_ENABLED is not explicit; code defaults may apply, but deployment env should declare this gate.",
+      "name": "LEAD_MACHINE_LIVE_SOURCE_CALLS_ENABLED",
+      "parsed": null,
+      "present": false,
+      "status": "warning"
+    },
+    {
+      "message": "LEAD_MACHINE_SCHEDULED_LIVE_SOURCE_CALLS_ENABLED is not explicit; code defaults may apply, but deployment env should declare this gate.",
+      "name": "LEAD_MACHINE_SCHEDULED_LIVE_SOURCE_CALLS_ENABLED",
+      "parsed": null,
+      "present": false,
+      "status": "warning"
+    },
+    {
+      "message": "LEAD_MACHINE_LIVE_CAD_CALLS_ENABLED is not explicit; code defaults may apply, but deployment env should declare this gate.",
+      "name": "LEAD_MACHINE_LIVE_CAD_CALLS_ENABLED",
+      "parsed": null,
+      "present": false,
+      "status": "warning"
+    },
+    {
+      "message": "LEAD_MACHINE_LIVE_TAX_CALLS_ENABLED is not explicit; code defaults may apply, but deployment env should declare this gate.",
+      "name": "LEAD_MACHINE_LIVE_TAX_CALLS_ENABLED",
+      "parsed": null,
+      "present": false,
+      "status": "warning"
+    },
+    {
+      "message": "LEAD_MACHINE_LIVE_LAND_RECORD_CALLS_ENABLED is not explicit; code defaults may apply, but deployment env should declare this gate.",
+      "name": "LEAD_MACHINE_LIVE_LAND_RECORD_CALLS_ENABLED",
+      "parsed": null,
+      "present": false,
+      "status": "warning"
+    },
+    {
+      "message": "LEAD_MACHINE_LIVE_CASE_DETAIL_CALLS_ENABLED is not explicit; code defaults may apply, but deployment env should declare this gate.",
+      "name": "LEAD_MACHINE_LIVE_CASE_DETAIL_CALLS_ENABLED",
+      "parsed": null,
+      "present": false,
+      "status": "warning"
+    },
+    {
+      "message": "LEAD_MACHINE_SCHEDULED_LIVE_ENRICHMENT_CALLS_ENABLED is not explicit; code defaults may apply, but deployment env should declare this gate.",
+      "name": "LEAD_MACHINE_SCHEDULED_LIVE_ENRICHMENT_CALLS_ENABLED",
+      "parsed": null,
+      "present": false,
+      "status": "warning"
+    },
+    {
+      "message": "LEAD_MACHINE_SCHEDULED_LIVE_CASE_DETAIL_CALLS_ENABLED is not explicit; code defaults may apply, but deployment env should declare this gate.",
+      "name": "LEAD_MACHINE_SCHEDULED_LIVE_CASE_DETAIL_CALLS_ENABLED",
+      "parsed": null,
+      "present": false,
+      "status": "warning"
+    }
+  ],
+  "live_intelligence_ready": false,
+  "no_send_ok": true,
+  "outbound_gates": [
+    {
+      "message": "unset; safe default is disabled",
+      "name": "PROVIDER_LIVE_SENDS_ENABLED",
+      "parsed": false,
+      "present": false,
+      "status": "healthy"
+    },
+    {
+      "message": "unset; safe default is disabled",
+      "name": "INSTANTLY_PROVIDER_LIVE_ENROLLMENT_ENABLED",
+      "parsed": false,
+      "present": false,
+      "status": "healthy"
+    },
+    {
+      "message": "explicitly disabled",
+      "name": "HUBSPOT_PROVIDER_LIVE_WRITES_ENABLED",
+      "parsed": false,
+      "present": true,
+      "status": "healthy"
+    },
+    {
+      "message": "unset; safe default is disabled",
+      "name": "VAPI_PROVIDER_LIVE_SENDS_ENABLED",
+      "parsed": false,
+      "present": false,
+      "status": "healthy"
+    }
+  ],
+  "paths": [],
+  "required": [
+    {
+      "message": "LEAD_MACHINE_SOURCE_RUNS_STATE_PATH must be configured before production no-send autopilot deployment.",
+      "name": "LEAD_MACHINE_SOURCE_RUNS_STATE_PATH",
+      "present": false,
+      "status": "blocked"
+    },
+    {
+      "message": "LEAD_MACHINE_ARTIFACT_ROOT must be configured before production no-send autopilot deployment.",
+      "name": "LEAD_MACHINE_ARTIFACT_ROOT",
+      "present": false,
+      "status": "blocked"
+    },
+    {
+      "message": "LEAD_MACHINE_BUSINESS_ID must be configured before production no-send autopilot deployment.",
+      "name": "LEAD_MACHINE_BUSINESS_ID",
+      "present": false,
+      "status": "blocked"
+    },
+    {
+      "message": "LEAD_MACHINE_ENVIRONMENT must be configured before production no-send autopilot deployment.",
+      "name": "LEAD_MACHINE_ENVIRONMENT",
+      "present": false,
+      "status": "blocked"
+    }
+  ],
+  "side_effects": {
+    "created_files_or_directories": false,
+    "live_source_calls": false,
+    "provider_mutations": false
+  },
+  "status": "blocked",
+  "warnings": [
+    {
+      "message": "LEAD_MACHINE_LIVE_SOURCE_CALLS_ENABLED is not explicit; code defaults may apply, but deployment env should declare this gate.",
+      "name": "LEAD_MACHINE_LIVE_SOURCE_CALLS_ENABLED",
+      "parsed": null,
+      "present": false,
+      "status": "warning"
+    },
+    {
+      "message": "LEAD_MACHINE_SCHEDULED_LIVE_SOURCE_CALLS_ENABLED is not explicit; code defaults may apply, but deployment env should declare this gate.",
+      "name": "LEAD_MACHINE_SCHEDULED_LIVE_SOURCE_CALLS_ENABLED",
+      "parsed": null,
+      "present": false,
+      "status": "warning"
+    },
+    {
+      "message": "LEAD_MACHINE_LIVE_CAD_CALLS_ENABLED is not explicit; code defaults may apply, but deployment env should declare this gate.",
+      "name": "LEAD_MACHINE_LIVE_CAD_CALLS_ENABLED",
+      "parsed": null,
+      "present": false,
+      "status": "warning"
+    },
+    {
+      "message": "LEAD_MACHINE_LIVE_TAX_CALLS_ENABLED is not explicit; code defaults may apply, but deployment env should declare this gate.",
+      "name": "LEAD_MACHINE_LIVE_TAX_CALLS_ENABLED",
+      "parsed": null,
+      "present": false,
+      "status": "warning"
+    },
+    {
+      "message": "LEAD_MACHINE_LIVE_LAND_RECORD_CALLS_ENABLED is not explicit; code defaults may apply, but deployment env should declare this gate.",
+      "name": "LEAD_MACHINE_LIVE_LAND_RECORD_CALLS_ENABLED",
+      "parsed": null,
+      "present": false,
+      "status": "warning"
+    },
+    {
+      "message": "LEAD_MACHINE_LIVE_CASE_DETAIL_CALLS_ENABLED is not explicit; code defaults may apply, but deployment env should declare this gate.",
+      "name": "LEAD_MACHINE_LIVE_CASE_DETAIL_CALLS_ENABLED",
+      "parsed": null,
+      "present": false,
+      "status": "warning"
+    },
+    {
+      "message": "LEAD_MACHINE_SCHEDULED_LIVE_ENRICHMENT_CALLS_ENABLED is not explicit; code defaults may apply, but deployment env should declare this gate.",
+      "name": "LEAD_MACHINE_SCHEDULED_LIVE_ENRICHMENT_CALLS_ENABLED",
+      "parsed": null,
+      "present": false,
+      "status": "warning"
+    },
+    {
+      "message": "LEAD_MACHINE_SCHEDULED_LIVE_CASE_DETAIL_CALLS_ENABLED is not explicit; code defaults may apply, but deployment env should declare this gate.",
+      "name": "LEAD_MACHINE_SCHEDULED_LIVE_CASE_DETAIL_CALLS_ENABLED",
+      "parsed": null,
+      "present": false,
+      "status": "warning"
+    }
+  ]
+}

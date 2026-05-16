@@ -87,6 +87,11 @@ def test_probate_autopilot_schedules_are_no_send_and_ct_cadenced() -> None:
     assert "live_land_record_calls: true" in source
     assert "no_send: true" in source
     assert "provider_sends_enabled: false" in source
-    assert "window_end: scheduledAt.toISOString()" in source
+    assert "scheduledSourceWindow(slot, scheduledAt)" in source
+    assert 'case "0710-ct":' in source
+    assert "shiftDateKey(end, -1)" in source
+    assert "shiftDateKey(end, -7)" in source
+    assert "shiftDateKey(end, -30)" in source
+    assert "...sourceWindow" in source
     assert "LEAD_MACHINE_BUSINESS_ID" in source
     assert "LEAD_MACHINE_ENVIRONMENT" in source

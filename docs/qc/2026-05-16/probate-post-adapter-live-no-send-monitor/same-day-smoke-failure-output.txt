@@ -1,0 +1,11 @@
+warning: `VIRTUAL_ENV=/usr/local/lib/hermes-agent/venv` does not match the project environment path `.venv` and will be ignored; use `--active` to target the active environment instead
+Traceback (most recent call last):
+  File "/opt/ares/worktrees/ares-main/scripts/smoke/probate_autopilot_live_no_send_smoke.py", line 205, in <module>
+    main()
+  File "/opt/ares/worktrees/ares-main/scripts/smoke/probate_autopilot_live_no_send_smoke.py", line 201, in main
+    print(json.dumps(run_smoke(parse_args()), indent=2, sort_keys=True))
+                     ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/ares/worktrees/ares-main/scripts/smoke/probate_autopilot_live_no_send_smoke.py", line 176, in run_smoke
+    raise RuntimeError(f"live no-send smoke failed required true checks: {result}")
+RuntimeError: live no-send smoke failed required true checks: {'status': 'completed', 'business_id': 'limitless', 'environment': 'live-smoke', 'idempotency_key': 'probate-autopilot-live-no-send-smoke:2026-05-16T00:00:00+00:00:2026-05-16T23:59:59.999999+00:00:harris', 'would_call_external_sources': True, 'live_source_calls_enabled': True, 'source_run_count': 2, 'counties': ['harris', 'montgomery'], 'source_health_completed_runs': 2, 'source_health_failed_runs': 0, 'sla_status': 'healthy', 'source_record_count': 0, 'keep_now_count': 0, 'enrichment_status': 'pending', 'live_cad_calls_attempted': None, 'live_tax_calls_attempted': None, 'live_land_record_calls_attempted': None, 'live_case_detail_calls_attempted': False, 'enriched_count': None, 'case_detail_status': 'not_run', 'case_detail_completed_count': 0, 'case_detail_blocked_count': 0, 'case_detail_incomplete_count': 0, 'case_detail_pending_count': 0, 'property_match_unmatched_count': None, 'tax_overlay_ambiguous_count': None, 'title_friction_review_count': None, 'no_send': True, 'provider_sends_enabled': False, 'operator_actions': ['monitor_next_scheduled_pull'], 'warnings_count': 1, 'artifact_root': '/tmp/ares-probate-autopilot-live-smoke-jg3xoqsl'}
+exit_code=1

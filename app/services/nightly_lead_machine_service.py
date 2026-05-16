@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Any, Mapping
 
 from app.core.config import Settings, get_settings
+from app.db.probate_source_identities import ProbateSourceIdentityRepository
 from app.db.source_runs import SourceRunsRepository, source_runs_repository
 from app.models.source_runs import (
     MorningBrief,
@@ -28,6 +29,7 @@ from app.services.probate_autopilot_manifest_service import (
     build_probate_autopilot_manifests,
     collect_probate_autopilot_keep_now_rows,
     is_probate_autopilot_request,
+    probate_source_identity_key,
 )
 from app.services.probate_case_detail_enrichment_service import ProbateCaseDetailEnrichmentService
 from app.services.probate_property_tax_title_enrichment_service import ProbatePropertyTaxTitleEnrichmentService
@@ -78,12 +80,14 @@ class NightlyLeadMachineService:
         source_provider_bridge: ProbateSourceProviderBridgeService | None = None,
         case_detail_service: ProbateCaseDetailEnrichmentService | None = None,
         enrichment_service: ProbatePropertyTaxTitleEnrichmentService | None = None,
+        source_identity_repository: ProbateSourceIdentityRepository | None = None,
     ) -> None:
         self.repository = repository or source_runs_repository
         self.settings = settings or get_settings()
         self.source_provider_bridge = source_provider_bridge or ProbateSourceProviderBridgeService(settings=self.settings)
         self.case_detail_service = case_detail_service or ProbateCaseDetailEnrichmentService(settings=self.settings)
         self.enrichment_service = enrichment_service or ProbatePropertyTaxTitleEnrichmentService(settings=self.settings)
+        self.source_identity_repository = source_identity_repository or ProbateSourceIdentityRepository(settings=self.settings)
 
     def run_nightly_source_pull(self, request: NightlySourcePullRequest) -> NightlySourcePullResponse:
         if request.live_source_calls:
@@ -100,6 +104,9 @@ class NightlyLeadMachineService:
 
         if not request.source_runs:
             request = self.source_provider_bridge.hydrate_request(request)
+
+        if is_probate_autopilot_request(request.metadata):
+            request = self._with_source_dedupe_context(request)
 
         if request.source_runs:
             manifests = request.source_runs
@@ -177,6 +184,7 @@ class NightlyLeadMachineService:
                 if record_count is None:
                     record_count = sum(artifact.record_count for artifact in manifest.artifacts)
                 stored = self.repository.complete_run(stored.id, record_count=record_count, warnings=manifest.warnings)
+                stored = self._record_source_identities_without_blocking(stored)
             created_runs.append(stored)
 
         brief_metadata = request.metadata
@@ -205,11 +213,119 @@ class NightlyLeadMachineService:
             warnings=response_warnings + brief.warnings,
         )
         if request.idempotency_key:
-            self.repository.save_nightly_response_for_idempotency_key(
+            return self.repository.save_nightly_response_for_idempotency_key(
                 idempotency_key=request.idempotency_key,
                 response=response,
             )
         return response
+
+    def _record_source_identities_without_blocking(self, run: SourceRun) -> SourceRun:
+        try:
+            recorded_count = self.source_identity_repository.record_source_run(run)
+        except Exception as exc:  # pragma: no cover - exact provider exceptions vary by runtime/client
+            warning = (
+                f"probate source identity ledger write failed with {exc.__class__.__name__}; "
+                "nightly source pull continued without provider/outbound side effects"
+            )
+            return self.repository.complete_run(
+                run.id,
+                record_count=run.record_count,
+                warnings=[*run.metadata.get("warnings", []), warning],
+            )
+        if recorded_count:
+            return run.model_copy(
+                update={
+                    "metadata": {
+                        **run.metadata,
+                        "source_identity_remote_record_status": "recorded",
+                        "source_identity_remote_recorded_count": recorded_count,
+                    }
+                }
+            )
+        return run
+
+    def _with_source_dedupe_context(self, request: NightlySourcePullRequest) -> NightlySourcePullRequest:
+        rows = request.metadata.get("source_rows")
+        if not rows:
+            return request
+        run_scope = _source_run_scope(request.metadata)
+        existing, remote_identity_warning = self._existing_probate_source_identity_keys_by_county(
+            business_id=request.business_id,
+            environment=request.environment,
+            run_scope=run_scope,
+        )
+        metadata_warnings = [str(item) for item in request.metadata.get("warnings", []) if item]
+        if remote_identity_warning:
+            metadata_warnings.append(remote_identity_warning)
+        metadata = {
+            **request.metadata,
+            "warnings": list(dict.fromkeys(metadata_warnings)),
+            "source_run_scope": run_scope,
+            "source_identity_version": "county_case_sha256_v1",
+            "existing_source_identity_keys_by_county": {
+                county: sorted(keys) for county, keys in existing.items() if keys
+            },
+            "source_dedupe": {
+                "strategy": "county_case_sha256_v1",
+                "scope": run_scope,
+                "existing_identity_count_by_county": {county: len(keys) for county, keys in existing.items()},
+                "remote_identity_ledger_status": "warning" if remote_identity_warning else "loaded",
+                "manual_runs_isolated": run_scope != "manual",
+            },
+        }
+        return request.model_copy(update={"metadata": metadata})
+
+    def _existing_probate_source_identity_keys_by_county(
+        self,
+        *,
+        business_id: str,
+        environment: str,
+        run_scope: str,
+    ) -> tuple[dict[str, set[str]], str | None]:
+        keys_by_county: dict[str, set[str]] = {"harris": set(), "montgomery": set()}
+        remote_identity_warning: str | None = None
+        try:
+            remote_keys = self.source_identity_repository.list_identity_keys(
+                business_id=business_id,
+                environment=environment,
+                run_scope=run_scope,
+                counties=("harris", "montgomery"),
+            )
+        except Exception as exc:  # pragma: no cover - exact provider exceptions vary by runtime/client
+            remote_keys = {}
+            remote_identity_warning = (
+                f"probate source identity ledger read failed with {exc.__class__.__name__}; "
+                "continuing with file-backed completed-run dedupe"
+            )
+        for county, keys in remote_keys.items():
+            keys_by_county.setdefault(county, set()).update(keys)
+        for run in self.repository.list_runs(business_id=business_id, environment=environment):
+            if run.source_lane not in _PROBATE_SOURCE_LANES or run.status != SourceRunStatus.COMPLETED or not run.county:
+                continue
+            if _source_run_scope(run.metadata, run_kind=run.run_kind) != run_scope:
+                continue
+            county = run.county
+            for artifact in run.artifacts:
+                if artifact.artifact_type != "normalized_source_rows":
+                    continue
+                path = Path(artifact.path)
+                if not path.exists():
+                    continue
+                for line in path.read_text(encoding="utf-8").splitlines():
+                    if not line.strip():
+                        continue
+                    try:
+                        row = json.loads(line)
+                    except json.JSONDecodeError:
+                        continue
+                    if not isinstance(row, dict):
+                        continue
+                    identity_key = row.get("source_identity_key")
+                    if not isinstance(identity_key, str) or not identity_key:
+                        identity_key = probate_source_identity_key(row, county=county)  # type: ignore[arg-type]
+                    if identity_key:
+                        keys_by_county.setdefault(county, set()).add(identity_key)
+        return keys_by_county, remote_identity_warning
 
     def _run_probate_case_detail_enrichment(
         self,
@@ -552,6 +668,8 @@ class NightlyLeadMachineService:
         blocked_lanes: list[dict[str, Any]] = []
         invalid_row_count = 0
         duplicate_case_count = 0
+        duplicate_prior_run_count = 0
+        duplicate_current_run_count = 0
         duplicate_case_count_by_county: dict[str, int] = {}
         artifact_warning_count = 0
         enrichment_summary = _safe_enrichment_summary(
@@ -617,7 +735,11 @@ class NightlyLeadMachineService:
             warnings.extend(str(item) for item in run.metadata.get("warnings", []) if item)
             invalid_row_count += self._int_from_metadata(run.metadata, "invalid_row_count")
             run_duplicate_case_count = self._int_from_metadata(run.metadata, "duplicate_case_count")
+            run_duplicate_prior_count = self._int_from_metadata(run.metadata, "duplicate_prior_run_count")
+            run_duplicate_current_count = self._int_from_metadata(run.metadata, "duplicate_current_run_count")
             duplicate_case_count += run_duplicate_case_count
+            duplicate_prior_run_count += run_duplicate_prior_count
+            duplicate_current_run_count += run_duplicate_current_count
             if run_duplicate_case_count:
                 county_key = run.county or run.source_lane
                 duplicate_case_count_by_county[county_key] = (
@@ -686,6 +808,9 @@ class NightlyLeadMachineService:
                 "source_count_mismatch_count": len(source_count_mismatches),
                 "invalid_row_count": invalid_row_count,
                 "duplicate_case_count": duplicate_case_count,
+                "duplicate_prior_run_count": duplicate_prior_run_count,
+                "duplicate_current_run_count": duplicate_current_run_count,
+                "deduped_existing_record_count": duplicate_prior_run_count,
                 "duplicate_case_count_by_county": duplicate_case_count_by_county,
                 "artifact_warning_count": artifact_warning_count,
             },
@@ -931,6 +1056,9 @@ class NightlyLeadMachineService:
             "no_send",
             "provider_sends_enabled",
             "source_adapter_contract",
+            "source_run_scope",
+            "source_identity_version",
+            "source_dedupe",
         }
         return {key: value for key, value in metadata.items() if key in safe_keys}
 
@@ -1347,6 +1475,7 @@ def _enrichment_backlog(
         "case_detail_completed_count": _non_negative_int(case_detail_summary.get("detail_completed_count")),
         "case_detail_pending_count": case_detail_pending,
         "case_detail_blocked_count": _non_negative_int(case_detail_summary.get("detail_blocked_count")),
+        "case_detail_incomplete_count": _non_negative_int(case_detail_summary.get("detail_incomplete_count")),
         "contact_candidate_count": _non_negative_int(case_detail_summary.get("contact_candidate_count")),
         "primary_contact_candidate_count": _non_negative_int(case_detail_summary.get("primary_contact_candidate_count")),
         "live_case_detail_calls_attempted": case_detail_summary.get("live_case_detail_calls_attempted") is True,
@@ -1596,6 +1725,14 @@ def _metadata_run_kind(metadata: Mapping[str, Any]) -> str:
     }:
         return normalized
     return "manual"
+
+
+def _source_run_scope(metadata: Mapping[str, Any], *, run_kind: str | None = None) -> str:
+    explicit = str(metadata.get("source_run_scope") or metadata.get("run_scope") or "").strip().lower()
+    if explicit in {"autonomous", "manual"}:
+        return explicit
+    kind = str(run_kind or metadata.get("run_kind") or metadata.get("slot") or "").strip().lower()
+    return "manual" if kind == "manual" or kind.startswith("manual") else "autonomous"
 
 
 def _window_key_from_metadata(metadata: Mapping[str, Any]) -> str:

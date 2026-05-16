@@ -1,0 +1,47 @@
+{
+  "generated_at_utc": "2026-05-16T12:29:00Z",
+  "scope": "temp-state replay of 2026-05-16 07:10 CT Harris/Montgomery probate scheduler",
+  "status": "completed",
+  "run_kind": "morning_catchup",
+  "slot_label": "07:10 CT",
+  "source_run_count": 2,
+  "new_record_count": 48,
+  "keep_now_count": 8,
+  "sla_status": "healthy",
+  "warning_count": 0,
+  "partial_failures": {},
+  "no_send_ok": true,
+  "county_counts": [
+    {
+      "county": "harris",
+      "run_count": 1,
+      "raw_count": 40,
+      "parsed_count": 40,
+      "record_count": 40,
+      "keep_now_count": 8,
+      "failed_count": 0
+    },
+    {
+      "county": "montgomery",
+      "run_count": 1,
+      "raw_count": 8,
+      "parsed_count": 8,
+      "record_count": 8,
+      "keep_now_count": 0,
+      "failed_count": 0
+    }
+  ],
+  "enrichment": {
+    "received_count": 8,
+    "enriched_count": 8,
+    "live_cad_calls_attempted": false,
+    "live_tax_calls_attempted": false,
+    "live_land_record_calls_attempted": false
+  },
+  "provider_side_effects": {
+    "instantly_enrollment": false,
+    "email_sms_vapi_sends": false,
+    "hubspot_writes": false,
+    "paid_skiptrace": false
+  }
+}

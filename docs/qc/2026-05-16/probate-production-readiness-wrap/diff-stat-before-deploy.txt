@@ -1,0 +1,10 @@
+ .env.example                                       |  1 +
+ CONTEXT.md                                         |  2 +-
+ .../probate_case_detail_enrichment_service.py      | 23 ++++++++++--
+ .../probate_live_source_adapter_service.py         |  4 ++-
+ app/services/probate_source_adapter_service.py     | 12 +++++++
+ ...tgomery-probate-autopilot-no-send-activation.md | 27 +++++++++++---
+ memory.md                                          |  9 ++++-
+ .../test_probate_case_detail_enrichment_service.py | 32 +++++++++++++++++
+ .../test_probate_live_source_adapter_service.py    | 42 ++++++++++++++++++++++
+ 9 files changed, 142 insertions(+), 10 deletions(-)

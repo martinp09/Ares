@@ -11,9 +11,13 @@ from app.core.config import Settings, get_settings
 
 CASE_DETAIL_ENRICHMENT_VERSION = "probate_case_detail_enrichment_v1"
 _PRIMARY_CONTACT_CAP = 2
+_HARRIS_CASE_DETAIL_PATHS = (
+    "/applications/websearch/casedetail.aspx",
+    "/applications/websearch/courtcasedetail.aspx",
+)
 _ALLOWED_CASE_DETAIL_HOSTS = {
-    "www.cclerk.hctx.net": ("/applications/websearch/casedetail.aspx",),
-    "cclerk.hctx.net": ("/applications/websearch/casedetail.aspx",),
+    "www.cclerk.hctx.net": _HARRIS_CASE_DETAIL_PATHS,
+    "cclerk.hctx.net": _HARRIS_CASE_DETAIL_PATHS,
     "odyssey.mctx.org": ("/county/casedetail.aspx",),
 }
 
@@ -164,6 +168,12 @@ class ProbateCaseDetailEnrichmentService:
     def _fetch_live_case_detail(self, source_row: Mapping[str, Any]) -> Mapping[str, Any] | None:
         url = _case_detail_url(source_row)
         if not url:
+            if _case_detail_postback_target(source_row):
+                return {
+                    "status": "incomplete",
+                    "incomplete_reason": "case_detail_postback_only",
+                    "warnings": ["case_detail_postback_only"],
+                }
             return {
                 "status": "incomplete",
                 "incomplete_reason": "case_detail_url_missing",
@@ -251,7 +261,7 @@ def normalize_case_detail_payload(
         incomplete_reason = None
     else:
         status = "incomplete"
-        incomplete_reason = explicit_status or "case_detail_empty"
+        incomplete_reason = _text_or_none(payload.get("incomplete_reason")) or explicit_status or "case_detail_empty"
     return {
         "version": CASE_DETAIL_ENRICHMENT_VERSION,
         "business_id": business_id,
@@ -615,6 +625,25 @@ def _case_detail_url(source_row: Mapping[str, Any]) -> str | None:
         raw.get("case_detail_url"),
         raw_export.get("case_detail_url"),
         raw_live.get("case_detail_url"),
+    ):
+        text = _text_or_none(value)
+        if text:
+            return text
+    return None
+
+
+def _case_detail_postback_target(source_row: Mapping[str, Any]) -> str | None:
+    raw_value = source_row.get("raw")
+    raw_export_value = source_row.get("raw_export_row")
+    raw_live_value = source_row.get("raw_live_row")
+    raw: Mapping[str, Any] = raw_value if isinstance(raw_value, Mapping) else {}
+    raw_export: Mapping[str, Any] = raw_export_value if isinstance(raw_export_value, Mapping) else {}
+    raw_live: Mapping[str, Any] = raw_live_value if isinstance(raw_live_value, Mapping) else {}
+    for value in (
+        source_row.get("case_detail_postback_target"),
+        raw.get("case_detail_postback_target"),
+        raw_export.get("case_detail_postback_target"),
+        raw_live.get("case_detail_postback_target"),
     ):
         text = _text_or_none(value)
         if text:

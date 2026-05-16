@@ -121,6 +121,18 @@ _FIELD_ALIASES: dict[str, tuple[str, ...]] = {
         "case_url",
         "case url",
     ),
+    "case_detail_postback_target": (
+        "case_detail_postback_target",
+        "case detail postback target",
+        "postback_target",
+        "postback target",
+    ),
+    "case_detail_source_url": (
+        "case_detail_source_url",
+        "case detail source url",
+        "detail_source_url",
+        "detail source url",
+    ),
 }
 
 

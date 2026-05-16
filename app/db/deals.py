@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from app.core.config import Settings, get_settings
 from app.db.client import ControlPlaneClient, get_control_plane_client, utc_now
+from app.db.control_plane_supabase import fetch_rows
 from app.models.commands import generate_stable_id
 from app.models.deals import (
     Deal,
@@ -24,6 +25,16 @@ class DealsRepository:
         self.settings = settings or get_settings()
         self.client = client or get_control_plane_client(self.settings)
 
+    def _use_supabase_read_model(self) -> bool:
+        return getattr(self.client, "backend", None) == "supabase" and self.settings.control_plane_backend == "supabase"
+
+    def _fetch_supabase_payloads(self, table: str, model_cls, *, params: dict[str, str] | None = None) -> list:
+        query = {"select": "payload_json", "order": "updated_at.asc"}
+        if params:
+            query.update(params)
+        rows = fetch_rows(table, params=query, settings=self.settings)
+        return [model_cls.model_validate(row["payload_json"]) for row in rows]
+
     def upsert_deal(self, record: Deal, *, dedupe_key: str | None = None) -> Deal:
         now = utc_now()
         resolved_key = dedupe_key or record.identity_key()
@@ -43,6 +54,9 @@ class DealsRepository:
             return created
 
     def get_deal(self, deal_id: str) -> Deal | None:
+        if self._use_supabase_read_model():
+            rows = self._fetch_supabase_payloads("deal_records_runtime", Deal, params={"id": f"eq.{deal_id}", "limit": "1"})
+            return rows[0] if rows else None
         with self.client.transaction() as store:
             return store.deals.get(deal_id)
 
@@ -62,8 +76,22 @@ class DealsRepository:
         stage: DealStage | str | None = None,
         blocked: bool | None = None,
     ) -> list[Deal]:
-        with self.client.transaction() as store:
-            records = list(store.deals.values())
+        if self._use_supabase_read_model():
+            params: dict[str, str] = {}
+            if business_id is not None:
+                params["business_id"] = f"eq.{business_id}"
+            if environment is not None:
+                params["environment"] = f"eq.{environment}"
+            if strategy_lane is not None:
+                lane_value = strategy_lane.value if isinstance(strategy_lane, DealStrategyLane) else str(strategy_lane)
+                params["strategy_lane"] = f"eq.{lane_value}"
+            if stage is not None:
+                stage_value = stage.value if isinstance(stage, DealStage) else str(stage)
+                params["stage"] = f"eq.{stage_value}"
+            records = self._fetch_supabase_payloads("deal_records_runtime", Deal, params=params)
+        else:
+            with self.client.transaction() as store:
+                records = list(store.deals.values())
         if business_id is not None:
             records = [record for record in records if record.business_id == business_id]
         if environment is not None:
@@ -98,6 +126,10 @@ class DealsRepository:
             return created
 
     def list_parties(self, deal_id: str) -> list[DealParty]:
+        if self._use_supabase_read_model():
+            records = self._fetch_supabase_payloads("deal_parties_runtime", DealParty, params={"deal_id": f"eq.{deal_id}"})
+            records.sort(key=lambda party: (party.created_at, party.id or ""))
+            return records
         with self.client.transaction() as store:
             records = [party for party in store.deal_parties.values() if party.deal_id == deal_id]
         records.sort(key=lambda party: (party.created_at, party.id or ""))
@@ -122,8 +154,11 @@ class DealsRepository:
             return created
 
     def list_tasks(self, deal_id: str, status: DealTaskStatus | str | None = None) -> list[DealTask]:
-        with self.client.transaction() as store:
-            records = [task for task in store.deal_tasks.values() if task.deal_id == deal_id]
+        if self._use_supabase_read_model():
+            records = self._fetch_supabase_payloads("deal_tasks_runtime", DealTask, params={"deal_id": f"eq.{deal_id}"})
+        else:
+            with self.client.transaction() as store:
+                records = [task for task in store.deal_tasks.values() if task.deal_id == deal_id]
         if status is not None:
             status_value = status.value if isinstance(status, DealTaskStatus) else str(status)
             records = [task for task in records if task.status.value == status_value]
@@ -163,8 +198,15 @@ class DealsRepository:
         deal_id: str,
         status: DealDocumentRequirementStatus | str | None = None,
     ) -> list[DealDocumentRequirement]:
-        with self.client.transaction() as store:
-            records = [row for row in store.deal_document_requirements.values() if row.deal_id == deal_id]
+        if self._use_supabase_read_model():
+            records = self._fetch_supabase_payloads(
+                "deal_document_requirements_runtime",
+                DealDocumentRequirement,
+                params={"deal_id": f"eq.{deal_id}"},
+            )
+        else:
+            with self.client.transaction() as store:
+                records = [row for row in store.deal_document_requirements.values() if row.deal_id == deal_id]
         if status is not None:
             status_value = status.value if isinstance(status, DealDocumentRequirementStatus) else str(status)
             records = [row for row in records if row.status.value == status_value]
@@ -195,6 +237,10 @@ class DealsRepository:
             return created
 
     def list_audit_events(self, deal_id: str) -> list[DealAuditEvent]:
+        if self._use_supabase_read_model():
+            records = self._fetch_supabase_payloads("deal_audit_events_runtime", DealAuditEvent, params={"deal_id": f"eq.{deal_id}"})
+            records.sort(key=lambda event: (event.created_at, event.id or ""))
+            return records
         with self.client.transaction() as store:
             records = [event for event in store.deal_audit_events.values() if event.deal_id == deal_id]
         records.sort(key=lambda event: (event.created_at, event.id or ""))
@@ -216,6 +262,10 @@ class DealsRepository:
             return store.deal_stage_events[event_id]
 
     def list_stage_events(self, deal_id: str) -> list[DealStageEvent]:
+        if self._use_supabase_read_model():
+            records = self._fetch_supabase_payloads("deal_stage_events_runtime", DealStageEvent, params={"deal_id": f"eq.{deal_id}"})
+            records.sort(key=lambda event: (event.created_at, event.id or ""))
+            return records
         with self.client.transaction() as store:
             records = [event for event in store.deal_stage_events.values() if event.deal_id == deal_id]
         records.sort(key=lambda event: (event.created_at, event.id or ""))
@@ -240,8 +290,14 @@ class DealsRepository:
             return created
 
     def list_risk_flags(self, deal_id: str, active: bool | None = None) -> list[DealRiskFlag]:
-        with self.client.transaction() as store:
-            records = [flag for flag in store.deal_risk_flags.values() if flag.deal_id == deal_id]
+        if self._use_supabase_read_model():
+            params = {"deal_id": f"eq.{deal_id}"}
+            if active is not None:
+                params["active"] = f"eq.{str(active).lower()}"
+            records = self._fetch_supabase_payloads("deal_risk_flags_runtime", DealRiskFlag, params=params)
+        else:
+            with self.client.transaction() as store:
+                records = [flag for flag in store.deal_risk_flags.values() if flag.deal_id == deal_id]
         if active is not None:
             records = [flag for flag in records if flag.active is active]
         records.sort(key=lambda flag: (flag.severity.value, flag.code, flag.id or ""))

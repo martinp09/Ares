@@ -46,6 +46,33 @@ git diff --check
 # passed
 ```
 
+Post-`origin/main` reconciliation:
+
+GitHub `origin/main` moved to `0fc3f80` after this branch was first closed out. The branch was merged with current `origin/main`; application code merged cleanly, and only `CONTEXT.md` plus `memory.md` required router-doc conflict resolution.
+
+```bash
+uv run pytest tests/api/test_sms_agent.py tests/services/test_sms_agent_service.py tests/services/test_sms_agent_processing.py tests/services/test_sms_reply_agent_service.py tests/services/test_sms_reply_agent_repository.py tests/services/test_inbound_sms_service.py tests/scripts/test_sms_agent_archive_export.py tests/scripts/test_textgrid_sms_reply_agent_smoke.py tests/db/test_sms_agent_schema.py tests/api/test_trigger_contract_files.py -q
+# 105 passed in 0.63s
+
+uv run pytest -q
+# 1051 passed in 9.87s
+
+npm --prefix apps/mission-control run test -- --run
+# 25 files passed, 83 tests passed
+
+npm --prefix apps/mission-control run typecheck
+# passed
+
+npm --prefix apps/mission-control run build
+# passed
+
+npm --prefix trigger run typecheck
+# passed
+
+git diff --check
+# passed
+```
+
 Independent QC finding:
 
 ```text

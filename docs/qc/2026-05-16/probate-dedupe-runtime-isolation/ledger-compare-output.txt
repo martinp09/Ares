@@ -1,0 +1,13 @@
+ledger_exists True
+run_count 14
+scope_counts {'manual': 10, 'autonomous': 4}
+autonomous_dates ['2026-05-15', '2026-05-16']
+date 2026-05-15
+  harris runs 1 parsed 39 record_count 39 identity_count 39 dupe_prior 0 dupe_current 0
+  montgomery runs 1 parsed 8 record_count 8 identity_count 8 dupe_prior 0 dupe_current 0
+date 2026-05-16
+  harris runs 1 parsed 0 record_count 0 identity_count 0 dupe_prior 0 dupe_current 0
+  montgomery runs 1 parsed 0 record_count 0 identity_count 0 dupe_prior 0 dupe_current 0
+compare_latest_dates 2026-05-15 to 2026-05-16
+  harris yesterday_ids 39 today_ids 0 overlap_count 0 today_new_vs_yesterday 0
+  montgomery yesterday_ids 8 today_ids 0 overlap_count 0 today_new_vs_yesterday 0

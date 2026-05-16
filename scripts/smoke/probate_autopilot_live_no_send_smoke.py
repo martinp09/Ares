@@ -151,6 +151,8 @@ def run_smoke(args: argparse.Namespace) -> dict[str, Any]:
             "enriched_count": enrichment.get("enriched_count"),
             "case_detail_status": enrichment.get("case_detail_status"),
             "case_detail_completed_count": enrichment.get("case_detail_completed_count"),
+            "case_detail_blocked_count": enrichment.get("case_detail_blocked_count"),
+            "case_detail_incomplete_count": enrichment.get("case_detail_incomplete_count"),
             "case_detail_pending_count": enrichment.get("case_detail_pending_count"),
             "property_match_unmatched_count": enrichment.get("property_match_unmatched_count"),
             "tax_overlay_ambiguous_count": enrichment.get("tax_overlay_ambiguous_count"),

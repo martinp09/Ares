@@ -6,6 +6,7 @@ from app.core.config import Settings
 from app.db.source_runs import SourceRunsPersistenceError, SourceRunsRepository
 from app.models.source_runs import MorningBriefRequest, NightlySourcePullRequest, SourceRunArtifact, SourceRunManifest, SourceRunStatus
 from app.services.nightly_lead_machine_service import NightlyLeadMachineService
+from app.services.probate_autopilot_manifest_service import probate_source_identity_key
 
 
 @pytest.fixture
@@ -427,6 +428,7 @@ def test_probate_autopilot_source_rows_create_artifacts_and_keep_now_counts(tmp_
         "case_detail_completed_count": 0,
         "case_detail_pending_count": 1,
         "case_detail_blocked_count": 0,
+        "case_detail_incomplete_count": 1,
         "contact_candidate_count": 0,
         "primary_contact_candidate_count": 0,
         "live_case_detail_calls_attempted": False,
@@ -534,6 +536,7 @@ def test_probate_autopilot_runs_enrichment_stages_inside_nightly_pull(tmp_path):
         "case_detail_completed_count": 0,
         "case_detail_pending_count": 1,
         "case_detail_blocked_count": 0,
+        "case_detail_incomplete_count": 1,
         "contact_candidate_count": 0,
         "primary_contact_candidate_count": 0,
         "live_case_detail_calls_attempted": False,
@@ -774,6 +777,169 @@ def test_probate_autopilot_sla_flags_missing_expected_county(service: NightlyLea
         "county": "montgomery",
         "message": "Expected montgomery probate source lane was not present in this run",
     }
+
+
+class _FakeProbateSourceIdentityRepository:
+    def __init__(
+        self,
+        existing_keys_by_county: dict[str, set[str]] | None = None,
+        record_error: Exception | None = None,
+    ) -> None:
+        self.existing_keys_by_county = existing_keys_by_county or {"harris": set(), "montgomery": set()}
+        self.record_error = record_error
+        self.list_error: Exception | None = None
+        self.list_calls: list[dict[str, object]] = []
+        self.recorded_run_ids: list[str] = []
+
+    def list_identity_keys(self, *, business_id: str, environment: str, run_scope: str, counties):
+        if self.list_error is not None:
+            raise self.list_error
+        self.list_calls.append(
+            {
+                "business_id": business_id,
+                "environment": environment,
+                "run_scope": run_scope,
+                "counties": tuple(counties),
+            }
+        )
+        return {county: set(self.existing_keys_by_county.get(county, set())) for county in counties}
+
+    def record_source_run(self, run):
+        if self.record_error is not None:
+            raise self.record_error
+        self.recorded_run_ids.append(run.id)
+        return 0
+
+
+def test_probate_autopilot_uses_remote_identity_ledger_before_file_ledger(tmp_path):
+    duplicate_key = probate_source_identity_key({"case_number": "H-900"}, county="harris")
+    assert duplicate_key is not None
+    identity_repository = _FakeProbateSourceIdentityRepository({"harris": {duplicate_key}})
+    service = NightlyLeadMachineService(
+        repository=SourceRunsRepository(),
+        settings=Settings(_env_file=None, lead_machine_artifact_root=str(tmp_path)),
+        source_identity_repository=identity_repository,
+    )
+
+    result = service.run_nightly_source_pull(
+        NightlySourcePullRequest(
+            business_id="limitless",
+            environment="prod",
+            idempotency_key="remote-ledger-dedupe",
+            metadata={
+                "autopilot": "harris_montgomery_probate",
+                "county_scope": ["harris"],
+                "expected_counties": ["harris"],
+                "source_run_scope": "autonomous",
+                "source_rows": {
+                    "harris": [
+                        {"case_number": "H-900", "filing_type": "Independent Administration", "style": "Estate of Existing"},
+                        {"case_number": "H-901", "filing_type": "Independent Administration", "style": "Estate of New"},
+                    ]
+                },
+                "no_send": True,
+                "provider_sends_enabled": False,
+            },
+        )
+    )
+
+    source_run = next(run for run in result.source_runs if run.source_lane == "harris_county_probate")
+    assert identity_repository.list_calls == [
+        {
+            "business_id": "limitless",
+            "environment": "prod",
+            "run_scope": "autonomous",
+            "counties": ("harris", "montgomery"),
+        }
+    ]
+    assert source_run.record_count == 1
+    assert source_run.metadata["duplicate_prior_run_count"] == 1
+    assert result.morning_brief.sections["source_quality"]["duplicate_prior_run_count"] == 1
+    assert source_run.id in identity_repository.recorded_run_ids
+
+
+def test_probate_autopilot_identity_ledger_write_failure_does_not_abort_nightly_pull(tmp_path):
+    repository = SourceRunsRepository()
+    identity_repository = _FakeProbateSourceIdentityRepository(record_error=RuntimeError("remote unavailable"))
+    service = NightlyLeadMachineService(
+        repository=repository,
+        settings=Settings(_env_file=None, lead_machine_artifact_root=str(tmp_path)),
+        source_identity_repository=identity_repository,
+    )
+
+    result = service.run_nightly_source_pull(
+        NightlySourcePullRequest(
+            business_id="limitless",
+            environment="prod",
+            idempotency_key="remote-ledger-write-fails",
+            metadata={
+                "autopilot": "harris_montgomery_probate",
+                "county_scope": ["harris"],
+                "expected_counties": ["harris"],
+                "source_run_scope": "autonomous",
+                "source_rows": {
+                    "harris": [
+                        {"case_number": "H-902", "filing_type": "Independent Administration", "style": "Estate of New"},
+                    ]
+                },
+                "no_send": True,
+                "provider_sends_enabled": False,
+            },
+        )
+    )
+
+    source_run = next(run for run in result.source_runs if run.source_lane == "harris_county_probate")
+    assert result.status == "completed"
+    assert source_run.status == SourceRunStatus.COMPLETED
+    assert source_run.warning_count >= 1
+    assert any("probate source identity ledger write failed with RuntimeError" in item for item in source_run.metadata["warnings"])
+    replay = service.run_nightly_source_pull(
+        NightlySourcePullRequest(
+            business_id="limitless",
+            environment="prod",
+            idempotency_key="remote-ledger-write-fails",
+            metadata={"autopilot": "harris_montgomery_probate", "county_scope": ["harris"]},
+        )
+    )
+    assert replay.duplicate is True
+    assert replay.replayed is True
+
+
+def test_probate_autopilot_identity_ledger_read_failure_falls_back_to_file_dedupe(tmp_path):
+    identity_repository = _FakeProbateSourceIdentityRepository()
+    identity_repository.list_error = RuntimeError("remote unavailable")
+    service = NightlyLeadMachineService(
+        repository=SourceRunsRepository(),
+        settings=Settings(_env_file=None, lead_machine_artifact_root=str(tmp_path)),
+        source_identity_repository=identity_repository,
+    )
+
+    result = service.run_nightly_source_pull(
+        NightlySourcePullRequest(
+            business_id="limitless",
+            environment="prod",
+            idempotency_key="remote-ledger-read-fails",
+            metadata={
+                "autopilot": "harris_montgomery_probate",
+                "county_scope": ["harris"],
+                "expected_counties": ["harris"],
+                "source_run_scope": "autonomous",
+                "source_rows": {
+                    "harris": [
+                        {"case_number": "H-903", "filing_type": "Independent Administration", "style": "Estate of New"},
+                    ]
+                },
+                "no_send": True,
+                "provider_sends_enabled": False,
+            },
+        )
+    )
+
+    source_run = next(run for run in result.source_runs if run.source_lane == "harris_county_probate")
+    assert result.status == "completed"
+    assert source_run.record_count == 1
+    assert source_run.metadata["source_dedupe"]["remote_identity_ledger_status"] == "warning"
+    assert any("probate source identity ledger read failed with RuntimeError" in item for item in source_run.metadata["warnings"])
 
 
 def test_file_backed_repository_replays_nightly_idempotency_after_restart(tmp_path):
