@@ -50,12 +50,33 @@ Post-`origin/main` reconciliation:
 
 GitHub `origin/main` moved to `0fc3f80` after this branch was first closed out. The branch was merged with current `origin/main`; application code merged cleanly, and only `CONTEXT.md` plus `memory.md` required router-doc conflict resolution.
 
+VPS read-only checks:
+
 ```bash
-uv run pytest tests/api/test_sms_agent.py tests/services/test_sms_agent_service.py tests/services/test_sms_agent_processing.py tests/services/test_sms_reply_agent_service.py tests/services/test_sms_reply_agent_repository.py tests/services/test_inbound_sms_service.py tests/scripts/test_sms_agent_archive_export.py tests/scripts/test_textgrid_sms_reply_agent_smoke.py tests/db/test_sms_agent_schema.py tests/api/test_trigger_contract_files.py -q
-# 105 passed in 0.63s
+curl -sS -m 10 -D - http://100.74.177.6/health
+# HTTP 200 {"status":"ok"}
+
+curl -sS -m 10 -D - http://100.74.177.6/
+# HTTP 200 UI HTML
+
+curl -sS -m 10 -D - http://100.74.177.6/deals
+# HTTP 200 {"deals":[]}
+
+curl -sS -m 10 -D - 'http://100.74.177.6/mission-control/probate-autopilot/health?business_id=limitless&environment=prod'
+# HTTP 500 Internal Server Error
+```
+
+Direct SSH/Tailscale SSH to `root@100.74.177.6` remained blocked by auth. The live probate-health `500` is consistent with an unhealthy durable source-runs read path, so this branch adds a guard that converts `SourceRunsPersistenceError` into a blocked operator health response instead of a raw 500.
+
+```bash
+uv run pytest tests/services/test_nightly_lead_machine_service.py::test_probate_autopilot_health_reports_blocked_when_state_file_is_corrupt tests/api/test_nightly_lead_machine.py::test_mission_control_probate_autopilot_health_endpoint_reports_no_data -q
+# 2 passed in 0.02s
+
+uv run pytest tests/services/test_nightly_lead_machine_service.py tests/api/test_nightly_lead_machine.py tests/api/test_sms_agent.py tests/services/test_sms_agent_service.py tests/services/test_sms_agent_processing.py tests/services/test_sms_reply_agent_service.py tests/services/test_sms_reply_agent_repository.py tests/services/test_inbound_sms_service.py tests/scripts/test_sms_agent_archive_export.py tests/scripts/test_textgrid_sms_reply_agent_smoke.py tests/db/test_sms_agent_schema.py tests/api/test_trigger_contract_files.py -q
+# 144 passed in 0.40s
 
 uv run pytest -q
-# 1051 passed in 9.87s
+# 1052 passed in 9.60s
 
 npm --prefix apps/mission-control run test -- --run
 # 25 files passed, 83 tests passed

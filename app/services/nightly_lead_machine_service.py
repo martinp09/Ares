@@ -9,7 +9,7 @@ from typing import Any, Mapping
 
 from app.core.config import Settings, get_settings
 from app.db.probate_source_identities import ProbateSourceIdentityRepository
-from app.db.source_runs import SourceRunsRepository, source_runs_repository
+from app.db.source_runs import SourceRunsPersistenceError, SourceRunsRepository, source_runs_repository
 from app.models.source_runs import (
     MorningBrief,
     MorningBriefRequest,
@@ -887,7 +887,24 @@ class NightlyLeadMachineService:
         max_brief_age_hours: float | None = None,
         now: datetime | None = None,
     ) -> ProbateAutopilotHealthResponse:
-        brief = self.get_latest_morning_brief(business_id=business_id, environment=environment)
+        try:
+            brief = self.get_latest_morning_brief(business_id=business_id, environment=environment)
+        except SourceRunsPersistenceError:
+            return ProbateAutopilotHealthResponse(
+                business_id=business_id,
+                environment=environment,
+                status="blocked",
+                freshness_ok=False,
+                no_send_ok=False,
+                outbound_allowed=False,
+                operator_next_actions=[
+                    {
+                        "priority": "urgent",
+                        "action": "repair_probate_autopilot_state",
+                        "reason": "The source-runs repository state is unreadable; repair or restore the durable state file before trusting scheduler health.",
+                    }
+                ],
+            )
         if brief is None:
             return ProbateAutopilotHealthResponse(
                 business_id=business_id,

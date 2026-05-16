@@ -1006,3 +1006,18 @@ def test_file_backed_repository_corrupt_state_raises_domain_error(tmp_path):
 
     with pytest.raises(SourceRunsPersistenceError, match="Corrupted source-runs repository state"):
         repo.list_runs(business_id="biz", environment="prod")
+
+
+def test_probate_autopilot_health_reports_blocked_when_state_file_is_corrupt(tmp_path):
+    state_path = tmp_path / "source-runs.json"
+    state_path.write_text("{not-json", encoding="utf-8")
+    service = NightlyLeadMachineService(repository=SourceRunsRepository(state_path=state_path))
+
+    health = service.get_probate_autopilot_health(business_id="limitless", environment="prod")
+
+    assert health.status == "blocked"
+    assert health.freshness_ok is False
+    assert health.no_send_ok is False
+    assert health.outbound_allowed is False
+    assert health.operator_next_actions[0]["action"] == "repair_probate_autopilot_state"
+    assert "source-runs repository state is unreadable" in health.operator_next_actions[0]["reason"]
