@@ -222,7 +222,7 @@
 
 ## Open Work
 
-1. Implement `docs/superpowers/plans/2026-05-16-textgrid-sms-reply-agent-implementation-plan.md`: public signed TextGrid inbound webhook, SMS-agent job/decision tables, deterministic classifier, draft-only default, Mission Control review surface, Trigger processor, redacted Obsidian/JSONL archive export, and owned-number smoke. Keep live auto replies disabled until explicitly approved.
+1. Continue `docs/superpowers/plans/2026-05-16-textgrid-sms-reply-agent-implementation-plan.md`: public signed TextGrid inbound webhook, SMS-agent job/decision tables, deterministic classifier, draft-only default, Mission Control review surface, Trigger processor, redacted Obsidian/JSONL archive export, and provider activation smoke/runbook are now locally scaffolded; the live owned-number activation smoke still requires Martin approval. Keep live auto replies disabled until explicitly approved.
 1. Before any production no-send deployment, run `uv run python scripts/probate_autopilot_env_contract.py --env-file .env --require-scheduled-live`; configure durable `LEAD_MACHINE_SOURCE_RUNS_STATE_PATH` / `LEAD_MACHINE_ARTIFACT_ROOT`; keep scheduled live source/case-detail/enrichment gates explicit and provider mutation gates false.
 2. Keep HubSpot batch writes, Instantly enrollment/send, SMS/Vapi dispatch, paid skiptrace, Slack/provider sends, and deploy as separate explicit approval gates.
 3. Measure property-match lift from case-detail-derived party/address/context evidence; contact candidates are not confirmed sellers and seller authority remains unverified until separate evidence.
@@ -248,6 +248,12 @@
 - `TasksRepository` now treats `lead_machine_backend=supabase` as a Supabase-backed task path so title-packet review tasks persist with lead-machine records.
 
 ## Change Log
+
+### 2026-05-16 TextGrid SMS Reply Agent Task 11 Smoke Runbook
+
+- Added local Task 11 artifacts on `feature/textgrid-sms-agent`: `scripts/smoke/textgrid_sms_reply_agent_smoke.py`, `tests/scripts/test_textgrid_sms_reply_agent_smoke.py`, README smoke/runbook notes, `docs/runbooks/textgrid-sms-reply-agent-activation.md`, and QC report `docs/qc/2026-05-16/textgrid-sms-reply-agent/REPORT.md`.
+- Smoke script posts a Twilio-compatible signed form webhook to `/sms-agent/webhooks/textgrid` without bearer auth, optionally drains `/sms-agent/internal/process-pending` with bearer auth only when `--runtime-api-key` is supplied, and prints sanitized JSON only. It never calls TextGrid directly or mutates provider dashboards.
+- Verification: initial red test caught over-aggressive sanitizer redacting a boolean authorization safety flag; final local checks passed `25 passed` for the requested backend SMS-agent slice, `2 passed` for new smoke-script tests, combined `27 passed`, and `git diff --check`. No live Supabase mutation, TextGrid send, provider dashboard mutation, or deploy.
 
 ### 2026-05-16 TextGrid SMS Reply Agent Task 9 Blockers
 

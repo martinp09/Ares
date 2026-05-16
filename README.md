@@ -171,6 +171,7 @@ Ares now has a deterministic provider substrate for broader communications autom
 
 - `POST /sms-agent/messages` sends or dry-runs a generic TextGrid SMS. With `PROVIDER_LIVE_SENDS_ENABLED=false` or `dry_run_only=true`, it returns `dry_run=true` and does not call TextGrid. When live sends are enabled and TextGrid is configured, it requires `contact_id` plus `sms_consent_confirmed=true`, normalizes `to`/`from` to E.164, calls TextGrid, and logs the outbound message.
 - `POST /sms-agent/webhooks/textgrid` is a generic TextGrid webhook alias that reuses the existing inbound/status callback processor.
+- `POST /sms-agent/internal/process-pending` drains queued reply-agent jobs through the deterministic classifier. Keep `PROVIDER_LIVE_SENDS_ENABLED=false` and `SMS_AGENT_AUTO_REPLIES_ENABLED=false` for the first ingest smoke; only enable deterministic auto-ack after Martin approves an owned-number smoke.
 - `scripts/sms_agent_archive_export.py` writes redacted SMS reply-agent Markdown and JSONL archive/eval files under `YYYY/MM/`. It is cold storage only; Supabase remains the live runtime source of truth. The command fails closed unless `--root` or `SMS_AGENT_OBSIDIAN_ARCHIVE_ROOT` is explicitly set.
 - `POST /voice/assistants`, `POST /voice/phone-numbers`, and `POST /voice/calls/outbound` scaffold Vapi assistant/number/call payloads. Vapi provider mutations and outbound calls stay dry-run unless both `PROVIDER_LIVE_SENDS_ENABLED=true` and `VAPI_PROVIDER_LIVE_SENDS_ENABLED=true` are set.
 - `POST /voice/vapi/webhook` accepts Vapi Server URL messages, including `assistant-request`, `tool-calls`, `status-update`, `transcript`, and `end-of-call-report` shapes. Tool calls are wired into Mission Control context/tools: record search/detail, lane scripts, record updates, opportunity stage movement, task completion, lead qualification, follow-up summaries, and human handoff. The route is protected by the normal Ares runtime bearer auth; when `PROVIDER_WEBHOOK_SIGNATURES_REQUIRED=true`, it also requires `X-Vapi-Secret: <VAPI_WEBHOOK_SECRET>`. Configure the Vapi Server URL credential/header before live callbacks.
@@ -181,6 +182,19 @@ SMS reply-agent archive export:
 SMS_AGENT_OBSIDIAN_ARCHIVE_ROOT="/path/to/redacted/archive" \
   uv run python scripts/sms_agent_archive_export.py --date YYYY-MM-DD --dry-run
 ```
+
+SMS reply-agent local/hosted ingest smoke:
+
+```bash
+uv run python scripts/smoke/textgrid_sms_reply_agent_smoke.py \
+  --runtime-url http://localhost:8000 \
+  --webhook-secret whsec_123 \
+  --from +15551234567 \
+  --to +13467725914 \
+  --body "Can you call me?"
+```
+
+Add `--runtime-api-key <local-runtime-api-key>` only when the runtime gates are intentionally configured for a no-send processor drain. The activation runbook is `docs/runbooks/textgrid-sms-reply-agent-activation.md`.
 
 Vapi envs:
 
@@ -237,6 +251,7 @@ curl -sS -H 'Authorization: Bearer <local-runtime-api-key>' http://127.0.0.1:800
 - Python: `uv run pytest -q`
 - Lead machine smoke: `uv run python scripts/smoke/lead_machine_smoke.py`
 - Probate autopilot live no-send smoke: `uv run python scripts/smoke/probate_autopilot_live_no_send_smoke.py --day YYYY-MM-DD`
+- TextGrid SMS reply-agent ingest smoke: `uv run python scripts/smoke/textgrid_sms_reply_agent_smoke.py --runtime-url http://localhost:8000 --webhook-secret <textgrid-webhook-secret> --from <owned-sender> --to <ares-textgrid-number> --body "Can you call me?"`
 - Trigger.dev: `npm --prefix trigger run typecheck`
 - Mission Control: `npm --prefix apps/mission-control run test -- --run`, `npm --prefix apps/mission-control run typecheck`, `npm --prefix apps/mission-control run build`
 
