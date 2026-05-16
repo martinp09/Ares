@@ -1,7 +1,7 @@
 ---
 title: "Ares TODO / Handoff"
 status: active
-updated_at: "2026-05-16T02:58:00Z"
+updated_at: "2026-05-16T03:35:00Z"
 repo: "martinp09/Ares"
 local_checkout: "/opt/ares/worktrees/ares-main"
 target_branch: "main"
@@ -19,6 +19,8 @@ Back Office Spine v0 landed on `main` at `e898ee0` and the local `feature/back-o
 The Harris + Montgomery probate autopilot PRD implementation landed at `9c256bf` as an operational no-send system; handoff docs landed at `9f30d2f`, env preflight landed at `a859fd2`, and case-detail enrichment finished the last high-value probate enrichment gap. Trigger schedules default to live public probate source acquisition, live public case-detail page enrichment, and live public CAD/tax/land-record enrichment. Backend defaults those live intelligence lanes on, but Ares still requires explicit no-send approval metadata for live source/case-detail/enrichment runtime requests and keeps every outbound path blocked.
 
 Origin-main hardening cleanup landed on GitHub `main`: `709f714` adds the dynamic Montgomery PublicSearch land-record end date, live no-send smoke case-detail assertion, legacy `/crm/hubspot/*` `operator_approval=true` live-write gate, and CI; `be11aaa` tracks Docker deployment files and Docker CI.
+
+VPS edge/container hardening is complete and deployed from `32a3f57`. `/opt/ares/Ares` is detached at `origin/main`/`32a3f57`; `ares-api` and `ares-ui` are rebuilt/recreated with non-root users, `no-new-privileges`, dropped caps, and loopback-only Docker ports (`127.0.0.1:8000`, `127.0.0.1:8080`). Caddy is bound only to tailnet `100.74.177.6:80`, the runtime bearer lives in root-only `/etc/caddy/ares-runtime.env`, and `ares-edge-firewall.service` drops public `eth0` traffic to Caddy/Supabase dev ports. Post-deploy smoke: direct API `/deals` without auth `401`; tailnet `/health` 200, `/deal-desk` 200, `/deals` 200 in 327ms, `/deals/fire-list` 200 in 73ms, `/mission-control/probate-autopilot/health` 200. QC: `docs/qc/2026-05-16/vps-edge-container-hardening/`.
 
 VPS rebuild on `100.74.177.6` is complete. `/opt/ares/Ares` and `/opt/ares/worktrees/ares-main` are at `be11aaa`; `ares-api` and `ares-ui` images were rebuilt and are running healthy; Caddy backup is `/etc/caddy/Caddyfile.bak.20260516T023712Z`; Caddy routes now include `/crm*`, `/deals*`, `/sms-agent*`, and `/voice*`; Supabase migration `20260516011000_deal_spine_runtime` is applied. Verified through Caddy: `/health` 200, `/crm/hubspot/customization` GET 405, `/deals` 200, `/deals/fire-list` 200, and `/mission-control/probate-autopilot/health` 200.
 
@@ -48,7 +50,7 @@ No HubSpot batch writes, Instantly enrollment/sends, SMS/Vapi calls, paid skiptr
 2. After production deployment, monitor the no-send Trigger schedule reports for aggregate source-run/enrichment health.
 3. Keep Instantly enrollment/send, SMS/Vapi dispatch, paid skiptrace, and HubSpot batch mirror writes gated until separately approved.
 4. Measure property-match lift from case-detail-derived party/address/context evidence; current case-detail layer records contact candidates but still does not assert seller authority.
-5. Profile or cache Supabase control-plane hydration before heavy operator use of the deal spine; verified live `/deals` and `/deals/fire-list` are correct but currently take roughly 10-11 seconds on the VPS.
+5. Monitor the tailnet-only VPS edge and keep `ares-edge-firewall.service` active while Supabase/dev ports remain published by their owning stack.
 
 ## Open product follow-ups
 

@@ -1,0 +1,88 @@
+## Post-deploy live smoke for 32a3f57
+[
+  {
+    "name": "direct_api_health",
+    "status": 200,
+    "time_ms": 5,
+    "body_prefix": "{\"status\":\"ok\"}"
+  },
+  {
+    "name": "direct_api_deals_no_auth_expected_401",
+    "status": 401,
+    "time_ms": 2,
+    "body_prefix": "{\"detail\":\"Unauthorized\"}"
+  },
+  {
+    "name": "tailnet_health",
+    "status": 200,
+    "time_ms": 3,
+    "body_prefix": "{\"status\":\"ok\"}"
+  },
+  {
+    "name": "tailnet_ui_root",
+    "status": 200,
+    "time_ms": 2,
+    "body_prefix": "<!doctype html> <html lang=\"en\">   <head>     <meta charset=\"UTF-8\" />     <meta name=\"viewport\" content=\"width=device-w"
+  },
+  {
+    "name": "tailnet_deal_desk",
+    "status": 200,
+    "time_ms": 1,
+    "body_prefix": "<!doctype html> <html lang=\"en\">   <head>     <meta charset=\"UTF-8\" />     <meta name=\"viewport\" content=\"width=device-w"
+  },
+  {
+    "name": "tailnet_deals",
+    "status": 200,
+    "time_ms": 327,
+    "body_prefix": "{\"deals\":[]}"
+  },
+  {
+    "name": "tailnet_fire_list",
+    "status": 200,
+    "time_ms": 73,
+    "body_prefix": "{\"items\":[]}"
+  },
+  {
+    "name": "tailnet_probate_health",
+    "status": 200,
+    "time_ms": 5,
+    "body_prefix": "{\"business_id\":\"limitless\",\"environment\":\"prod\",\"status\":\"no_data\",\"freshness_ok\":false,\"stale_brief\":false,\"no_send_ok\""
+  },
+  {
+    "name": "localhost_caddy_not_bound",
+    "error": "URLError",
+    "detail": "<urlopen error [Errno 111] Connection refused>",
+    "time_ms": 0
+  }
+]
+
+## Docker users/labels/ports
+api_container_uid=999
+ui_container_uid=101
+/ares-api user=ares no_new_privileges=["no-new-privileges:true"] cap_drop=["ALL"] labels={"com.docker.compose.config-hash":"0ca6d7a4fe8b057551782be992682fcbcd00356205b296d18f7f739554a6c523","com.docker.compose.container-number":"1","com.docker.compose.depends_on":"","com.docker.compose.image":"sha256:db40d20ac40b137f5d39c35a895201ee0c70901df7be5e7036eda494c8d6c37c","com.docker.compose.oneoff":"False","com.docker.compose.project":"ares","com.docker.compose.project.config_files":"/opt/ares/docker-compose.yml","com.docker.compose.project.working_dir":"/opt/ares","com.docker.compose.replace":"ares-api","com.docker.compose.service":"ares-api","com.docker.compose.version":"5.1.3","org.opencontainers.image.created":"2026-05-16T03:29:52Z","org.opencontainers.image.revision":"32a3f57","org.opencontainers.image.source":"https://github.com/martinp09/Ares","org.opencontainers.image.title":"Ares API"} ports={"8000/tcp":[{"HostIp":"127.0.0.1","HostPort":"8000"}]}
+/ares-ui user=101 no_new_privileges=["no-new-privileges:true"] cap_drop=["ALL"] labels={"com.docker.compose.config-hash":"fba323ae579068b5cbd5289b3e2ac4ceadaf0b1e8b594b948e13a3129898a9bc","com.docker.compose.container-number":"1","com.docker.compose.depends_on":"ares-api:service_healthy:false","com.docker.compose.image":"sha256:5813462fc59cfba011867c4a23670f47c79e913d9cedb96ec8ba7fa128a92595","com.docker.compose.oneoff":"False","com.docker.compose.project":"ares","com.docker.compose.project.config_files":"/opt/ares/docker-compose.yml","com.docker.compose.project.working_dir":"/opt/ares","com.docker.compose.replace":"ares-ui","com.docker.compose.service":"ares-ui","com.docker.compose.version":"5.1.3","maintainer":"NGINX Docker Maintainers <docker-maint@nginx.com>","org.opencontainers.image.created":"2026-05-16T03:29:52Z","org.opencontainers.image.description":"Unprivileged NGINX Dockerfiles","org.opencontainers.image.licenses":"Apache-2.0","org.opencontainers.image.revision":"32a3f57","org.opencontainers.image.source":"https://github.com/martinp09/Ares","org.opencontainers.image.title":"Ares Mission Control UI","org.opencontainers.image.url":"https://github.com/nginx/docker-nginx-unprivileged","org.opencontainers.image.version":"1.27.5-alpine"} ports={"8080/tcp":[{"HostIp":"127.0.0.1","HostPort":"8080"}]}
+
+## Listeners and firewall
+State  Recv-Q Send-Q               Local Address:Port  Peer Address:PortProcess
+LISTEN 0      4096                       0.0.0.0:22         0.0.0.0:*    users:(("sshd",pid=3310857,fd=3),("systemd",pid=1,fd=190))
+LISTEN 0      4096                     127.0.0.1:8080       0.0.0.0:*    users:(("docker-proxy",pid=1912285,fd=8))
+LISTEN 0      4096                     127.0.0.1:8000       0.0.0.0:*    users:(("docker-proxy",pid=1912121,fd=8))
+LISTEN 0      4096                       0.0.0.0:54321      0.0.0.0:*    users:(("docker-proxy",pid=241794,fd=8))
+LISTEN 0      4096                       0.0.0.0:54322      0.0.0.0:*    users:(("docker-proxy",pid=240444,fd=8))
+LISTEN 0      4096                       0.0.0.0:54323      0.0.0.0:*    users:(("docker-proxy",pid=244040,fd=8))
+LISTEN 0      4096                       0.0.0.0:54324      0.0.0.0:*    users:(("docker-proxy",pid=242894,fd=8))
+LISTEN 0      4096                       0.0.0.0:54327      0.0.0.0:*    users:(("docker-proxy",pid=241466,fd=8))
+LISTEN 0      4096                  100.74.177.6:80         0.0.0.0:*    users:(("caddy",pid=1900289,fd=6))
+LISTEN 0      4096                          [::]:22            [::]:*    users:(("sshd",pid=3310857,fd=4),("systemd",pid=1,fd=191))
+LISTEN 0      4096                          [::]:54321         [::]:*    users:(("docker-proxy",pid=241802,fd=8))
+LISTEN 0      4096                          [::]:54322         [::]:*    users:(("docker-proxy",pid=240450,fd=8))
+LISTEN 0      4096                          [::]:54323         [::]:*    users:(("docker-proxy",pid=244045,fd=8))
+LISTEN 0      4096                          [::]:54324         [::]:*    users:(("docker-proxy",pid=242907,fd=8))
+LISTEN 0      4096                          [::]:54327         [::]:*    users:(("docker-proxy",pid=241472,fd=8))
+-A INPUT -i eth0 -p tcp -m multiport --dports 80,54321,54322,54323,54324,54327 -j DROP
+-A INPUT -i eth0 -p tcp -m multiport --dports 80,54321,54322,54323,54324,54327 -j DROP
+
+## Compose ps
+NAME       IMAGE           COMMAND                  SERVICE    CREATED          STATUS                    PORTS
+ares-api   ares-ares-api   "uvicorn app.main:ap…"   ares-api   32 seconds ago   Up 31 seconds (healthy)   127.0.0.1:8000->8000/tcp
+ares-ui    ares-ares-ui    "/docker-entrypoint.…"   ares-ui    31 seconds ago   Up 25 seconds             127.0.0.1:8080->8080/tcp

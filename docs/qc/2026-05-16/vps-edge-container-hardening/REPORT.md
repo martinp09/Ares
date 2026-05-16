@@ -2,6 +2,7 @@
 
 - Date: 2026-05-16
 - Branch: `fix/vps-edge-container-hardening`
+- Code commit deployed: `32a3f57`
 - Scope: tighten the live VPS edge after Docker rebuild, remove public Caddy exposure, block public Supabase/dev ports, harden tracked Docker artifacts, and reduce Deal Desk read latency by avoiding full control-plane hydration for read-only deal endpoints.
 
 ## Root cause
@@ -57,6 +58,7 @@ See:
 - `test-output.txt`
 - `build-output.txt`
 - `live-edge-smoke.txt`
+- `post-deploy-live-smoke.txt`
 - `diff-summary.md`
 
 Passed:
@@ -85,12 +87,28 @@ Live edge smoke before deploying the new code image:
 - Listener summary shows Caddy bound to `100.74.177.6:80`
 - Edge firewall service active
 
+Post-merge/deploy smoke after rebuilding `/opt/ares/Ares` from `32a3f57`:
+
+- Direct API health: `200`
+- Direct API `/deals` without auth: `401`, preserving API bearer protection
+- Tailnet Caddy `/health`: `200`
+- Tailnet Caddy `/`: `200`
+- Tailnet Caddy `/deal-desk`: `200`
+- Tailnet Caddy `/deals`: `200` in `327ms` with no data
+- Tailnet Caddy `/deals/fire-list`: `200` in `73ms` with no data
+- Tailnet Caddy `/mission-control/probate-autopilot/health`: `200`
+- Localhost Caddy: connection refused, confirming Caddy is not bound on local/public wildcard
+- `ares-api` container UID: `999`; `ares-ui` container UID: `101`
+- Docker published API/UI only on loopback: `127.0.0.1:8000` and `127.0.0.1:8080`
+- Caddy listener: `100.74.177.6:80`
+- Edge firewall service remains active
+
 ## Safety / no-send boundary
 
 No Instantly enrollment/sends, email sends, SMS/Vapi calls, paid skiptrace, HubSpot batch writes, Slack/provider sends, county source pulls, or production outbound mutations were executed.
 
-The live mutations were limited to VPS edge/network/service configuration: Caddy binding/env-file migration and firewall guardrail installation.
+The live mutations were limited to VPS edge/network/service configuration, repo deployment, and container rebuild/recreate: Caddy binding/env-file migration, firewall guardrail installation, `/opt/ares/docker-compose.yml` loopback/non-root hardening, and rebuilding `ares-api`/`ares-ui` from `32a3f57`.
 
 ## Remaining deployment step
 
-After merge to `main`, rebuild `/opt/ares/Ares` from the merged commit and update `/opt/ares/docker-compose.yml` to map `ares-ui` as `127.0.0.1:8080:8080` before recreating containers. Then rerun tailnet smoke and confirm `/deals` latency drops from ~12s to sub-second/no-data read time.
+Deployment is complete for this hardening slice. Continue monitoring only; if Supabase/dev containers are kept running, keep `ares-edge-firewall.service` active or bind those dev ports to loopback in their owning compose stack.
