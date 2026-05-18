@@ -415,6 +415,14 @@ class Settings(BaseSettings):
         default=None,
         validation_alias=AliasChoices("slack_channel_hot_leads", "SLACK_CHANNEL_HOT_LEADS"),
     )
+    slack_channel_chief_of_staff: str | None = Field(
+        default=None,
+        validation_alias=AliasChoices("slack_channel_chief_of_staff", "SLACK_CHANNEL_CHIEF_OF_STAFF"),
+    )
+    ares_chief_of_staff_artifact_root: str | None = Field(
+        default=None,
+        validation_alias=AliasChoices("ares_chief_of_staff_artifact_root", "ARES_CHIEF_OF_STAFF_ARTIFACT_ROOT"),
+    )
     slack_channel_instantly_replies: str | None = Field(
         default=None,
         validation_alias=AliasChoices("slack_channel_instantly_replies", "SLACK_CHANNEL_INSTANTLY_REPLIES"),

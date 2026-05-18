@@ -1,10 +1,10 @@
 ---
 title: "Ares TODO / Handoff"
 status: active
-updated_at: "2026-05-16T21:52:00Z"
+updated_at: "2026-05-18T13:15:00Z"
 repo: "martinp09/Ares"
-local_checkout: "/opt/ares/worktrees/ares-main"
-target_branch: "main"
+local_checkout: "/opt/ares/worktrees/ares-chief-of-staff-v0"
+target_branch: "feature/ares-chief-of-staff-v0"
 back_office_spine_commit: "e898ee0"
 previous_handoff_commit: "9f30d2f"
 implementation_commit: "9c256bf"
@@ -17,6 +17,8 @@ supabase_identity_adapter_commit: "6cd2d88"
 # Ares TODO / Handoff
 
 ## Current status
+
+Ares Chief of Staff v0 is implemented on `feature/ares-chief-of-staff-v0` for review/merge. It is a read-only lead desk operator: current Ares leads are bucketed into hot/contact-ready/research/skiptrace/blocked queues, artifacts are written as Markdown/JSON/CSV, and Slack delivery uses the dedicated opt-in route `chief_of_staff_digest` / `SLACK_CHANNEL_CHIEF_OF_STAFF`. Safety boundaries remain hard: no seller outreach, paid skiptrace, Instantly enrollment, HubSpot/provider writes, SMS/email/Vapi sends, Slack live post, Supabase remote migration, VPS deploy, or Telegram delivery occurred in this slice. Verification: focused/regression tests `51 passed`, full backend `1143 passed`, configured artifact-root dry-run side-effect check `dry_run_artifacts_created=0`, `git diff --check`/`git diff --cached --check` passed. QC: `docs/qc/2026-05-18/ares-chief-of-staff-v0/`.
 
 Back Office Spine v0 landed on `main` at `e898ee0` and the local `feature/back-office-spine-v0` branch was deleted. This slice turns qualified leads into canonical deal records with lane-aware task/document/risk templates, stage transition blockers, fire-list read models, Supabase runtime persistence, and a read-only Mission Control Deal Desk page.
 
@@ -57,12 +59,14 @@ Cleanup verification on the `be76288` baseline passed: focused backend => `44 pa
 
 ## Immediate next actions
 
-1. Watch the next automatic Trigger CT windows (`07:10`, `12:40`, `17:40` America/Chicago) for the next `limitless/prod` autonomous morning briefs and Slack lead-run digests. One-shot Hermes watcher `9ed644afbc4a` is scheduled at `2026-05-16T22:50:00Z` to verify the next `17:40 CT` Trigger run without moving production schedules.
-2. Keep Hermes cron `815e1261ab2e` paused while Trigger remains authoritative; resume it only as an intentional rollback.
-3. Monitor the Funnel API edge (`/health`, protected probate health with bearer, protected routes `401` without bearer) and keep Tailscale Funnel limited to the API loopback proxy.
-4. Add a Harris postback case-detail client if live Harris party/event/document detail completion is required; current postback-only rows are safely incomplete, not blocked.
-5. Keep Instantly enrollment/send, SMS/Vapi dispatch, paid skiptrace, and HubSpot batch mirror writes gated until separately approved.
-6. Prepare the marketing launch manifest next: source-approved contacts, suppression/verification, exact copy, exact recipient limits, and approval before Instantly/SMS/email sends.
+1. Review and merge `feature/ares-chief-of-staff-v0`; after deploy, apply `supabase/migrations/20260518130327_chief_of_staff_slack_route.sql` and configure/create/invite `SLACK_CHANNEL_CHIEF_OF_STAFF` before the first live Chief of Staff Slack digest.
+2. Run `uv run python scripts/slack_notification_readiness.py --json --render-sample --route chief_of_staff_digest` before any live Chief of Staff Slack post.
+3. Watch the next automatic Trigger CT windows (`07:10`, `12:40`, `17:40` America/Chicago) for the next `limitless/prod` autonomous morning briefs and Slack lead-run digests. One-shot Hermes watcher `9ed644afbc4a` is scheduled at `2026-05-16T22:50:00Z` to verify the next `17:40 CT` Trigger run without moving production schedules.
+4. Keep Hermes cron `815e1261ab2e` paused while Trigger remains authoritative; resume it only as an intentional rollback.
+5. Monitor the Funnel API edge (`/health`, protected probate health with bearer, protected routes `401` without bearer) and keep Tailscale Funnel limited to the API loopback proxy.
+6. Add a Harris postback case-detail client if live Harris party/event/document detail completion is required; current postback-only rows are safely incomplete, not blocked.
+7. Keep Instantly enrollment/send, SMS/Vapi dispatch, paid skiptrace, and HubSpot batch mirror writes gated until separately approved.
+8. Prepare the marketing launch manifest next: source-approved contacts, suppression/verification, exact copy, exact recipient limits, and approval before Instantly/SMS/email sends.
 
 ## Open product follow-ups
 

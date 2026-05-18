@@ -29,6 +29,12 @@ ROUTE_CONFIG: dict[str, dict[str, Any]] = {
         "fallback_env_vars": [],
         "fallback_settings": [],
     },
+    SlackNotificationRoute.CHIEF_OF_STAFF_DIGEST.value: {
+        "preferred_env_var": "SLACK_CHANNEL_CHIEF_OF_STAFF",
+        "setting": "slack_channel_chief_of_staff",
+        "fallback_env_vars": [],
+        "fallback_settings": [],
+    },
     SlackNotificationRoute.INSTANTLY_REPLIES.value: {
         "preferred_env_var": "SLACK_CHANNEL_INSTANTLY_REPLIES",
         "setting": "slack_channel_instantly_replies",
@@ -57,6 +63,7 @@ ROUTE_CONFIG: dict[str, dict[str, Any]] = {
 ACTIVATION_ROUTES = (
     SlackNotificationRoute.LEAD_RUNS.value,
     SlackNotificationRoute.HOT_LEADS.value,
+    SlackNotificationRoute.CHIEF_OF_STAFF_DIGEST.value,
     SlackNotificationRoute.INSTANTLY_REPLIES.value,
     SlackNotificationRoute.LEASE_OPTION_INBOUND.value,
     SlackNotificationRoute.SMS_CALLS.value,
@@ -147,6 +154,10 @@ def _sample_for(route: str) -> dict[str, Any]:
         SlackNotificationRoute.HOT_LEADS.value: (
             "Ares hot lead: 91 score, Harris probate, 123 Main St.",
             "Hot enriched probate lead ready for operator review.",
+        ),
+        SlackNotificationRoute.CHIEF_OF_STAFF_DIGEST.value: (
+            "Ares Chief of Staff: reviewed 84 leads; 7 hot, 3 contact-ready, 5 skiptrace candidates.",
+            "Daily operator brief separated from Telegram chat.",
         ),
         SlackNotificationRoute.INSTANTLY_REPLIES.value: (
             "Instantly reply: lead@example.com said they are available today.",

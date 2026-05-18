@@ -39,6 +39,8 @@
 
 ## Current Direction
 
+- `/opt/ares/worktrees/ares-chief-of-staff-v0` on `feature/ares-chief-of-staff-v0` adds Ares Chief of Staff v0: read-only lead desk scoring/bucketing, hot/contact-ready/research/skiptrace/blocked queues, Markdown/JSON/CSV artifacts, and opt-in Slack route `chief_of_staff_digest` via `SLACK_CHANNEL_CHIEF_OF_STAFF`. It is separate from Telegram and performs no seller outreach, paid skiptrace, Instantly enrollment, HubSpot/provider writes, SMS/email/Vapi sends, or buyer blasts. QC: `docs/qc/2026-05-18/ares-chief-of-staff-v0/`.
+
 - `/opt/ares/worktrees/ares-main` on `main` includes the TextGrid SMS reply-agent implementation and `/opt/ares/Ares` is deployed from `61f18de` (runtime rebuild commit; later docs commits may be newer); the VPS runtime exposes signed TextGrid webhook ingest, protected pending-job processing, Mission Control review/operator actions, and Supabase SMS-agent persistence tables. Source docs: `docs/superpowers/specs/2026-05-16-textgrid-sms-reply-agent-design.md`, `docs/superpowers/plans/2026-05-16-textgrid-sms-reply-agent-implementation-plan.md`, and `docs/mission-control-wiki/concepts/textgrid-sms-reply-agent.md`.
 - TextGrid SMS reply-agent runtime state: extend the existing `/sms-agent` scaffold rather than create a parallel SMS runtime; webhook ingest queues jobs and returns immediately; protected processing drafts/blocks replies; Trigger.dev SMS processor schedule is promoted and live; Supabase remains the hot operational source of truth; Obsidian/JSONL is a redacted cold archive/eval corpus, not live source of truth; automatic replies remain disabled until both global provider sends and `SMS_AGENT_AUTO_REPLIES_ENABLED` are explicitly approved.
 - Slack notification routing is live in code on `origin/main`/VPS at `61f18de`: persisted Slack attempts, readiness checks, route config, and notifications for lead-machine run digests/hot leads, Instantly replies, lease-option inbound leads, SMS replies, and Vapi call events. Route channels, VPS route env, and Ares Slack bot token are configured; readiness is configured and Slack `auth.test` passes. Controlled Trigger lead-run digest delivery to `lead_runs` and controlled route-test delivery to `hot_leads` both persisted with Slack message timestamps.
@@ -224,24 +226,25 @@
 
 ## Open Work
 
-1. Watch the next automatic Trigger CT windows (`07:10`, `12:40`, `17:40` America/Chicago) for the next `limitless/prod` autonomous morning briefs and Slack lead-run digests.
-2. Keep Hermes cron `815e1261ab2e` paused while Trigger remains authoritative; resume it only as an intentional rollback.
-3. Add a Harris postback case-detail client if live Harris party/event/document detail completion is required; current postback-only rows are safely incomplete, not blocked.
-4. Keep HubSpot batch writes, Instantly enrollment/send, SMS/Vapi dispatch, paid skiptrace, and deploy as separate explicit approval gates.
-5. Measure property-match lift from case-detail-derived party/address/context evidence once detail completion exists; contact candidates are not confirmed sellers and seller authority remains unverified until separate evidence.
-6. Live HubSpot CRM apply/batch operations require a valid HubSpot private-app/personal access token with CRM schema/pipeline scopes as `HUBSPOT_ACCESS_TOKEN`; rotate any pasted chat token/key before broader use.
-7. Activate/upgrade the keyed Instantly workspace to a paid plan before real-account campaign sync/enrollment.
-8. Capture stronger primary Alen Sultanic source material and update `docs/copywriting-wiki/`; current YouTube transcript access is blocked from this environment.
-9. Add Mission Control read/approval endpoints and frontend review page for Ares offer/copy assets and Harris probate campaign launch.
-10. Enrich Harris probate campaign exports with email/phone via Tracerfy only after Martin explicitly approves skiptrace spend; single-record CRM skiptrace endpoint is wired, batch enrichment remains unapproved.
-11. Before live Vapi callbacks/calls, configure Vapi Server URL credentials to send Ares bearer auth and `X-Vapi-Secret`, then run a dry-run-to-live progression with approved numbers only.
-12. Monitor automatic Slack delivery from scheduled lead runs, enrichment hot-lead digests, Instantly replies, lease-option inbound leads, SMS replies, and Vapi calls; get explicit approval before any manual live Slack test post.
-13. Run dedicated production promotion only when intentionally preserving/updating production runtime/provider env wiring.
-14. Consider an atomic backend bulk-record endpoint if large batch throughput/transaction semantics become necessary.
-15. Defer owner/property graph, research cockpit, and map UI until Records and stage model are stable.
-16. Preserve production evidence files as the handoff source of truth; optionally replace the REST rollback bundle with native pg_dump once Supabase CLI container DNS is fixed.
-17. Add production monitoring/alerts for provider callback failures.
-18. Keep browser acquisition and ambiguous research in Hermes or other driver agents, not inside Ares.
+1. Review/merge/deploy `feature/ares-chief-of-staff-v0`; after deploy, apply migration `20260518130327_chief_of_staff_slack_route.sql`, create/invite/configure `SLACK_CHANNEL_CHIEF_OF_STAFF`, and run Chief of Staff Slack readiness before the first live digest post.
+2. Watch the next automatic Trigger CT windows (`07:10`, `12:40`, `17:40` America/Chicago) for the next `limitless/prod` autonomous morning briefs and Slack lead-run digests.
+3. Keep Hermes cron `815e1261ab2e` paused while Trigger remains authoritative; resume it only as an intentional rollback.
+4. Add a Harris postback case-detail client if live Harris party/event/document detail completion is required; current postback-only rows are safely incomplete, not blocked.
+5. Keep HubSpot batch writes, Instantly enrollment/send, SMS/Vapi dispatch, paid skiptrace, and deploy as separate explicit approval gates.
+6. Measure property-match lift from case-detail-derived party/address/context evidence once detail completion exists; contact candidates are not confirmed sellers and seller authority remains unverified until separate evidence.
+7. Live HubSpot CRM apply/batch operations require a valid HubSpot private-app/personal access token with CRM schema/pipeline scopes as `HUBSPOT_ACCESS_TOKEN`; rotate any pasted chat token/key before broader use.
+8. Activate/upgrade the keyed Instantly workspace to a paid plan before real-account campaign sync/enrollment.
+9. Capture stronger primary Alen Sultanic source material and update `docs/copywriting-wiki/`; current YouTube transcript access is blocked from this environment.
+10. Add Mission Control read/approval endpoints and frontend review page for Ares offer/copy assets and Harris probate campaign launch.
+11. Enrich Harris probate campaign exports with email/phone via Tracerfy only after Martin explicitly approves skiptrace spend; single-record CRM skiptrace endpoint is wired, batch enrichment remains unapproved.
+12. Before live Vapi callbacks/calls, configure Vapi Server URL credentials to send Ares bearer auth and `X-Vapi-Secret`, then run a dry-run-to-live progression with approved numbers only.
+13. Monitor automatic Slack delivery from scheduled lead runs, enrichment hot-lead digests, Instantly replies, lease-option inbound leads, SMS replies, and Vapi calls; get explicit approval before any manual live Slack test post.
+14. Run dedicated production promotion only when intentionally preserving/updating production runtime/provider env wiring.
+15. Consider an atomic backend bulk-record endpoint if large batch throughput/transaction semantics become necessary.
+16. Defer owner/property graph, research cockpit, and map UI until Records and stage model are stable.
+17. Preserve production evidence files as the handoff source of truth; optionally replace the REST rollback bundle with native pg_dump once Supabase CLI container DNS is fixed.
+18. Add production monitoring/alerts for provider callback failures.
+19. Keep browser acquisition and ambiguous research in Hermes or other driver agents, not inside Ares.
 
 ## Completed Branch Work
 
@@ -251,6 +254,13 @@
 - `TasksRepository` now treats `lead_machine_backend=supabase` as a Supabase-backed task path so title-packet review tasks persist with lead-machine records.
 
 ## Change Log
+
+### 2026-05-18 Ares Chief of Staff v0
+
+- Opened isolated branch/worktree `feature/ares-chief-of-staff-v0` at `/opt/ares/worktrees/ares-chief-of-staff-v0` from `origin/main` and pushed the empty branch before implementation.
+- Added read-only Chief of Staff lead digest service and CLI: reads current Ares leads, builds hot/contact-ready/research/skiptrace/blocked queues, writes Markdown/JSON/CSV artifacts, and keeps seller/provider actions blocked.
+- Added Slack route `chief_of_staff_digest`, config `SLACK_CHANNEL_CHIEF_OF_STAFF`, artifact root config `ARES_CHIEF_OF_STAFF_ARTIFACT_ROOT`, readiness sample, and migration `20260518130327_chief_of_staff_slack_route.sql` for the route check constraint. Slack delivery is opt-in per run and not live-tested in this slice.
+- Verification: Chief of Staff + Slack/config focused regression suite `51 passed`, full backend `1143 passed`, configured artifact-root dry-run side-effect check `dry_run_artifacts_created=0`, `git diff --check`/`git diff --cached --check` passed. QC: `docs/qc/2026-05-18/ares-chief-of-staff-v0/`. No seller outreach, paid skiptrace, Instantly/HubSpot/provider writes, SMS/email/Vapi sends, Slack live posts, Supabase remote migration, VPS deploy, or Telegram delivery.
 
 ### 2026-05-16 Trigger Scheduler Promotion, Slack Routes, And SMS Readiness
 

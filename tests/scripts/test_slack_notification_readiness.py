@@ -11,6 +11,7 @@ def _ready_settings(**overrides):
         "slack_bot_token": "xoxb-secret-token",
         "slack_channel_lead_runs": "C123LEADRUNS",
         "slack_channel_hot_leads": "C123HOTLEADS",
+        "slack_channel_chief_of_staff": "C123COS",
         "slack_channel_instantly_replies": "C123REPLIES",
         "slack_channel_lease_option_inbound": "C123LEASEIN",
         "slack_channel_sms_calls": "C123SMSCALLS",
@@ -49,6 +50,17 @@ def test_slack_notification_readiness_reports_selected_route_and_sample() -> Non
     assert report["routes"]["hot_leads"]["channel_id"]["shape"]["valid_prefix"] is True
     assert report["sample"]["route"] == "hot_leads"
     assert "token" not in json.dumps(report["sample"]).lower()
+
+
+def test_slack_notification_readiness_supports_chief_of_staff_route() -> None:
+    report = slack_notification_readiness(settings=_ready_settings(), route="chief_of_staff_digest", render_sample=True)
+
+    assert report["configured"] is True
+    assert report["would_post"] is True
+    assert report["selected_route"] == "chief_of_staff_digest"
+    assert report["routes"]["chief_of_staff_digest"]["preferred_env_var"] == "SLACK_CHANNEL_CHIEF_OF_STAFF"
+    assert report["sample"]["route"] == "chief_of_staff_digest"
+    assert "separated from Telegram chat" in json.dumps(report["sample"])
 
 
 def test_slack_notification_readiness_blocks_invalid_channel_shape() -> None:

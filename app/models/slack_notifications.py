@@ -11,6 +11,7 @@ from app.models.commands import generate_id, utc_now
 class SlackNotificationRoute(StrEnum):
     LEAD_RUNS = "lead_runs"
     HOT_LEADS = "hot_leads"
+    CHIEF_OF_STAFF_DIGEST = "chief_of_staff_digest"
     INSTANTLY_REPLIES = "instantly_replies"
     LEASE_OPTION_INBOUND = "lease_option_inbound"
     SMS_CALLS = "sms_calls"

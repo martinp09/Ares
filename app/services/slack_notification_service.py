@@ -138,6 +138,8 @@ class SlackNotificationService:
             return self.settings.slack_channel_lead_runs or self.settings.slack_channel_leads
         if route == SlackNotificationRoute.HOT_LEADS:
             return self.settings.slack_channel_hot_leads
+        if route == SlackNotificationRoute.CHIEF_OF_STAFF_DIGEST:
+            return self.settings.slack_channel_chief_of_staff
         if route == SlackNotificationRoute.INSTANTLY_REPLIES:
             return self.settings.slack_channel_instantly_replies
         if route == SlackNotificationRoute.LEASE_OPTION_INBOUND:

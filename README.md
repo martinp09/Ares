@@ -103,13 +103,49 @@ Current implementation notes:
 
 ### Slack operator notifications
 
-Slack notifications are disabled by default and independent from prospect-facing send gates. Set `SLACK_NOTIFICATIONS_ENABLED=true`, invite the Ares Slack bot to each target channel, and configure `SLACK_CHANNEL_LEAD_RUNS`, `SLACK_CHANNEL_HOT_LEADS`, `SLACK_CHANNEL_INSTANTLY_REPLIES`, `SLACK_CHANNEL_LEASE_OPTION_INBOUND`, and `SLACK_CHANNEL_SMS_CALLS`.
+Slack notifications are disabled by default and independent from prospect-facing send gates. Set `SLACK_NOTIFICATIONS_ENABLED=true`, invite the Ares Slack bot to each target channel, and configure `SLACK_CHANNEL_LEAD_RUNS`, `SLACK_CHANNEL_HOT_LEADS`, `SLACK_CHANNEL_CHIEF_OF_STAFF`, `SLACK_CHANNEL_INSTANTLY_REPLIES`, `SLACK_CHANNEL_LEASE_OPTION_INBOUND`, and `SLACK_CHANNEL_SMS_CALLS`.
 
 Run the no-post readiness check before any live Slack smoke:
 
 ```bash
 uv run python scripts/slack_notification_readiness.py --json
 uv run python scripts/slack_notification_readiness.py --json --render-sample --route hot_leads
+uv run python scripts/slack_notification_readiness.py --json --render-sample --route chief_of_staff_digest
+```
+
+### Ares Chief of Staff v0
+
+The Chief of Staff digest is a read-only lead desk brief for Martin. It reads current Ares lead records, buckets them into hot/contact-ready/research/skiptrace/blocked queues, writes human-readable artifacts, and can post a concise operator digest to Slack route `chief_of_staff_digest`. It does not send seller outreach, spend paid skiptrace credits, enroll Instantly campaigns, write HubSpot/provider records, call Vapi/SMS/email, or deliver scheduled output to Telegram.
+
+Dry-run without artifacts or Slack:
+
+```bash
+uv run python scripts/ares_chief_of_staff_digest.py \
+  --business-id limitless \
+  --environment prod \
+  --limit 5 \
+  --dry-run \
+  --json
+```
+
+Write local artifacts under an explicit root:
+
+```bash
+uv run python scripts/ares_chief_of_staff_digest.py \
+  --business-id limitless \
+  --environment prod \
+  --artifact-root /var/lib/ares/lead-machine/artifacts \
+  --json
+```
+
+Slack delivery is opt-in per run and still skips safely unless `SLACK_NOTIFICATIONS_ENABLED=true`, `SLACK_BOT_TOKEN`, and `SLACK_CHANNEL_CHIEF_OF_STAFF` are configured:
+
+```bash
+uv run python scripts/ares_chief_of_staff_digest.py \
+  --business-id limitless \
+  --environment prod \
+  --send-slack \
+  --idempotency-key chief-of-staff:$(date -u +%F)
 ```
 
 ## Landing Page Intake Contract
@@ -172,6 +208,7 @@ SLACK_NOTIFICATIONS_ENABLED=false
 SLACK_BOT_TOKEN=<set when Slack operator notifications are ready>
 SLACK_CHANNEL_LEAD_RUNS=<slack-channel-id>
 SLACK_CHANNEL_HOT_LEADS=<slack-channel-id>
+SLACK_CHANNEL_CHIEF_OF_STAFF=<optional-chief-of-staff-slack-channel-id>
 SLACK_CHANNEL_INSTANTLY_REPLIES=<slack-channel-id>
 SLACK_CHANNEL_LEASE_OPTION_INBOUND=<slack-channel-id>
 SLACK_CHANNEL_SMS_CALLS=<slack-channel-id>

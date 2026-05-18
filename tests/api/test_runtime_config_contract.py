@@ -65,6 +65,8 @@ def test_slack_notification_route_settings_default_safe(monkeypatch) -> None:
     for name in (
         "SLACK_NOTIFICATIONS_ENABLED",
         "SLACK_CHANNEL_LEAD_RUNS",
+        "SLACK_CHANNEL_HOT_LEADS",
+        "SLACK_CHANNEL_CHIEF_OF_STAFF",
         "SLACK_CHANNEL_INSTANTLY_REPLIES",
         "SLACK_CHANNEL_LEASE_OPTION_INBOUND",
         "SLACK_CHANNEL_SMS_CALLS",
@@ -75,6 +77,8 @@ def test_slack_notification_route_settings_default_safe(monkeypatch) -> None:
 
     assert settings.slack_notifications_enabled is False
     assert settings.slack_channel_lead_runs is None
+    assert settings.slack_channel_hot_leads is None
+    assert settings.slack_channel_chief_of_staff is None
     assert settings.slack_channel_instantly_replies is None
     assert settings.slack_channel_lease_option_inbound is None
     assert settings.slack_channel_sms_calls is None
@@ -126,10 +130,12 @@ def test_env_example_declares_full_stack_contract() -> None:
         "SLACK_BOT_TOKEN=",
         "SLACK_CHANNEL_LEAD_RUNS=",
         "SLACK_CHANNEL_HOT_LEADS=",
+        "SLACK_CHANNEL_CHIEF_OF_STAFF=",
         "SLACK_CHANNEL_INSTANTLY_REPLIES=",
         "SLACK_CHANNEL_LEASE_OPTION_INBOUND=",
         "SLACK_CHANNEL_SMS_CALLS=",
         "SLACK_CHANNEL_ERRORS=",
+        "ARES_CHIEF_OF_STAFF_ARTIFACT_ROOT=",
         "VITE_RUNTIME_API_BASE_URL=",
     )
 

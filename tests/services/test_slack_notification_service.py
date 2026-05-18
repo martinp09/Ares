@@ -38,6 +38,35 @@ def build_service(
     return SlackNotificationService(**kwargs)
 
 
+def test_chief_of_staff_route_posts_to_dedicated_channel() -> None:
+    sent: list[dict[str, Any]] = []
+    repository = build_repository()
+    service = build_service(
+        settings=Settings(
+            _env_file=None,
+            slack_notifications_enabled=True,
+            slack_bot_token="xoxb-test",
+            slack_channel_chief_of_staff="CCOS",
+        ),
+        repository=repository,
+        sent=sent,
+    )
+
+    result = service.notify(
+        route=SlackNotificationRoute.CHIEF_OF_STAFF_DIGEST,
+        business_id="limitless",
+        environment="prod",
+        dedupe_key="chief-of-staff:2026-05-18",
+        text="Chief of Staff brief",
+        blocks=[],
+        payload={"kind": "ares_chief_of_staff_brief_v0"},
+    )
+
+    assert result.status == "sent"
+    assert result.channel_id == "CCOS"
+    assert sent[0]["payload"]["channel"] == "CCOS"
+
+
 @pytest.mark.parametrize(
     ("settings", "expected_error"),
     [

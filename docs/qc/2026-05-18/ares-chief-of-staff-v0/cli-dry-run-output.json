@@ -1,0 +1,46 @@
+{
+  "artifacts": {},
+  "brief": {
+    "artifact_path": null,
+    "business_id": "limitless",
+    "environment": "prod",
+    "generated_at": "2026-05-18T13:28:19.432895+00:00",
+    "id": "cos_brief_55ad48d976a9a87d8d53fb10",
+    "input_lead_count": 0,
+    "kind": "ares_chief_of_staff_brief_v0",
+    "queue_counts": {
+      "blocked": 0,
+      "contact_ready": 0,
+      "hot": 0,
+      "needs_research": 0,
+      "needs_skiptrace": 0,
+      "pass": 0,
+      "watchlist": 0
+    },
+    "queues": {
+      "blocked": [],
+      "contact_ready": [],
+      "hot": [],
+      "needs_research": [],
+      "needs_skiptrace": [],
+      "pass": [],
+      "watchlist": []
+    },
+    "recommended_focus": [
+      "No contact-ready lead surfaced; review watchlist and latest lead-machine run health."
+    ],
+    "safety_boundaries": [
+      "No seller outreach sent by Chief of Staff v0.",
+      "No paid skiptrace credits spent by Chief of Staff v0.",
+      "No Instantly, HubSpot, SMS, email, Vapi, buyer-blast, or provider mutation performed.",
+      "Hot lead and contact-ready are separate; authority/title blockers prevent contact-ready status."
+    ],
+    "source_summary": {
+      "lifecycle_status_counts": {},
+      "source_counts": {}
+    }
+  },
+  "slack_notification": {
+    "status": "not_requested"
+  }
+}

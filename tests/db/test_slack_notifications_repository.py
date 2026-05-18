@@ -17,6 +17,12 @@ MIGRATION = (
     / "migrations"
     / "20260516012000_slack_notifications.sql"
 )
+CHIEF_OF_STAFF_ROUTE_MIGRATION = (
+    Path(__file__).resolve().parents[2]
+    / "supabase"
+    / "migrations"
+    / "20260518130327_chief_of_staff_slack_route.sql"
+)
 
 
 def build_repository() -> SlackNotificationsRepository:
@@ -641,3 +647,11 @@ def test_slack_notifications_migration_adds_durable_attempt_table() -> None:
     assert "create index if not exists slack_notifications_scope_route_created_idx" in sql
     assert "alter table public.slack_notifications enable row level security" in sql
     assert "create policy slack_notifications_tenant_isolation" in sql
+
+
+def test_chief_of_staff_route_migration_extends_route_check() -> None:
+    sql = CHIEF_OF_STAFF_ROUTE_MIGRATION.read_text(encoding="utf-8").lower()
+
+    assert "drop constraint if exists slack_notifications_route_check" in sql
+    assert "add constraint slack_notifications_route_check" in sql
+    assert "'chief_of_staff_digest'" in sql

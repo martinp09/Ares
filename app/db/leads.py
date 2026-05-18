@@ -88,9 +88,16 @@ class LeadsRepository:
     def list(self, *, business_id: str | None = None, environment: str | None = None) -> list[LeadRecord]:
         if lead_machine_backend_enabled(self.settings) and not self._force_memory:
             params = {"select": "*", "order": "created_at.asc"}
-            if business_id and business_id.isdigit():
-                params["business_id"] = f"eq.{business_id}"
-            if environment is not None:
+            if business_id is not None:
+                if business_id.isdigit():
+                    params["business_id"] = f"eq.{business_id}"
+                else:
+                    if environment is None:
+                        raise ValueError("environment is required when business_id is not numeric")
+                    tenant = resolve_tenant(business_id, environment, settings=self.settings)
+                    params["business_id"] = f"eq.{tenant.business_pk}"
+                    params["environment"] = f"eq.{tenant.environment}"
+            elif environment is not None:
                 params["environment"] = f"eq.{environment}"
             return [self._record_from_supabase(row) for row in fetch_rows("leads", params=params, settings=self.settings)]
         with self.client.transaction() as store:
