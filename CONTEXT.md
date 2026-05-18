@@ -3,7 +3,7 @@
 ## Stable Facts
 - Repo: `martinp09/Ares`
 - Release branch: `main`
-- Active handoff target: `main`; completed feature branch `feature/ares-chief-of-staff-v0` delivered Chief of Staff / Appointment Setter / Conversation Desk and should be treated as merged/closed after final push.
+- Active handoff target: `main`; completed feature branch `feature/ares-chief-of-staff-v0` delivered Chief of Staff / Appointment Setter / Conversation Desk, was merged to `main`, and is closed.
 - Runtime API public HTTPS edge: `https://ares.tail485fd9.ts.net` (Tailscale Funnel -> `127.0.0.1:8000`; protected routes require bearer auth)
 - Mission Control URL: `https://mission-control-g8un1ly0w-martins-projects-9600e79e.vercel.app`
 - Supabase project ref: `awmsrjeawcxndfnggoxw`
@@ -11,15 +11,15 @@
 
 ## Current Scope
 - Martin approved **Ares Chief of Staff** as the first AI employee/lead desk operator; it must stay separate from Telegram and report through Slack/operator artifacts.
-- This branch now has Chief of Staff v3 runtime scheduling: the v2 read-only lead desk report still scores/buckets leads into hot/contact-ready/research/skiptrace/blocked queues, writes Markdown/JSON/CSV artifacts, and renders a PII-redacted Slack digest; the new protected endpoint `POST /ares-chief-of-staff/internal/check-in` returns a Trigger-safe `ares_chief_of_staff_check_in_v1` summary with queue counts, safety flags, and artifact path map when artifacts are written; Trigger includes a gated `chief-of-staff-check-in-0815-ct` daily 08:15 CT employee check-in.
+- `main` now has Chief of Staff v3 runtime scheduling: the v2 read-only lead desk report still scores/buckets leads into hot/contact-ready/research/skiptrace/blocked queues, writes Markdown/JSON/CSV artifacts, and renders a PII-redacted Slack digest; the new protected endpoint `POST /ares-chief-of-staff/internal/check-in` returns a Trigger-safe `ares_chief_of_staff_check_in_v1` summary with queue counts, safety flags, and artifact path map when artifacts are written; Trigger includes a gated `chief-of-staff-check-in-0815-ct` daily 08:15 CT employee check-in.
 - Slack reports are intentionally PII-redacted: no lead names, contact details, property addresses, raw case numbers, or raw lead IDs in Slack text/blocks/payload or Trigger check-in responses. Exact details remain in local operator artifacts.
 - Safety boundary: Chief of Staff v3 never sends seller outreach, spends paid skiptrace, enrolls Instantly, writes HubSpot/provider records, calls SMS/email/Vapi, runs live county/source pulls, executes manager approvals, posts live Slack without explicit Slack gates, or posts to Telegram.
 - Slack route/config is code-ready but not live-activated in this slice. Configure `SLACK_NOTIFICATIONS_ENABLED=true`, `SLACK_BOT_TOKEN`, `SLACK_CHANNEL_CHIEF_OF_STAFF`, and `ARES_CHIEF_OF_STAFF_SCHEDULED_SLACK_ENABLED=true` after deploy before the scheduled employee check-in can post to Slack.
 - Supabase migration file `20260518130327_chief_of_staff_slack_route.sql` is added but not remotely applied in this slice.
-- The branch now also adds **Ares Appointment Setter v0** and a Chatwoot-inspired Mission Control Conversation Desk: SMS replies are framed as a least-privilege acquisitions ISA with qualification/disqualification scoring, prompt-injection/sensitive-info handoff, `appointment_setter_paused` / manual-takeover kill switches, and disabled placeholder controls for takeover/approve/slots/nurture/disqualify. Ares still owns policy, sends, Slack, calendar/Cal.com/Google actions, audit, and all provider gates.
+- `main` also has **Ares Appointment Setter v0** and a Chatwoot-inspired Mission Control Conversation Desk: SMS replies are framed as a least-privilege acquisitions ISA with qualification/disqualification scoring, prompt-injection/sensitive-info handoff, `appointment_setter_paused` / manual-takeover kill switches, and disabled placeholder controls for takeover/approve/slots/nurture/disqualify. Ares still owns policy, sends, Slack, calendar/Cal.com/Google actions, audit, and all provider gates.
 
 ## Current TODO
-1. Codex handoff: continue from `main` after the merge; do not reopen Propwire or the deleted feature branch unless Martin explicitly asks.
+1. Codex handoff: continue from `main`; do not reopen Propwire or the deleted feature branch unless Martin explicitly asks.
 2. Deployment/promotion is still separate: pull latest `main` into the runtime/deploy worktree, preserve env wiring, and run the normal deploy/readiness gate before changing VPS/Trigger/Vercel state.
 3. Chief of Staff live Slack: apply `supabase/migrations/20260518130327_chief_of_staff_slack_route.sql`, create/invite/configure `SLACK_CHANNEL_CHIEF_OF_STAFF`, run `uv run python scripts/slack_notification_readiness.py --json --render-sample --route chief_of_staff_digest`, then enable `ARES_CHIEF_OF_STAFF_SCHEDULED_SLACK_ENABLED=true` only if Martin approves live scheduled Slack reporting.
 4. Appointment Setter next code slice: add real backend command endpoints/audit for takeover, pause/resume, approve/edit/reject reply, request appointment slots, send to nurture, and disqualify before enabling Mission Control controls.

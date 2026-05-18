@@ -65,7 +65,7 @@ Cleanup verification on the `be76288` baseline passed: focused backend => `44 pa
 
 ## Immediate next actions
 
-1. Codex continuation starts from `main`; do not continue on `feature/ares-chief-of-staff-v0` after merge/cleanup.
+1. Codex continuation starts from `main`; do not continue on the deleted `feature/ares-chief-of-staff-v0` branch.
 2. Deployment/promotion: pull latest `main` into the intended runtime/deploy worktree, preserve current VPS/Trigger/Vercel env wiring, and run the normal deploy/readiness gate before changing production state. This handoff did not deploy, remote-migrate, or enable live Slack/SMS/provider sends.
 3. Chief of Staff live Slack gate: apply `supabase/migrations/20260518130327_chief_of_staff_slack_route.sql`, create/invite/configure `SLACK_CHANNEL_CHIEF_OF_STAFF`, then run `uv run python scripts/slack_notification_readiness.py --json --render-sample --route chief_of_staff_digest`. Keep `ARES_CHIEF_OF_STAFF_SCHEDULED_SLACK_ENABLED=false` until Martin approves live scheduled Slack reporting.
 4. Appointment Setter command-contract slice: add backend endpoints/services/tests/audit for `takeover`, `pause/resume`, `approve/edit/reject reply`, `request appointment slots`, `send to nurture`, and `disqualify`; only then enable the currently disabled Mission Control controls.

@@ -229,7 +229,7 @@
 
 ## Open Work
 
-1. Codex continuation starts from `main`; do not continue on `feature/ares-chief-of-staff-v0` after merge/cleanup.
+1. Codex continuation starts from `main`; do not continue on the deleted `feature/ares-chief-of-staff-v0` branch.
 2. Deploy/promote the merged Chief of Staff / Appointment Setter / Conversation Desk code only through a dedicated deployment slice that preserves VPS/Trigger/Vercel env wiring and records fresh readiness evidence.
 3. Chief of Staff live Slack gate: apply `supabase/migrations/20260518130327_chief_of_staff_slack_route.sql`, create/invite/configure `SLACK_CHANNEL_CHIEF_OF_STAFF`, run Slack readiness for `chief_of_staff_digest`, and keep `ARES_CHIEF_OF_STAFF_SCHEDULED_SLACK_ENABLED=false` until Martin approves live scheduled Slack reporting.
 4. Appointment Setter command-contract slice: add backend endpoints/services/tests/audit for takeover, pause/resume, approve/edit/reject reply, request appointment slots, send to nurture, and disqualify; then enable Mission Control controls only after proof that `manual_control` / `appointment_setter_paused` block TextGrid sends.
