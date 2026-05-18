@@ -70,6 +70,7 @@ def test_slack_notification_route_settings_default_safe(monkeypatch) -> None:
         "SLACK_CHANNEL_INSTANTLY_REPLIES",
         "SLACK_CHANNEL_LEASE_OPTION_INBOUND",
         "SLACK_CHANNEL_SMS_CALLS",
+        "ARES_CHIEF_OF_STAFF_SCHEDULED_SLACK_ENABLED",
     ):
         monkeypatch.delenv(name, raising=False)
 
@@ -82,6 +83,7 @@ def test_slack_notification_route_settings_default_safe(monkeypatch) -> None:
     assert settings.slack_channel_instantly_replies is None
     assert settings.slack_channel_lease_option_inbound is None
     assert settings.slack_channel_sms_calls is None
+    assert settings.ares_chief_of_staff_scheduled_slack_enabled is False
 
 
 def test_env_example_declares_full_stack_contract() -> None:
@@ -136,6 +138,7 @@ def test_env_example_declares_full_stack_contract() -> None:
         "SLACK_CHANNEL_SMS_CALLS=",
         "SLACK_CHANNEL_ERRORS=",
         "ARES_CHIEF_OF_STAFF_ARTIFACT_ROOT=",
+        "ARES_CHIEF_OF_STAFF_SCHEDULED_SLACK_ENABLED=false",
         "VITE_RUNTIME_API_BASE_URL=",
     )
 

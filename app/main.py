@@ -4,6 +4,7 @@ from fastapi.openapi.docs import get_redoc_html, get_swagger_ui_html
 from fastapi.responses import JSONResponse
 
 from app.api.ares import router as ares_router
+from app.api.ares_chief_of_staff import router as ares_chief_of_staff_router
 from app.api.agent_assets import router as agent_assets_router
 from app.api.agents import router as agents_router
 from app.api.approvals import router as approvals_router
@@ -116,6 +117,7 @@ def create_app() -> FastAPI:
     app.include_router(public_sms_agent_router)
     app.include_router(sms_agent_router, dependencies=protected_dependencies)
     app.include_router(lead_machine_router, dependencies=protected_dependencies)
+    app.include_router(ares_chief_of_staff_router, dependencies=protected_dependencies)
     app.include_router(voice_router, dependencies=protected_dependencies)
     app.include_router(ares_router, dependencies=protected_dependencies)
 

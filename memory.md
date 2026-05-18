@@ -39,7 +39,7 @@
 
 ## Current Direction
 
-- `/opt/ares/worktrees/ares-chief-of-staff-v0` on `feature/ares-chief-of-staff-v0` adds Ares Chief of Staff v2: read-only lead desk scoring/bucketing, hot/contact-ready/research/skiptrace/blocked queues, Markdown/JSON/CSV artifacts, opt-in Slack route `chief_of_staff_digest` via `SLACK_CHANNEL_CHIEF_OF_STAFF`, employee-style worklog/priorities/blockers/approval requests, read-only lead-machine health/latest-brief context, PII-redacted Slack text/blocks/payload, and manager action items with stable `approve/deny cos_action_...` Slack reply commands. It is separate from Telegram and performs no seller outreach, paid skiptrace, Instantly enrollment, HubSpot/provider writes, SMS/email/Vapi sends, live county/source pulls, approval execution, or buyer blasts. QC: `docs/qc/2026-05-18/ares-chief-of-staff-v2-manager-actions/`.
+- `/opt/ares/worktrees/ares-chief-of-staff-v0` on `feature/ares-chief-of-staff-v0` adds Ares Chief of Staff v3: read-only lead desk scoring/bucketing, hot/contact-ready/research/skiptrace/blocked queues, Markdown/JSON/CSV artifacts, opt-in Slack route `chief_of_staff_digest` via `SLACK_CHANNEL_CHIEF_OF_STAFF`, employee-style worklog/priorities/blockers/approval requests, read-only lead-machine health/latest-brief context, PII-redacted Slack text/blocks/payload, manager action items with stable `approve/deny cos_action_...` Slack reply commands, and a protected Trigger-safe employee check-in endpoint `POST /ares-chief-of-staff/internal/check-in` for the new Trigger task/schedule `chief-of-staff-check-in-0815-ct`. The check-in returns sanitized queue/action counts, safety flags, and artifact path maps when artifacts are written. Scheduled Slack delivery is separately gated by `ARES_CHIEF_OF_STAFF_SCHEDULED_SLACK_ENABLED=false` by default. It is separate from Telegram and performs no seller outreach, paid skiptrace, Instantly enrollment, HubSpot/provider writes, SMS/email/Vapi sends, live county/source pulls, approval execution, or buyer blasts. QC: `docs/qc/2026-05-18/ares-chief-of-staff-trigger-check-in/`.
 - The same branch now includes the Mission Control operator UI refresh, analytics segmentation, and record/navigation continuation: the visible dashboard is a real-estate operator cockpit inspired by builderz Mission Control styling and `builderz-labs/marketing-dashboard`; primary nav foregrounds Today Desk, Hot Leads, replies/submissions, approvals, to-do, blocked/dead, source health, Records, Property Cards, Owner Cards, Skip Trace, Tax/Title, Deal Board, and Fire List; `Organization scope` has been replaced by `Operator scope` / operating-lane filters; the overview uses a KPI strip, graph-style lane performance, contact-mix donut, acquisition funnel, blocker chart, and segment cards; record surfaces now show selected property-owner detail cards with contact readiness, movement, missing-before-contact, and no-send safety context; backend/admin surfaces (agents/catalog/runs/settings) are hidden from the primary desk and require the deliberate command/search unlock `backstage`. QC: `docs/qc/2026-05-18/ares-mission-control-operator-ui-refresh/`, `docs/qc/2026-05-18/ares-dashboard-analytics-segmentation/`, and `docs/qc/2026-05-18/ares-mission-control-record-segmentation/`.
 
 - `/opt/ares/worktrees/ares-main` on `main` includes the TextGrid SMS reply-agent implementation and `/opt/ares/Ares` is deployed from `61f18de` (runtime rebuild commit; later docs commits may be newer); the VPS runtime exposes signed TextGrid webhook ingest, protected pending-job processing, Mission Control review/operator actions, and Supabase SMS-agent persistence tables. Source docs: `docs/superpowers/specs/2026-05-16-textgrid-sms-reply-agent-design.md`, `docs/superpowers/plans/2026-05-16-textgrid-sms-reply-agent-implementation-plan.md`, and `docs/mission-control-wiki/concepts/textgrid-sms-reply-agent.md`.
@@ -227,12 +227,12 @@
 
 ## Open Work
 
-1. Review/merge/deploy `feature/ares-chief-of-staff-v0`; after deploy, apply migration `20260518130327_chief_of_staff_slack_route.sql`, create/invite/configure `SLACK_CHANNEL_CHIEF_OF_STAFF`, and run Chief of Staff Slack readiness before the first live digest post.
-2. Watch the next automatic Trigger CT windows (`07:10`, `12:40`, `17:40` America/Chicago) for the next `limitless/prod` autonomous morning briefs and Slack lead-run digests.
-3. Keep Hermes cron `815e1261ab2e` paused while Trigger remains authoritative; resume it only as an intentional rollback.
-4. Add a Harris postback case-detail client if live Harris party/event/document detail completion is required; current postback-only rows are safely incomplete, not blocked.
-5. Keep HubSpot batch writes, Instantly enrollment/send, SMS/Vapi dispatch, paid skiptrace, and deploy as separate explicit approval gates.
-6. Measure property-match lift from case-detail-derived party/address/context evidence once detail completion exists; contact candidates are not confirmed sellers and seller authority remains unverified until separate evidence.
+1. Review/merge/deploy `feature/ares-chief-of-staff-v0`; after deploy, apply migration `20260518130327_chief_of_staff_slack_route.sql`, create/invite/configure `SLACK_CHANNEL_CHIEF_OF_STAFF`, run Chief of Staff Slack readiness, and keep `ARES_CHIEF_OF_STAFF_SCHEDULED_SLACK_ENABLED=false` until Martin approves live scheduled Slack reporting.
+2. Add a Slack reply inbox / decision journal for `approve cos_action_...` and `deny cos_action_...` that records manager intent only and does not call the generic approval executor or provider/send paths.
+3. Watch the next automatic Trigger CT windows (`07:10`, `12:40`, `17:40` America/Chicago) for the next `limitless/prod` autonomous morning briefs and Slack lead-run digests.
+4. Keep Hermes cron `815e1261ab2e` paused while Trigger remains authoritative; resume it only as an intentional rollback.
+5. Add a Harris postback case-detail client if live Harris party/event/document detail completion is required; current postback-only rows are safely incomplete, not blocked.
+6. Keep HubSpot batch writes, Instantly enrollment/send, SMS/Vapi dispatch, paid skiptrace, and deploy as separate explicit approval gates.
 7. Live HubSpot CRM apply/batch operations require a valid HubSpot private-app/personal access token with CRM schema/pipeline scopes as `HUBSPOT_ACCESS_TOKEN`; rotate any pasted chat token/key before broader use.
 8. Activate/upgrade the keyed Instantly workspace to a paid plan before real-account campaign sync/enrollment.
 9. Capture stronger primary Alen Sultanic source material and update `docs/copywriting-wiki/`; current YouTube transcript access is blocked from this environment.
@@ -255,6 +255,12 @@
 - `TasksRepository` now treats `lead_machine_backend=supabase` as a Supabase-backed task path so title-packet review tasks persist with lead-machine records.
 
 ## Change Log
+
+### 2026-05-18 Ares Chief of Staff Trigger Check-In
+
+- Continued the Chief of Staff branch after dashboard work by adding protected runtime employee check-in endpoint `POST /ares-chief-of-staff/internal/check-in` with response contract `ares_chief_of_staff_check_in_v1`.
+- Added Trigger task `chief-of-staff-check-in` and daily schedule `chief-of-staff-check-in-0815-ct` (08:15 CT), both constrained to `no_send=true`, provider sends/writes false, live source calls false, outreach false, and sanitized Trigger-safe summary data plus artifact path maps when artifacts are written.
+- Added default-disabled scheduled Slack gate `ARES_CHIEF_OF_STAFF_SCHEDULED_SLACK_ENABLED=false`; live Slack reporting still requires Slack readiness and explicit gate enablement. Verification: focused suite `61 passed`, Trigger typecheck passed, protected API smoke `200` with Slack blocked by gate, full backend `1148 passed`. QC: `docs/qc/2026-05-18/ares-chief-of-staff-trigger-check-in/`.
 
 ### 2026-05-18 Ares Mission Control Operator UI Refresh
 

@@ -1,9 +1,9 @@
 from __future__ import annotations
 
 from enum import StrEnum
-from typing import Any
+from typing import Any, Literal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from app.models.commands import utc_now
 
@@ -93,6 +93,60 @@ class AresChiefOfStaffBrief(BaseModel):
     recommended_focus: list[str] = Field(default_factory=list)
     safety_boundaries: list[str] = Field(default_factory=list)
     artifact_path: str | None = None
+
+
+class AresChiefOfStaffCheckInRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    business_id: str = Field(min_length=1)
+    environment: str = Field(min_length=1)
+    limit: int = Field(default=5, ge=1, le=25)
+    artifact_root: str | None = None
+    write_artifacts: bool = True
+    send_slack: bool = False
+    idempotency_key: str | None = None
+    no_send: bool = True
+    provider_sends_enabled: bool = False
+    live_source_calls: bool = False
+    live_provider_writes: bool = False
+    outreach_allowed: bool = False
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+    @model_validator(mode="after")
+    def require_read_only_employee_check_in(self) -> "AresChiefOfStaffCheckInRequest":
+        if not self.no_send:
+            raise ValueError("Chief of Staff check-in requires no_send=true")
+        if self.provider_sends_enabled:
+            raise ValueError("Chief of Staff check-in requires provider_sends_enabled=false")
+        if self.live_source_calls:
+            raise ValueError("Chief of Staff check-in cannot call live source systems")
+        if self.live_provider_writes:
+            raise ValueError("Chief of Staff check-in cannot write provider records")
+        if self.outreach_allowed:
+            raise ValueError("Chief of Staff check-in cannot allow seller outreach")
+        return self
+
+
+class AresChiefOfStaffCheckInResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    status: Literal["completed"] = "completed"
+    kind: Literal["ares_chief_of_staff_check_in_v1"] = "ares_chief_of_staff_check_in_v1"
+    brief_id: str
+    business_id: str
+    environment: str
+    generated_at: str
+    input_lead_count: int
+    queue_counts: dict[str, int] = Field(default_factory=dict)
+    manager_action_item_count: int
+    artifacts: dict[str, str] = Field(default_factory=dict)
+    slack_notification: dict[str, Any] = Field(default_factory=dict)
+    no_send: bool = True
+    provider_sends_enabled: bool = False
+    outreach_allowed: bool = False
+    live_source_calls_attempted: bool = False
+    provider_writes_attempted: bool = False
+    trigger_safe_summary: dict[str, Any] = Field(default_factory=dict)
 
 
 class AresChiefOfStaffRunResult(BaseModel):

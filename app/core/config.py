@@ -423,6 +423,13 @@ class Settings(BaseSettings):
         default=None,
         validation_alias=AliasChoices("ares_chief_of_staff_artifact_root", "ARES_CHIEF_OF_STAFF_ARTIFACT_ROOT"),
     )
+    ares_chief_of_staff_scheduled_slack_enabled: bool = Field(
+        default=False,
+        validation_alias=AliasChoices(
+            "ares_chief_of_staff_scheduled_slack_enabled",
+            "ARES_CHIEF_OF_STAFF_SCHEDULED_SLACK_ENABLED",
+        ),
+    )
     slack_channel_instantly_replies: str | None = Field(
         default=None,
         validation_alias=AliasChoices("slack_channel_instantly_replies", "SLACK_CHANNEL_INSTANTLY_REPLIES"),

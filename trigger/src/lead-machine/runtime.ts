@@ -8,6 +8,7 @@ export const LEAD_MACHINE_ENDPOINTS = {
   followupStepRunner: "/lead-machine/internal/followup-step-runner",
   nightlySourcePull: "/lead-machine/internal/nightly-source-pull",
   morningBrief: "/lead-machine/internal/morning-brief",
+  chiefOfStaffCheckIn: "/ares-chief-of-staff/internal/check-in",
   suppressionSync: "/lead-machine/internal/suppression-sync",
   taskReminderOrOverdue: "/lead-machine/internal/task-reminder-or-overdue",
 } as const;
@@ -325,6 +326,41 @@ export type MorningBriefPayload = {
   source_run_ids?: string[];
   metadata?: Record<string, unknown>;
 } & LeadMachineRunContext;
+
+export type ChiefOfStaffCheckInPayload = {
+  business_id: string;
+  environment: string;
+  limit?: number;
+  artifact_root?: string | null;
+  write_artifacts?: boolean;
+  send_slack?: boolean;
+  no_send?: true;
+  provider_sends_enabled?: false;
+  live_source_calls?: false;
+  live_provider_writes?: false;
+  outreach_allowed?: false;
+  metadata?: Record<string, unknown>;
+} & LeadMachineRunContext;
+
+export type ChiefOfStaffCheckInResponse = {
+  status: "completed";
+  kind: "ares_chief_of_staff_check_in_v1";
+  brief_id: string;
+  business_id: string;
+  environment: string;
+  generated_at: string;
+  input_lead_count: number;
+  queue_counts: Record<string, number>;
+  manager_action_item_count: number;
+  artifacts: Record<string, string>;
+  slack_notification: Record<string, unknown>;
+  no_send: boolean;
+  provider_sends_enabled: boolean;
+  outreach_allowed: boolean;
+  live_source_calls_attempted: boolean;
+  provider_writes_attempted: boolean;
+  trigger_safe_summary: Record<string, unknown>;
+};
 
 export type SourceRunResponse = {
   id: string;

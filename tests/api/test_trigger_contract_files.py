@@ -9,6 +9,8 @@ APPOINTMENT_REMINDER_TASK = REPO_ROOT / "trigger" / "src" / "marketing" / "sendA
 SMS_REPLY_AGENT_PROCESSOR_TASK = REPO_ROOT / "trigger" / "src" / "marketing" / "smsReplyAgentProcessor.ts"
 TRIGGER_PACKAGE = REPO_ROOT / "trigger" / "package.json"
 PROBATE_AUTOPILOT_SCHEDULES = REPO_ROOT / "trigger" / "src" / "lead-machine" / "probateAutopilotSchedules.ts"
+CHIEF_OF_STAFF_CHECK_IN_TASK = REPO_ROOT / "trigger" / "src" / "lead-machine" / "chiefOfStaffCheckIn.ts"
+CHIEF_OF_STAFF_SCHEDULES = REPO_ROOT / "trigger" / "src" / "lead-machine" / "chiefOfStaffSchedules.ts"
 
 
 def test_trigger_runtime_api_uses_explicit_ares_env_contract() -> None:
@@ -101,3 +103,37 @@ def test_probate_autopilot_schedules_are_no_send_and_ct_cadenced() -> None:
     assert "...sourceWindow" in source
     assert "LEAD_MACHINE_BUSINESS_ID" in source
     assert "LEAD_MACHINE_ENVIRONMENT" in source
+
+
+def test_chief_of_staff_trigger_check_in_contract_is_scheduled_and_sanitized() -> None:
+    runtime_source = LEAD_MACHINE_RUNTIME.read_text(encoding="utf-8")
+    task_source = CHIEF_OF_STAFF_CHECK_IN_TASK.read_text(encoding="utf-8")
+    schedule_source = CHIEF_OF_STAFF_SCHEDULES.read_text(encoding="utf-8")
+
+    assert 'chiefOfStaffCheckIn: "/ares-chief-of-staff/internal/check-in"' in runtime_source
+    assert "export type ChiefOfStaffCheckInPayload" in runtime_source
+    assert "export type ChiefOfStaffCheckInResponse" in runtime_source
+    assert 'id: "chief-of-staff-check-in"' in task_source
+    assert '"chiefOfStaffCheckIn"' in task_source
+    assert "runWithOptionalLifecycle" in task_source
+    assert "artifactType" not in task_source
+    assert "no_send: true" in task_source
+    assert "provider_sends_enabled: false" in task_source
+    assert "live_source_calls: false" in task_source
+    assert "live_provider_writes: false" in task_source
+    assert "outreach_allowed: false" in task_source
+    assert "ARES_CHIEF_OF_STAFF_SCHEDULED_SLACK_ENABLED" in task_source
+
+    assert "schedules.task" in schedule_source
+    assert 'id: "chief-of-staff-check-in-0815-ct"' in schedule_source
+    assert '"15 8 * * *"' in schedule_source
+    assert 'timezone = "America/Chicago"' in schedule_source
+    assert "triggerSchedulesEnabled" in schedule_source
+    assert "disabledScheduleResponse" in schedule_source
+    assert "buildChiefOfStaffScheduledPayload" in schedule_source
+    assert "scheduled_employee_check_in" in schedule_source
+    assert "no_send: true" in schedule_source
+    assert "provider_sends_enabled: false" in schedule_source
+    assert "live_source_calls: false" in schedule_source
+    assert "live_provider_writes: false" in schedule_source
+    assert "outreach_allowed: false" in schedule_source

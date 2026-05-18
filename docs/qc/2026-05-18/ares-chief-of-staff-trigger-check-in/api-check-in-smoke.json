@@ -1,0 +1,59 @@
+{
+  "body": {
+    "artifacts": {},
+    "brief_id": "cos_brief_91f7f9d76b846cd38dac3dd5",
+    "business_id": "limitless",
+    "environment": "dev",
+    "generated_at": "2026-05-18T17:30:09.384809+00:00",
+    "input_lead_count": 0,
+    "kind": "ares_chief_of_staff_check_in_v1",
+    "live_source_calls_attempted": false,
+    "manager_action_item_count": 0,
+    "no_send": true,
+    "outreach_allowed": false,
+    "provider_sends_enabled": false,
+    "provider_writes_attempted": false,
+    "queue_counts": {
+      "blocked": 0,
+      "contact_ready": 0,
+      "hot": 0,
+      "needs_research": 0,
+      "needs_skiptrace": 0,
+      "pass": 0,
+      "watchlist": 0
+    },
+    "slack_notification": {
+      "status": "blocked_by_chief_of_staff_slack_gate"
+    },
+    "status": "completed",
+    "trigger_safe_summary": {
+      "artifact_keys": [],
+      "brief_id": "cos_brief_91f7f9d76b846cd38dac3dd5",
+      "employee_name": "Ares Chief of Staff",
+      "input_lead_count": 0,
+      "manager_action_item_count": 0,
+      "manager_name": "Martin",
+      "queue_counts": {
+        "blocked": 0,
+        "contact_ready": 0,
+        "hot": 0,
+        "needs_research": 0,
+        "needs_skiptrace": 0,
+        "pass": 0,
+        "watchlist": 0
+      },
+      "redaction": "counts_only_no_lead_pii",
+      "reporting_channel": "slack",
+      "safety": {
+        "live_source_calls_attempted": false,
+        "no_send": true,
+        "outreach_allowed": false,
+        "provider_sends_enabled": false,
+        "provider_writes_attempted": false
+      },
+      "slack_allowed": false,
+      "slack_requested": true
+    }
+  },
+  "status_code": 200
+}

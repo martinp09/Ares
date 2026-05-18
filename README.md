@@ -113,9 +113,9 @@ uv run python scripts/slack_notification_readiness.py --json --render-sample --r
 uv run python scripts/slack_notification_readiness.py --json --render-sample --route chief_of_staff_digest
 ```
 
-### Ares Chief of Staff v2
+### Ares Chief of Staff v3
 
-The Chief of Staff digest is a read-only lead desk employee report for Martin. It reads current Ares lead records, buckets them into hot/contact-ready/research/skiptrace/blocked queues, checks existing lead-machine health/morning-brief state without triggering new source pulls, writes human-readable artifacts, and can post a Slack-first worklog to route `chief_of_staff_digest`. The Slack report is written like an employee check-in: what I did, what I recommend next, what is blocked, what needs Martin's approval, and exact thread reply commands such as `approve cos_action_...` / `deny cos_action_...` for manager action items. Slack payloads use anonymized lead refs and approval-action refs; exact lead names/contact/property details stay in local operator artifacts. It does not send seller outreach, spend paid skiptrace credits, enroll Instantly campaigns, write HubSpot/provider records, call Vapi/SMS/email, run live county/source pulls, execute manager approvals, or deliver scheduled output to Telegram.
+The Chief of Staff digest is a read-only lead desk employee report for Martin. It reads current Ares lead records, buckets them into hot/contact-ready/research/skiptrace/blocked queues, checks existing lead-machine health/morning-brief state without triggering new source pulls, writes human-readable artifacts, and can post a Slack-first worklog to route `chief_of_staff_digest`. The Slack report is written like an employee check-in: what I did, what I recommend next, what is blocked, what needs Martin's approval, and exact thread reply commands such as `approve cos_action_...` / `deny cos_action_...` for manager action items. Slack payloads and Trigger check-in responses use sanitized queue/action counts, safety flags, and artifact path maps when artifacts are written; exact lead names/contact/property details stay in local operator artifacts. It does not send seller outreach, spend paid skiptrace credits, enroll Instantly campaigns, write HubSpot/provider records, call Vapi/SMS/email, run live county/source pulls, execute manager approvals, or deliver scheduled output to Telegram.
 
 Dry-run without artifacts or Slack:
 
@@ -147,6 +147,17 @@ uv run python scripts/ares_chief_of_staff_digest.py \
   --send-slack \
   --idempotency-key chief-of-staff:$(date -u +%F)
 ```
+
+Protected runtime check-in for Trigger/Hermes schedulers:
+
+```bash
+curl -sS -X POST "$RUNTIME_API_BASE_URL/ares-chief-of-staff/internal/check-in" \
+  -H "Authorization: Bearer <runtime-api-key>" \
+  -H "Content-Type: application/json" \
+  --data '{"business_id":"limitless","environment":"prod","write_artifacts":true,"send_slack":false,"no_send":true,"provider_sends_enabled":false,"live_source_calls":false,"live_provider_writes":false,"outreach_allowed":false}'
+```
+
+Trigger includes `chief-of-staff-check-in` plus scheduled `chief-of-staff-check-in-0815-ct` at `08:15` America/Chicago. The schedule only runs when `ARES_TRIGGER_SCHEDULES_ENABLED=true`; scheduled Slack posting still requires the separate `ARES_CHIEF_OF_STAFF_SCHEDULED_SLACK_ENABLED=true` gate in addition to normal Slack token/channel readiness.
 
 ## Landing Page Intake Contract
 
@@ -209,6 +220,7 @@ SLACK_BOT_TOKEN=<set when Slack operator notifications are ready>
 SLACK_CHANNEL_LEAD_RUNS=<slack-channel-id>
 SLACK_CHANNEL_HOT_LEADS=<slack-channel-id>
 SLACK_CHANNEL_CHIEF_OF_STAFF=<optional-chief-of-staff-slack-channel-id>
+ARES_CHIEF_OF_STAFF_SCHEDULED_SLACK_ENABLED=false
 SLACK_CHANNEL_INSTANTLY_REPLIES=<slack-channel-id>
 SLACK_CHANNEL_LEASE_OPTION_INBOUND=<slack-channel-id>
 SLACK_CHANNEL_SMS_CALLS=<slack-channel-id>

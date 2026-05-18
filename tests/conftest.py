@@ -36,11 +36,13 @@ SLACK_ENV_VARS = (
     "SLACK_CHANNEL_ERRORS",
     "SLACK_CHANNEL_LEADS",
     "SLACK_CHANNEL_INTAKE",
+    "SLACK_CHANNEL_CHIEF_OF_STAFF",
 )
 
 for name in SLACK_ENV_VARS:
     os.environ.pop(name, None)
 os.environ["SLACK_NOTIFICATIONS_ENABLED"] = "false"
+os.environ["ARES_CHIEF_OF_STAFF_SCHEDULED_SLACK_ENABLED"] = "false"
 
 from app.core.config import get_settings
 from app.main import app
@@ -70,6 +72,7 @@ def test_settings(monkeypatch: pytest.MonkeyPatch):
     for name in SLACK_ENV_VARS:
         monkeypatch.delenv(name, raising=False)
     monkeypatch.setenv("SLACK_NOTIFICATIONS_ENABLED", "false")
+    monkeypatch.setenv("ARES_CHIEF_OF_STAFF_SCHEDULED_SLACK_ENABLED", "false")
     get_settings.cache_clear()
     yield
     get_settings.cache_clear()
