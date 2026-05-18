@@ -354,6 +354,21 @@ class Settings(BaseSettings):
         default=8.0,
         validation_alias=AliasChoices("sms_agent_llm_timeout_seconds", "SMS_AGENT_LLM_TIMEOUT_SECONDS"),
     )
+    appointment_setter_enabled: bool = Field(
+        default=True,
+        validation_alias=AliasChoices("appointment_setter_enabled", "APPOINTMENT_SETTER_ENABLED"),
+    )
+    appointment_setter_calendar_actions_enabled: bool = Field(
+        default=False,
+        validation_alias=AliasChoices(
+            "appointment_setter_calendar_actions_enabled",
+            "APPOINTMENT_SETTER_CALENDAR_ACTIONS_ENABLED",
+        ),
+    )
+    appointment_setter_slack_enabled: bool = Field(
+        default=False,
+        validation_alias=AliasChoices("appointment_setter_slack_enabled", "APPOINTMENT_SETTER_SLACK_ENABLED"),
+    )
     resend_api_key: str | None = Field(
         default=None,
         validation_alias=AliasChoices("resend_api_key", "RESEND_API_KEY"),
@@ -438,6 +453,10 @@ class Settings(BaseSettings):
     slack_channel_chief_of_staff: str | None = Field(
         default=None,
         validation_alias=AliasChoices("slack_channel_chief_of_staff", "SLACK_CHANNEL_CHIEF_OF_STAFF"),
+    )
+    slack_channel_appointment_setter: str | None = Field(
+        default=None,
+        validation_alias=AliasChoices("slack_channel_appointment_setter", "SLACK_CHANNEL_APPOINTMENT_SETTER"),
     )
     ares_chief_of_staff_artifact_root: str | None = Field(
         default=None,

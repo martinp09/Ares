@@ -220,6 +220,7 @@ SLACK_BOT_TOKEN=<set when Slack operator notifications are ready>
 SLACK_CHANNEL_LEAD_RUNS=<slack-channel-id>
 SLACK_CHANNEL_HOT_LEADS=<slack-channel-id>
 SLACK_CHANNEL_CHIEF_OF_STAFF=<optional-chief-of-staff-slack-channel-id>
+SLACK_CHANNEL_APPOINTMENT_SETTER=<optional-appointment-setter-slack-channel-id>
 ARES_CHIEF_OF_STAFF_SCHEDULED_SLACK_ENABLED=false
 SLACK_CHANNEL_INSTANTLY_REPLIES=<slack-channel-id>
 SLACK_CHANNEL_LEASE_OPTION_INBOUND=<slack-channel-id>
@@ -238,6 +239,34 @@ Ares now has a deterministic provider substrate for broader communications autom
 - `POST /sms-agent/messages` sends or dry-runs a generic TextGrid SMS. With `PROVIDER_LIVE_SENDS_ENABLED=false` or `dry_run_only=true`, it returns `dry_run=true` and does not call TextGrid. When live sends are enabled and TextGrid is configured, it requires `contact_id` plus `sms_consent_confirmed=true`, normalizes `to`/`from` to E.164, calls TextGrid, and logs the outbound message.
 - `POST /sms-agent/webhooks/textgrid` is a generic TextGrid webhook alias that reuses the existing inbound/status callback processor.
 - `POST /sms-agent/internal/process-pending` drains queued reply-agent jobs through the deterministic classifier. Keep `PROVIDER_LIVE_SENDS_ENABLED=false` and `SMS_AGENT_AUTO_REPLIES_ENABLED=false` for the first ingest smoke; only enable deterministic auto-ack after Martin approves an owned-number smoke.
+
+### Appointment Setter v0
+
+The seller-facing SMS brain is now framed as **Ares Appointment Setter**, a least-privilege acquisitions ISA. It can qualify, disqualify, recommend nurture, and mark appointment/calendar intent, but Ares still owns TextGrid sends, Slack, calendar/Cal.com/Google actions, kill switches, audit, suppression, and provider gates.
+
+Runtime gates:
+
+```bash
+APPOINTMENT_SETTER_ENABLED=true
+APPOINTMENT_SETTER_CALENDAR_ACTIONS_ENABLED=false
+APPOINTMENT_SETTER_MAX_AUTO_REPLIES_PER_THREAD=6
+SMS_AGENT_AUTO_REPLIES_ENABLED=false
+SLACK_CHANNEL_APPOINTMENT_SETTER=<optional-slack-channel-id>
+```
+
+Safety contract:
+
+- `manual_control=true` or `appointment_setter_paused=true` forces human handoff before any `auto_ack` path.
+- Prompt-injection and sensitive-info requests route to human handoff.
+- Mission Control Conversation Desk controls for takeover, reply approval, slot request, nurture, and disqualification remain disabled until backend command endpoints exist.
+- Future calendar integration must expose only Ares-approved availability/booking actions, not raw calendar data or credentials.
+
+Design/runbook docs:
+
+- `docs/superpowers/specs/2026-05-18-ares-appointment-setter-conversation-desk-design.md`
+- `docs/runbooks/ares-appointment-setter-conversation-desk.md`
+- QC: `docs/qc/2026-05-18/ares-appointment-setter-conversation-desk/`
+
 - `scripts/sms_agent_archive_export.py` writes redacted SMS reply-agent Markdown and JSONL archive/eval files under `YYYY/MM/`. It is cold storage only; Supabase remains the live runtime source of truth. The command fails closed unless `--root` or `SMS_AGENT_OBSIDIAN_ARCHIVE_ROOT` is explicitly set.
 - `POST /voice/assistants`, `POST /voice/phone-numbers`, and `POST /voice/calls/outbound` scaffold Vapi assistant/number/call payloads. Vapi provider mutations and outbound calls stay dry-run unless both `PROVIDER_LIVE_SENDS_ENABLED=true` and `VAPI_PROVIDER_LIVE_SENDS_ENABLED=true` are set.
 - `POST /voice/vapi/webhook` accepts Vapi Server URL messages, including `assistant-request`, `tool-calls`, `status-update`, `transcript`, and `end-of-call-report` shapes. Tool calls are wired into Mission Control context/tools: record search/detail, lane scripts, record updates, opportunity stage movement, task completion, lead qualification, follow-up summaries, and human handoff. The route is protected by the normal Ares runtime bearer auth; when `PROVIDER_WEBHOOK_SIGNATURES_REQUIRED=true`, it also requires `X-Vapi-Secret: <VAPI_WEBHOOK_SECRET>`. Configure the Vapi Server URL credential/header before live callbacks.

@@ -762,6 +762,53 @@ def test_sms_agent_approve_send_records_requested_and_failed_follow_ups_when_sen
     assert decisions[2].metadata["error_message"] == "provider unavailable"
 
 
+def test_sms_agent_process_pending_respects_conversation_pause_before_auto_send() -> None:
+    sent_requests: list[dict] = []
+    settings = Settings(
+        _env_file=None,
+        provider_live_sends_enabled=True,
+        sms_agent_mode="auto_ack",
+        sms_agent_auto_replies_enabled=True,
+        textgrid_account_sid="acct_123",
+        textgrid_auth_token="token_123",
+        textgrid_from_number="3467725914",
+    )
+    service, repository, contacts = _service_with_repository(settings=settings, request_sender=sent_requests.append)
+    lead = _persisted_contact(contacts)
+    repository.enqueue_job(
+        SmsAgentJobCreate(
+            business_id="limitless",
+            environment="dev",
+            provider_webhook_id="wh_123",
+            message_id="msg_123",
+            conversation_id="cnv_123",
+            contact_id=lead.id,
+            from_number="+155****4567",
+            to_number="+134****5914",
+            metadata={
+                "body": "yes tell me more",
+                "sms_consent": True,
+                "resolved": True,
+                "lead_context": {
+                    "property_address": "123 Main St, Houston, TX",
+                    "source_lane": "inbound_lease_option",
+                    "appointment_setter_paused": True,
+                },
+            },
+        )
+    )
+
+    result = service.process_pending(limit=1)
+
+    assert result == {"processed_count": 1, "sent_count": 0, "blocked_count": 1, "failed_count": 0}
+    assert sent_requests == []
+    decisions = repository.list_decisions()
+    assert len(decisions) == 1
+    assert decisions[0].action == "human_handoff"
+    assert decisions[0].policy_reason == "Appointment Setter is paused for this conversation"
+    assert decisions[0].metadata["appointment_setter_paused"] is True
+
+
 def test_sms_agent_live_send_builds_textgrid_request_and_logs_message() -> None:
     sent_requests: list[dict] = []
 

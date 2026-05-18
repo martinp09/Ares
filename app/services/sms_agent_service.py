@@ -428,6 +428,14 @@ class SmsAgentService:
             suppressed=_metadata_bool(metadata, "suppressed", default=False),
             recent_messages=self._recent_messages_for_job(job),
             lead_context=lead_context,
+            manual_control=_metadata_bool(metadata, "manual_control", default=False)
+            or _metadata_bool(lead_context, "manual_control", default=False)
+            or str(lead_context.get("conversation_owner") or "").casefold() in {"martin", "manual", "human"},
+            appointment_setter_paused=_metadata_bool(metadata, "appointment_setter_paused", default=False)
+            or _metadata_bool(lead_context, "appointment_setter_paused", default=False)
+            or str(metadata.get("conversation_status") or lead_context.get("conversation_status") or "").casefold()
+            in {"appointment_setter_paused", "manual_takeover", "manual_control", "paused"},
+            conversation_status=str(metadata.get("conversation_status") or lead_context.get("conversation_status") or ""),
         )
 
     def _lead_context_for_job(self, job: SmsAgentJobRecord) -> dict[str, Any]:

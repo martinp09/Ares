@@ -72,6 +72,24 @@ export function ConversationThread({ thread, onSendSmsTest, onSendEmailTest }: C
         </div>
         <span>{thread.stage}</span>
       </div>
+      <section className="conversation-context-grid" aria-label="Conversation desk context">
+        <article className="summary-card summary-card--compact">
+          <p className="summary-card__label">Owner</p>
+          <strong>{smsAgent?.manualControl ? "Martin" : "Appointment Setter"}</strong>
+          <p className="list-card__body list-card__body--muted">Instant takeover stays disabled until wired through Ares policy.</p>
+        </article>
+        <article className="summary-card summary-card--compact">
+          <p className="summary-card__label">Acquisition route</p>
+          <strong>{thread.nextBestAction}</strong>
+          <p className="list-card__body list-card__body--muted">{thread.replyNeedsReview ? "Needs Martin review" : "Continue qualification"}</p>
+        </article>
+        <article className="summary-card summary-card--compact">
+          <p className="summary-card__label">Tags</p>
+          <div className="pill-row">
+            {thread.tags.length > 0 ? thread.tags.map((tag) => <span className="status-pill" key={tag}>{tag}</span>) : <span className="status-pill">unlabeled</span>}
+          </div>
+        </article>
+      </section>
       <div className="thread-stack">
         {thread.messages.map((message) => (
           <article className={`thread-message thread-message--${message.direction}`} key={message.id}>
@@ -86,32 +104,67 @@ export function ConversationThread({ thread, onSendSmsTest, onSendEmailTest }: C
       </div>
 
       {smsAgent ? (
-        <section className="panel-stack" aria-label="SMS-agent decision review">
+        <section className="panel-stack conversation-desk-panel" aria-label="Appointment Setter decision review">
           <div className="section-heading">
-            <h3>SMS-agent review</h3>
-            <span>{smsAgent.action ?? "review"}</span>
+            <div>
+              <h3>Appointment Setter</h3>
+              <p>Jailed SMS ISA · Ares owns send, calendar, Slack, and policy</p>
+            </div>
+            <span>{smsAgent.leadBucket ?? smsAgent.action ?? "review"}</span>
+          </div>
+          <div className="summary-grid summary-grid--secondary">
+            <article className="summary-card summary-card--compact">
+              <p className="summary-card__label">Qualification score</p>
+              <strong>{smsAgent.qualificationScore ?? 0}/100</strong>
+              <p className="list-card__body list-card__body--muted">Stage: {smsAgent.stage ?? "unknown"}</p>
+            </article>
+            <article className="summary-card summary-card--compact">
+              <p className="summary-card__label">Next action</p>
+              <strong>{smsAgent.nextBestAction ?? smsAgent.action ?? "review"}</strong>
+              <p className="list-card__body list-card__body--muted">
+                {smsAgent.appointmentReady ? "Appointment-ready" : smsAgent.nurtureRecommended ? "Nurture candidate" : "Qualify first"}
+              </p>
+            </article>
           </div>
           <div className="list-card__row list-card__row--muted">
             <span>{smsAgent.intent ?? "unknown intent"}</span>
             <span>{smsAgent.sourceLane ?? "unknown lane"}</span>
             {smsAgent.urgency ? <span>{smsAgent.urgency}</span> : null}
+            {smsAgent.manualControl ? <span>manual takeover</span> : null}
           </div>
           {smsAgent.suggestedBody ? <p className="list-card__body">{smsAgent.suggestedBody}</p> : null}
           {smsAgent.policyReason ? (
             <p className="list-card__body list-card__body--muted">{smsAgent.policyReason}</p>
           ) : null}
+          {smsAgent.missingFields && smsAgent.missingFields.length > 0 ? (
+            <div className="pill-row" aria-label="Missing qualification fields">
+              {smsAgent.missingFields.map((field) => (
+                <span className="status-pill" key={field}>{field.replaceAll("_", " ")}</span>
+              ))}
+            </div>
+          ) : null}
+          {smsAgent.riskFlags && smsAgent.riskFlags.length > 0 ? (
+            <div className="pill-row" aria-label="Appointment Setter risk flags">
+              {smsAgent.riskFlags.map((flag) => (
+                <span className="status-pill status-pill--danger" key={flag}>{flag.replaceAll("_", " ")}</span>
+              ))}
+            </div>
+          ) : null}
           <div className="list-card__row">
             <button className="button--ghost" disabled type="button">
-              Approve send
+              Take over thread
             </button>
             <button className="button--ghost" disabled type="button">
-              Edit
+              Approve reply
             </button>
             <button className="button--ghost" disabled type="button">
-              Suppress
+              Request slots
             </button>
             <button className="button--ghost" disabled type="button">
-              Assign callback
+              Send to nurture
+            </button>
+            <button className="button--ghost" disabled type="button">
+              Disqualify
             </button>
           </div>
         </section>

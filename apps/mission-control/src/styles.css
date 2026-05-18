@@ -721,7 +721,29 @@ textarea:focus-visible {
 }
 
 .inbox-layout {
-  grid-template-columns: minmax(280px, 0.9fr) minmax(0, 1.4fr);
+  grid-template-columns: minmax(280px, 0.85fr) minmax(0, 1.55fr);
+}
+
+.conversation-context-grid {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.conversation-desk-panel {
+  border-color: rgba(133, 207, 255, 0.24);
+  background: linear-gradient(180deg, rgba(15, 25, 43, 0.88), rgba(8, 12, 20, 0.96));
+}
+
+.pill-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.status-pill--danger {
+  background: rgba(255, 111, 111, 0.12);
+  color: #ffb0b0;
 }
 
 .panel-stack,

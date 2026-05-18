@@ -19,7 +19,7 @@ describe("InboxPage", () => {
 
     render(<InboxPage data={data} selectedConversationId="" {...handlers} />);
 
-    expect(screen.getByText("Inbox queue")).toBeInTheDocument();
+    expect(screen.getByText("Conversation Desk")).toBeInTheDocument();
     expect(screen.getByText("0 threads")).toBeInTheDocument();
     expect(screen.getByLabelText("inbox-thread-placeholder")).toBeInTheDocument();
     expect(screen.getByText("Select a thread to inspect context.")).toBeInTheDocument();
@@ -76,9 +76,12 @@ describe("InboxPage", () => {
     expect(screen.getByText("interested")).toBeInTheDocument();
     expect(screen.getByText("outbound_probate")).toBeInTheDocument();
     expect(screen.getByText(/human review and follow up/i)).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Approve send" })).toBeDisabled();
-    expect(screen.getByRole("button", { name: "Edit" })).toBeDisabled();
-    expect(screen.getByRole("button", { name: "Suppress" })).toBeDisabled();
-    expect(screen.getByRole("button", { name: "Assign callback" })).toBeDisabled();
+    expect(screen.getByRole("heading", { name: "Appointment Setter" })).toBeInTheDocument();
+    expect(screen.getByText("Qualification score")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Take over thread" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Approve reply" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Request slots" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Send to nurture" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Disqualify" })).toBeDisabled();
   });
 });

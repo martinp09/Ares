@@ -312,6 +312,17 @@ export interface SmsAgentDecision {
   temperature?: string | number | null;
   urgency?: string | null;
   policyReason?: string | null;
+  stage?: string | null;
+  leadBucket?: string | null;
+  qualificationScore?: number | null;
+  nextBestAction?: string | null;
+  missingFields?: string[];
+  appointmentReady?: boolean;
+  calendarActionRequested?: boolean;
+  nurtureRecommended?: boolean;
+  disqualified?: boolean;
+  riskFlags?: string[];
+  manualControl?: boolean;
 }
 
 export interface SelectedThread {
@@ -2202,6 +2213,18 @@ function mapSmsAgentDecision(value: unknown): SmsAgentDecision | null {
     return null;
   }
 
+  const appointmentSetter: Record<string, unknown> = isRecord(value.appointment_setter)
+    ? value.appointment_setter
+    : isRecord(value.appointmentSetter)
+      ? value.appointmentSetter
+      : {};
+  const missingFields = asArray<unknown>(appointmentSetter.missing_fields ?? value.missing_fields ?? value.missingFields)
+    .map((entry) => asString(entry))
+    .filter(Boolean);
+  const riskFlags = asArray<unknown>(appointmentSetter.risk_flags ?? value.risk_flags ?? value.riskFlags)
+    .map((entry) => asString(entry))
+    .filter(Boolean);
+
   return {
     intent: asNullableString(value.intent),
     action: asNullableString(value.action),
@@ -2213,6 +2236,19 @@ function mapSmsAgentDecision(value: unknown): SmsAgentDecision | null {
         : null,
     urgency: asNullableString(value.urgency),
     policyReason: asNullableString(value.policy_reason) ?? asNullableString(value.policyReason),
+    stage: asNullableString(appointmentSetter.stage ?? value.stage),
+    leadBucket: asNullableString(appointmentSetter.lead_bucket ?? value.lead_bucket ?? value.leadBucket),
+    qualificationScore: asNumber(appointmentSetter.qualification_score ?? value.qualification_score ?? value.qualificationScore),
+    nextBestAction: asNullableString(appointmentSetter.next_best_action ?? value.next_best_action ?? value.nextBestAction),
+    missingFields,
+    appointmentReady: asBoolean(appointmentSetter.appointment_ready ?? value.appointment_ready ?? value.appointmentReady),
+    calendarActionRequested: asBoolean(
+      appointmentSetter.calendar_action_requested ?? value.calendar_action_requested ?? value.calendarActionRequested,
+    ),
+    nurtureRecommended: asBoolean(appointmentSetter.nurture_recommended ?? value.nurture_recommended ?? value.nurtureRecommended),
+    disqualified: asBoolean(appointmentSetter.disqualified ?? value.disqualified),
+    riskFlags,
+    manualControl: asBoolean(value.manual_control ?? value.manualControl),
   };
 }
 
@@ -2309,7 +2345,7 @@ function mapInbox(payload: InboxPayload): InboxData {
       leadName: asString(thread.contact?.display_name, "Unknown contact"),
       channel: asString(thread.channel, "channel").toUpperCase(),
       stage: asString(thread.booking_status, "Queued"),
-      owner: "Hermes",
+      owner: asBoolean(thread.reply_needs_review) ? "Martin" : "Appointment Setter",
       unreadCount: asNumber(thread.unread_count),
       lastMessage: asString(thread.last_message_preview, "No messages yet"),
       lastActivityAt: asString(thread.last_message_at, "Unknown"),
