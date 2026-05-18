@@ -1,7 +1,7 @@
 ---
 title: "Ares TODO / Handoff"
 status: active
-updated_at: "2026-05-18T15:00:00Z"
+updated_at: "2026-05-18T15:33:53Z"
 repo: "martinp09/Ares"
 local_checkout: "/opt/ares/worktrees/ares-chief-of-staff-v0"
 target_branch: "feature/ares-chief-of-staff-v0"
@@ -19,6 +19,8 @@ supabase_identity_adapter_commit: "6cd2d88"
 ## Current status
 
 Ares Chief of Staff v2 is implemented on `feature/ares-chief-of-staff-v0` for review/merge. It is a read-only lead desk employee report: current Ares leads are bucketed into hot/contact-ready/research/skiptrace/blocked queues, artifacts are written as Markdown/JSON/CSV, Slack delivery uses the dedicated opt-in route `chief_of_staff_digest` / `SLACK_CHANNEL_CHIEF_OF_STAFF`, and the report includes employee identity, worklog, priorities, blockers, approval requests, read-only lead-machine health/latest-brief context, and stable manager action items with `approve/deny cos_action_...` Slack reply commands. Slack text/blocks/payload omit lead names, contact details, property addresses, case numbers, raw lead IDs, and lead-machine operator action reasons; exact record details remain in local artifacts. Safety boundaries remain hard: no seller outreach, paid skiptrace, Instantly enrollment, HubSpot/provider writes, SMS/email/Vapi sends, live county/source pulls, manager approval execution, Slack live post, Supabase remote migration, VPS deploy, or Telegram delivery occurred in this slice. Verification: focused/regression tests `52 passed`, full backend `1144 passed`, configured artifact-root/source-run-state dry-run side-effect check `dry_run_artifacts_created=0` and `dry_run_source_state_created=0`, `git diff --check` passed. QC: `docs/qc/2026-05-18/ares-chief-of-staff-v2-manager-actions/`.
+
+Mission Control operator UI refresh is also implemented on the same branch. The visible dashboard is now a real-estate action desk inspired by the external Mission Control visual direction: Today Desk, replies/submissions, approvals, to-do, blocked/dead, source health, and deal flow are foregrounded; backend/admin surfaces are hidden from the primary desk behind the deliberate command/search unlock `backstage`; provider operations no longer render on the primary dashboard. Verification: Mission Control typecheck passed, `25` test files / `83` tests passed, Vite build passed. QC: `docs/qc/2026-05-18/ares-mission-control-operator-ui-refresh/`.
 
 Back Office Spine v0 landed on `main` at `e898ee0` and the local `feature/back-office-spine-v0` branch was deleted. This slice turns qualified leads into canonical deal records with lane-aware task/document/risk templates, stage transition blockers, fire-list read models, Supabase runtime persistence, and a read-only Mission Control Deal Desk page.
 

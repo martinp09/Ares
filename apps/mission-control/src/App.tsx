@@ -384,8 +384,9 @@ function fallbackAgentDetailForSnapshot(
 
 export default function App() {
   const [activeWorkspace, setActiveWorkspace] = useState<WorkspaceId>("lead-machine");
-  const [activeView, setActiveView] = useState<MissionControlView>("agents");
+  const [activeView, setActiveView] = useState<MissionControlView>("dashboard");
   const [searchValue, setSearchValue] = useState("");
+  const [backstageUnlocked, setBackstageUnlocked] = useState(false);
   const [snapshot, setSnapshot] = useState<MissionControlSnapshot>(missionControlFixtures);
   const [catalogEntries, setCatalogEntries] = useState<CatalogEntrySummary[]>([]);
   const [probateAutopilotHealth, setProbateAutopilotHealth] = useState<ProbateAutopilotHealthData>(probateAutopilotHealthFixture);
@@ -1305,38 +1306,39 @@ export default function App() {
   const workspaceDefinitions: Record<WorkspaceId, WorkspaceDefinition> = {
     "lead-machine": {
       label: "Lead Machine",
-      defaultView: "agents",
+      defaultView: "dashboard",
       navSections: [
         {
-          title: "Agents",
-          items: [
-            { id: "agents", label: "Agents", badge: filteredAgents.length },
-            { id: "catalog", label: "Catalog", badge: filteredCatalogEntries.length },
-          ],
-        },
-        {
-          title: "Operator views",
+          title: "Work today",
           items: [
             {
               id: "dashboard",
-              label: "Queue",
+              label: "Today Desk",
               badge: snapshot.dashboard.outboundProbateSummary?.readyLeadCount ?? snapshot.dashboard.pendingLeadCount ?? 0,
             },
-            { id: "probate-autopilot", label: "Autopilot", badge: probateAutopilotHealth.anomalyCount },
             { id: "inbox", label: "Replies", badge: snapshot.dashboard.unreadConversationCount },
             { id: "approvals", label: "Approvals", badge: filteredApprovals.length },
-            { id: "runs", label: "Campaign State", badge: filteredRuns.length },
-            { id: "suppression", label: "Suppression", badge: snapshot.dashboard.repliesNeedingReviewCount ?? 0 },
             {
               id: "tasks",
-              label: "Tasks",
+              label: "To-Do",
               badge: snapshot.dashboard.outboundProbateSummary?.openTaskCount ?? snapshot.dashboard.dueManualCallCount ?? 0,
             },
-            {
-              id: "settings",
-              label: "Settings",
-              badge: snapshot.governance.pendingApprovals.length,
-            },
+            { id: "suppression", label: "Blocked / Dead", badge: snapshot.dashboard.repliesNeedingReviewCount ?? 0 },
+          ],
+        },
+        {
+          title: "Reference",
+          items: [
+            { id: "probate-autopilot", label: "Source Health", badge: probateAutopilotHealth.anomalyCount },
+          ],
+        },
+        {
+          title: "Backstage",
+          items: [
+            { id: "agents", label: "Agents", badge: filteredAgents.length },
+            { id: "catalog", label: "Catalog", badge: filteredCatalogEntries.length },
+            { id: "runs", label: "Campaign State", badge: filteredRuns.length },
+            { id: "settings", label: "Settings", badge: snapshot.governance.pendingApprovals.length },
           ],
         },
       ],
@@ -1517,40 +1519,36 @@ export default function App() {
     },
     marketing: {
       label: "Marketing",
-      defaultView: "agents",
+      defaultView: "dashboard",
       navSections: [
         {
-          title: "Agents",
-          items: [
-            { id: "agents", label: "Agents", badge: filteredAgents.length },
-            { id: "catalog", label: "Catalog", badge: filteredCatalogEntries.length },
-          ],
-        },
-        {
-          title: "Operator views",
+          title: "Work today",
           items: [
             {
               id: "dashboard",
-              label: "Overview",
+              label: "Today Desk",
               badge:
                 snapshot.dashboard.inboundLeaseOptionSummary?.pendingLeadCount ?? snapshot.dashboard.pendingLeadCount ?? 0,
             },
             { id: "inbox", label: "Submissions", badge: snapshot.dashboard.unreadConversationCount },
             { id: "approvals", label: "Approvals", badge: filteredApprovals.length },
-            { id: "runs", label: "Runs", badge: filteredRuns.length },
             {
               id: "tasks",
-              label: "Tasks",
+              label: "To-Do",
               badge:
                 snapshot.dashboard.inboundLeaseOptionSummary?.dueManualCallCount ??
                 snapshot.dashboard.dueManualCallCount ??
                 0,
             },
-            {
-              id: "settings",
-              label: "Settings",
-              badge: snapshot.governance.pendingApprovals.length,
-            },
+          ],
+        },
+        {
+          title: "Backstage",
+          items: [
+            { id: "agents", label: "Agents", badge: filteredAgents.length },
+            { id: "catalog", label: "Catalog", badge: filteredCatalogEntries.length },
+            { id: "runs", label: "Runs", badge: filteredRuns.length },
+            { id: "settings", label: "Settings", badge: snapshot.governance.pendingApprovals.length },
           ],
         },
       ],
@@ -1692,23 +1690,28 @@ export default function App() {
       defaultView: "pipeline",
       navSections: [
         {
-          title: "Pipeline",
+          title: "Deal flow",
           items: [
             {
-              id: "records",
-              label: "Records",
-              badge: snapshot.records.kpis.totalCount,
-            },
-            {
               id: "pipeline",
-              label: "Board",
+              label: "Deal Board",
               badge: filteredOpportunities.length,
             },
             {
               id: "deal-desk",
-              label: "Deal Desk",
+              label: "Fire List",
               badge: filteredDealDesk.fireList.length,
             },
+            {
+              id: "records",
+              label: "Lead Records",
+              badge: snapshot.records.kpis.totalCount,
+            },
+          ],
+        },
+        {
+          title: "Backstage",
+          items: [
             {
               id: "catalog",
               label: "Catalog",
@@ -1867,6 +1870,8 @@ export default function App() {
       }}
       searchValue={searchValue}
       onSearchChange={setSearchValue}
+      backstageUnlocked={backstageUnlocked}
+      onUnlockBackstage={() => setBackstageUnlocked(true)}
       workspaceTitle={activePage.title}
       workspaceSubtitle={activePage.subtitle}
       statusBadge={statusBadge}
@@ -1874,7 +1879,7 @@ export default function App() {
       headerSlot={scopeControls}
       mainContent={activePage.mainContent}
       contextContent={activePage.contextContent}
-      surface={activeWorkspace === "pipeline" ? "crm" : "default"}
+      surface="default"
     />
   );
 }

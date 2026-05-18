@@ -21,6 +21,17 @@ function createDeferred<T>() {
   return { promise, resolve, reject };
 }
 
+async function unlockBackstage() {
+  fireEvent.change(await screen.findByRole("searchbox", { name: /search mission control/i }), {
+    target: { value: "backstage" },
+  });
+}
+
+async function openAgentsBackstage() {
+  await unlockBackstage();
+  fireEvent.click(await screen.findByRole("button", { name: /agents/i }));
+}
+
 describe("App", () => {
   beforeEach(() => {
     queryClient.clear();
@@ -192,6 +203,7 @@ describe("App", () => {
     vi.stubGlobal("fetch", fetchMock);
 
     render(<App />);
+    await openAgentsBackstage();
 
     fireEvent.click(await screen.findByRole("button", { name: /replies/i }));
 
@@ -443,6 +455,7 @@ describe("App", () => {
     vi.stubGlobal("fetch", fetchMock);
 
     render(<App />);
+    await openAgentsBackstage();
 
     fireEvent.click(await screen.findByRole("button", { name: /view lifecycle for lifecycle agent/i }));
 
@@ -594,6 +607,7 @@ describe("App", () => {
     vi.stubGlobal("fetch", fetchMock);
 
     render(<App />);
+    await openAgentsBackstage();
 
     fireEvent.click(await screen.findByRole("button", { name: /view lifecycle for sierra inbox agent/i }));
 
@@ -766,6 +780,7 @@ describe("App", () => {
     vi.stubGlobal("fetch", fetchMock);
 
     render(<App />);
+    await openAgentsBackstage();
 
     fireEvent.click(await screen.findByRole("button", { name: /view lifecycle for sierra inbox agent/i }));
 
@@ -946,6 +961,7 @@ describe("App", () => {
     vi.stubGlobal("fetch", fetchMock);
 
     render(<App />);
+    await openAgentsBackstage();
 
     fireEvent.click(await screen.findByRole("button", { name: /view lifecycle for sierra inbox agent/i }));
 
@@ -1068,6 +1084,7 @@ describe("App", () => {
     vi.stubGlobal("fetch", fetchMock);
 
     render(<App />);
+    await openAgentsBackstage();
 
     fireEvent.click(await screen.findByRole("button", { name: /view lifecycle for sierra inbox agent/i }));
 
@@ -1199,6 +1216,7 @@ describe("App", () => {
     vi.stubGlobal("fetch", fetchMock);
 
     render(<App />);
+    await openAgentsBackstage();
 
     fireEvent.click(await screen.findByRole("button", { name: /view lifecycle for lifecycle agent/i }));
     expect(await screen.findByRole("heading", { name: "Agent lifecycle" })).toBeInTheDocument();
@@ -1330,6 +1348,7 @@ describe("App", () => {
     vi.stubGlobal("fetch", fetchMock);
 
     render(<App />);
+    await openAgentsBackstage();
 
     fireEvent.click(await screen.findByRole("button", { name: /view lifecycle for first agent/i }));
 
@@ -1412,6 +1431,7 @@ describe("App", () => {
     vi.stubGlobal("fetch", fetchMock);
 
     render(<App />);
+    await openAgentsBackstage();
 
     expect(await screen.findByRole("heading", { name: "Agent platform cockpit" })).toBeInTheDocument();
     expect(screen.getByText("Fixture mode")).toBeInTheDocument();
@@ -1498,6 +1518,7 @@ describe("App", () => {
     vi.stubGlobal("fetch", fetchMock);
 
     render(<App />);
+    await openAgentsBackstage();
 
     expect(await screen.findByText(/API \+ fixture fallback \([^)]*agents[^)]*\)/)).toBeInTheDocument();
     expect(screen.getByText("Fixture fallback / no Supabase wiring")).toBeInTheDocument();
@@ -1600,6 +1621,7 @@ describe("App", () => {
     vi.stubGlobal("fetch", fetchMock);
 
     render(<App />);
+    await openAgentsBackstage();
 
     fireEvent.click(await screen.findByRole("button", { name: /view lifecycle for lifecycle agent/i }));
 
@@ -1761,6 +1783,7 @@ describe("App", () => {
     vi.stubGlobal("fetch", fetchMock);
 
     render(<App />);
+    await openAgentsBackstage();
 
     fireEvent.click(await screen.findByRole("button", { name: /replies/i }));
     expect(await screen.findByText("Taylor detail from API")).toBeInTheDocument();
@@ -1772,7 +1795,7 @@ describe("App", () => {
     expect(screen.getByText(/Using fixture fallback for: .*inbox/)).toBeInTheDocument();
   });
 
-  it("defaults to agents-first navigation and keeps operator views around each workspace", async () => {
+  it("defaults to the operator Today Desk while preserving backstage internal routes", async () => {
     const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
       const url = typeof input === "string" ? input : input instanceof URL ? input.toString() : input.url;
 
@@ -1924,6 +1947,7 @@ describe("App", () => {
     vi.stubGlobal("fetch", fetchMock);
 
     render(<App />);
+    await openAgentsBackstage();
 
     expect(await screen.findByRole("tab", { name: "Lead Machine" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /agents/i })).toBeInTheDocument();
@@ -1936,9 +1960,10 @@ describe("App", () => {
     expect(screen.getByRole("heading", { name: /approvals queue/i, level: 3 })).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("tab", { name: "Marketing" }));
-    expect(screen.getByRole("heading", { name: /marketing \/ agents/i, level: 2 })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /marketing \/ overview/i, level: 2 })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /submissions/i })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /approvals/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /to-do/i })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /runs/i })).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: /submissions/i }));
@@ -2104,6 +2129,7 @@ describe("App", () => {
     vi.stubGlobal("fetch", fetchMock);
 
     render(<App />);
+    await openAgentsBackstage();
 
     fireEvent.click(await screen.findByRole("button", { name: /settings/i }));
 
@@ -2245,6 +2271,7 @@ describe("App", () => {
     vi.stubGlobal("fetch", fetchMock);
 
     render(<App />);
+    await openAgentsBackstage();
 
     fireEvent.click(await screen.findByRole("button", { name: /settings/i }));
     await screen.findByRole("heading", { name: "Settings / Governance", level: 2 });
@@ -2531,6 +2558,7 @@ describe("App", () => {
     vi.stubGlobal("fetch", fetchMock);
 
     render(<App />);
+    await openAgentsBackstage();
 
     await screen.findByRole("tab", { name: "Alpha Org" });
     await screen.findByRole("button", { name: /view lifecycle for alpha agent/i });
@@ -2715,6 +2743,7 @@ describe("App", () => {
     vi.stubGlobal("fetch", fetchMock);
 
     render(<App />);
+    await openAgentsBackstage();
 
     fireEvent.click(await screen.findByRole("button", { name: /replies/i }));
     expect(await screen.findByText("Alpha detail from API")).toBeInTheDocument();
@@ -2857,6 +2886,7 @@ describe("App", () => {
     vi.stubGlobal("fetch", fetchMock);
 
     render(<App />);
+    await openAgentsBackstage();
 
     expect(await screen.findByText("Fixture fallback / no Supabase wiring")).toBeInTheDocument();
 
@@ -2984,6 +3014,7 @@ describe("App", () => {
     vi.stubGlobal("fetch", fetchMock);
 
     render(<App />);
+    await openAgentsBackstage();
 
     fireEvent.click(await screen.findByRole("tab", { name: "Beta Org" }));
 
@@ -3142,6 +3173,7 @@ describe("App", () => {
     vi.stubGlobal("fetch", fetchMock);
 
     render(<App />);
+    await openAgentsBackstage();
 
     fireEvent.click(await screen.findByRole("button", { name: /settings/i }));
 
@@ -3244,6 +3276,7 @@ describe("App", () => {
     vi.stubGlobal("fetch", fetchMock);
 
     render(<App />);
+    await openAgentsBackstage();
 
     fireEvent.click(await screen.findByRole("button", { name: /catalog/i }));
 
@@ -3391,6 +3424,7 @@ describe("App", () => {
 
     vi.stubGlobal("fetch", fetchMock);
     render(<App />);
+    await openAgentsBackstage();
 
     fireEvent.click(await screen.findByRole("button", { name: /catalog/i }));
     expect(screen.getAllByRole("heading", { name: /internal catalog/i }).length).toBeGreaterThan(0);
@@ -3515,6 +3549,7 @@ describe("App", () => {
 
     vi.stubGlobal("fetch", fetchMock);
     render(<App />);
+    await openAgentsBackstage();
 
     fireEvent.click(await screen.findByRole("button", { name: /catalog/i }));
     fireEvent.click(within(screen.getByRole("group", { name: "Business filter" })).getByRole("button", { name: "default" }));

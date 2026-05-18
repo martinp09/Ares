@@ -40,6 +40,7 @@
 ## Current Direction
 
 - `/opt/ares/worktrees/ares-chief-of-staff-v0` on `feature/ares-chief-of-staff-v0` adds Ares Chief of Staff v2: read-only lead desk scoring/bucketing, hot/contact-ready/research/skiptrace/blocked queues, Markdown/JSON/CSV artifacts, opt-in Slack route `chief_of_staff_digest` via `SLACK_CHANNEL_CHIEF_OF_STAFF`, employee-style worklog/priorities/blockers/approval requests, read-only lead-machine health/latest-brief context, PII-redacted Slack text/blocks/payload, and manager action items with stable `approve/deny cos_action_...` Slack reply commands. It is separate from Telegram and performs no seller outreach, paid skiptrace, Instantly enrollment, HubSpot/provider writes, SMS/email/Vapi sends, live county/source pulls, approval execution, or buyer blasts. QC: `docs/qc/2026-05-18/ares-chief-of-staff-v2-manager-actions/`.
+- The same branch now includes the Mission Control operator UI refresh: the visible dashboard is a real-estate action desk inspired by builderz Mission Control styling; primary nav foregrounds Today Desk, replies/submissions, approvals, to-do, blocked/dead, source health, and deal flow; backend/admin surfaces (agents/catalog/runs/settings) are hidden from the primary desk and require the deliberate command/search unlock `backstage`. QC: `docs/qc/2026-05-18/ares-mission-control-operator-ui-refresh/`.
 
 - `/opt/ares/worktrees/ares-main` on `main` includes the TextGrid SMS reply-agent implementation and `/opt/ares/Ares` is deployed from `61f18de` (runtime rebuild commit; later docs commits may be newer); the VPS runtime exposes signed TextGrid webhook ingest, protected pending-job processing, Mission Control review/operator actions, and Supabase SMS-agent persistence tables. Source docs: `docs/superpowers/specs/2026-05-16-textgrid-sms-reply-agent-design.md`, `docs/superpowers/plans/2026-05-16-textgrid-sms-reply-agent-implementation-plan.md`, and `docs/mission-control-wiki/concepts/textgrid-sms-reply-agent.md`.
 - TextGrid SMS reply-agent runtime state: extend the existing `/sms-agent` scaffold rather than create a parallel SMS runtime; webhook ingest queues jobs and returns immediately; protected processing drafts/blocks replies; Trigger.dev SMS processor schedule is promoted and live; Supabase remains the hot operational source of truth; Obsidian/JSONL is a redacted cold archive/eval corpus, not live source of truth; automatic replies remain disabled until both global provider sends and `SMS_AGENT_AUTO_REPLIES_ENABLED` are explicitly approved.
@@ -254,6 +255,12 @@
 - `TasksRepository` now treats `lead_machine_backend=supabase` as a Supabase-backed task path so title-packet review tasks persist with lead-machine records.
 
 ## Change Log
+
+### 2026-05-18 Ares Mission Control Operator UI Refresh
+
+- Refreshed Mission Control into a Mission Control-inspired dark operator cockpit: visible nav now foregrounds real-estate work (`Today Desk`, replies/submissions, approvals, to-do, blocked/dead, source health, and deal flow) instead of backend/admin sections.
+- Replaced the primary dashboard summary with a human action desk: hit list today, replies to review, approvals, research/skiptrace, deals in motion, blocked/suppressions, probate/tax title lane, lease-option lane, and deal desk. Provider operations are no longer rendered on the primary dashboard.
+- Backend/admin surfaces (`agents`, `catalog`, `runs`, `settings`) remain bounded backstage routes behind the deliberate command/search unlock `backstage`. Verification: Mission Control typecheck passed, `25` test files / `83` tests passed, Vite production build passed. QC: `docs/qc/2026-05-18/ares-mission-control-operator-ui-refresh/`. No seller/provider/Slack/Supabase/VPS side effects.
 
 ### 2026-05-18 Ares Chief of Staff v2 Manager Actions
 

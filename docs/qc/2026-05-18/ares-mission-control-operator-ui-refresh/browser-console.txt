@@ -1,0 +1,14 @@
+Browser smoke: http://127.0.0.1:5178
+
+Console messages: 0
+JavaScript errors: 0
+
+Backstage visibility probe:
+- backstageExists: true
+- backstageHiddenAttr: true
+- backstageDisplay: none
+- hidden backend/admin buttons remained in DOM for deliberate backstage unlock path, but every probed button was inside a hidden ancestor with 0x0 rect.
+- Visible/accessibility snapshot did not expose Agents, Catalog, Campaign State/Runs, or Settings before unlock.
+
+Probe result:
+{"backstageDisplay":"none","backstageExists":true,"backstageHiddenAttr":true,"visibleBackendButtons":[{"display":"grid","hidden":true,"rect":{"height":0,"width":0},"text":"AIAgents0"},{"display":"grid","hidden":true,"rect":{"height":0,"width":0},"text":"CTCatalog0"},{"display":"grid","hidden":true,"rect":{"height":0,"width":0},"text":"EVCampaign State0"},{"display":"grid","hidden":true,"rect":{"height":0,"width":0},"text":"STSettings0"}]}
