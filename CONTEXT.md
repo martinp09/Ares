@@ -3,7 +3,7 @@
 ## Stable Facts
 - Repo: `martinp09/Ares`
 - Release branch: `main`
-- Active branch/worktree: `feature/ares-chief-of-staff-v0` at `/opt/ares/worktrees/ares-chief-of-staff-v0`
+- Active handoff target: `main`; completed feature branch `feature/ares-chief-of-staff-v0` delivered Chief of Staff / Appointment Setter / Conversation Desk and should be treated as merged/closed after final push.
 - Runtime API public HTTPS edge: `https://ares.tail485fd9.ts.net` (Tailscale Funnel -> `127.0.0.1:8000`; protected routes require bearer auth)
 - Mission Control URL: `https://mission-control-g8un1ly0w-martins-projects-9600e79e.vercel.app`
 - Supabase project ref: `awmsrjeawcxndfnggoxw`
@@ -19,15 +19,14 @@
 - The branch now also adds **Ares Appointment Setter v0** and a Chatwoot-inspired Mission Control Conversation Desk: SMS replies are framed as a least-privilege acquisitions ISA with qualification/disqualification scoring, prompt-injection/sensitive-info handoff, `appointment_setter_paused` / manual-takeover kill switches, and disabled placeholder controls for takeover/approve/slots/nurture/disqualify. Ares still owns policy, sends, Slack, calendar/Cal.com/Google actions, audit, and all provider gates.
 
 ## Current TODO
-1. Review and merge `feature/ares-chief-of-staff-v0` after the Chief of Staff / Appointment Setter / Conversation Desk slice is accepted.
-2. Before any live Appointment Setter seller automation, keep `APPOINTMENT_SETTER_ENABLED` scoped, keep `SMS_AGENT_AUTO_REPLIES_ENABLED=false` unless explicitly approved, configure `SLACK_CHANNEL_APPOINTMENT_SETTER`, and wire real takeover/approval endpoints before enabling Mission Control controls.
-3. After merge/deploy, apply the new Slack route migration and configure/create/invite the `#ares-chief-of-staff` Slack channel.
-4. Run `uv run python scripts/slack_notification_readiness.py --json --render-sample --route chief_of_staff_digest` before any live Chief of Staff Slack post.
-5. Keep `ARES_CHIEF_OF_STAFF_SCHEDULED_SLACK_ENABLED=false` until the Slack channel/bot readiness smoke is green; then enable it only for the scheduled employee check-in.
-6. Keep all outbound/provider-send controls blocked until Martin approves exact recipients/campaigns.
-7. Later: add a Slack reply inbox / decision journal for `approve/deny cos_action_...` that records manager intent only, without calling the generic approval executor.
-8. For email marketing launch: review the Herrington/Browne draft campaign and verification QC, then approve exact contacts/copy/enrollment before any Instantly upload, activation, or seller send.
-9. For SMS: use the temporary owned-number smoke transcript only for Martin's approved number; do not enable global SMS auto-replies until a scoped production approval/receiver exists. The branch now mirrors the Vapi pattern for SMS: deterministic safety/action policy, persisted conversation retrieval, optional LLM copy rewriting only, Appointment Setter qualification/handoff, and Slack/operator handoff boundaries.
+1. Codex handoff: continue from `main` after the merge; do not reopen Propwire or the deleted feature branch unless Martin explicitly asks.
+2. Deployment/promotion is still separate: pull latest `main` into the runtime/deploy worktree, preserve env wiring, and run the normal deploy/readiness gate before changing VPS/Trigger/Vercel state.
+3. Chief of Staff live Slack: apply `supabase/migrations/20260518130327_chief_of_staff_slack_route.sql`, create/invite/configure `SLACK_CHANNEL_CHIEF_OF_STAFF`, run `uv run python scripts/slack_notification_readiness.py --json --render-sample --route chief_of_staff_digest`, then enable `ARES_CHIEF_OF_STAFF_SCHEDULED_SLACK_ENABLED=true` only if Martin approves live scheduled Slack reporting.
+4. Appointment Setter next code slice: add real backend command endpoints/audit for takeover, pause/resume, approve/edit/reject reply, request appointment slots, send to nurture, and disqualify before enabling Mission Control controls.
+5. Appointment Setter Slack loop: configure `SLACK_CHANNEL_APPOINTMENT_SETTER` and add Slack-safe hot-seller / needs-Martin-review alerts plus approve/reject/takeover commands that record manager intent through Ares; do not let Slack actions call providers directly.
+6. Calendar slice: add a Cal.com-first adapter behind Ares availability/action gates; the Appointment Setter must never receive calendar credentials.
+7. Keep `SMS_AGENT_AUTO_REPLIES_ENABLED=false`, `APPOINTMENT_SETTER_ENABLED` scoped, provider live-send gates false, and all outbound/provider-send controls blocked until Martin approves exact recipients/campaigns.
+8. Email marketing launch remains a separate approval gate: review Herrington/Browne verification/copy artifacts and approve exact contacts/copy/enrollment before any Instantly upload, activation, or seller send.
 
 ## Recent Change
 - 2026-05-18: Added Ares Appointment Setter v0 and a Chatwoot-inspired Mission Control Conversation Desk. The SMS decision layer now includes a real-estate acquisitions qualification snapshot (stage, score, bucket, missing fields, next action), prompt-injection/sensitive-info risk flags, nurture/calendar recommendations, and hard `manual_control` / `appointment_setter_paused` handoff gates before auto-ack. Mission Control Inbox now labels the conversation desk, shows owner/acquisition route/tags, surfaces Appointment Setter score/action/risk/missing-field context, and keeps takeover/approve/slots/nurture/disqualify controls disabled until backend command contracts exist. Verification: focused backend `48 passed`, full backend `1158 passed`, Mission Control typecheck, `25` test files / `85` tests, Vite build, `git diff --check`, and fresh QC PASS review. QC: `docs/qc/2026-05-18/ares-appointment-setter-conversation-desk/`.
