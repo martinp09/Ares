@@ -180,7 +180,7 @@ def test_chief_of_staff_builds_human_queues_without_mutating_leads() -> None:
 
     brief = service.build_brief(business_id="limitless", environment="prod", limit=5)
 
-    assert brief.kind == "ares_chief_of_staff_brief_v1"
+    assert brief.kind == "ares_chief_of_staff_brief_v2"
     assert brief.employee_name == "Ares Chief of Staff"
     assert brief.manager_name == "Martin"
     assert brief.reporting_channel == "slack"
@@ -204,6 +204,11 @@ def test_chief_of_staff_builds_human_queues_without_mutating_leads() -> None:
     assert any("Lead-machine action" in item for item in brief.priorities)
     assert any("authority/title" in item for item in brief.blockers)
     assert any("Approve paid skiptrace" in item for item in brief.approval_requests)
+    action_types = {item.action_type.value for item in brief.manager_action_items}
+    assert {"approve_outreach", "approve_skiptrace", "approve_title_research", "review_blockers"} <= action_types
+    assert all(item.slack_reply_command.startswith("approve cos_action_") for item in brief.manager_action_items)
+    assert all(item.deny_reply_command.startswith("deny cos_action_") for item in brief.manager_action_items)
+    assert all(item.approval_required for item in brief.manager_action_items)
     assert brief.operational_context["status"] == "healthy"
     assert brief.operational_context["source_run_count"] == 1
     assert brief.operational_context["latest_morning_brief"]["id"] == "morning_brief_employee"
@@ -232,14 +237,19 @@ def test_chief_of_staff_writes_artifacts_and_slack_digest_without_contact_pii(tm
     assert result.artifacts["brief_json"].endswith("brief.json")
     assert result.artifacts["brief_markdown"].endswith("brief.md")
     assert result.artifacts["hot_csv"].endswith("hot_leads.csv")
+    assert result.artifacts["manager_action_items_json"].endswith("manager_action_items.json")
+    assert result.artifacts["manager_action_items_csv"].endswith("manager_action_items.csv")
     assert Path(result.artifacts["brief_json"]).exists()
     assert Path(result.artifacts["brief_markdown"]).read_text(encoding="utf-8").startswith("# Ares Chief of Staff Brief")
     payload = json.loads(Path(result.artifacts["brief_json"]).read_text(encoding="utf-8"))
-    assert payload["kind"] == "ares_chief_of_staff_brief_v1"
+    assert payload["kind"] == "ares_chief_of_staff_brief_v2"
     assert payload["queue_counts"]["hot"] == 2
     assert payload["worklog"]
     assert payload["priorities"]
     assert payload["approval_requests"]
+    action_payload = json.loads(Path(result.artifacts["manager_action_items_json"]).read_text(encoding="utf-8"))
+    assert action_payload[0]["slack_reply_command"].startswith("approve cos_action_")
+    assert action_payload[0]["deny_reply_command"].startswith("deny cos_action_")
 
     assert len(notifier.calls) == 1
     call = notifier.calls[0]
@@ -249,6 +259,7 @@ def test_chief_of_staff_writes_artifacts_and_slack_digest_without_contact_pii(tm
     assert "+171****0100" not in call["text"]
     assert "What I did" in json.dumps(call["blocks"])
     assert "Need your approval" in json.dumps(call["blocks"])
+    assert "Reply commands for Martin" in json.dumps(call["blocks"])
     rendered_slack = json.dumps(call, sort_keys=True)
     for forbidden in (
         "john@example.com",
@@ -266,6 +277,9 @@ def test_chief_of_staff_writes_artifacts_and_slack_digest_without_contact_pii(tm
     assert call["payload"]["employee"]["manager"] == "Martin"
     assert call["payload"]["worklog"]
     assert call["payload"]["approval_requests"]
+    assert call["payload"]["manager_action_items"][0]["slack_reply_command"].startswith("approve cos_action_")
+    assert call["payload"]["manager_action_items"][0]["deny_reply_command"].startswith("deny cos_action_")
+    assert call["payload"]["manager_action_items"][0]["approval_required"] is True
     assert call["payload"]["top_by_queue"]["contact_ready"][0]["lead_ref"] == "COS-CONTACT-READY-1"
     assert call["payload"]["safety"]["seller_outreach_sent"] is False
     assert result.slack_notification["status"] == "sent"

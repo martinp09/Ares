@@ -10,6 +10,8 @@ from typing import Any, Protocol
 from app.core.config import Settings, get_settings
 from app.db.leads import LeadsRepository
 from app.models.ares_chief_of_staff import (
+    AresChiefOfStaffActionItem,
+    AresChiefOfStaffActionType,
     AresChiefOfStaffBrief,
     AresChiefOfStaffBucket,
     AresChiefOfStaffLeadCard,
@@ -123,6 +125,12 @@ class AresChiefOfStaffService:
         priorities = self._employee_priorities(limited_queues, queue_counts=queue_counts, operational_context=operational_context)
         blockers = self._employee_blockers(queue_counts=queue_counts, operational_context=operational_context)
         approval_requests = self._approval_requests(queue_counts)
+        manager_action_items = self._manager_action_items(
+            brief_id_seed=idempotency_key or generated_at[:10],
+            business_id=business_id,
+            environment=environment,
+            queue_counts=queue_counts,
+        )
         worklog = self._worklog(
             business_id=business_id,
             environment=environment,
@@ -150,10 +158,11 @@ class AresChiefOfStaffService:
             priorities=priorities,
             blockers=blockers,
             approval_requests=approval_requests,
+            manager_action_items=manager_action_items,
             recommended_focus=recommended_focus,
             safety_boundaries=[
-                "No seller outreach sent by Chief of Staff v1.",
-                "No paid skiptrace credits spent by Chief of Staff v1.",
+                "No seller outreach sent by Chief of Staff v2.",
+                "No paid skiptrace credits spent by Chief of Staff v2.",
                 "No Instantly, HubSpot, SMS, email, Vapi, buyer-blast, or provider mutation performed.",
                 "Hot lead and contact-ready are separate; authority/title blockers prevent contact-ready status.",
             ],
@@ -172,6 +181,8 @@ class AresChiefOfStaffService:
         needs_research_csv = output_dir / "needs_research.csv"
         skiptrace_csv = output_dir / "skiptrace_candidates.csv"
         blocked_csv = output_dir / "blocked.csv"
+        action_items_json = output_dir / "manager_action_items.json"
+        action_items_csv = output_dir / "manager_action_items.csv"
 
         brief_json.write_text(json.dumps(brief.model_dump(mode="json"), indent=2, sort_keys=True), encoding="utf-8")
         brief_md.write_text(self.render_markdown(brief), encoding="utf-8")
@@ -180,6 +191,11 @@ class AresChiefOfStaffService:
         self._write_queue_csv(needs_research_csv, brief.queues[AresChiefOfStaffBucket.NEEDS_RESEARCH.value])
         self._write_queue_csv(skiptrace_csv, brief.queues[AresChiefOfStaffBucket.NEEDS_SKIPTRACE.value])
         self._write_queue_csv(blocked_csv, brief.queues[AresChiefOfStaffBucket.BLOCKED.value])
+        action_items_json.write_text(
+            json.dumps([item.model_dump(mode="json") for item in brief.manager_action_items], indent=2, sort_keys=True),
+            encoding="utf-8",
+        )
+        self._write_action_items_csv(action_items_csv, brief.manager_action_items)
 
         return {
             "brief_json": str(brief_json),
@@ -189,6 +205,8 @@ class AresChiefOfStaffService:
             "needs_research_csv": str(needs_research_csv),
             "skiptrace_candidates_csv": str(skiptrace_csv),
             "blocked_csv": str(blocked_csv),
+            "manager_action_items_json": str(action_items_json),
+            "manager_action_items_csv": str(action_items_csv),
         }
 
     def send_slack_digest(self, brief: AresChiefOfStaffBrief, *, idempotency_key: str | None = None) -> dict[str, Any]:
@@ -228,6 +246,15 @@ class AresChiefOfStaffService:
         lines.extend([f"- {item}" for item in brief.blockers] or ["- No active blockers from current data."])
         lines.extend(["", "## Approvals Needed"])
         lines.extend([f"- {item}" for item in brief.approval_requests] or ["- No new approval request from this report."])
+        lines.extend(["", "## Manager Action Items"])
+        if brief.manager_action_items:
+            for item in brief.manager_action_items:
+                lines.append(f"- `{item.slack_reply_command}` — {item.title}")
+                lines.append(f"  - Why: {item.why}")
+                lines.append(f"  - Deny/defer: `{item.deny_reply_command}`")
+                lines.append(f"  - Safety: {item.safety_note}")
+        else:
+            lines.append("- No manager action items generated from current queues.")
         lines.extend(["", "## Operational Status"])
         lines.extend([f"- {item}" for item in self._operational_status_lines(brief.operational_context)])
         lines.extend(["", "## Queue Counts"])
@@ -273,6 +300,7 @@ class AresChiefOfStaffService:
         priorities = self._slack_bullets(brief.priorities[:4], fallback="No priority actions from current data.")
         blockers = self._slack_bullets(brief.blockers[:4], fallback="No active blockers from current data.")
         approvals = self._slack_bullets(brief.approval_requests[:4], fallback="No new approval request from this report.")
+        action_lines = self._slack_action_lines(brief.manager_action_items)
         blocks = [
             {
                 "type": "section",
@@ -289,6 +317,7 @@ class AresChiefOfStaffService:
             {"type": "section", "text": {"type": "mrkdwn", "text": f"*What I recommend next*\n{priorities}"}},
             {"type": "section", "text": {"type": "mrkdwn", "text": f"*Blocked / Needs research*\n{blockers}"}},
             {"type": "section", "text": {"type": "mrkdwn", "text": f"*Need your approval*\n{approvals}"}},
+            {"type": "section", "text": {"type": "mrkdwn", "text": f"*Reply commands for Martin*\n{action_lines}"}},
         ]
         if top_lines:
             blocks.append({"type": "section", "text": {"type": "mrkdwn", "text": "\n".join(top_lines[:6])}})
@@ -544,6 +573,75 @@ class AresChiefOfStaffService:
             approvals.append("No seller outreach, paid skiptrace, or provider mutation approval requested from this report.")
         return approvals
 
+    def _manager_action_items(
+        self,
+        *,
+        brief_id_seed: str,
+        business_id: str,
+        environment: str,
+        queue_counts: dict[str, int],
+    ) -> list[AresChiefOfStaffActionItem]:
+        specs: list[tuple[AresChiefOfStaffActionType, AresChiefOfStaffBucket, int, str, str, str]] = [
+            (
+                AresChiefOfStaffActionType.APPROVE_OUTREACH,
+                AresChiefOfStaffBucket.CONTACT_READY,
+                queue_counts.get(AresChiefOfStaffBucket.CONTACT_READY.value, 0),
+                "Approve outreach copy for contact-ready leads",
+                "These leads have enough contact data and no current title/authority blocker in the Chief of Staff queue.",
+                "Approving this only authorizes drafting/exact-campaign prep; no seller outreach is sent until a live sender gate is separately enabled.",
+            ),
+            (
+                AresChiefOfStaffActionType.APPROVE_SKIPTRACE,
+                AresChiefOfStaffBucket.NEEDS_SKIPTRACE,
+                queue_counts.get(AresChiefOfStaffBucket.NEEDS_SKIPTRACE.value, 0),
+                "Approve paid skiptrace batch",
+                "These leads lack direct contact info and should not be enriched with paid credits without manager approval.",
+                "Approving this only authorizes a future skiptrace budget/provider step; this digest spent zero credits.",
+            ),
+            (
+                AresChiefOfStaffActionType.APPROVE_TITLE_RESEARCH,
+                AresChiefOfStaffBucket.NEEDS_RESEARCH,
+                queue_counts.get(AresChiefOfStaffBucket.NEEDS_RESEARCH.value, 0),
+                "Approve title/authority research lane",
+                "These leads need authority, title, probate, heirship, or case-detail research before any seller conversation.",
+                "Approving this only authorizes research triage; no legal filing, county source pull, or seller outreach is performed by this digest.",
+            ),
+            (
+                AresChiefOfStaffActionType.REVIEW_BLOCKERS,
+                AresChiefOfStaffBucket.BLOCKED,
+                queue_counts.get(AresChiefOfStaffBucket.BLOCKED.value, 0),
+                "Review blocked/suppressed leads",
+                "These leads are blocked by suppression, missing identity/contact/property data, or closed status.",
+                "Reviewing blockers is informational unless Martin separately approves a remediation workflow.",
+            ),
+        ]
+        items: list[AresChiefOfStaffActionItem] = []
+        for action_type, queue, lead_count, title, why, safety_note in specs:
+            if lead_count <= 0:
+                continue
+            action_id = generate_stable_id(
+                "cos_action",
+                business_id,
+                environment,
+                brief_id_seed,
+                action_type.value,
+                queue.value,
+            )
+            items.append(
+                AresChiefOfStaffActionItem(
+                    action_id=action_id,
+                    action_type=action_type,
+                    title=title,
+                    why=f"{why} Count: {lead_count}.",
+                    queue=queue,
+                    lead_count=lead_count,
+                    slack_reply_command=f"approve {action_id}",
+                    deny_reply_command=f"deny {action_id}",
+                    safety_note=safety_note,
+                )
+            )
+        return items
+
     def _operational_status_line(self, operational_context: dict[str, Any]) -> str:
         status = str(operational_context.get("status") or "not_attached")
         if status == "not_attached":
@@ -565,6 +663,17 @@ class AresChiefOfStaffService:
     @staticmethod
     def _slack_bullets(items: list[str], *, fallback: str) -> str:
         return "\n".join(f"• {item}" for item in items) if items else f"• {fallback}"
+
+    @staticmethod
+    def _slack_action_lines(items: list[AresChiefOfStaffActionItem]) -> str:
+        if not items:
+            return "• No approval commands generated from current queues."
+        lines = []
+        for item in items[:4]:
+            lines.append(
+                f"• `{item.slack_reply_command}` or `{item.deny_reply_command}` — {item.title} ({item.lead_count} lead(s))"
+            )
+        return "\n".join(lines)
 
     def _source_summary(self, leads: list[LeadRecord]) -> dict[str, Any]:
         source_counts: dict[str, int] = defaultdict(int)
@@ -632,6 +741,7 @@ class AresChiefOfStaffService:
             "priorities": brief.priorities,
             "blockers": brief.blockers,
             "approval_requests": brief.approval_requests,
+            "manager_action_items": [self._slack_safe_action_item(item) for item in brief.manager_action_items],
             "recommended_focus": brief.recommended_focus,
             "operational_context": self._slack_safe_operational_context(brief.operational_context),
             "slack_payload_redaction": "lead names, contact details, property addresses, raw case numbers, and raw lead IDs omitted",
@@ -641,6 +751,21 @@ class AresChiefOfStaffService:
                 "provider_mutation_performed": False,
                 "telegram_delivery": False,
             },
+        }
+
+    @staticmethod
+    def _slack_safe_action_item(item: AresChiefOfStaffActionItem) -> dict[str, Any]:
+        return {
+            "action_id": item.action_id,
+            "action_type": item.action_type.value,
+            "title": item.title,
+            "queue": item.queue.value,
+            "lead_count": item.lead_count,
+            "risk_level": item.risk_level,
+            "approval_required": item.approval_required,
+            "slack_reply_command": item.slack_reply_command,
+            "deny_reply_command": item.deny_reply_command,
+            "safety_note": item.safety_note,
         }
 
     @staticmethod
@@ -709,6 +834,41 @@ class AresChiefOfStaffService:
                         "next_action": card.next_action,
                         "reasons": "; ".join(card.reasons),
                         "blockers": "; ".join(card.blockers),
+                    }
+                )
+
+    @staticmethod
+    def _write_action_items_csv(path: Path, items: list[AresChiefOfStaffActionItem]) -> None:
+        with path.open("w", newline="", encoding="utf-8") as handle:
+            writer = csv.DictWriter(
+                handle,
+                fieldnames=[
+                    "action_id",
+                    "action_type",
+                    "title",
+                    "queue",
+                    "lead_count",
+                    "risk_level",
+                    "approval_required",
+                    "slack_reply_command",
+                    "deny_reply_command",
+                    "safety_note",
+                ],
+            )
+            writer.writeheader()
+            for item in items:
+                writer.writerow(
+                    {
+                        "action_id": item.action_id,
+                        "action_type": item.action_type.value,
+                        "title": item.title,
+                        "queue": item.queue.value,
+                        "lead_count": item.lead_count,
+                        "risk_level": item.risk_level,
+                        "approval_required": item.approval_required,
+                        "slack_reply_command": item.slack_reply_command,
+                        "deny_reply_command": item.deny_reply_command,
+                        "safety_note": item.safety_note,
                     }
                 )
 

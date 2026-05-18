@@ -26,7 +26,7 @@ def test_cli_dry_run_prints_json_without_writing_or_posting(capsys, monkeypatch,
     payload = json.loads(captured.out)
 
     assert exit_code == 0
-    assert payload["brief"]["kind"] == "ares_chief_of_staff_brief_v1"
+    assert payload["brief"]["kind"] == "ares_chief_of_staff_brief_v2"
     assert payload["brief"]["business_id"] == "limitless"
     assert payload["brief"]["environment"] == "dev"
     assert payload["artifacts"] == {}

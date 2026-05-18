@@ -1,0 +1,93 @@
+{
+  "artifacts": {},
+  "brief": {
+    "approval_requests": [
+      "No seller outreach, paid skiptrace, or provider mutation approval requested from this report."
+    ],
+    "artifact_path": null,
+    "blockers": [
+      "Lead-machine health is no_data; check source-run health before relying on new intake velocity."
+    ],
+    "business_id": "limitless",
+    "employee_name": "Ares Chief of Staff",
+    "employee_role": "Real-estate lead desk operator",
+    "environment": "prod",
+    "generated_at": "2026-05-18T14:24:02.644386+00:00",
+    "id": "cos_brief_55ad48d976a9a87d8d53fb10",
+    "input_lead_count": 0,
+    "kind": "ares_chief_of_staff_brief_v2",
+    "manager_action_items": [],
+    "manager_name": "Martin",
+    "operational_context": {
+      "anomaly_count": 0,
+      "brief_age_hours": null,
+      "enrichment_backlog": {},
+      "freshness_ok": false,
+      "generated_at": null,
+      "latest_brief_id": null,
+      "latest_morning_brief": null,
+      "new_record_count": 0,
+      "no_send_ok": false,
+      "operator_next_actions": [
+        {
+          "action": "run_probate_autopilot_source_pull",
+          "priority": "urgent",
+          "reason": "Lead-machine requested operator review; see local morning-brief artifacts for exact details."
+        }
+      ],
+      "outbound_allowed": false,
+      "sla_health": {},
+      "source_quality": {},
+      "source_run_count": 0,
+      "stale_brief": false,
+      "status": "no_data",
+      "warning_count": 0
+    },
+    "priorities": [
+      "No contact-ready lead surfaced; review watchlist and latest lead-machine run health.",
+      "Lead-machine action: run probate autopilot source pull \u2014 Lead-machine requested operator review; see local morning-brief artifacts for exact details."
+    ],
+    "queue_counts": {
+      "blocked": 0,
+      "contact_ready": 0,
+      "hot": 0,
+      "needs_research": 0,
+      "needs_skiptrace": 0,
+      "pass": 0,
+      "watchlist": 0
+    },
+    "queues": {
+      "blocked": [],
+      "contact_ready": [],
+      "hot": [],
+      "needs_research": [],
+      "needs_skiptrace": [],
+      "pass": [],
+      "watchlist": []
+    },
+    "recommended_focus": [
+      "No contact-ready lead surfaced; review watchlist and latest lead-machine run health."
+    ],
+    "reporting_channel": "slack",
+    "safety_boundaries": [
+      "No seller outreach sent by Chief of Staff v2.",
+      "No paid skiptrace credits spent by Chief of Staff v2.",
+      "No Instantly, HubSpot, SMS, email, Vapi, buyer-blast, or provider mutation performed.",
+      "Hot lead and contact-ready are separate; authority/title blockers prevent contact-ready status."
+    ],
+    "shift_status": "online_read_only",
+    "source_summary": {
+      "lifecycle_status_counts": {},
+      "source_counts": {}
+    },
+    "worklog": [
+      "Reviewed 0 current lead record(s) for limitless/prod.",
+      "Scored and bucketed leads into hot, contact-ready, research, skiptrace, blocked, watchlist, and pass queues.",
+      "Prepared an operator-only report; I did not contact sellers, spend skiptrace credits, or mutate providers.",
+      "Checked lead-machine health: status=no_data, source runs=0, warnings=0."
+    ]
+  },
+  "slack_notification": {
+    "status": "not_requested"
+  }
+}

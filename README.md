@@ -113,9 +113,9 @@ uv run python scripts/slack_notification_readiness.py --json --render-sample --r
 uv run python scripts/slack_notification_readiness.py --json --render-sample --route chief_of_staff_digest
 ```
 
-### Ares Chief of Staff v1
+### Ares Chief of Staff v2
 
-The Chief of Staff digest is a read-only lead desk employee report for Martin. It reads current Ares lead records, buckets them into hot/contact-ready/research/skiptrace/blocked queues, checks existing lead-machine health/morning-brief state without triggering new source pulls, writes human-readable artifacts, and can post a Slack-first worklog to route `chief_of_staff_digest`. The Slack report is written like an employee check-in: what I did, what I recommend next, what is blocked, and what needs Martin's approval. Slack payloads use anonymized lead refs; exact lead names/contact/property details stay in local operator artifacts. It does not send seller outreach, spend paid skiptrace credits, enroll Instantly campaigns, write HubSpot/provider records, call Vapi/SMS/email, run live county/source pulls, or deliver scheduled output to Telegram.
+The Chief of Staff digest is a read-only lead desk employee report for Martin. It reads current Ares lead records, buckets them into hot/contact-ready/research/skiptrace/blocked queues, checks existing lead-machine health/morning-brief state without triggering new source pulls, writes human-readable artifacts, and can post a Slack-first worklog to route `chief_of_staff_digest`. The Slack report is written like an employee check-in: what I did, what I recommend next, what is blocked, what needs Martin's approval, and exact thread reply commands such as `approve cos_action_...` / `deny cos_action_...` for manager action items. Slack payloads use anonymized lead refs and approval-action refs; exact lead names/contact/property details stay in local operator artifacts. It does not send seller outreach, spend paid skiptrace credits, enroll Instantly campaigns, write HubSpot/provider records, call Vapi/SMS/email, run live county/source pulls, execute manager approvals, or deliver scheduled output to Telegram.
 
 Dry-run without artifacts or Slack:
 

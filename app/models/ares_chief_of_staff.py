@@ -18,6 +18,29 @@ class AresChiefOfStaffBucket(StrEnum):
     PASS = "pass"
 
 
+class AresChiefOfStaffActionType(StrEnum):
+    APPROVE_OUTREACH = "approve_outreach"
+    APPROVE_SKIPTRACE = "approve_skiptrace"
+    APPROVE_TITLE_RESEARCH = "approve_title_research"
+    REVIEW_BLOCKERS = "review_blockers"
+
+
+class AresChiefOfStaffActionItem(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    action_id: str
+    action_type: AresChiefOfStaffActionType
+    title: str
+    why: str
+    queue: AresChiefOfStaffBucket
+    lead_count: int
+    risk_level: str = "approval_required"
+    approval_required: bool = True
+    slack_reply_command: str
+    deny_reply_command: str
+    safety_note: str
+
+
 class AresChiefOfStaffLeadCard(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -47,7 +70,7 @@ class AresChiefOfStaffLeadCard(BaseModel):
 class AresChiefOfStaffBrief(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    kind: str = "ares_chief_of_staff_brief_v1"
+    kind: str = "ares_chief_of_staff_brief_v2"
     id: str
     business_id: str
     environment: str
@@ -66,6 +89,7 @@ class AresChiefOfStaffBrief(BaseModel):
     priorities: list[str] = Field(default_factory=list)
     blockers: list[str] = Field(default_factory=list)
     approval_requests: list[str] = Field(default_factory=list)
+    manager_action_items: list[AresChiefOfStaffActionItem] = Field(default_factory=list)
     recommended_focus: list[str] = Field(default_factory=list)
     safety_boundaries: list[str] = Field(default_factory=list)
     artifact_path: str | None = None
