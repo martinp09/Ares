@@ -114,8 +114,21 @@ class SmsAgentService:
                 to_number=event.to_number,
                 metadata={
                     "external_id": event.external_id,
+                    "body": event.body,
                     "body_preview": event.body[:160],
                     "sms_consent": lead.sms_consent,
+                    "resolved": True,
+                    "lead_context": {
+                        key: value
+                        for key, value in {
+                            "property_address": lead.property_address,
+                            "property_type": lead.property_type,
+                            "timeline_to_sell": lead.timeline_to_sell,
+                            "seller_goal": lead.seller_goal,
+                            "source_lane": lead.utm_campaign or lead.utm_source,
+                        }.items()
+                        if value not in (None, "")
+                    },
                 },
             )
         )
@@ -379,10 +392,12 @@ class SmsAgentService:
                 result["failed_count"] += 1
         return result
 
-    @staticmethod
-    def _reply_context_for_job(job: SmsAgentJobRecord) -> SmsReplyContext:
+    def _reply_context_for_job(self, job: SmsAgentJobRecord) -> SmsReplyContext:
         metadata = job.metadata
         body_value = metadata.get("body") or metadata.get("body_preview") or ""
+        message = self.messages.get(job.message_id)
+        if message is not None and message.body.strip():
+            body_value = message.body
         body = str(body_value).strip()
         ambiguous = _metadata_bool(metadata, "ambiguous", default=False)
         if not body:
@@ -391,7 +406,7 @@ class SmsAgentService:
         resolved = bool(job.contact_id)
         if isinstance(metadata.get("resolved"), bool):
             resolved = bool(metadata["resolved"])
-        lead_context = {}
+        lead_context = self._lead_context_for_job(job)
         existing_lead_context = metadata.get("lead_context")
         if isinstance(existing_lead_context, dict):
             lead_context.update(existing_lead_context)
@@ -411,8 +426,54 @@ class SmsAgentService:
             ambiguous=ambiguous,
             sms_consent=_metadata_bool(metadata, "sms_consent", default=False),
             suppressed=_metadata_bool(metadata, "suppressed", default=False),
+            recent_messages=self._recent_messages_for_job(job),
             lead_context=lead_context,
         )
+
+    def _lead_context_for_job(self, job: SmsAgentJobRecord) -> dict[str, Any]:
+        if not job.contact_id:
+            return {}
+        lead = self.contacts.get_lead(job.contact_id)
+        if lead is None:
+            return {}
+        return {
+            key: value
+            for key, value in {
+                "source_lane": lead.utm_campaign or lead.utm_source,
+                "property_address": lead.property_address,
+                "property_type": lead.property_type,
+                "timeline_to_sell": lead.timeline_to_sell,
+                "seller_goal": lead.seller_goal,
+                "booking_status": lead.booking_status,
+                "notes": lead.notes,
+                "sms_consent": lead.sms_consent,
+            }.items()
+            if value not in (None, "")
+        }
+
+    def _recent_messages_for_job(self, job: SmsAgentJobRecord) -> list[dict[str, Any]]:
+        if not job.contact_id:
+            return []
+        try:
+            messages = self.messages.list_recent_for_contact(
+                business_id=job.business_id,
+                environment=job.environment,
+                contact_id=job.contact_id,
+                channel="sms",
+                limit=8,
+            )
+        except Exception:  # noqa: BLE001
+            return []
+        return [
+            {
+                "id": message.id,
+                "direction": str(message.direction.value if hasattr(message.direction, "value") else message.direction),
+                "status": str(message.status.value if hasattr(message.status, "value") else message.status),
+                "body": message.body[:320],
+                "created_at": message.created_at.isoformat() if hasattr(message.created_at, "isoformat") else str(message.created_at),
+            }
+            for message in messages
+        ]
 
     def send_message(self, request: SmsAgentSendRequest) -> SmsAgentSendResponse:
         normalized_to = normalize_phone_number(request.to)

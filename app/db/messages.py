@@ -122,6 +122,40 @@ class MessagesRepository:
                     return updated
         return None
 
+    def list_recent_for_contact(
+        self,
+        *,
+        business_id: str,
+        environment: str,
+        contact_id: str,
+        channel: str = "sms",
+        limit: int = 8,
+    ) -> list[MessageRecord]:
+        if limit <= 0:
+            return []
+        if marketing_backend_enabled(self.settings) and not self._force_memory:
+            return self._list_recent_for_contact_in_supabase(
+                business_id=business_id,
+                environment=environment,
+                contact_id=contact_id,
+                channel=channel,
+                limit=limit,
+            )
+        with self.client.transaction() as store:
+            message_rows: dict[str, MessageRecord] = getattr(
+                store, "marketing_message_rows", {}
+            )
+            matches = [
+                MessageRecord.model_validate(message)
+                for message in message_rows.values()
+                if message.business_id == business_id
+                and message.environment == environment
+                and message.contact_id == contact_id
+                and message.channel == channel
+            ]
+        matches.sort(key=lambda message: (message.created_at, message.id), reverse=True)
+        return list(reversed(matches[:limit]))
+
     def _append(
         self,
         *,
@@ -297,6 +331,64 @@ class MessagesRepository:
             created_at=row["created_at"],
             updated_at=row["updated_at"],
         )
+
+    def _list_recent_for_contact_in_supabase(
+        self,
+        *,
+        business_id: str,
+        environment: str,
+        contact_id: str,
+        channel: str,
+        limit: int,
+    ) -> list[MessageRecord]:
+        tenant = resolve_tenant(business_id, environment, settings=self.settings)
+        contact_rows = fetch_rows(
+            "contacts",
+            params={
+                "select": "id,external_contact_id",
+                "business_id": f"eq.{tenant.business_pk}",
+                "environment": f"eq.{tenant.environment}",
+                "external_contact_id": f"eq.{contact_id}",
+                "limit": "1",
+            },
+            settings=self.settings,
+        )
+        if not contact_rows:
+            return []
+        contact_pk = int(contact_rows[0]["id"])
+        rows = fetch_rows(
+            "messages",
+            params={
+                "select": "*",
+                "business_id": f"eq.{tenant.business_pk}",
+                "environment": f"eq.{tenant.environment}",
+                "contact_id": f"eq.{contact_pk}",
+                "channel": f"eq.{channel}",
+                "order": "created_at.desc,id.desc",
+                "limit": str(limit),
+            },
+            settings=self.settings,
+        )
+        records = [
+            MessageRecord(
+                id=f"msg_{row['id']}",
+                business_id=business_id,
+                environment=environment,
+                contact_id=contact_id,
+                conversation_id=str(row.get("conversation_id") or "unknown"),
+                channel=str(row["channel"]),
+                direction=MessageDirection(str(row["direction"])),
+                provider=row.get("provider"),
+                external_message_id=row.get("external_message_id"),
+                body=str(row.get("body") or ""),
+                status=MessageStatus(str(row.get("status") or "queued")),
+                metadata=dict(row.get("metadata") or {}),
+                created_at=row["created_at"],
+                updated_at=row["updated_at"],
+            )
+            for row in rows
+        ]
+        return list(reversed(records))
 
     def _get_in_supabase(self, message_id: str) -> MessageRecord | None:
         if not message_id.startswith("msg_"):

@@ -62,17 +62,18 @@ Cleanup verification on the `be76288` baseline passed: focused backend => `44 pa
 ## Immediate next actions
 
 1. Review and merge `feature/ares-chief-of-staff-v0`; after deploy, apply `supabase/migrations/20260518130327_chief_of_staff_slack_route.sql`, configure/create/invite `SLACK_CHANNEL_CHIEF_OF_STAFF`, and keep `ARES_CHIEF_OF_STAFF_SCHEDULED_SLACK_ENABLED=false` until readiness passes.
-2. Run `uv run python scripts/slack_notification_readiness.py --json --render-sample --route chief_of_staff_digest` before any live Chief of Staff Slack post, then enable `ARES_CHIEF_OF_STAFF_SCHEDULED_SLACK_ENABLED=true` only for the scheduled 08:15 CT employee check-in if Martin approves live Slack reporting.
-3. Review the Herrington/Browne email-marketing prep artifacts: `docs/marketing/campaigns/2026-05-18-curative-title-soft-finder-email-campaign.md`, `docs/marketing/exports/email-marketing-herrington-browne-2026-05-18/`, and sanitized QC `docs/qc/2026-05-18/email-marketing-herrington-browne-prep/`. Raw verification/contact evidence is local-only under `/opt/ares/lead-data/email_marketing_herrington_browne_2026-05-18/`.
-4. Before any email launch, approve exact contacts, copy, Instantly draft/create/upload behavior, daily cap, and sender. Current state is no upload / no activation / no seller email send.
-5. Watch the temporary owned-number SMS smoke watcher only for Martin's approved number; do not enable global SMS auto-replies. If promoting this into production behavior, add a scoped approval/receiver and max-turn/expiry gates.
-6. Next employee feature: add a Slack reply inbox / decision journal for `approve cos_action_...` and `deny cos_action_...` that records manager intent only and does not call the generic approval executor or provider/send paths.
-7. Watch the next automatic Trigger CT windows (`07:10`, `12:40`, `17:40` America/Chicago) for the next `limitless/prod` autonomous morning briefs and Slack lead-run digests. One-shot Hermes watcher `9ed644afbc4a` is scheduled at `2026-05-16T22:50:00Z` to verify the next `17:40 CT` Trigger run without moving production schedules.
-8. Keep Hermes cron `815e1261ab2e` paused while Trigger remains authoritative; resume it only as an intentional rollback.
-9. Monitor the Funnel API edge (`/health`, protected probate health with bearer, protected routes `401` without bearer) and keep Tailscale Funnel limited to the API loopback proxy.
-10. Add a Harris postback case-detail client if live Harris party/event/document detail completion is required; current postback-only rows are safely incomplete, not blocked.
-11. Keep Instantly enrollment/send, SMS/Vapi dispatch, paid skiptrace, and HubSpot batch mirror writes gated until separately approved.
-12. Prepare the marketing launch manifest next: source-approved contacts, suppression/verification, exact copy, exact recipient limits, and approval before Instantly/SMS/email sends.
+2. For SMS, review `docs/runbooks/sms-vapi-style-contextual-reply-agent.md`: the branch now has a Vapi-style SMS context loop with deterministic safety policy plus optional LLM copy rewriting behind `SMS_AGENT_LLM_REPLIES_ENABLED=false` by default. Do not enable global SMS auto-replies; owned-number smoke still requires `SMS_AGENT_ALLOWED_FROM_NUMBERS` and explicit approval.
+3. Run `uv run python scripts/slack_notification_readiness.py --json --render-sample --route chief_of_staff_digest` before any live Chief of Staff Slack post, then enable `ARES_CHIEF_OF_STAFF_SCHEDULED_SLACK_ENABLED=true` only for the scheduled 08:15 CT employee check-in if Martin approves live Slack reporting.
+4. Review the Herrington/Browne email-marketing prep artifacts: `docs/marketing/campaigns/2026-05-18-curative-title-soft-finder-email-campaign.md`, `docs/marketing/exports/email-marketing-herrington-browne-2026-05-18/`, and sanitized QC `docs/qc/2026-05-18/email-marketing-herrington-browne-prep/`. Raw verification/contact evidence is local-only under `/opt/ares/lead-data/email_marketing_herrington_browne_2026-05-18/`.
+5. Before any email launch, approve exact contacts, copy, Instantly draft/create/upload behavior, daily cap, and sender. Current state is no upload / no activation / no seller email send.
+6. Watch the temporary owned-number SMS smoke watcher only for Martin's approved number; do not enable global SMS auto-replies. If promoting this into production behavior, add a scoped approval/receiver and max-turn/expiry gates.
+7. Next employee feature: add a Slack reply inbox / decision journal for `approve cos_action_...` and `deny cos_action_...` that records manager intent only and does not call the generic approval executor or provider/send paths.
+8. Watch the next automatic Trigger CT windows (`07:10`, `12:40`, `17:40` America/Chicago) for the next `limitless/prod` autonomous morning briefs and Slack lead-run digests. One-shot Hermes watcher `9ed644afbc4a` is scheduled at `2026-05-16T22:50:00Z` to verify the next `17:40 CT` Trigger run without moving production schedules.
+9. Keep Hermes cron `815e1261ab2e` paused while Trigger remains authoritative; resume it only as an intentional rollback.
+10. Monitor the Funnel API edge (`/health`, protected probate health with bearer, protected routes `401` without bearer) and keep Tailscale Funnel limited to the API loopback proxy.
+11. Add a Harris postback case-detail client if live Harris party/event/document detail completion is required; current postback-only rows are safely incomplete, not blocked.
+12. Keep Instantly enrollment/send, SMS/Vapi dispatch, paid skiptrace, and HubSpot batch mirror writes gated until separately approved.
+13. Prepare the marketing launch manifest next: source-approved contacts, suppression/verification, exact copy, exact recipient limits, and approval before Instantly/SMS/email sends.
 
 ## Open product follow-ups
 

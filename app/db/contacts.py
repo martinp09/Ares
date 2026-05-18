@@ -10,6 +10,7 @@ from app.db.marketing_supabase import (
     resolve_tenant,
 )
 from app.models.marketing_leads import LeadUpsertRequest, MarketingLeadRecord
+from app.providers.textgrid import normalize_phone_number
 
 
 _LANDING_CONTEXT_FIELDS = (
@@ -154,9 +155,10 @@ class ContactsRepository:
             contact_rows: dict[str, MarketingLeadRecord] = getattr(
                 store, "marketing_contact_rows", {}
             )
+            lookup_variants = _phone_lookup_variants(phone)
             matches: list[MarketingLeadRecord] = []
             for record in contact_rows.values():
-                if record.phone == phone:
+                if record.phone in lookup_variants or normalize_phone_number(record.phone) in lookup_variants:
                     if business_id is not None and record.business_id != business_id:
                         continue
                     if environment is not None and record.environment != environment:
@@ -268,22 +270,25 @@ class ContactsRepository:
         business_id: str | None = None,
         environment: str | None = None,
     ) -> list[MarketingLeadRecord]:
-        params = {
+        base_params = {
             "select": "id,external_contact_id,name,email,phone,metadata,business_id,environment,created_at,updated_at",
-            "phone": f"eq.{phone}",
         }
         if business_id is not None and environment is not None:
             tenant = resolve_tenant(business_id, environment, settings=self.settings)
-            params["business_id"] = f"eq.{tenant.business_pk}"
-            params["environment"] = f"eq.{tenant.environment}"
-        rows = fetch_rows(
-            "contacts",
-            params=params,
-            settings=self.settings,
-        )
+            base_params["business_id"] = f"eq.{tenant.business_pk}"
+            base_params["environment"] = f"eq.{tenant.environment}"
+        rows_by_id: dict[str, dict] = {}
+        for variant in _phone_lookup_variants(phone):
+            rows = fetch_rows(
+                "contacts",
+                params={**base_params, "phone": f"eq.{variant}"},
+                settings=self.settings,
+            )
+            for row in rows:
+                rows_by_id[str(row["id"])] = row
         return [
             self._record_from_supabase(row, str(row["business_id"]), str(row["environment"]))
-            for row in rows
+            for row in rows_by_id.values()
         ]
 
     def _update_booking_status_in_supabase(self, lead_id: str, booking_status: str) -> MarketingLeadRecord | None:
@@ -360,3 +365,21 @@ class ContactsRepository:
             if value is not None:
                 metadata[field] = value
         return metadata
+
+
+def _phone_lookup_variants(phone: str) -> set[str]:
+    raw = str(phone or "").strip()
+    normalized = normalize_phone_number(raw)
+    digits = "".join(ch for ch in raw if ch.isdigit())
+    variants = {value for value in (raw, normalized, digits) if value}
+    if normalized.startswith("+1") and len(normalized) == 12:
+        national = normalized[2:]
+        variants.add(national)
+        variants.add(f"{national[:3]}-{national[3:6]}-{national[6:]}")
+        variants.add(f"({national[:3]}) {national[3:6]}-{national[6:]}")
+    if len(digits) == 11 and digits.startswith("1"):
+        national = digits[1:]
+        variants.add(national)
+        variants.add(f"+{digits}")
+        variants.add(f"{national[:3]}-{national[3:6]}-{national[6:]}")
+    return variants

@@ -222,3 +222,67 @@ def test_marketing_repositories_can_translate_through_supabase_adapters(monkeypa
     assert lead.id == "ctc_101"
     assert inserted_rows["contacts"][0]["business_id"] == 7
     assert conversation.provider_thread_id == "cnv_201"
+
+
+def test_contacts_find_all_by_phone_normalizes_us_variants() -> None:
+    contacts, *_ = build_repositories()
+    lead = contacts.upsert_lead(
+        LeadUpsertRequest(
+            business_id="limitless",
+            environment="dev",
+            first_name="Martin",
+            phone="3467725914",
+            property_address="Owned-number smoke",
+        )
+    )
+
+    matches = contacts.find_all_by_phone(phone="+13467725914", business_id="limitless", environment="dev")
+
+    assert [match.id for match in matches] == [lead.id]
+
+
+def test_messages_list_recent_for_contact_returns_sms_context_in_order() -> None:
+    contacts, conversations, messages, *_ = build_repositories()
+    lead = contacts.upsert_lead(
+        LeadUpsertRequest(
+            business_id="limitless",
+            environment="dev",
+            first_name="Martin",
+            phone="+13467725914",
+            property_address="Owned-number smoke",
+        )
+    )
+    conversation = conversations.get_or_create(
+        business_id="limitless",
+        environment="dev",
+        contact_id=lead.id,
+        channel="sms",
+    )
+    messages.append_outbound(
+        business_id="limitless",
+        environment="dev",
+        contact_id=lead.id,
+        conversation_id=conversation.provider_thread_id,
+        channel="sms",
+        provider="textgrid",
+        body="First question",
+    )
+    messages.append_inbound(
+        business_id="limitless",
+        environment="dev",
+        contact_id=lead.id,
+        conversation_id=conversation.provider_thread_id,
+        channel="sms",
+        provider="textgrid",
+        body="First answer",
+    )
+
+    recent = messages.list_recent_for_contact(
+        business_id="limitless",
+        environment="dev",
+        contact_id=lead.id,
+        channel="sms",
+        limit=2,
+    )
+
+    assert [message.body for message in recent] == ["First question", "First answer"]

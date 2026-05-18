@@ -50,6 +50,16 @@ def test_sms_agent_settings_default_to_draft_safe_mode(monkeypatch) -> None:
         "SMS_AGENT_OBSIDIAN_ARCHIVE_ROOT",
         "sms_agent_prompt_version",
         "SMS_AGENT_PROMPT_VERSION",
+        "sms_agent_llm_replies_enabled",
+        "SMS_AGENT_LLM_REPLIES_ENABLED",
+        "sms_agent_llm_provider",
+        "SMS_AGENT_LLM_PROVIDER",
+        "sms_agent_llm_model",
+        "SMS_AGENT_LLM_MODEL",
+        "sms_agent_llm_temperature",
+        "SMS_AGENT_LLM_TEMPERATURE",
+        "sms_agent_llm_timeout_seconds",
+        "SMS_AGENT_LLM_TIMEOUT_SECONDS",
     ):
         monkeypatch.delenv(env_var, raising=False)
     settings = Settings(_env_file=None)
@@ -59,6 +69,9 @@ def test_sms_agent_settings_default_to_draft_safe_mode(monkeypatch) -> None:
     assert settings.sms_agent_process_batch_size == 25
     assert settings.sms_agent_max_attempts == 5
     assert settings.sms_agent_archive_enabled is False
+    assert settings.sms_agent_llm_replies_enabled is False
+    assert settings.sms_agent_llm_provider == "openai_compat"
+    assert settings.sms_agent_llm_model == "gpt-4o-mini"
 
 
 def test_slack_notification_route_settings_default_safe(monkeypatch) -> None:
@@ -125,6 +138,11 @@ def test_env_example_declares_full_stack_contract() -> None:
         "SMS_AGENT_ARCHIVE_ENABLED=false",
         "SMS_AGENT_OBSIDIAN_ARCHIVE_ROOT=",
         "SMS_AGENT_PROMPT_VERSION=sms_reply_agent_v1",
+        "SMS_AGENT_LLM_REPLIES_ENABLED=false",
+        "SMS_AGENT_LLM_PROVIDER=openai_compat",
+        "SMS_AGENT_LLM_MODEL=gpt-4o-mini",
+        "SMS_AGENT_LLM_TEMPERATURE=0.4",
+        "SMS_AGENT_LLM_TIMEOUT_SECONDS=8.0",
         "RESEND_API_KEY=",
         "RESEND_FROM_EMAIL=",
         "RESEND_REPLY_TO_EMAIL=",

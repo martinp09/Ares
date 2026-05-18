@@ -2,7 +2,7 @@
 
 ## Scope
 
-Activate the Ares TextGrid SMS reply agent in no-send mode first. This runbook covers provider dashboard setup, owned-number ingest smoke, local processor drain, and the approval gate before any deterministic auto-ack smoke.
+Activate the Ares TextGrid SMS reply agent in no-send mode first. This runbook covers provider dashboard setup, owned-number ingest smoke, local processor drain, and the approval gate before any scoped auto-reply smoke.
 
 This does not authorize bulk SMS, cold SMS, campaign enrollment, unowned-number sends, provider dashboard mutation beyond callback URL setup, or live auto replies.
 
@@ -92,19 +92,34 @@ Verify all of the following before claiming activation:
 7. No TextGrid outbound send was created.
 8. No provider dashboard setting changed except the inbound webhook/status callback URLs.
 
-## Auto-Ack Gate
+## Auto-Reply Gate
 
-Only after Martin approves, enable one owned-number deterministic auto-ack smoke. Keep the recipient limited to the same owned operator phone and keep the message copy deterministic.
+Only after Martin approves, enable one owned-number auto-reply smoke. Keep the sender limited to the same owned operator phone. The runtime still decides policy deterministically — stop/wrong-number/legal/angry/urgent/ambiguous/suppressed/no-consent replies must hand off — but the safe reply copy can be generated through the optional LLM layer so the conversation does not sound robotic.
 
-Required gate before auto-ack:
+Required gate before any auto-reply:
 
 ```text
 PROVIDER_LIVE_SENDS_ENABLED=true
 SMS_AGENT_AUTO_REPLIES_ENABLED=true
 SMS_AGENT_MODE=auto_ack
+SMS_AGENT_ALLOWED_FROM_NUMBERS=<owned-operator-number-only>
 ```
 
-After the auto-ack request is queued, poll or consume TextGrid delivery status callbacks before claiming delivery. Do not claim delivery from the immediate send response alone.
+Optional LLM natural-language layer:
+
+```text
+SMS_AGENT_LLM_REPLIES_ENABLED=true
+SMS_AGENT_LLM_PROVIDER=openai_compat  # or anthropic
+SMS_AGENT_LLM_MODEL=gpt-4o-mini
+SMS_AGENT_LLM_TEMPERATURE=0.4
+SMS_AGENT_LLM_TIMEOUT_SECONDS=8.0
+OPENAI_COMPAT_API_KEY=<provider-key>
+OPENAI_COMPAT_BASE_URL=<optional-openai-compatible-base-url>
+```
+
+The LLM layer may only rewrite the proposed SMS body. It cannot change intent, action, consent policy, sender allowlist, suppression, urgency, or provider send gates. Unsafe or overlong LLM output falls back to the deterministic safe draft.
+
+After the auto-reply request is queued, poll or consume TextGrid delivery status callbacks before claiming delivery. Do not claim delivery from the immediate send response alone.
 
 ## Rollback
 

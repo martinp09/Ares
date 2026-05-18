@@ -187,3 +187,68 @@ def test_sms_reply_agent_missing_sms_consent_blocks_auto_ack() -> None:
     assert decision.action == "human_handoff"
     assert decision.policy_reason == "Missing SMS consent"
     assert decision.handoff_required is True
+
+
+def test_sms_reply_agent_llm_humanizes_reply_without_changing_policy() -> None:
+    calls = []
+
+    def fake_complete(prompt: dict) -> str:
+        calls.append(prompt)
+        return '{"reply":"Yeah, I can help with that. What city or address should I pull up first?"}'
+
+    service = SmsReplyAgentService(
+        settings=Settings(
+            _env_file=None,
+            sms_agent_llm_replies_enabled=True,
+        ),
+        provider_complete=fake_complete,
+    )
+
+    decision = service.decide(
+        _context(
+            body="tell me more",
+            lead_context={"property_type": "owned_number_smoke", "source_lane": "inbound_lease_option"},
+            recent_messages=[{"direction": "inbound", "body": "tell me more"}],
+        )
+    )
+
+    assert decision.action == "draft_only"
+    assert decision.intent == "interested"
+    assert decision.suggested_body == "Yeah, I can help with that. What city or address should I pull up first?"
+    assert decision.metadata["provider_completion_used"] is True
+    assert decision.metadata["llm_reply_error"] is None
+    assert calls[0]["input"]["fallback_reply"]
+
+
+def test_sms_reply_agent_llm_falls_back_when_reply_is_unsafe() -> None:
+    service = SmsReplyAgentService(
+        settings=Settings(_env_file=None, sms_agent_llm_replies_enabled=True),
+        provider_complete=lambda _prompt: '{"reply":"We guarantee this offer and you must wire money now."}',
+    )
+
+    decision = service.decide(_context(body="yes", lead_context={"source_lane": "outbound_probate"}))
+
+    assert decision.action == "draft_only"
+    assert decision.suggested_body == (
+        "Thanks for replying. First I want to make sure I’m speaking with the right person for the property before assuming anything."
+    )
+    assert decision.metadata["provider_completion_used"] is False
+    assert decision.metadata["llm_reply_error"] == "unsafe_or_empty_llm_reply"
+
+
+def test_sms_reply_agent_auto_ack_requires_sender_allowlist_when_configured() -> None:
+    service = SmsReplyAgentService(
+        settings=Settings(
+            _env_file=None,
+            sms_agent_mode="auto_ack",
+            sms_agent_auto_replies_enabled=True,
+            provider_live_sends_enabled=True,
+            sms_agent_allowed_from_numbers="+15550000000",
+        )
+    )
+
+    decision = service.decide(_context(body="yes tell me more", from_number="+15551234567"))
+
+    assert decision.action == "draft_only"
+    assert decision.policy_reason == "Sender is outside SMS auto-reply allowlist"
+    assert decision.handoff_required is False

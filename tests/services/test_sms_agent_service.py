@@ -203,8 +203,11 @@ def test_sms_agent_enqueue_inbound_reply_job_records_tenant_and_context() -> Non
     assert create.to_number == "+13467725914"
     assert create.metadata == {
         "external_id": "SM123",
+        "body": "x" * 200,
         "body_preview": "x" * 160,
         "sms_consent": True,
+        "resolved": True,
+        "lead_context": {"property_address": "123 Main St, Houston, TX"},
     }
 
 

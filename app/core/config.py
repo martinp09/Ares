@@ -334,6 +334,26 @@ class Settings(BaseSettings):
         default="sms_reply_agent_v1",
         validation_alias=AliasChoices("sms_agent_prompt_version", "SMS_AGENT_PROMPT_VERSION"),
     )
+    sms_agent_llm_replies_enabled: bool = Field(
+        default=False,
+        validation_alias=AliasChoices("sms_agent_llm_replies_enabled", "SMS_AGENT_LLM_REPLIES_ENABLED"),
+    )
+    sms_agent_llm_provider: Literal["anthropic", "openai_compat"] = Field(
+        default="openai_compat",
+        validation_alias=AliasChoices("sms_agent_llm_provider", "SMS_AGENT_LLM_PROVIDER"),
+    )
+    sms_agent_llm_model: str = Field(
+        default="gpt-4o-mini",
+        validation_alias=AliasChoices("sms_agent_llm_model", "SMS_AGENT_LLM_MODEL"),
+    )
+    sms_agent_llm_temperature: float = Field(
+        default=0.4,
+        validation_alias=AliasChoices("sms_agent_llm_temperature", "SMS_AGENT_LLM_TEMPERATURE"),
+    )
+    sms_agent_llm_timeout_seconds: float = Field(
+        default=8.0,
+        validation_alias=AliasChoices("sms_agent_llm_timeout_seconds", "SMS_AGENT_LLM_TIMEOUT_SECONDS"),
+    )
     resend_api_key: str | None = Field(
         default=None,
         validation_alias=AliasChoices("resend_api_key", "RESEND_API_KEY"),
