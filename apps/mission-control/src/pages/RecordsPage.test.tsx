@@ -1,7 +1,7 @@
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { vi } from "vitest";
 
-import { RecordsPage } from "./RecordsPage";
+import { RecordsPage, countRecordsForMode } from "./RecordsPage";
 import { missionControlFixtures } from "../lib/fixtures";
 
 describe("RecordsPage", () => {
@@ -21,6 +21,11 @@ describe("RecordsPage", () => {
     expect(within(promotedRecord).getByText("Pipeline: Contract Sent")).toBeInTheDocument();
     expect(within(promotedRecord).getByText("Phone ready")).toBeInTheDocument();
     expect(within(promotedRecord).getByText("High quality")).toBeInTheDocument();
+
+    const detailCard = screen.getByLabelText("Record detail card");
+    expect(within(detailCard).getByText("Property / owner details")).toBeInTheDocument();
+    expect(within(detailCard).getAllByText("123 Skyview Dr").length).toBeGreaterThan(0);
+    expect(within(detailCard).getAllByText("Avery Stone").length).toBeGreaterThan(0);
 
     const inventoryRecord = screen.getByLabelText("record-lead-1002");
     expect(within(inventoryRecord).getByText("Record actions call the CRM command API; promotion is gated until source identity is exposed to the row.")).toBeInTheDocument();
@@ -46,6 +51,53 @@ describe("RecordsPage", () => {
     expect(screen.queryByLabelText("record-lead-1002")).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /^Promote$/i })).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: /^Promote gated$/i })).toBeDisabled();
+  });
+
+  it("renders segmented property, owner, skip trace, and tax/title record-card modes", () => {
+    expect(countRecordsForMode(missionControlFixtures.records.records, "hot")).toBe(1);
+    expect(countRecordsForMode(missionControlFixtures.records.records, "property")).toBe(1);
+    expect(countRecordsForMode(missionControlFixtures.records.records, "owner")).toBe(2);
+    expect(countRecordsForMode(missionControlFixtures.records.records, "skiptrace")).toBe(1);
+    expect(countRecordsForMode(missionControlFixtures.records.records, "tax-title")).toBe(1);
+
+    const { rerender } = render(<RecordsPage data={missionControlFixtures.records} mode="property" />);
+
+    expect(screen.getByText("Property cards")).toBeInTheDocument();
+    expect(screen.getByLabelText("record-lead-1001")).toBeInTheDocument();
+    expect(screen.queryByLabelText("record-lead-1002")).not.toBeInTheDocument();
+    expect(screen.getByText("Property / owner details")).toBeInTheDocument();
+
+    rerender(<RecordsPage data={missionControlFixtures.records} mode="owner" />);
+    expect(screen.getByText("Owner cards")).toBeInTheDocument();
+    expect(screen.getByLabelText("record-lead-1001")).toBeInTheDocument();
+    expect(screen.getByLabelText("record-lead-1002")).toBeInTheDocument();
+
+    rerender(<RecordsPage data={missionControlFixtures.records} mode="skiptrace" />);
+    expect(screen.getByText("Skip trace queue")).toBeInTheDocument();
+    expect(screen.queryByLabelText("record-lead-1001")).not.toBeInTheDocument();
+    expect(screen.getByLabelText("record-lead-1002")).toBeInTheDocument();
+    expect(screen.getByText(/Phone missing/)).toBeInTheDocument();
+
+    rerender(<RecordsPage data={missionControlFixtures.records} mode="tax-title" />);
+    expect(screen.getByText("Tax / title desk")).toBeInTheDocument();
+    expect(screen.getByLabelText("record-lead-1001")).toBeInTheDocument();
+    expect(screen.queryByLabelText("record-lead-1002")).not.toBeInTheDocument();
+  });
+
+  it("does not show an out-of-view detail card when a saved view has no matching visible records", () => {
+    render(<RecordsPage data={missionControlFixtures.records} mode="skiptrace" />);
+
+    const skiptraceRecord = screen.getByLabelText("record-lead-1002");
+    expect(skiptraceRecord).toBeInTheDocument();
+    expect(within(skiptraceRecord).getByText("Blake North")).toBeInTheDocument();
+
+    const savedViews = screen.getByLabelText("Saved record views");
+    fireEvent.click(within(savedViews).getByRole("button", { name: /Promoted 0/i }));
+
+    expect(screen.queryByLabelText("record-lead-1001")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("record-lead-1002")).not.toBeInTheDocument();
+    expect(screen.getByText("No record card is available for this segment yet.")).toBeInTheDocument();
+    expect(screen.getByText(/No skip trace records match the Promoted view/)).toBeInTheDocument();
   });
 
   it("enables promotion only for records with source identity", () => {

@@ -1950,9 +1950,17 @@ describe("App", () => {
     await openAgentsBackstage();
 
     expect(await screen.findByRole("tab", { name: "Lead Machine" })).toBeInTheDocument();
+    expect(screen.getByText("Operator scope")).toBeInTheDocument();
+    expect(screen.queryByText("Organization scope")).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: /agents/i })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: /lead machine \/ agents/i, level: 2 })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /queue/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /hot leads/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /records/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /property cards/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /owner cards/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /skip trace/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /tax \/ title/i })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /approvals/i })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /campaign state/i })).toBeInTheDocument();
 

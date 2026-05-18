@@ -62,9 +62,9 @@ export function OrgSwitcher({
   onSelectEnvironment,
 }: OrgSwitcherProps) {
   return (
-    <section aria-label="Organization and filters">
-      <p className="workspace-header__eyebrow">Organization scope</p>
-      <div className="workspace-switcher" role="tablist" aria-label="Organization switcher">
+    <section aria-label="Operating lane filters">
+      <p className="workspace-header__eyebrow">Operator scope</p>
+      <div className="workspace-switcher" role="tablist" aria-label="Portfolio switcher">
         {orgs.map((org) => {
           const isActive = org.id === activeOrgId;
           return (
@@ -82,9 +82,9 @@ export function OrgSwitcher({
         })}
       </div>
 
-      {renderFilterGroup("Business filter", "Business filter", businessOptions, activeBusinessId, onSelectBusiness)}
+      {renderFilterGroup("Deal lane", "Business filter", businessOptions, activeBusinessId, onSelectBusiness)}
       {renderFilterGroup(
-        "Environment filter",
+        "Runtime lane",
         "Environment filter",
         environmentOptions,
         activeEnvironment,

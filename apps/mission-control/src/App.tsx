@@ -39,7 +39,7 @@ import { DealDeskPage } from "./pages/DealDeskPage";
 import { InboxPage } from "./pages/InboxPage";
 import { PipelinePage } from "./pages/PipelinePage";
 import { ProbateAutopilotPage } from "./pages/ProbateAutopilotPage";
-import { RecordsPage } from "./pages/RecordsPage";
+import { RecordsPage, countRecordsForMode, type RecordsPageMode } from "./pages/RecordsPage";
 import { RunsPage } from "./pages/RunsPage";
 import { SettingsPage } from "./pages/SettingsPage";
 import { SuppressionPage } from "./pages/SuppressionPage";
@@ -143,9 +143,29 @@ function collectScopeOptionValues(snapshot: MissionControlSnapshot): { businessI
   };
 }
 
-function toFilterOptions(values: string[], emptyLabel: string, selectedValue: string | null): ScopeFilterOption[] {
+function titleCaseScopeValue(value: string): string {
+  if (/^\d+$/.test(value)) {
+    return `Business ${value}`;
+  }
+  return value;
+}
+
+function toFilterOptions(
+  values: string[],
+  emptyLabel: string,
+  selectedValue: string | null,
+  formatValue: (value: string) => string = titleCaseScopeValue,
+): ScopeFilterOption[] {
   const normalizedValues = selectedValue && !values.includes(selectedValue) ? [...values, selectedValue] : values;
-  return [{ value: "", label: emptyLabel }, ...normalizedValues.map((value) => ({ value, label: value }))];
+  return [{ value: "", label: emptyLabel }, ...normalizedValues.map((value) => ({ value, label: formatValue(value) }))];
+}
+
+function formatOrganizationLabel(organization: OrganizationSummary): string {
+  const normalizedName = organization.name.trim().toLowerCase();
+  if (organization.isInternal || organization.id === "org_internal" || normalizedName === "internal" || normalizedName === "org_internal") {
+    return "Ares Ops";
+  }
+  return organization.name;
 }
 
 function matchesSecondaryScope(
@@ -840,11 +860,11 @@ export default function App() {
 
   const normalizedSearchValue = searchValue.trim().toLowerCase();
   const businessFilterOptions = useMemo(
-    () => toFilterOptions(scopeOptionValues.businessIds, "All businesses", selectedBusinessId),
+    () => toFilterOptions(scopeOptionValues.businessIds, "All deal lanes", selectedBusinessId),
     [scopeOptionValues.businessIds, selectedBusinessId],
   );
   const environmentFilterOptions = useMemo(
-    () => toFilterOptions(scopeOptionValues.environments, "All environments", selectedEnvironment),
+    () => toFilterOptions(scopeOptionValues.environments, "All runtimes", selectedEnvironment),
     [scopeOptionValues.environments, selectedEnvironment],
   );
   const organizationOptions = useMemo(() => {
@@ -1303,6 +1323,30 @@ export default function App() {
     },
   ];
 
+  const renderRecordsPage = (mode: RecordsPageMode): JSX.Element => (
+    <RecordsPage
+      data={snapshot.records}
+      mode={mode}
+      actionState={recordActionState}
+      onRecordStatusChange={handleRecordStatusChange}
+      onRecordSuppress={handleRecordSuppress}
+      onRecordPromote={handleRecordPromote}
+    />
+  );
+
+  const recordInventory = snapshot.records.records;
+  const hotRecordCount = countRecordsForMode(recordInventory, "hot");
+  const propertyRecordCount = countRecordsForMode(recordInventory, "property");
+  const ownerRecordCount = countRecordsForMode(recordInventory, "owner");
+  const skiptraceRecordCount = countRecordsForMode(recordInventory, "skiptrace");
+  const taxTitleRecordCount = countRecordsForMode(recordInventory, "tax-title");
+
+  const recordContextItems = [
+    `${snapshot.records.kpis.totalCount} owner/property records in the current scope`,
+    `${snapshot.records.kpis.needsSkipTraceCount} records need phone enrichment before seller contact`,
+    `${snapshot.records.kpis.promotedCount} records are already linked to downstream opportunities`,
+  ];
+
   const workspaceDefinitions: Record<WorkspaceId, WorkspaceDefinition> = {
     "lead-machine": {
       label: "Lead Machine",
@@ -1316,14 +1360,29 @@ export default function App() {
               label: "Today Desk",
               badge: snapshot.dashboard.outboundProbateSummary?.readyLeadCount ?? snapshot.dashboard.pendingLeadCount ?? 0,
             },
+            {
+              id: "hot-leads",
+              label: "Hot Leads",
+              badge: hotRecordCount,
+            },
             { id: "inbox", label: "Replies", badge: snapshot.dashboard.unreadConversationCount },
-            { id: "approvals", label: "Approvals", badge: filteredApprovals.length },
             {
               id: "tasks",
               label: "To-Do",
               badge: snapshot.dashboard.outboundProbateSummary?.openTaskCount ?? snapshot.dashboard.dueManualCallCount ?? 0,
             },
+            { id: "approvals", label: "Approvals", badge: filteredApprovals.length },
             { id: "suppression", label: "Blocked / Dead", badge: snapshot.dashboard.repliesNeedingReviewCount ?? 0 },
+          ],
+        },
+        {
+          title: "Records",
+          items: [
+            { id: "records", label: "Records", badge: snapshot.records.kpis.totalCount },
+            { id: "property-cards", label: "Property Cards", badge: propertyRecordCount },
+            { id: "owner-cards", label: "Owner Cards", badge: ownerRecordCount },
+            { id: "skiptrace", label: "Skip Trace", badge: skiptraceRecordCount },
+            { id: "tax-title", label: "Tax / Title", badge: taxTitleRecordCount },
           ],
         },
         {
@@ -1409,6 +1468,42 @@ export default function App() {
               ]}
             />
           ),
+        },
+        "hot-leads": {
+          title: "Lead Machine / Hot Leads",
+          subtitle: "Contact-ready records and promoted owners that deserve Martin's attention before cold inventory.",
+          mainContent: renderRecordsPage("hot"),
+          contextContent: <ContextPanel eyebrow="Hot records" title="Prioritize contact-ready owners" items={recordContextItems} />,
+        },
+        records: {
+          title: "Lead Machine / Records",
+          subtitle: "Owner and property inventory before records graduate into opportunities.",
+          mainContent: renderRecordsPage("inventory"),
+          contextContent: <ContextPanel eyebrow="Record inventory" title="Property/owner card layer" items={recordContextItems} />,
+        },
+        "property-cards": {
+          title: "Lead Machine / Property Cards",
+          subtitle: "Property-first cards with address, owner, contact, source, pipeline, and missing research details.",
+          mainContent: renderRecordsPage("property"),
+          contextContent: <ContextPanel eyebrow="Property cards" title="Inspect the asset before contact" items={recordContextItems} />,
+        },
+        "owner-cards": {
+          title: "Lead Machine / Owner Cards",
+          subtitle: "Owner-first cards with contact readiness, assignment, quality, and action gates.",
+          mainContent: renderRecordsPage("owner"),
+          contextContent: <ContextPanel eyebrow="Owner cards" title="Know who Martin should contact" items={recordContextItems} />,
+        },
+        skiptrace: {
+          title: "Lead Machine / Skip Trace",
+          subtitle: "Records missing phone coverage or marked for enrichment before seller contact.",
+          mainContent: renderRecordsPage("skiptrace"),
+          contextContent: <ContextPanel eyebrow="Enrichment queue" title="Missing phone coverage blocks calls" items={recordContextItems} />,
+        },
+        "tax-title": {
+          title: "Lead Machine / Tax / Title",
+          subtitle: "Tax, probate, title, and curative-title review cards before outreach or deal advancement.",
+          mainContent: renderRecordsPage("tax-title"),
+          contextContent: <ContextPanel eyebrow="Curative/title lane" title="Title friction stays visible" items={recordContextItems} />,
         },
         "probate-autopilot": {
           title: "Lead Machine / Probate Autopilot",
@@ -1704,9 +1799,13 @@ export default function App() {
             },
             {
               id: "records",
-              label: "Lead Records",
+              label: "Records",
               badge: snapshot.records.kpis.totalCount,
             },
+            { id: "property-cards", label: "Property Cards", badge: propertyRecordCount },
+            { id: "owner-cards", label: "Owner Cards", badge: ownerRecordCount },
+            { id: "tax-title", label: "Title / Curative", badge: taxTitleRecordCount },
+            { id: "skiptrace", label: "Skip Trace", badge: skiptraceRecordCount },
           ],
         },
         {
@@ -1729,25 +1828,32 @@ export default function App() {
         records: {
           title: "Records",
           subtitle: "High-volume owner and prospect inventory before records are promoted into opportunities.",
-          mainContent: (
-            <RecordsPage
-              data={snapshot.records}
-              actionState={recordActionState}
-              onRecordStatusChange={handleRecordStatusChange}
-              onRecordSuppress={handleRecordSuppress}
-              onRecordPromote={handleRecordPromote}
-            />
-          ),
-          contextContent: (
-            <ContextPanel
-              eyebrow="Inventory layer"
-              title="Records feed opportunities"
-              items={[
-                `${snapshot.records.kpis.needsSkipTraceCount} records need phone enrichment before outreach`,
-                `${snapshot.records.kpis.promotedCount} records are linked to downstream opportunities`,
-              ]}
-            />
-          ),
+          mainContent: renderRecordsPage("inventory"),
+          contextContent: <ContextPanel eyebrow="Inventory layer" title="Records feed opportunities" items={recordContextItems} />,
+        },
+        "property-cards": {
+          title: "Property Cards",
+          subtitle: "Property-first detail cards for asset research, title friction, owner context, and missing data.",
+          mainContent: renderRecordsPage("property"),
+          contextContent: <ContextPanel eyebrow="Property detail" title="Asset-level review" items={recordContextItems} />,
+        },
+        "owner-cards": {
+          title: "Owner Cards",
+          subtitle: "Owner-first detail cards for contact readiness, assignments, source identity, and next action.",
+          mainContent: renderRecordsPage("owner"),
+          contextContent: <ContextPanel eyebrow="Owner detail" title="Human contact readiness" items={recordContextItems} />,
+        },
+        "tax-title": {
+          title: "Title / Curative",
+          subtitle: "Tax, probate, title, and curative-title records before a deal advances.",
+          mainContent: renderRecordsPage("tax-title"),
+          contextContent: <ContextPanel eyebrow="Title desk" title="Curative blockers stay visible" items={recordContextItems} />,
+        },
+        skiptrace: {
+          title: "Skip Trace",
+          subtitle: "Records missing phone coverage or marked for enrichment before seller contact.",
+          mainContent: renderRecordsPage("skiptrace"),
+          contextContent: <ContextPanel eyebrow="Enrichment" title="No phone, no call" items={recordContextItems} />,
         },
         pipeline: {
           title: "Pipeline Board",
@@ -1833,7 +1939,7 @@ export default function App() {
     <OrgSwitcher
       orgs={organizationOptions.map((organization) => ({
         id: organization.id,
-        label: organization.name,
+        label: formatOrganizationLabel(organization),
       }))}
       activeOrgId={selectedOrgId ?? organizationOptions[0]?.id ?? ""}
       onSelectOrg={(orgId) => {

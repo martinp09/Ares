@@ -1,0 +1,14 @@
+
+> @hermes/mission-control@0.1.0 build
+> vite build
+
+vite v8.0.11 building client environment for production...
+[2K
+transforming...✓ 52 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/index.html                   0.40 kB │ gzip:  0.27 kB
+dist/assets/index-B6Pl1V8H.css   38.97 kB │ gzip:  8.05 kB
+dist/assets/index-_0xhegtg.js   337.86 kB │ gzip: 89.17 kB
+
+✓ built in 142ms

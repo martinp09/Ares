@@ -4,7 +4,7 @@ import { vi } from "vitest";
 import { OrgSwitcher } from "./OrgSwitcher";
 
 describe("OrgSwitcher", () => {
-  it("renders org scope first and keeps business/environment as secondary filters", () => {
+  it("renders operator scope first and keeps business/environment as secondary filters", () => {
     const onSelectOrg = vi.fn();
     const onSelectBusiness = vi.fn();
     const onSelectEnvironment = vi.fn();
@@ -32,7 +32,9 @@ describe("OrgSwitcher", () => {
       />,
     );
 
-    expect(screen.getByText("Organization scope")).toBeInTheDocument();
+    expect(screen.getByText("Operator scope")).toBeInTheDocument();
+    expect(screen.queryByText("Organization scope")).not.toBeInTheDocument();
+    expect(screen.getByRole("region", { name: "Operating lane filters" })).toBeInTheDocument();
     expect(screen.getByRole("tab", { name: "Alpha Holdings" })).toHaveClass("workspace-switcher__item--active");
     expect(screen.getByRole("tab", { name: "Beta Ventures" })).toBeInTheDocument();
 

@@ -41,11 +41,16 @@ interface MissionControlShellProps {
 function navGlyph(item: ShellNavItem): string {
   const explicit: Record<string, string> = {
     dashboard: "TD",
+    "hot-leads": "HL",
     "probate-autopilot": "SH",
     inbox: "RP",
     approvals: "OK",
     tasks: "TO",
-    records: "RE",
+    records: "RC",
+    "property-cards": "PR",
+    "owner-cards": "OW",
+    skiptrace: "SK",
+    "tax-title": "TT",
     pipeline: "DB",
     "deal-desk": "DD",
     agents: "AI",

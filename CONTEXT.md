@@ -18,13 +18,14 @@
 - Supabase migration file `20260518130327_chief_of_staff_slack_route.sql` is added but not remotely applied in this slice.
 
 ## Current TODO
-1. Review and merge `feature/ares-chief-of-staff-v0` after final dashboard analytics polish is accepted.
+1. Review and merge `feature/ares-chief-of-staff-v0` after the Mission Control record segmentation slice is accepted.
 2. After merge/deploy, apply the new Slack route migration and configure/create/invite the `#ares-chief-of-staff` Slack channel.
 3. Run `uv run python scripts/slack_notification_readiness.py --json --render-sample --route chief_of_staff_digest` before any live Chief of Staff Slack post.
 4. Keep all outbound/provider-send controls blocked until Martin approves exact recipients/campaigns.
 5. Later: wire live Chief of Staff queue data into Mission Control analytics once the Slack/artifact report is proven useful.
 
 ## Recent Change
+- 2026-05-18: Expanded Mission Control record/navigation segmentation after browser QA: richer real-estate left rail, `Operator scope` replacement for `Organization scope`, visible Records / Property Cards / Owner Cards / Skip Trace / Tax-Title pages, and property-owner detail cards. Verification: Mission Control typecheck passed, `25` test files / `85` tests passed, Vite build passed, browser-harness click sweep covered `15` nav clicks with `0` failed clicks, browser smoke had `0` console/JS errors, and `git diff --check` passed. QC: `docs/qc/2026-05-18/ares-mission-control-record-segmentation/`.
 - 2026-05-18: Refreshed Mission Control overview into a segmented analytics dashboard inspired by `builderz-labs/marketing-dashboard`: KPI strip, graph-style lane performance, contact-mix donut, acquisition funnel, blocker chart, and segmented operating cards. Verification: Mission Control typecheck passed, `25` test files / `83` tests passed, Vite build passed, browser smoke had zero console/JS errors, and backstage/admin words were hidden from the visible overview. QC: `docs/qc/2026-05-18/ares-dashboard-analytics-segmentation/`.
 - 2026-05-18: Added Chief of Staff v2 manager-action packet. Verification: focused/regression tests `52 passed`, full backend `1144 passed`, configured artifact-root/source-run-state dry-run side-effect check `dry_run_artifacts_created=0` and `dry_run_source_state_created=0`, and `git diff --check` passed. QC: `docs/qc/2026-05-18/ares-chief-of-staff-v2-manager-actions/`.
 

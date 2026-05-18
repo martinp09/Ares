@@ -1,5 +1,6 @@
 export type MissionControlView =
   | "dashboard"
+  | "hot-leads"
   | "inbox"
   | "approvals"
   | "runs"
@@ -8,6 +9,10 @@ export type MissionControlView =
   | "settings"
   | "tasks"
   | "records"
+  | "property-cards"
+  | "owner-cards"
+  | "skiptrace"
+  | "tax-title"
   | "pipeline"
   | "deal-desk"
   | "suppression"
@@ -933,6 +938,7 @@ export interface MissionControlApiOptions {
   orgId?: string;
   businessId?: string;
   environment?: string;
+  requestTimeoutMs?: number;
 }
 
 type JsonRecord = Record<string, unknown>;
@@ -1641,6 +1647,10 @@ interface AgentInstallResponsePayload {
 }
 
 const defaultBaseUrl = import.meta.env.VITE_RUNTIME_API_BASE_URL ?? "";
+const parsedDefaultRequestTimeoutMs = Number(import.meta.env.VITE_RUNTIME_REQUEST_TIMEOUT_MS ?? 8000);
+const defaultRequestTimeoutMs = Number.isFinite(parsedDefaultRequestTimeoutMs)
+  ? parsedDefaultRequestTimeoutMs
+  : 8000;
 
 function trimTrailingSlash(value: string): string {
   return value.replace(/\/$/, "");
@@ -2928,10 +2938,34 @@ async function requestJson<T>(
     headers["X-Ares-Org-Id"] = options.orgId;
   }
 
-  const response = await fetchImpl(buildUrl(options.baseUrl ?? defaultBaseUrl, buildRequestPath(path, options, scope)), {
-    ...init,
-    headers,
-  });
+  const timeoutMs = options.requestTimeoutMs ?? defaultRequestTimeoutMs;
+  const shouldTimeout = Number.isFinite(timeoutMs) && timeoutMs > 0;
+  const timeoutController = shouldTimeout ? new AbortController() : null;
+  const timeoutId: ReturnType<typeof setTimeout> | null = timeoutController
+    ? setTimeout(() => timeoutController.abort(new DOMException("Mission Control API request timed out", "TimeoutError")), timeoutMs)
+    : null;
+
+  const requestSignal = init?.signal;
+  if (requestSignal && timeoutController) {
+    if (requestSignal.aborted) {
+      timeoutController.abort(requestSignal.reason);
+    } else {
+      requestSignal.addEventListener("abort", () => timeoutController.abort(requestSignal.reason), { once: true });
+    }
+  }
+
+  let response: Response;
+  try {
+    response = await fetchImpl(buildUrl(options.baseUrl ?? defaultBaseUrl, buildRequestPath(path, options, scope)), {
+      ...init,
+      headers,
+      signal: timeoutController?.signal ?? requestSignal,
+    });
+  } finally {
+    if (timeoutId) {
+      clearTimeout(timeoutId);
+    }
+  }
 
   if (!response.ok) {
     let detail = `${response.status} ${response.statusText}`;
@@ -2961,6 +2995,7 @@ export function createMissionControlApi(
     orgId: options.orgId,
     businessId: options.businessId,
     environment: options.environment,
+    requestTimeoutMs: options.requestTimeoutMs,
   };
 
   return {

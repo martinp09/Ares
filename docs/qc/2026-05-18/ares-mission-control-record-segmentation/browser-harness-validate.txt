@@ -1,0 +1,7 @@
+valid_json=1
+failed_clicks= []
+organization_scope_seen= False
+operator_scope_seen_in_all_states= True
+console_exception_count= 0
+network_error_count= 4
+network_error_urls= http://127.0.0.1:5178/deals, http://127.0.0.1:5178/deals/fire-list

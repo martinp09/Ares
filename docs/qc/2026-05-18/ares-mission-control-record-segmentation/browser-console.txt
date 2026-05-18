@@ -1,0 +1,1 @@
+Browser console after final record segmentation smoke: 0 console messages, 0 JS errors.
