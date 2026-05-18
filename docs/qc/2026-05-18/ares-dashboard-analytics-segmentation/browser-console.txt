@@ -1,0 +1,22 @@
+Browser smoke: http://127.0.0.1:5178
+
+Console messages: 0
+JavaScript errors: 0
+
+Backstage visibility probe:
+- backstageExists: true
+- backstageHiddenAttr: true
+- backstageDisplay: none
+
+Visible overview dashboard regions:
+- Dashboard analytics overview
+- Dashboard KPI strip
+- Dashboard charts
+- Funnel and blockers
+- Segmented operating view
+
+Visible backend/admin words probe:
+- []
+
+Probe result:
+{"backstageDisplay":"none","backstageExists":true,"backstageHiddenAttr":true,"dashboardRegions":["Dashboard analytics overview","Dashboard KPI strip","Dashboard charts","Funnel and blockers","Segmented operating view"],"visibleAdminWords":[]}

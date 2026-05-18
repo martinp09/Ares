@@ -43,7 +43,7 @@ const dashboardFixture: DashboardSummaryData = {
   updatedAt: "Updated moments ago",
 };
 
-function expectCardValue(region: HTMLElement, label: string, value: string) {
+function expectArticleValue(region: HTMLElement, label: string, value: string) {
   const labelElement = within(region).getByText(label);
   const card = labelElement.closest("article");
 
@@ -52,56 +52,64 @@ function expectCardValue(region: HTMLElement, label: string, value: string) {
 }
 
 describe("DashboardPage", () => {
-  it("renders a human-readable real-estate action desk instead of backend counters", () => {
+  it("renders a segmented analytics dashboard instead of an all-in-one action wall", () => {
     render(<DashboardPage data={dashboardFixture} />);
 
-    expect(screen.getByText("What should Martin work first?")).toBeInTheDocument();
-    expect(screen.getByText(/Backend plumbing stays out of the primary dashboard/i)).toBeInTheDocument();
+    expect(screen.getByText("Dashboard analytics")).toBeInTheDocument();
+    expect(screen.getByText(/Segmented, chart-first view of Ares real-estate work/i)).toBeInTheDocument();
+    expect(screen.getByText(/Admin\/backend controls stay out of this overview/i)).toBeInTheDocument();
     expect(screen.getByText("No-send locked")).toBeInTheDocument();
 
-    const actionDesk = screen.getByLabelText(/real estate action desk/i);
-    expectCardValue(actionDesk, "Hit list today", "13");
-    expectCardValue(actionDesk, "Replies to review", "14");
-    expectCardValue(actionDesk, "Needs approval", "11");
-    expectCardValue(actionDesk, "Research / skiptrace", "33");
-    expectCardValue(actionDesk, "Deals in motion", "6");
-    expectCardValue(actionDesk, "Blocked / suppressions", "13");
+    expect(screen.queryByText("What should Martin work first?")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText(/daily action board/i)).not.toBeInTheDocument();
 
-    expect(screen.queryByText("Active runs")).not.toBeInTheDocument();
-    expect(screen.queryByText("Live agents")).not.toBeInTheDocument();
-    expect(screen.queryByText("Provider failures")).not.toBeInTheDocument();
-    expect(screen.queryByText("System status")).not.toBeInTheDocument();
+    const metricStrip = screen.getByLabelText(/dashboard kpi strip/i);
+    expectArticleValue(metricStrip, "Ready leads", "13");
+    expectArticleValue(metricStrip, "Replies", "14");
+    expectArticleValue(metricStrip, "Approvals", "11");
+    expectArticleValue(metricStrip, "Opportunities", "6");
   });
 
-  it("surfaces daily actions and real-estate lanes from API-provided values", () => {
+  it("surfaces graph-style analytics sections with real-estate labels", () => {
     render(<DashboardPage data={dashboardFixture} />);
 
-    const actionBoard = screen.getByLabelText(/daily action board/i);
-    expectCardValue(actionBoard, "Contact-ready lead desk", "13");
-    expectCardValue(actionBoard, "Messages needing Martin", "14");
-    expectCardValue(actionBoard, "Approval queue", "11");
-    expectCardValue(actionBoard, "Research / skiptrace bench", "23");
-    expectCardValue(actionBoard, "Blocked or dead", "13");
+    const charts = screen.getByLabelText(/dashboard charts/i);
+    expect(within(charts).getByText("Lane performance")).toBeInTheDocument();
+    expect(within(charts).getByText("Probate ready")).toBeInTheDocument();
+    expect(within(charts).getByText("Lease-option pending")).toBeInTheDocument();
+    expect(within(charts).getByText("Deal opportunities")).toBeInTheDocument();
+    expect(within(charts).getByText("Contact mix")).toBeInTheDocument();
+    expect(within(charts).getByText("38%"));
 
-    const lanes = screen.getByLabelText(/real estate lane overview/i);
-    expect(within(lanes).getByText("Probate / tax title lane")).toBeInTheDocument();
-    expectCardValue(lanes, "Ready", "8");
-    expectCardValue(lanes, "Interested", "4");
-    expect(within(lanes).getByText("Lease-option lane")).toBeInTheDocument();
-    expectCardValue(lanes, "Pending", "5");
-    expectCardValue(lanes, "Booked", "2");
-    expect(within(lanes).getByText("Deal desk")).toBeInTheDocument();
-    expectCardValue(lanes, "Opportunities", "6");
-    expectCardValue(lanes, "Skiptrace", "19");
+    const funnelAndBlockers = screen.getByLabelText(/funnel and blockers/i);
+    expect(within(funnelAndBlockers).getByText("Acquisition funnel")).toBeInTheDocument();
+    expect(within(funnelAndBlockers).getByText("Inventory")).toBeInTheDocument();
+    expect(within(funnelAndBlockers).getByText("Ready")).toBeInTheDocument();
+    expect(within(funnelAndBlockers).getByText("Deals")).toBeInTheDocument();
+    expect(within(funnelAndBlockers).getByText("What is stopping movement?")).toBeInTheDocument();
+    expect(within(funnelAndBlockers).getByText("Needs skiptrace")).toBeInTheDocument();
+    expect(within(funnelAndBlockers).getByText("Open research")).toBeInTheDocument();
   });
 
-  it("does not render provider operations or live action controls on the primary dashboard", () => {
+  it("keeps the overview focused on operator analytics and not backend/admin controls", () => {
     render(<DashboardPage data={dashboardFixture} />);
+
+    const segments = screen.getByLabelText(/segmented operating view/i);
+    expect(within(segments).getByText("Acquisition lanes")).toBeInTheDocument();
+    expectArticleValue(segments, "Probate active", "21");
+    expectArticleValue(segments, "Lease pending", "5");
+    expect(within(segments).getByText("Follow-up desk")).toBeInTheDocument();
+    expectArticleValue(segments, "Manual calls", "4");
+    expect(within(segments).getByText("Deal movement")).toBeInTheDocument();
+    expectArticleValue(segments, "Promoted", "17");
 
     expect(screen.queryByText("Provider operations")).not.toBeInTheDocument();
     expect(screen.queryByText("HubSpot mirror preview")).not.toBeInTheDocument();
     expect(screen.queryByText("Instantly enrollment preview")).not.toBeInTheDocument();
     expect(screen.queryByText("Vapi voice readiness")).not.toBeInTheDocument();
+    expect(screen.queryByText("Active runs")).not.toBeInTheDocument();
+    expect(screen.queryByText("Live agents")).not.toBeInTheDocument();
+    expect(screen.queryByText("System status")).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /apply|dispatch|send|enroll|call/i })).not.toBeInTheDocument();
   });
 });

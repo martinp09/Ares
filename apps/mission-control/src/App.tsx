@@ -1400,11 +1400,11 @@ export default function App() {
           mainContent: <DashboardPage data={snapshot.dashboard} />,
           contextContent: (
             <ContextPanel
-              eyebrow="Probate lane"
-              title="Outbound machine posture"
+              eyebrow="Analytics readout"
+              title="Lead desk snapshot"
               items={[
-                `${snapshot.dashboard.outboundProbateSummary?.readyLeadCount ?? snapshot.dashboard.pendingLeadCount ?? 0} probate leads ready for operator review`,
-                `${snapshot.dashboard.outboundProbateSummary?.activeCampaignCount ?? snapshot.dashboard.activeRunCount} active campaign flows`,
+                `${snapshot.dashboard.outboundProbateSummary?.readyLeadCount ?? snapshot.dashboard.pendingLeadCount ?? 0} probate leads ready for review`,
+                `${snapshot.dashboard.outboundProbateSummary?.interestedLeadCount ?? 0} probate interest signals captured`,
                 `${snapshot.dashboard.outboundProbateSummary?.openTaskCount ?? snapshot.dashboard.dueManualCallCount ?? 0} follow-ups waiting on a human`,
               ]}
             />
@@ -1816,14 +1816,14 @@ export default function App() {
   const fallbackLabel = visibleFallbackViews.length > 0 ? ` (${visibleFallbackViews.join(", ")})` : "";
   const isFullFixtureMode = visibleFallbackViews.length >= 9;
   const statusBadge = isLoading
-    ? "Loading shell"
+    ? "Refreshing dashboard"
     : visibleFallbackViews.length === 0
       ? "Live API"
       : isFullFixtureMode
         ? "Fixture mode"
         : `API + fixture fallback${fallbackLabel}`;
   const footerNote = isLoading
-    ? "Collecting Mission Control surfaces..."
+    ? "Read-only analytics are refreshing. No live actions from this overview."
     : visibleFallbackViews.length === 0
       ? "Mission Control is reading Hermes runtime data."
       : isFullFixtureMode
