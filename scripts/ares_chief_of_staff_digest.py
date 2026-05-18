@@ -28,7 +28,9 @@ def build_parser() -> argparse.ArgumentParser:
 
 def main(argv: Sequence[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
-    service = AresChiefOfStaffService()
+    from app.services.nightly_lead_machine_service import nightly_lead_machine_service
+
+    service = AresChiefOfStaffService(lead_machine_service=nightly_lead_machine_service)
     result = service.run_digest(
         business_id=args.business_id,
         environment=args.environment,

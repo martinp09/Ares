@@ -1,7 +1,7 @@
 ---
 title: "Ares TODO / Handoff"
 status: active
-updated_at: "2026-05-18T13:15:00Z"
+updated_at: "2026-05-18T15:00:00Z"
 repo: "martinp09/Ares"
 local_checkout: "/opt/ares/worktrees/ares-chief-of-staff-v0"
 target_branch: "feature/ares-chief-of-staff-v0"
@@ -18,7 +18,7 @@ supabase_identity_adapter_commit: "6cd2d88"
 
 ## Current status
 
-Ares Chief of Staff v0 is implemented on `feature/ares-chief-of-staff-v0` for review/merge. It is a read-only lead desk operator: current Ares leads are bucketed into hot/contact-ready/research/skiptrace/blocked queues, artifacts are written as Markdown/JSON/CSV, and Slack delivery uses the dedicated opt-in route `chief_of_staff_digest` / `SLACK_CHANNEL_CHIEF_OF_STAFF`. Safety boundaries remain hard: no seller outreach, paid skiptrace, Instantly enrollment, HubSpot/provider writes, SMS/email/Vapi sends, Slack live post, Supabase remote migration, VPS deploy, or Telegram delivery occurred in this slice. Verification: focused/regression tests `51 passed`, full backend `1143 passed`, configured artifact-root dry-run side-effect check `dry_run_artifacts_created=0`, `git diff --check`/`git diff --cached --check` passed. QC: `docs/qc/2026-05-18/ares-chief-of-staff-v0/`.
+Ares Chief of Staff v1 is implemented on `feature/ares-chief-of-staff-v0` for review/merge. It is a read-only lead desk employee report: current Ares leads are bucketed into hot/contact-ready/research/skiptrace/blocked queues, artifacts are written as Markdown/JSON/CSV, Slack delivery uses the dedicated opt-in route `chief_of_staff_digest` / `SLACK_CHANNEL_CHIEF_OF_STAFF`, and the report now includes employee identity, worklog, priorities, blockers, approval requests, and read-only lead-machine health/latest-brief context. Slack text/blocks/payload omit lead names, contact details, property addresses, case numbers, raw lead IDs, and lead-machine operator action reasons; exact record details remain in local artifacts. Safety boundaries remain hard: no seller outreach, paid skiptrace, Instantly enrollment, HubSpot/provider writes, SMS/email/Vapi sends, live county/source pulls, Slack live post, Supabase remote migration, VPS deploy, or Telegram delivery occurred in this slice. Verification: focused/regression tests `52 passed`, full backend `1144 passed`, configured artifact-root/source-run-state dry-run side-effect check `dry_run_artifacts_created=0` and `dry_run_source_state_created=0`, `git diff --check` passed. QC: `docs/qc/2026-05-18/ares-chief-of-staff-v1-employee-reporting/`.
 
 Back Office Spine v0 landed on `main` at `e898ee0` and the local `feature/back-office-spine-v0` branch was deleted. This slice turns qualified leads into canonical deal records with lane-aware task/document/risk templates, stage transition blockers, fire-list read models, Supabase runtime persistence, and a read-only Mission Control Deal Desk page.
 

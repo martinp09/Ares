@@ -1,0 +1,247 @@
+{
+  "bot_token": {
+    "fingerprint": null,
+    "length": 0,
+    "present": false
+  },
+  "configured": false,
+  "generated_at": "2026-05-18T14:10:38.220171+00:00",
+  "legacy_channels": {
+    "SLACK_CHANNEL_INTAKE": {
+      "channel_id": {
+        "channel_id": null,
+        "present": false,
+        "shape": {
+          "length": 0,
+          "looks_like_channel_id": false,
+          "valid_prefix": false
+        }
+      },
+      "preferred": false,
+      "present": false
+    },
+    "SLACK_CHANNEL_LEADS": {
+      "channel_id": {
+        "channel_id": null,
+        "present": false,
+        "shape": {
+          "length": 0,
+          "looks_like_channel_id": false,
+          "valid_prefix": false
+        }
+      },
+      "preferred": false,
+      "present": false
+    }
+  },
+  "missing": [
+    "SLACK_NOTIFICATIONS_ENABLED=true",
+    "SLACK_BOT_TOKEN",
+    "SLACK_CHANNEL_CHIEF_OF_STAFF"
+  ],
+  "routes": {
+    "chief_of_staff_digest": {
+      "channel_id": {
+        "channel_id": null,
+        "present": false,
+        "shape": {
+          "length": 0,
+          "looks_like_channel_id": false,
+          "valid_prefix": false
+        }
+      },
+      "configured": false,
+      "fallback_env_vars": [],
+      "preferred_env_var": "SLACK_CHANNEL_CHIEF_OF_STAFF",
+      "resolved_channel_id": {
+        "channel_id": null,
+        "present": false,
+        "shape": {
+          "length": 0,
+          "looks_like_channel_id": false,
+          "valid_prefix": false
+        }
+      },
+      "route": "chief_of_staff_digest",
+      "would_post": false
+    },
+    "errors": {
+      "channel_id": {
+        "channel_id": null,
+        "present": false,
+        "shape": {
+          "length": 0,
+          "looks_like_channel_id": false,
+          "valid_prefix": false
+        }
+      },
+      "configured": false,
+      "fallback_env_vars": [],
+      "preferred_env_var": "SLACK_CHANNEL_ERRORS",
+      "resolved_channel_id": {
+        "channel_id": null,
+        "present": false,
+        "shape": {
+          "length": 0,
+          "looks_like_channel_id": false,
+          "valid_prefix": false
+        }
+      },
+      "route": "errors",
+      "would_post": false
+    },
+    "hot_leads": {
+      "channel_id": {
+        "channel_id": null,
+        "present": false,
+        "shape": {
+          "length": 0,
+          "looks_like_channel_id": false,
+          "valid_prefix": false
+        }
+      },
+      "configured": false,
+      "fallback_env_vars": [],
+      "preferred_env_var": "SLACK_CHANNEL_HOT_LEADS",
+      "resolved_channel_id": {
+        "channel_id": null,
+        "present": false,
+        "shape": {
+          "length": 0,
+          "looks_like_channel_id": false,
+          "valid_prefix": false
+        }
+      },
+      "route": "hot_leads",
+      "would_post": false
+    },
+    "instantly_replies": {
+      "channel_id": {
+        "channel_id": null,
+        "present": false,
+        "shape": {
+          "length": 0,
+          "looks_like_channel_id": false,
+          "valid_prefix": false
+        }
+      },
+      "configured": false,
+      "fallback_env_vars": [],
+      "preferred_env_var": "SLACK_CHANNEL_INSTANTLY_REPLIES",
+      "resolved_channel_id": {
+        "channel_id": null,
+        "present": false,
+        "shape": {
+          "length": 0,
+          "looks_like_channel_id": false,
+          "valid_prefix": false
+        }
+      },
+      "route": "instantly_replies",
+      "would_post": false
+    },
+    "lead_runs": {
+      "channel_id": {
+        "channel_id": null,
+        "present": false,
+        "shape": {
+          "length": 0,
+          "looks_like_channel_id": false,
+          "valid_prefix": false
+        }
+      },
+      "configured": false,
+      "fallback_env_vars": [
+        "SLACK_CHANNEL_LEADS"
+      ],
+      "preferred_env_var": "SLACK_CHANNEL_LEAD_RUNS",
+      "resolved_channel_id": {
+        "channel_id": null,
+        "present": false,
+        "shape": {
+          "length": 0,
+          "looks_like_channel_id": false,
+          "valid_prefix": false
+        }
+      },
+      "route": "lead_runs",
+      "would_post": false
+    },
+    "lease_option_inbound": {
+      "channel_id": {
+        "channel_id": null,
+        "present": false,
+        "shape": {
+          "length": 0,
+          "looks_like_channel_id": false,
+          "valid_prefix": false
+        }
+      },
+      "configured": false,
+      "fallback_env_vars": [
+        "SLACK_CHANNEL_INTAKE"
+      ],
+      "preferred_env_var": "SLACK_CHANNEL_LEASE_OPTION_INBOUND",
+      "resolved_channel_id": {
+        "channel_id": null,
+        "present": false,
+        "shape": {
+          "length": 0,
+          "looks_like_channel_id": false,
+          "valid_prefix": false
+        }
+      },
+      "route": "lease_option_inbound",
+      "would_post": false
+    },
+    "sms_calls": {
+      "channel_id": {
+        "channel_id": null,
+        "present": false,
+        "shape": {
+          "length": 0,
+          "looks_like_channel_id": false,
+          "valid_prefix": false
+        }
+      },
+      "configured": false,
+      "fallback_env_vars": [],
+      "preferred_env_var": "SLACK_CHANNEL_SMS_CALLS",
+      "resolved_channel_id": {
+        "channel_id": null,
+        "present": false,
+        "shape": {
+          "length": 0,
+          "looks_like_channel_id": false,
+          "valid_prefix": false
+        }
+      },
+      "route": "sms_calls",
+      "would_post": false
+    }
+  },
+  "sample": {
+    "blocks": [
+      {
+        "text": {
+          "text": "*Daily operator brief separated from Telegram chat.*",
+          "type": "mrkdwn"
+        },
+        "type": "section"
+      },
+      {
+        "elements": [
+          {
+            "text": "Ares | prod | chief_of_staff_digest | sample:readiness",
+            "type": "mrkdwn"
+          }
+        ],
+        "type": "context"
+      }
+    ],
+    "route": "chief_of_staff_digest",
+    "text": "Ares Chief of Staff: reviewed 84 leads; 7 hot, 3 contact-ready, 5 skiptrace candidates."
+  },
+  "selected_route": "chief_of_staff_digest",
+  "would_post": false
+}

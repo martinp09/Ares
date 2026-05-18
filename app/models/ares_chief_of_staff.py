@@ -47,15 +47,25 @@ class AresChiefOfStaffLeadCard(BaseModel):
 class AresChiefOfStaffBrief(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    kind: str = "ares_chief_of_staff_brief_v0"
+    kind: str = "ares_chief_of_staff_brief_v1"
     id: str
     business_id: str
     environment: str
     generated_at: str = Field(default_factory=lambda: utc_now().isoformat())
+    employee_name: str = "Ares Chief of Staff"
+    employee_role: str = "Real-estate lead desk operator"
+    manager_name: str = "Martin"
+    reporting_channel: str = "slack"
+    shift_status: str = "online_read_only"
     input_lead_count: int = 0
     source_summary: dict[str, Any] = Field(default_factory=dict)
+    operational_context: dict[str, Any] = Field(default_factory=dict)
     queue_counts: dict[str, int] = Field(default_factory=dict)
     queues: dict[str, list[AresChiefOfStaffLeadCard]] = Field(default_factory=dict)
+    worklog: list[str] = Field(default_factory=list)
+    priorities: list[str] = Field(default_factory=list)
+    blockers: list[str] = Field(default_factory=list)
+    approval_requests: list[str] = Field(default_factory=list)
     recommended_focus: list[str] = Field(default_factory=list)
     safety_boundaries: list[str] = Field(default_factory=list)
     artifact_path: str | None = None

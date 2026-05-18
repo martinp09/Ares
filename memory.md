@@ -39,7 +39,7 @@
 
 ## Current Direction
 
-- `/opt/ares/worktrees/ares-chief-of-staff-v0` on `feature/ares-chief-of-staff-v0` adds Ares Chief of Staff v0: read-only lead desk scoring/bucketing, hot/contact-ready/research/skiptrace/blocked queues, Markdown/JSON/CSV artifacts, and opt-in Slack route `chief_of_staff_digest` via `SLACK_CHANNEL_CHIEF_OF_STAFF`. It is separate from Telegram and performs no seller outreach, paid skiptrace, Instantly enrollment, HubSpot/provider writes, SMS/email/Vapi sends, or buyer blasts. QC: `docs/qc/2026-05-18/ares-chief-of-staff-v0/`.
+- `/opt/ares/worktrees/ares-chief-of-staff-v0` on `feature/ares-chief-of-staff-v0` adds Ares Chief of Staff v1: read-only lead desk scoring/bucketing, hot/contact-ready/research/skiptrace/blocked queues, Markdown/JSON/CSV artifacts, opt-in Slack route `chief_of_staff_digest` via `SLACK_CHANNEL_CHIEF_OF_STAFF`, employee-style worklog/priorities/blockers/approval requests, read-only lead-machine health/latest-brief context, and PII-redacted Slack text/blocks/payload. It is separate from Telegram and performs no seller outreach, paid skiptrace, Instantly enrollment, HubSpot/provider writes, SMS/email/Vapi sends, live county/source pulls, or buyer blasts. QC: `docs/qc/2026-05-18/ares-chief-of-staff-v1-employee-reporting/`.
 
 - `/opt/ares/worktrees/ares-main` on `main` includes the TextGrid SMS reply-agent implementation and `/opt/ares/Ares` is deployed from `61f18de` (runtime rebuild commit; later docs commits may be newer); the VPS runtime exposes signed TextGrid webhook ingest, protected pending-job processing, Mission Control review/operator actions, and Supabase SMS-agent persistence tables. Source docs: `docs/superpowers/specs/2026-05-16-textgrid-sms-reply-agent-design.md`, `docs/superpowers/plans/2026-05-16-textgrid-sms-reply-agent-implementation-plan.md`, and `docs/mission-control-wiki/concepts/textgrid-sms-reply-agent.md`.
 - TextGrid SMS reply-agent runtime state: extend the existing `/sms-agent` scaffold rather than create a parallel SMS runtime; webhook ingest queues jobs and returns immediately; protected processing drafts/blocks replies; Trigger.dev SMS processor schedule is promoted and live; Supabase remains the hot operational source of truth; Obsidian/JSONL is a redacted cold archive/eval corpus, not live source of truth; automatic replies remain disabled until both global provider sends and `SMS_AGENT_AUTO_REPLIES_ENABLED` are explicitly approved.
@@ -254,6 +254,13 @@
 - `TasksRepository` now treats `lead_machine_backend=supabase` as a Supabase-backed task path so title-packet review tasks persist with lead-machine records.
 
 ## Change Log
+
+### 2026-05-18 Ares Chief of Staff v1 Employee Reporting
+
+- Continued the Chief of Staff branch into a Slack-first employee-reporting slice: brief contract is `ares_chief_of_staff_brief_v1` with employee identity, worklog, priorities, blockers, approval requests, and operational context.
+- Chief of Staff CLI now attaches the existing `nightly_lead_machine_service` only for read-only latest-brief/probate-health context; it does not call source-pull, create morning briefs, live county adapters, provider bridges, or enrichment runners.
+- Slack report now reads like a check-in to Martin (`What I did`, `What I recommend next`, `Blocked`, `Need your approval`) and redacts lead names, contact details, property addresses, raw case numbers, and raw lead IDs from Slack text/blocks/payload. Detailed records remain in local artifacts only.
+- Verification: focused employee-reporting + Slack/config suite `52 passed`, full backend `1144 passed`, configured artifact-root/source-run-state dry-run check `dry_run_artifacts_created=0` and `dry_run_source_state_created=0`, `git diff --check` passed. QC: `docs/qc/2026-05-18/ares-chief-of-staff-v1-employee-reporting/`. No seller outreach, paid skiptrace, Instantly/HubSpot/provider writes, SMS/email/Vapi sends, live source calls, Slack live posts, Supabase remote migration, VPS deploy, or Telegram delivery.
 
 ### 2026-05-18 Ares Chief of Staff v0
 

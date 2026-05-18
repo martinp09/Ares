@@ -1,0 +1,32 @@
+## Focused Chief of Staff employee-reporting + Slack/config regression tests
+warning: `VIRTUAL_ENV=/usr/local/lib/hermes-agent/venv` does not match the project environment path `.venv` and will be ignored; use `--active` to target the active environment instead
+....................................................                     [100%]
+52 passed in 0.46s
+
+## Full backend tests
+warning: `VIRTUAL_ENV=/usr/local/lib/hermes-agent/venv` does not match the project environment path `.venv` and will be ignored; use `--active` to target the active environment instead
+........................................................................ [  6%]
+........................................................................ [ 12%]
+........................................................................ [ 18%]
+........................................................................ [ 25%]
+........................................................................ [ 31%]
+........................................................................ [ 37%]
+........................................................................ [ 44%]
+........................................................................ [ 50%]
+........................................................................ [ 56%]
+........................................................................ [ 62%]
+........................................................................ [ 69%]
+........................................................................ [ 75%]
+........................................................................ [ 81%]
+........................................................................ [ 88%]
+........................................................................ [ 94%]
+................................................................         [100%]
+1144 passed in 21.44s
+
+## Dry-run configured artifact-root + source-run-state side-effect check
+warning: `VIRTUAL_ENV=/usr/local/lib/hermes-agent/venv` does not match the project environment path `.venv` and will be ignored; use `--active` to target the active environment instead
+dry_run_artifacts_created=0
+dry_run_source_state_created=0
+
+## Diff check
+git_diff_check=passed

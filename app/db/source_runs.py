@@ -171,7 +171,7 @@ class SourceRunsRepository:
     @contextmanager
     def _locked_state(self, *, read_only: bool = False, skip_load: bool = False) -> Iterator[None]:
         with self._lock:
-            with self._file_lock():
+            with self._file_lock(read_only=read_only):
                 if not skip_load:
                     self._load_state_unlocked()
                 yield
@@ -179,8 +179,11 @@ class SourceRunsRepository:
                     self._persist_state_unlocked()
 
     @contextmanager
-    def _file_lock(self) -> Iterator[None]:
+    def _file_lock(self, *, read_only: bool = False) -> Iterator[None]:
         if self._state_path is None:
+            yield
+            return
+        if read_only and not self._state_path.exists():
             yield
             return
 

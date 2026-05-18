@@ -25,6 +25,14 @@ class SlackNotifier(Protocol):
     def notify(self, **kwargs: Any) -> Any: ...
 
 
+class LeadMachineReader(Protocol):
+    def get_latest_morning_brief(self, *, business_id: str, environment: str) -> Any | None: ...
+
+    def get_probate_autopilot_health(self, *, business_id: str, environment: str, max_brief_age_hours: float | None = None) -> Any: ...
+
+    def summarize_morning_brief(self, brief: Any | None) -> Any | None: ...
+
+
 QUEUE_ORDER = (
     AresChiefOfStaffBucket.HOT,
     AresChiefOfStaffBucket.CONTACT_READY,
@@ -51,10 +59,12 @@ class AresChiefOfStaffService:
         settings: Settings | None = None,
         leads_repository: LeadsRepository | None = None,
         slack_notifier: SlackNotifier | None = None,
+        lead_machine_service: LeadMachineReader | None = None,
     ) -> None:
         self.settings = settings or get_settings()
         self.leads_repository = leads_repository or LeadsRepository(settings=self.settings)
         self.slack_notifier = slack_notifier or slack_notification_service
+        self.lead_machine_service = lead_machine_service
 
     def run_digest(
         self,
@@ -108,6 +118,18 @@ class AresChiefOfStaffService:
         limited_queues = {bucket.value: queue_map[bucket.value][:limit] for bucket in QUEUE_ORDER}
         queue_counts = {bucket.value: len(queue_map[bucket.value]) for bucket in QUEUE_ORDER}
         generated_at = utc_now().isoformat()
+        operational_context = self._operational_context(business_id=business_id, environment=environment)
+        recommended_focus = self._recommended_focus(limited_queues)
+        priorities = self._employee_priorities(limited_queues, queue_counts=queue_counts, operational_context=operational_context)
+        blockers = self._employee_blockers(queue_counts=queue_counts, operational_context=operational_context)
+        approval_requests = self._approval_requests(queue_counts)
+        worklog = self._worklog(
+            business_id=business_id,
+            environment=environment,
+            lead_count=len(leads),
+            queue_counts=queue_counts,
+            operational_context=operational_context,
+        )
         brief_id = generate_stable_id(
             "cos_brief",
             business_id,
@@ -121,12 +143,17 @@ class AresChiefOfStaffService:
             generated_at=generated_at,
             input_lead_count=len(leads),
             source_summary=self._source_summary(leads),
+            operational_context=operational_context,
             queue_counts=queue_counts,
             queues=limited_queues,
-            recommended_focus=self._recommended_focus(limited_queues),
+            worklog=worklog,
+            priorities=priorities,
+            blockers=blockers,
+            approval_requests=approval_requests,
+            recommended_focus=recommended_focus,
             safety_boundaries=[
-                "No seller outreach sent by Chief of Staff v0.",
-                "No paid skiptrace credits spent by Chief of Staff v0.",
+                "No seller outreach sent by Chief of Staff v1.",
+                "No paid skiptrace credits spent by Chief of Staff v1.",
                 "No Instantly, HubSpot, SMS, email, Vapi, buyer-blast, or provider mutation performed.",
                 "Hot lead and contact-ready are separate; authority/title blockers prevent contact-ready status.",
             ],
@@ -184,13 +211,26 @@ class AresChiefOfStaffService:
         lines = [
             "# Ares Chief of Staff Brief",
             "",
+            f"- Employee: **{brief.employee_name}** ({brief.employee_role})",
+            f"- Reports to: **{brief.manager_name}** via `{brief.reporting_channel}`",
+            f"- Status: `{brief.shift_status}`",
             f"- Business: `{brief.business_id}`",
             f"- Environment: `{brief.environment}`",
             f"- Generated: `{brief.generated_at}`",
             f"- Leads reviewed: **{brief.input_lead_count}**",
             "",
-            "## Queue Counts",
+            "## Worklog",
         ]
+        lines.extend([f"- {item}" for item in brief.worklog] or ["- No worklog entries generated."])
+        lines.extend(["", "## Priorities"])
+        lines.extend([f"- {item}" for item in brief.priorities] or ["- No priority actions from current data."])
+        lines.extend(["", "## Blockers"])
+        lines.extend([f"- {item}" for item in brief.blockers] or ["- No active blockers from current data."])
+        lines.extend(["", "## Approvals Needed"])
+        lines.extend([f"- {item}" for item in brief.approval_requests] or ["- No new approval request from this report."])
+        lines.extend(["", "## Operational Status"])
+        lines.extend([f"- {item}" for item in self._operational_status_lines(brief.operational_context)])
+        lines.extend(["", "## Queue Counts"])
         for bucket in QUEUE_ORDER:
             lines.append(f"- {bucket.value}: {brief.queue_counts.get(bucket.value, 0)}")
         lines.extend(["", "## Recommended Focus"])
@@ -220,18 +260,35 @@ class AresChiefOfStaffService:
         research = brief.queue_counts.get(AresChiefOfStaffBucket.NEEDS_RESEARCH.value, 0)
         skiptrace = brief.queue_counts.get(AresChiefOfStaffBucket.NEEDS_SKIPTRACE.value, 0)
         blocked = brief.queue_counts.get(AresChiefOfStaffBucket.BLOCKED.value, 0)
+        status_line = self._operational_status_line(brief.operational_context)
         text = (
-            f"Ares Chief of Staff: reviewed {brief.input_lead_count} leads; "
+            f"Ares Chief of Staff checking in for {brief.manager_name}: reviewed {brief.input_lead_count} leads; "
             f"hot {hot}, contact-ready {contact_ready}, research {research}, "
-            f"skiptrace {skiptrace}, blocked {blocked}."
+            f"skiptrace {skiptrace}, blocked {blocked}. {status_line}. No outreach sent."
         )
-        top_lines = self._slack_queue_lines(brief.queues.get(AresChiefOfStaffBucket.CONTACT_READY.value, []), "Ready to contact")
+        top_lines = self._slack_queue_lines(brief.queues.get(AresChiefOfStaffBucket.CONTACT_READY.value, []), "Top contact-ready queue")
         if not top_lines:
-            top_lines = self._slack_queue_lines(brief.queues.get(AresChiefOfStaffBucket.HOT.value, []), "Hot leads")
-        focus = "\n".join(f"• {item}" for item in brief.recommended_focus[:3]) or "• No priority actions from current data."
+            top_lines = self._slack_queue_lines(brief.queues.get(AresChiefOfStaffBucket.HOT.value, []), "Top hot queue")
+        worklog = self._slack_bullets(brief.worklog[:4], fallback="I did not find enough data to create a full worklog yet.")
+        priorities = self._slack_bullets(brief.priorities[:4], fallback="No priority actions from current data.")
+        blockers = self._slack_bullets(brief.blockers[:4], fallback="No active blockers from current data.")
+        approvals = self._slack_bullets(brief.approval_requests[:4], fallback="No new approval request from this report.")
         blocks = [
-            {"type": "section", "text": {"type": "mrkdwn", "text": f"*Ares Chief of Staff — Daily Lead Brief*\n{text}"}},
-            {"type": "section", "text": {"type": "mrkdwn", "text": f"*Recommended focus*\n{focus}"}},
+            {
+                "type": "section",
+                "text": {
+                    "type": "mrkdwn",
+                    "text": (
+                        f"*{brief.employee_name} — Lead Desk Check-in*\n"
+                        f"Morning {brief.manager_name} — I reviewed *{brief.input_lead_count}* leads for "
+                        f"`{brief.business_id}/{brief.environment}`. {status_line}."
+                    ),
+                },
+            },
+            {"type": "section", "text": {"type": "mrkdwn", "text": f"*What I did*\n{worklog}"}},
+            {"type": "section", "text": {"type": "mrkdwn", "text": f"*What I recommend next*\n{priorities}"}},
+            {"type": "section", "text": {"type": "mrkdwn", "text": f"*Blocked / Needs research*\n{blockers}"}},
+            {"type": "section", "text": {"type": "mrkdwn", "text": f"*Need your approval*\n{approvals}"}},
         ]
         if top_lines:
             blocks.append({"type": "section", "text": {"type": "mrkdwn", "text": "\n".join(top_lines[:6])}})
@@ -241,7 +298,7 @@ class AresChiefOfStaffService:
                 "elements": [
                     {
                         "type": "mrkdwn",
-                        "text": "No seller outreach, paid skiptrace, CRM/provider writes, SMS/email/Vapi sends, or buyer blasts were performed.",
+                        "text": "Safety: no seller outreach, paid skiptrace, CRM/provider writes, SMS/email/Vapi sends, buyer blasts, or Telegram delivery were performed.",
                     }
                 ],
             }
@@ -334,6 +391,181 @@ class AresChiefOfStaffService:
             },
         )
 
+    def _operational_context(self, *, business_id: str, environment: str) -> dict[str, Any]:
+        if self.lead_machine_service is None:
+            return {
+                "status": "not_attached",
+                "message": "No lead-machine reader was attached to this Chief of Staff run.",
+            }
+        try:
+            health = self.lead_machine_service.get_probate_autopilot_health(
+                business_id=business_id,
+                environment=environment,
+                max_brief_age_hours=None,
+            )
+            health_data = _model_dump(health)
+            latest = self.lead_machine_service.get_latest_morning_brief(business_id=business_id, environment=environment)
+            latest_summary = self.lead_machine_service.summarize_morning_brief(latest)
+            summary_data = _model_dump(latest_summary) if latest_summary is not None else None
+            return self._safe_operational_context(health_data=health_data, morning_brief=summary_data)
+        except Exception as exc:  # noqa: BLE001 - report read-only context failures without failing the lead brief.
+            return {
+                "status": "unavailable",
+                "read_error": exc.__class__.__name__,
+                "message": "Lead-machine operational context could not be read; lead scoring still completed from current lead records.",
+            }
+
+    def _safe_operational_context(self, *, health_data: dict[str, Any], morning_brief: dict[str, Any] | None) -> dict[str, Any]:
+        backlog = dict(health_data.get("enrichment_backlog") or {})
+        source_quality = dict(health_data.get("source_quality") or {})
+        sla_health = dict(health_data.get("sla_health") or {})
+        operator_actions = [
+            {
+                "priority": str(item.get("priority") or "normal"),
+                "action": str(item.get("action") or "review"),
+                "reason": "Lead-machine requested operator review; see local morning-brief artifacts for exact details.",
+            }
+            for item in list(health_data.get("operator_next_actions") or [])[:5]
+            if isinstance(item, dict)
+        ]
+        latest_brief = None
+        if morning_brief:
+            sections = dict(morning_brief.get("sections") or {})
+            latest_brief = {
+                "id": morning_brief.get("id"),
+                "generated_at": _json_safe(morning_brief.get("generated_at")),
+                "new_record_count": morning_brief.get("new_record_count", 0),
+                "hot_lead_count": morning_brief.get("hot_lead_count", 0),
+                "warm_lead_count": morning_brief.get("warm_lead_count", 0),
+                "blocked_count": morning_brief.get("blocked_count", 0),
+                "approval_required_count": morning_brief.get("approval_required_count", 0),
+                "source_health": _small_dict(sections.get("source_health")),
+                "county_counts": _small_list(sections.get("county_counts"), limit=4),
+                "operator_next_actions": [
+                    {
+                        "priority": str(item.get("priority") or "normal"),
+                        "action": str(item.get("action") or "review"),
+                    }
+                    for item in _small_list(sections.get("operator_next_actions"), limit=5)
+                    if isinstance(item, dict)
+                ],
+            }
+        return {
+            "status": str(health_data.get("status") or "unknown"),
+            "latest_brief_id": health_data.get("latest_brief_id"),
+            "generated_at": _json_safe(health_data.get("generated_at")),
+            "brief_age_hours": health_data.get("brief_age_hours"),
+            "freshness_ok": bool(health_data.get("freshness_ok")),
+            "stale_brief": bool(health_data.get("stale_brief")),
+            "no_send_ok": bool(health_data.get("no_send_ok")),
+            "outbound_allowed": bool(health_data.get("outbound_allowed")),
+            "source_run_count": int(health_data.get("source_run_count") or 0),
+            "warning_count": int(health_data.get("warning_count") or 0),
+            "new_record_count": int(health_data.get("new_record_count") or 0),
+            "anomaly_count": int(health_data.get("anomaly_count") or 0),
+            "operator_next_actions": operator_actions,
+            "sla_health": _small_dict(sla_health),
+            "source_quality": _small_dict(source_quality),
+            "enrichment_backlog": _small_dict(backlog),
+            "latest_morning_brief": latest_brief,
+        }
+
+    def _worklog(
+        self,
+        *,
+        business_id: str,
+        environment: str,
+        lead_count: int,
+        queue_counts: dict[str, int],
+        operational_context: dict[str, Any],
+    ) -> list[str]:
+        items = [
+            f"Reviewed {lead_count} current lead record(s) for {business_id}/{environment}.",
+            "Scored and bucketed leads into hot, contact-ready, research, skiptrace, blocked, watchlist, and pass queues.",
+            "Prepared an operator-only report; I did not contact sellers, spend skiptrace credits, or mutate providers.",
+        ]
+        status = operational_context.get("status")
+        if status and status != "not_attached":
+            items.append(
+                f"Checked lead-machine health: status={status}, source runs={operational_context.get('source_run_count', 0)}, warnings={operational_context.get('warning_count', 0)}."
+            )
+        if queue_counts.get(AresChiefOfStaffBucket.CONTACT_READY.value, 0):
+            items.append("Separated contact-ready leads from hot leads that still need authority/title research.")
+        return items
+
+    def _employee_priorities(
+        self,
+        queues: dict[str, list[AresChiefOfStaffLeadCard]],
+        *,
+        queue_counts: dict[str, int],
+        operational_context: dict[str, Any],
+    ) -> list[str]:
+        priorities = list(self._recommended_focus(queues))
+        for item in list(operational_context.get("operator_next_actions") or [])[:3]:
+            if isinstance(item, dict):
+                action = str(item.get("action") or "review_lead_machine")
+                reason = str(item.get("reason") or "Lead-machine requested operator review.")
+                priorities.append(f"Lead-machine action: {action.replace('_', ' ')} — {reason}")
+        if operational_context.get("stale_brief"):
+            priorities.insert(0, "Repair or rerun the lead-machine source pull before trusting today's pipeline health.")
+        if not priorities and queue_counts.get(AresChiefOfStaffBucket.WATCHLIST.value, 0):
+            priorities.append("Review the watchlist; no contact-ready lead surfaced from current data.")
+        return priorities[:6]
+
+    def _employee_blockers(self, *, queue_counts: dict[str, int], operational_context: dict[str, Any]) -> list[str]:
+        blockers: list[str] = []
+        research = queue_counts.get(AresChiefOfStaffBucket.NEEDS_RESEARCH.value, 0)
+        skiptrace = queue_counts.get(AresChiefOfStaffBucket.NEEDS_SKIPTRACE.value, 0)
+        blocked = queue_counts.get(AresChiefOfStaffBucket.BLOCKED.value, 0)
+        if research:
+            blockers.append(f"{research} lead(s) need authority/title/case-detail research before seller outreach.")
+        if skiptrace:
+            blockers.append(f"{skiptrace} lead(s) lack direct contact info; paid skiptrace requires approval before lookup.")
+        if blocked:
+            blockers.append(f"{blocked} lead(s) are blocked by suppression, missing identity, missing property/contact data, or closed status.")
+        if operational_context.get("status") in {"blocked", "warning", "unavailable", "no_data"}:
+            blockers.append(f"Lead-machine health is {operational_context.get('status')}; check source-run health before relying on new intake velocity.")
+        if operational_context.get("outbound_allowed"):
+            blockers.append("Unexpected outbound_allowed=true in operational health; keep this report read-only until gates are reviewed.")
+        return blockers
+
+    def _approval_requests(self, queue_counts: dict[str, int]) -> list[str]:
+        approvals: list[str] = []
+        contact_ready = queue_counts.get(AresChiefOfStaffBucket.CONTACT_READY.value, 0)
+        skiptrace = queue_counts.get(AresChiefOfStaffBucket.NEEDS_SKIPTRACE.value, 0)
+        research = queue_counts.get(AresChiefOfStaffBucket.NEEDS_RESEARCH.value, 0)
+        if contact_ready:
+            approvals.append(f"Approve exact outreach/campaign copy before I contact {contact_ready} contact-ready lead(s).")
+        if skiptrace:
+            approvals.append(f"Approve paid skiptrace budget and provider before I enrich {skiptrace} lead(s).")
+        if research:
+            approvals.append(f"Approve the title/legal research lane for {research} authority/title-blocked lead(s).")
+        if not approvals:
+            approvals.append("No seller outreach, paid skiptrace, or provider mutation approval requested from this report.")
+        return approvals
+
+    def _operational_status_line(self, operational_context: dict[str, Any]) -> str:
+        status = str(operational_context.get("status") or "not_attached")
+        if status == "not_attached":
+            return "Lead-machine health not attached to this run"
+        if status == "no_data":
+            return "Lead-machine health has no current morning brief"
+        if operational_context.get("stale_brief"):
+            return f"Lead-machine health is stale ({operational_context.get('brief_age_hours')}h old)"
+        return f"Lead-machine health: {status}; no-send OK={operational_context.get('no_send_ok', False)}"
+
+    def _operational_status_lines(self, operational_context: dict[str, Any]) -> list[str]:
+        latest = operational_context.get("latest_morning_brief") or {}
+        return [
+            self._operational_status_line(operational_context),
+            f"Source runs: {operational_context.get('source_run_count', 0)}; new records: {operational_context.get('new_record_count', 0)}; warnings: {operational_context.get('warning_count', 0)}; anomalies: {operational_context.get('anomaly_count', 0)}.",
+            f"Latest brief: {latest.get('id') or operational_context.get('latest_brief_id') or 'none'} generated at {latest.get('generated_at') or operational_context.get('generated_at') or 'unknown'}.",
+        ]
+
+    @staticmethod
+    def _slack_bullets(items: list[str], *, fallback: str) -> str:
+        return "\n".join(f"• {item}" for item in items) if items else f"• {fallback}"
+
     def _source_summary(self, leads: list[LeadRecord]) -> dict[str, Any]:
         source_counts: dict[str, int] = defaultdict(int)
         status_counts: dict[str, int] = defaultdict(int)
@@ -351,7 +583,7 @@ class AresChiefOfStaffService:
         skiptrace = queues.get(AresChiefOfStaffBucket.NEEDS_SKIPTRACE.value, [])
         focus: list[str] = []
         if contact_ready:
-            focus.append(f"Hit {len(contact_ready)} contact-ready lead(s) first; top lead: {contact_ready[0].display_name}.")
+            focus.append(f"Work {len(contact_ready)} contact-ready lead(s) first; use the local artifacts for exact record details.")
         if research:
             focus.append(f"Resolve authority/title research for {len(research)} hot-but-not-ready lead(s).")
         if skiptrace:
@@ -360,19 +592,49 @@ class AresChiefOfStaffService:
             focus.append("No contact-ready lead surfaced; review watchlist and latest lead-machine run health.")
         return focus
 
+    def _slack_safe_operational_context(self, operational_context: dict[str, Any]) -> dict[str, Any]:
+        latest = operational_context.get("latest_morning_brief") or {}
+        return {
+            "status": operational_context.get("status"),
+            "latest_brief_id": operational_context.get("latest_brief_id") or latest.get("id"),
+            "generated_at": operational_context.get("generated_at") or latest.get("generated_at"),
+            "brief_age_hours": operational_context.get("brief_age_hours"),
+            "freshness_ok": operational_context.get("freshness_ok"),
+            "stale_brief": operational_context.get("stale_brief"),
+            "no_send_ok": operational_context.get("no_send_ok"),
+            "outbound_allowed": operational_context.get("outbound_allowed"),
+            "source_run_count": operational_context.get("source_run_count", 0),
+            "warning_count": operational_context.get("warning_count", 0),
+            "new_record_count": operational_context.get("new_record_count", 0),
+            "anomaly_count": operational_context.get("anomaly_count", 0),
+        }
+
     def _slack_payload(self, brief: AresChiefOfStaffBrief) -> dict[str, Any]:
         top_by_queue = {
-            bucket.value: [card.model_dump(mode="json", exclude={"evidence"}) for card in brief.queues.get(bucket.value, [])[:5]]
+            bucket.value: [self._slack_safe_card(card, bucket=bucket.value, index=index) for index, card in enumerate(brief.queues.get(bucket.value, [])[:5], start=1)]
             for bucket in QUEUE_ORDER
         }
         return {
             "kind": brief.kind,
             "brief_id": brief.id,
             "generated_at": brief.generated_at,
+            "employee": {
+                "name": brief.employee_name,
+                "role": brief.employee_role,
+                "manager": brief.manager_name,
+                "reporting_channel": brief.reporting_channel,
+                "shift_status": brief.shift_status,
+            },
             "input_lead_count": brief.input_lead_count,
             "queue_counts": brief.queue_counts,
             "top_by_queue": top_by_queue,
+            "worklog": brief.worklog,
+            "priorities": brief.priorities,
+            "blockers": brief.blockers,
+            "approval_requests": brief.approval_requests,
             "recommended_focus": brief.recommended_focus,
+            "operational_context": self._slack_safe_operational_context(brief.operational_context),
+            "slack_payload_redaction": "lead names, contact details, property addresses, raw case numbers, and raw lead IDs omitted",
             "safety": {
                 "seller_outreach_sent": False,
                 "paid_skiptrace_spent": False,
@@ -381,13 +643,32 @@ class AresChiefOfStaffService:
             },
         }
 
+    @staticmethod
+    def _slack_safe_card(card: AresChiefOfStaffLeadCard, *, bucket: str, index: int) -> dict[str, Any]:
+        return {
+            "lead_ref": f"COS-{bucket.replace('_', '-').upper()}-{index}",
+            "bucket": bucket,
+            "score": card.score,
+            "county": card.county,
+            "source": card.source,
+            "primary_lane": card.primary_lane,
+            "contact_ready": card.contact_ready,
+            "has_direct_contact": card.has_phone or card.has_email,
+            "has_mailing_address": card.has_mailing_address,
+            "approval_required": card.approval_required,
+            "next_action": card.next_action,
+            "reason_count": len(card.reasons),
+            "blocker_count": len(card.blockers),
+        }
+
     def _slack_queue_lines(self, cards: list[AresChiefOfStaffLeadCard], label: str) -> list[str]:
         if not cards:
             return []
-        lines = [f"*{label}*"]
+        lines = [f"*{label}* — anonymized refs; use artifacts for full lead details."]
         for index, card in enumerate(cards[:5], start=1):
-            property_text = f" — {card.property_address}" if card.property_address else ""
-            lines.append(f"{index}. {card.display_name}{property_text} — score {card.score:.0f} — {card.next_action}")
+            ref = f"COS-{label.split()[1].upper() if len(label.split()) > 1 else 'LEAD'}-{index}"
+            county = f" — {card.county}" if card.county else ""
+            lines.append(f"{index}. `{ref}`{county} — score {card.score:.0f} — {card.primary_lane} — {card.next_action}")
         return lines
 
     @staticmethod
@@ -646,6 +927,49 @@ class AresChiefOfStaffService:
             if bucket in tags:
                 return bucket
         return AresChiefOfStaffBucket.WATCHLIST
+
+
+def _model_dump(value: Any) -> dict[str, Any]:
+    if value is None:
+        return {}
+    if hasattr(value, "model_dump"):
+        dumped = value.model_dump(mode="json")
+        return dict(dumped) if isinstance(dumped, dict) else {}
+    if isinstance(value, dict):
+        return dict(value)
+    return {}
+
+
+def _json_safe(value: Any) -> Any:
+    if hasattr(value, "isoformat"):
+        return value.isoformat()
+    if isinstance(value, dict):
+        return {str(key): _json_safe(item) for key, item in value.items()}
+    if isinstance(value, list):
+        return [_json_safe(item) for item in value]
+    if isinstance(value, (str, int, float, bool)) or value is None:
+        return value
+    return str(value)
+
+
+def _small_dict(value: Any, *, limit: int = 12) -> dict[str, Any]:
+    if not isinstance(value, dict):
+        return {}
+    safe: dict[str, Any] = {}
+    for key, item in list(value.items())[:limit]:
+        if isinstance(item, dict):
+            safe[str(key)] = _small_dict(item, limit=limit)
+        elif isinstance(item, list):
+            safe[str(key)] = _small_list(item, limit=5)
+        else:
+            safe[str(key)] = _json_safe(item)
+    return safe
+
+
+def _small_list(value: Any, *, limit: int = 5) -> list[Any]:
+    if not isinstance(value, list):
+        return []
+    return [_small_dict(item) if isinstance(item, dict) else _json_safe(item) for item in value[:limit]]
 
 
 def _nested_lookup(data: dict[str, Any], key: str) -> Any:
