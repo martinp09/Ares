@@ -1,0 +1,8 @@
+$ python3 -m json.tool docs/qc/2026-05-18/email-marketing-herrington-browne-prep/verification-results-sanitized.json >/tmp/verification-results-sanitized.valid
+$ python3 -m json.tool docs/marketing/exports/email-marketing-herrington-browne-2026-05-18/cold-email-campaigns.json >/tmp/cold-email-campaigns.valid
+$ python3 - <<PY (parse sequence CSV)
+sequence_rows 4
+campaign_names ['Ares | Curative Title Soft Finder | 2026-05-18']
+$ python3 - <<PY (repo PII grep guard)
+raw_email_repo_leaks 0
+$ git diff --check

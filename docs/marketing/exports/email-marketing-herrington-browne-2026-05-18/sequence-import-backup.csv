@@ -1,0 +1,42 @@
+campaign_name,sequence_type,step,day,subject_a,subject_b,body
+Ares | Curative Title Soft Finder | 2026-05-18,active,1,1,quick question on an old property file,right person for this?,"Hi {{first_name}},
+
+I’m trying to get pointed to the right person on an older {{county_label}} property/paperwork matter connected to the {{family_or_file_name}} name.
+
+I may not have the right person, so I wanted to ask plainly: are you someone who would know who handles old property paperwork for that family/property, or is there someone else I should contact?
+
+No pressure either way — if I’m off base, just reply “wrong person” and I’ll close my notes.
+
+Thanks,
+Martin
+Limitless Home Solution"
+Ares | Curative Title Soft Finder | 2026-05-18,active,2,4,right person for the paperwork?,paperwork question,"Hi {{first_name}},
+
+Just wanted to follow up once.
+
+I’m not assuming you’re the decision-maker on anything. I’m mainly trying to avoid bothering the wrong person while I sort out who would know about an older {{county_label}} property/paperwork file tied to the {{family_or_file_name}} name.
+
+If there’s someone better to ask, a name or direction would help. If not, no problem — I can close this out.
+
+Thanks,
+Martin"
+Ares | Curative Title Soft Finder | 2026-05-18,active,3,8,not asking you to solve it,no need to have everything figured out,"Hi {{first_name}},
+
+To be clear, I’m not asking you to sort through paperwork or make any decision.
+
+I’m just trying to figure out whether there’s a practical person to speak with about an older property file, or whether I should stop trying this route.
+
+A simple “wrong person,” “already handled,” or “try ___” is enough.
+
+Thanks,
+Martin"
+Ares | Curative Title Soft Finder | 2026-05-18,active,4,14,should I close my notes?,close the loop?,"Hi {{first_name}},
+
+Last note from me.
+
+Should I close my notes on this older {{family_or_file_name}} / {{county_label}} property paperwork question, or is there someone else I should contact?
+
+Either answer is fine. If I’m off base, I won’t keep following up.
+
+Thanks,
+Martin"

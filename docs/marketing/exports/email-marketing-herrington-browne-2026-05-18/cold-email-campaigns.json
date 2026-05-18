@@ -1,0 +1,67 @@
+{
+  "platform_target": "instantly",
+  "send_state": "draft_backup_only_not_uploaded_not_activated_no_sends",
+  "campaign_name": "Ares | Curative Title Soft Finder | 2026-05-18",
+  "sender": "martin@limitlesshomesolution.com",
+  "global_settings": {
+    "stop_on_reply": true,
+    "open_tracking": false,
+    "link_tracking": false,
+    "text_only": true,
+    "first_email_text_only": true,
+    "timezone": "America/Chicago",
+    "mailbox_global_daily_cap": "2-3/day total while warming"
+  },
+  "variables": [
+    "first_name",
+    "family_or_file_name",
+    "county_label",
+    "paperwork_context_short",
+    "wrong_person_offramp"
+  ],
+  "safety": [
+    "no lead upload",
+    "no campaign activation",
+    "no seller email send",
+    "exact contact approval required before enrollment"
+  ],
+  "sequence_steps": [
+    {
+      "step": 1,
+      "day": 1,
+      "subject_variants": [
+        "quick question on an old property file",
+        "right person for this?",
+        "old property paperwork"
+      ],
+      "body": "Hi {{first_name}},\n\nI’m trying to get pointed to the right person on an older {{county_label}} property/paperwork matter connected to the {{family_or_file_name}} name.\n\nI may not have the right person, so I wanted to ask plainly: are you someone who would know who handles old property paperwork for that family/property, or is there someone else I should contact?\n\nNo pressure either way — if I’m off base, just reply “wrong person” and I’ll close my notes.\n\nThanks,\nMartin\nLimitless Home Solution"
+    },
+    {
+      "step": 2,
+      "day": 4,
+      "subject_variants": [
+        "right person for the paperwork?",
+        "paperwork question"
+      ],
+      "body": "Hi {{first_name}},\n\nJust wanted to follow up once.\n\nI’m not assuming you’re the decision-maker on anything. I’m mainly trying to avoid bothering the wrong person while I sort out who would know about an older {{county_label}} property/paperwork file tied to the {{family_or_file_name}} name.\n\nIf there’s someone better to ask, a name or direction would help. If not, no problem — I can close this out.\n\nThanks,\nMartin"
+    },
+    {
+      "step": 3,
+      "day": 8,
+      "subject_variants": [
+        "not asking you to solve it",
+        "no need to have everything figured out"
+      ],
+      "body": "Hi {{first_name}},\n\nTo be clear, I’m not asking you to sort through paperwork or make any decision.\n\nI’m just trying to figure out whether there’s a practical person to speak with about an older property file, or whether I should stop trying this route.\n\nA simple “wrong person,” “already handled,” or “try ___” is enough.\n\nThanks,\nMartin"
+    },
+    {
+      "step": 4,
+      "day": 14,
+      "subject_variants": [
+        "should I close my notes?",
+        "close the loop?"
+      ],
+      "body": "Hi {{first_name}},\n\nLast note from me.\n\nShould I close my notes on this older {{family_or_file_name}} / {{county_label}} property paperwork question, or is there someone else I should contact?\n\nEither answer is fine. If I’m off base, I won’t keep following up.\n\nThanks,\nMartin"
+    }
+  ]
+}
